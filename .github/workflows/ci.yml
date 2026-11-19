@@ -14,6 +14,12 @@ jobs:
     name: Backend CI (Typecheck & Multi-Engine Tests)
     runs-on: ubuntu-latest
 
+    env:
+      CI_MIGRATOR_PASS: migrator_ci_secure_pass_2026
+      CI_ADMIN_PASS: admin_role_ci_secure_pass_2026
+      CI_ARCHIVE_PASS: archive_role_ci_secure_pass_2026
+      CI_ATTESTATION_PASS: attestation_role_ci_secure_pass_2026
+
     services:
       postgres:
         image: postgres:16
@@ -65,12 +71,17 @@ jobs:
         env:
           PGPASSWORD: ci_test_password_secure_2026
         run: |
-          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/bootstrap_roles.sql
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -v migrator_password="$CI_MIGRATOR_PASS" \
+            -v admin_password="$CI_ADMIN_PASS" \
+            -v archive_password="$CI_ARCHIVE_PASS" \
+            -v attestation_password="$CI_ATTESTATION_PASS" \
+            -f drizzle/bootstrap_roles.sql
 
       - name: Apply AUTH-001 Migrations as parental_migrator (Section 8.6)
         working-directory: backend
         env:
-          PGPASSWORD: migrator_secure_pass_2026
+          PGPASSWORD: ${{ env.CI_MIGRATOR_PASS }}
         run: |
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
@@ -89,6 +100,9 @@ jobs:
           DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
           AUTH001_TEST_DATABASE_NAME: auth001_ci_disposable_test
           AUTH001_TEST_DATABASE_PORT: "5432"
+          AUTH001_ADMIN_ROLE_PASSWORD: ${{ env.CI_ADMIN_PASS }}
+          AUTH001_ARCHIVE_ROLE_PASSWORD: ${{ env.CI_ARCHIVE_PASS }}
+          AUTH001_ATTESTATION_ROLE_PASSWORD: ${{ env.CI_ATTESTATION_PASS }}
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
         run: npm run test:real-pg
