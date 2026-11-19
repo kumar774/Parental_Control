@@ -6,6 +6,7 @@ import type {
   RegenerateRecoveryResponse,
   ChangePasswordResponse,
   GenericSuccessResponse,
+  ActiveSession,
 } from '../types/admin-auth';
 
 export class AdminApiError extends Error {
@@ -205,6 +206,24 @@ export const adminApi = {
     return request<ChangePasswordResponse>('/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  /**
+   * Fetches all active sessions for the authenticated administrator
+   */
+  async getSessions(): Promise<ActiveSession[]> {
+    return request<ActiveSession[]>('/sessions', {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Revokes a specific active session by ID
+   */
+  async revokeSession(sessionId: string): Promise<GenericSuccessResponse> {
+    return request<GenericSuccessResponse>(`/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
     });
   },
 };

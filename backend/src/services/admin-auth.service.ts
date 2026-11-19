@@ -1278,6 +1278,8 @@ export interface ActiveSessionView {
   userAgent: string;
   lastActiveAt: Date;
   expiresAt: Date;
+  createdAt: Date;
+  idleExpiresAt: Date;
   isCurrentSession: boolean;
 }
 
@@ -1305,6 +1307,8 @@ export async function getActiveSessions(
     userAgent: s.userAgent,
     lastActiveAt: s.lastActiveAt,
     expiresAt: s.expiresAt,
+    createdAt: s.createdAt,
+    idleExpiresAt: s.idleExpiresAt,
     isCurrentSession: s.sessionTokenHash === currentTokenHash,
   }));
 }
