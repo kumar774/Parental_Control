@@ -17,7 +17,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   const adminEmail = 'hybrid-dashboard-admin@example.test';
   const parentEmail = 'hybrid-dashboard-parent@example.test';
   const app = buildApp();
-  let readyApp: Awaited<typeof app>;
+  let readyApp: Awaited<typeof app> | undefined;
 
   before(async () => {
     readyApp = await app;
@@ -74,7 +74,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   });
 
   it('rejects unauthenticated access', async () => {
-    const response = await readyApp.inject({ method: 'GET', url: '/api/v1/admin/dashboard/overview' });
+    const response = await readyApp!.inject({ method: 'GET', url: '/api/v1/admin/dashboard/overview' });
     assert.equal(response.statusCode, 401);
   });
 
@@ -132,12 +132,12 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   });
 
   it('rejects invalid pagination and malformed resource identifiers', async () => {
-    const badPage = await readyApp.inject({
+    const badPage = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/parents?page=0',
       headers: { cookie: `admin_session=${sessionToken}` },
     });
-    const badId = await readyApp.inject({
+    const badId = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/parents/not-a-uuid',
       headers: { cookie: `admin_session=${sessionToken}` },
