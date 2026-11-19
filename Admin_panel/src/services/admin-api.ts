@@ -24,10 +24,46 @@ export class AdminApiError extends Error {
 }
 
 const BASE_URL = '/api/v1/admin/auth';
+const DASHBOARD_BASE_URL = '/api/v1/admin/dashboard';
+
+export interface DashboardOverview {
+  generatedAt: string;
+  parents: { total: number; active: number; suspended: number };
+  devices: { total: number; recentlySeen: number; locked: number };
+  freshnessWindowSeconds: number;
+}
+
+export interface DashboardParent {
+  id: string;
+  email: string;
+  phone: string | null;
+  status: 'active' | 'suspended';
+  createdAt: string;
+}
+
+export interface DashboardDevice {
+  id: string;
+  parentId: string;
+  parentEmail: string;
+  childName: string;
+  childAvatarId: number | null;
+  deviceModel: string | null;
+  osVersion: string | null;
+  appVersion: string | null;
+  isLocked: boolean;
+  batteryPct: number | null;
+  isCharging: boolean;
+  accessibilityHealthy: boolean;
+  deviceAdminActive: boolean;
+  knoxActive: boolean;
+  lastSeenAt: string | null;
+}
+
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  baseUrl = BASE_URL
 ): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
   const headers = new Headers(options.headers || {});
@@ -45,7 +81,7 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     method,
     headers,
@@ -159,6 +195,29 @@ export const adminApi = {
     });
   },
 
+  /** Read-only hybrid control-plane data. Requires an authenticated Super Admin session. */
+  async getDashboardOverview(): Promise<DashboardOverview> {
+    return request<DashboardOverview>('/overview', { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
+
+  async getParents(params: { page?: number; pageSize?: number; search?: string; status?: 'active' | 'suspended' } = {}): Promise<{ items: DashboardParent[]; page: number; pageSize: number; total: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.search) query.set('search', params.search);
+    if (params.status) query.set('status', params.status);
+    return request('/parents?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
+
+  async getDevices(params: { page?: number; pageSize?: number; search?: string; parentId?: string; connection?: 'recent' | 'stale' } = {}): Promise<{ items: DashboardDevice[]; page: number; pageSize: number; total: number; freshnessWindowSeconds: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.search) query.set('search', params.search);
+    if (params.parentId) query.set('parentId', params.parentId);
+    if (params.connection) query.set('connection', params.connection);
+    return request('/devices?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
   /**
    * Revokes current session
    */
