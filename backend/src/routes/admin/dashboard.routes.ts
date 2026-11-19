@@ -6,7 +6,7 @@ import { parentUsers, childDevices } from '../../db/schema/parental-control';
 import { requireAdminSession } from '../../middleware/admin-session.guard';
 
 const listQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).max(100000).default(1),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
   search: z.string().trim().max(120).optional(),
   status: z.enum(['active', 'suspended']).optional(),
@@ -86,7 +86,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       })
       .from(parentUsers)
       .where(where)
-      .orderBy(desc(parentUsers.createdAt))
+      .orderBy(desc(parentUsers.createdAt), desc(parentUsers.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
@@ -119,7 +119,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
   });
 
   app.get('/devices', async (request, reply) => {
-    const parsed = listQuerySchema.extend({
+    const parsed = listQuerySchema.omit({ status: true }).extend({
       parentId: z.string().uuid().optional(),
       connection: z.enum(['recent', 'stale']).optional(),
     }).safeParse(request.query);
@@ -155,7 +155,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .from(childDevices)
       .innerJoin(parentUsers, eq(childDevices.parentId, parentUsers.id))
       .where(where)
-      .orderBy(desc(childDevices.lastSeenAt))
+      .orderBy(sql`${childDevices.lastSeenAt} DESC NULLS LAST`)
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
