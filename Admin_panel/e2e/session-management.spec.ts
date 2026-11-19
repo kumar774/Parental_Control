@@ -259,6 +259,43 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
     await expect(page.getByText('127.0.0.1').first()).toBeVisible();
   });
 
+  test('Accessibility: Tab focus stays inside the dialog and returns to the Revoke trigger', async ({ page }) => {
+    await page.route('**/api/v1/admin/auth/sessions', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([currentSession, remoteSession]),
+      });
+    });
+
+    await page.goto('/');
+    const revokeButton = page.getByRole('button', { name: /^Revoke$/i }).first();
+    await revokeButton.click();
+
+    const dialog = page.getByRole('dialog');
+    const closeButton = dialog.getByRole('button', { name: 'Close dialog' });
+    const cancelButton = dialog.getByRole('button', { name: 'Cancel' });
+    const confirmButton = dialog.getByRole('button', { name: /Confirm Revocation/i });
+
+    // Opening the dialog focuses the safe Cancel action.
+    await expect(cancelButton).toBeFocused();
+
+    // Shift+Tab from Cancel reaches Close; another Shift+Tab wraps to Confirm.
+    await page.keyboard.press('Shift+Tab');
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(confirmButton).toBeFocused();
+
+    // Tab from the final action wraps to the first focusable action.
+    await page.keyboard.press('Tab');
+    await expect(closeButton).toBeFocused();
+
+    // Closing the dialog restores focus to the exact Revoke trigger.
+    await closeButton.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(revokeButton).toBeFocused();
+  });
+
   test('Scenario 7: Failed DELETE displays error in modal and does not falsely report success', async ({
     page,
   }) => {
