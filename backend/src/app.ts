@@ -5,6 +5,7 @@ import cookie from '@fastify/cookie';
 import { env } from './config/env';
 import { pool } from './db/index';
 import { adminAuthRoutes } from './routes/admin/auth.routes';
+import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
 import { isAllowedOrigin } from './middleware/admin-session.guard';
 
 export async function buildApp() {
@@ -46,6 +47,7 @@ export async function buildApp() {
 
   // Administrative Authentication Routes
   await app.register(adminAuthRoutes, { prefix: '/api/v1/admin/auth' });
+  await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin/dashboard' });
 
   // Base Health Check Probe
   app.get('/health', async (_request, reply) => {
