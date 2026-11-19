@@ -3,6 +3,7 @@ import { Shield, FileCheck, CheckCircle2, Lock, Key, Server, RefreshCw } from 'l
 import { useAdminAuthStore } from '../store/admin-auth.store';
 import { adminApi } from '../services/admin-api';
 import { SessionManagementPanel } from '../components/SessionManagementPanel';
+import { ParentDeviceManagementPanel } from '../components/ParentDeviceManagementPanel';
 
 interface AdminDashboardProps {
   onOpenRegenerateRecovery: () => void;
@@ -286,6 +287,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
       </div>
 
       {/* Active Sessions & Device Management Panel */}
+      <ParentDeviceManagementPanel />
+
       <SessionManagementPanel />
     </div>
   );
