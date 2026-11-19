@@ -76,7 +76,7 @@ Status classification:
 | **11. CLI Provisioning & Emergency Management (Section 6.A)**<br>`provision`, `reset-password`, `reset-mfa`, `clear-cooldown` with audit logging and caller UID capture. | Implemented in `backend/bin/admin-cli.ts`. | N/A (CLI tool for system administrators) | CLI verified with TypeScript compiler; imports production db, crypto vault, and audit logger. | **COMPLETE** |
 | **12. WORM Audit Logging & Pruning Security (Section 8.6)**<br>Append-only audit logs, immutable records, `prune_archived_audit_logs` SECURITY DEFINER with hardened `search_path`, 90-day retention lock, verified manifest checksum binding. | Implemented in `0001_audit_prune_function.sql` and `admin-auth.service.ts` (`logAuditEvent`). | Dashboard displays Audit & Pruning compliance status. | `real-audit-and-security.test.ts` (Stored procedure execution, checksum mismatch rejection, 90-day rollback guarantee); `real-role-permissions.test.ts` (Least-privilege role catalog grants & 42501 rejections). | **COMPLETE** |
 | **13. Frontend Zero-Storage In-Memory Security (Section 8.4)**<br>Zero tokens in `localStorage` or `sessionStorage`. All auth tokens kept in memory; destroyed on tab close or session expiration. | Implemented in `admin-session.guard.ts` (opaque `HttpOnly` cookie). | Implemented in `Admin_panel/src/store/admin-auth.store.ts` using vanilla in-memory Zustand store (no `persist` middleware). | `admin-auth-frontend.test.ts` (Tests 1-4: verifies state initialization, in-memory updates, and total memory purge on logout). | **COMPLETE** |
-| **14. Selective Session Management UI (Section 5, Endpoints 10 & 11)**<br>UI table displaying all active sessions (IP, user agent, login time, idle expiry) with button to revoke specific sessions. | Backend endpoints `GET /sessions` and `DELETE /sessions/:id` fully implemented and enriched with creation and idle expiry timestamps. | Fully implemented via `SessionManagementPanel.tsx` integrated into `AdminDashboard.tsx`. Displays device, OS, IP, creation time, last active, and expiry; highlights current session; protects current session from accidental revocation; asks confirmation before revoking remote sessions; refreshes list automatically; implements full WAI-ARIA accessible modal dialog. | `admin-sessions-ui.test.ts` (16 unit/component tests); `session-management.spec.ts` (8 genuine Playwright browser E2E tests verifying live rendering, device parsing, modal accessibility, keyboard focus trap/Escape, DELETE request payload & CSRF injection, and error recovery). | **COMPLETE** |
+| **14. Selective Session Management UI (Section 5, Endpoints 10 & 11)**<br>UI table displaying all active sessions (IP, user agent, login time, idle expiry) with button to revoke specific sessions. | Backend endpoints `GET /sessions` and `DELETE /sessions/:id` fully implemented and enriched with creation and idle expiry timestamps. | Fully implemented via `SessionManagementPanel.tsx` integrated into `AdminDashboard.tsx`. Displays device, OS, IP, creation time, last active, and expiry; highlights current session; protects current session from accidental revocation; asks confirmation before revoking remote sessions; refreshes list automatically; implements full WAI-ARIA accessible modal dialog. | `admin-sessions-ui.test.ts` (16 unit/component tests); `session-management.spec.ts` (9 Playwright browser E2E tests verifying live rendering, device parsing, modal accessibility, Escape dismissal, Tab/Shift+Tab focus wrapping and focus restoration, CSRF header injection, and error recovery). | **COMPLETE** |
 | **15. Real PostgreSQL Integration Harness (Section 11.4)**<br>Independent test suite executing directly against real PostgreSQL without pg-mem fallback. | Standalone harness in `tests/integration/real-postgres/real-postgres-harness.ts` with loopback check, role connection factory (`getVerifiedRoleConnection`), exact port & db verification, and zero fallback. | N/A (Integration testing infrastructure) | `npm run test:real-pg` passes **55/55 tests** across all 5 genuine PostgreSQL suites. | **COMPLETE** |
 | **16. Migration Safety Configuration (Section 3)**<br>`drizzle.config.ts` must require explicit `DATABASE_URL` and have no hardcoded fallback to real databases. | `backend/drizzle.config.ts` enforces explicit `DATABASE_URL` check for CLI commands and throws if absent. | N/A | Drizzle config inspected and verified; zero implicit database fallbacks. | **COMPLETE** |
 | **17. Automated CI Integration (Section 11)**<br>CI runs backend typecheck, cryptographic unit tests, pg-mem mock tests, Section 8.6 non-superuser migrations, real PostgreSQL tests against container, and full frontend CI. | `.github/workflows/ci.yml` contains sequential multi-engine validation with Postgres 16 container, parameterized bootstrap passwords, role permission assertions, and fail-fast assertions. | Frontend CI steps present and passing. | Tested in CI workflow configuration and verified locally. | **COMPLETE** |
@@ -178,14 +178,14 @@ Cryptographic Unit Tests (npm test)             :  19 passed, 0 failed (100%)
 --------------------------------------------------------------------------------
 Total Backend Tests Verified                    :  97 passed, 0 failed (100%)
 Frontend Unit & Component Tests (npm test)      :  26 passed, 0 failed (100%)
-Playwright E2E Browser Tests (npm run test:e2e) :   8 passed, 0 failed (100%)
+Playwright E2E Browser Tests (npm run test:e2e) :   9 passed, 0 failed (100%)
 --------------------------------------------------------------------------------
-Grand Total Test Suite                          : 131 passed, 0 failed (100%)
+Grand Total Test Suite                          : 132 passed, 0 failed (100%)
 ================================================================================
 Backend TypeScript Compilation (tsc --noEmit)   :   0 errors
 Frontend TypeScript Compilation (tsc --noEmit)  :   0 errors
 Frontend Production Build (vite build)          :   Successful (dist/ generated)
-Playwright E2E Browser Suite (Chromium)         :   8 passed across 8 scenarios
+Playwright E2E Browser Suite (Chromium)         :   9 passed across 9 tests
 Credential Hygiene Static Scan                  :   PASS (0 hardcoded credentials)
 ================================================================================
 ```
@@ -230,7 +230,7 @@ To provide indisputable evidence that multi-step mutations roll back atomically 
 - **Responsive Layout:** Adaptive desktop table (`md:block`) and mobile cards (`md:hidden`) with User-Agent parsing for browser, OS, and device type icons.
 
 ### 6.2 Accessibility & UI Safety (WAI-ARIA & Keyboard Navigation)
-The revocation confirmation dialog implements complete WAI-ARIA modal dialog best practices:
+The revocation confirmation dialog implements modal semantics and keyboard focus management:
 1. **Modal Semantics:** The modal container has `role="dialog"` and `aria-modal="true"`.
 2. **Accessible Labeling:** `aria-labelledby="revoke-dialog-title"` and `aria-describedby="revoke-dialog-desc"` link screen-reader descriptions directly to dialog headings and advisory text.
 3. **Focus Trapping:** A custom keyboard hook intercepts `Tab` and `Shift+Tab`, constraining focus cycling exclusively inside the modal while open.
@@ -239,11 +239,11 @@ The revocation confirmation dialog implements complete WAI-ARIA modal dialog bes
 6. **Keyboard Escape Dismissal:** Pressing `Escape` cancels the dialog immediately without making any API call.
 
 ### 6.3 Genuine Browser E2E Test Suite (Playwright)
-Eight automated end-to-end browser tests in `Admin_panel/e2e/session-management.spec.ts` execute directly in headless Chromium against the live Vite application with network route mocking:
+Nine automated end-to-end browser tests in `Admin_panel/e2e/session-management.spec.ts` execute in headless Chromium against the live Vite application with network route mocking:
 - **Scenario 1, 2 & 3:** Panel rendering, device/OS parsing (Windows/Chrome, macOS/Safari), IP address display, current session badge, and `This Device` button disabled state.
 - **Scenario 4 & 5:** Clicking Revoke opens accessible confirmation dialog; clicking Cancel aborts with 0 `DELETE` requests.
-- **Accessibility:** Escape key cancels confirmation dialog cleanly with 0 `DELETE` requests.
-- **Scenario 6:** Clicking Confirm Revocation sends `DELETE /api/v1/admin/auth/sessions/:id` with `credentials: 'include'` and `X-CSRF-Token`, displays success alert, re-fetches session list, and removes revoked session from the DOM.
+- **Accessibility:** Escape key cancels confirmation dialog cleanly with 0 `DELETE` requests; a separate browser test verifies initial safe focus, Tab/Shift+Tab wrapping, and focus restoration to the Revoke trigger.
+- **Scenario 6:** Clicking Confirm Revocation sends `DELETE /api/v1/admin/auth/sessions/:id` with the in-memory `X-CSRF-Token`, displays success alert, re-fetches session list, and removes the revoked session from the DOM. The API request helper sets `credentials: 'include'` for all requests.
 - **Scenario 7:** Simulated server error (HTTP 500) on DELETE renders error message inside the dialog, keeps dialog open, and prevents false success notification.
 - **Scenario 8a:** Empty session state renders `No active sessions found`.
 - **Scenario 8b:** Loading state renders loading spinner during fetch.
@@ -255,7 +255,7 @@ Eight automated end-to-end browser tests in `Admin_panel/e2e/session-management.
 
 To maintain strict engineering rigor, this section separates what has been verified as production-ready from operational deployment prerequisites and unresolved infrastructure choices:
 
-### 7.1 Verified Production-Ready Deliverables
+### 7.1 Verified Implementation Deliverables
 - **Core Authentication API:** All 14 administrative endpoints implemented, guarded by Argon2id, AES-256-GCM, TOTP RFC 6238, Fastify cookies, and sliding session policies.
 - **Database Migrations:** Schema migrations `0000_fast_yellow_claw.sql` and `0001_audit_prune_function.sql` execute cleanly under non-superuser role `parental_migrator`.
 - **Least-Privilege Database Roles:** Catalog permissions verified across `parental_admin`, `parental_audit_archive`, and `parental_audit_attestation`. Direct modification of audit logs and unauthorized pruning execution return PostgreSQL error `42501`.
