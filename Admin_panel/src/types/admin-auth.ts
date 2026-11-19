@@ -40,3 +40,14 @@ export interface GenericSuccessResponse {
   message?: string;
   revokedCount?: number;
 }
+
+export interface ActiveSession {
+  id: string;
+  ipAddress: string;
+  userAgent: string;
+  lastActiveAt: string;
+  expiresAt: string;
+  createdAt?: string;
+  idleExpiresAt?: string;
+  isCurrentSession: boolean;
+}

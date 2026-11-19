@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, FileCheck, CheckCircle2, Lock, Key, Server, RefreshCw } from 'lucide-react';
 import { useAdminAuthStore } from '../store/admin-auth.store';
 import { adminApi } from '../services/admin-api';
+import { SessionManagementPanel } from '../components/SessionManagementPanel';
 
 interface AdminDashboardProps {
   onOpenRegenerateRecovery: () => void;
@@ -283,6 +284,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
           </button>
         </div>
       </div>
+
+      {/* Active Sessions & Device Management Panel */}
+      <SessionManagementPanel />
     </div>
   );
 };
