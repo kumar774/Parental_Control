@@ -21,6 +21,7 @@ interface AdminAuthState {
 
   // Actions
   setAuth: (user: AdminUser, csrfToken: string) => void;
+  setCsrfToken: (token: string) => void;
   clearAuth: () => void;
   setChallenge: (challengeToken: string, mode: 'login' | 'setup', mfaType?: string) => void;
   clearChallenge: () => void;
@@ -58,6 +59,11 @@ export const useAdminAuthStore = create<AdminAuthState>((set) => ({
       requiresMfaSetup: false,
       challengeToken: null,
       mfaType: null,
+    }),
+
+  setCsrfToken: (token) =>
+    set({
+      csrfToken: token,
     }),
 
   clearAuth: () =>

@@ -4,6 +4,7 @@ import type {
   AuthSuccessResponse,
   MfaEnrollResponse,
   RegenerateRecoveryResponse,
+  ChangePasswordResponse,
   GenericSuccessResponse,
 } from '../types/admin-auth';
 
@@ -200,8 +201,8 @@ export const adminApi = {
   /**
    * Changes current password while authenticated
    */
-  async changePassword(currentPassword: string, newPassword: string): Promise<AuthSuccessResponse> {
-    return request<AuthSuccessResponse>('/change-password', {
+  async changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResponse> {
+    return request<ChangePasswordResponse>('/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     });

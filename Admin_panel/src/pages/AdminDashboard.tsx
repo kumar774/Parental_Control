@@ -53,8 +53,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
       setChangeError(null);
       setChangeSuccess(null);
       const res = await adminApi.changePassword(currentPassword, newPassword);
-      // Update in-memory CSRF token from response
-      useAdminAuthStore.getState().setAuth(res.user, res.csrfToken);
+      // Update in-memory CSRF token from response while preserving user and session
+      useAdminAuthStore.getState().setCsrfToken(res.csrfToken);
       setChangeSuccess('Password changed successfully. Session was atomically rotated.');
       setCurrentPassword('');
       setNewPassword('');
