@@ -1,99 +1,146 @@
 import { useState, useEffect } from 'react';
-import { Shield, Server, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAdminAuthStore } from './store/admin-auth.store';
+import { adminApi } from './services/admin-api';
+import { AdminHeader } from './components/AdminHeader';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminLogin } from './pages/AdminLogin';
+import { MfaVerifyModal } from './components/MfaVerifyModal';
+import { MfaEnrollmentModal } from './components/MfaEnrollmentModal';
+import { RecoveryCodeModal } from './components/RecoveryCodeModal';
+import { ForgotPasswordModal } from './components/ForgotPasswordModal';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
+import { RegenerateRecoveryModal } from './components/RegenerateRecoveryModal';
+import { Shield, Loader2 } from 'lucide-react';
 
 export function App() {
-  const [backendHealth, setBackendHealth] = useState<{ status: string; db: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    isAuthenticated,
+    isLoading,
+    requiresMfa,
+    requiresMfaSetup,
+    setAuth,
+    clearAuth,
+    clearChallenge,
+    setLoading,
+  } = useAdminAuthStore();
 
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showRegenerateRecovery, setShowRegenerateRecovery] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+
+  // Initial session probe and URL query parameter detection
   useEffect(() => {
-    fetch('http://127.0.0.1:3000/health')
-      .then(res => res.json())
-      .then(data => {
-        setBackendHealth({
-          status: data.status || 'unknown',
-          db: data.components?.database?.status || 'unknown',
-        });
-      })
-      .catch(() => {
-        setBackendHealth({ status: 'offline', db: 'unreachable' });
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    // 1. Detect ?token= in URL for password reset flow
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      setResetToken(token);
+    }
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Top Navbar */}
-      <header className="h-16 border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
-            <Shield className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-white tracking-wide">Parental Control OS</h1>
-            <p className="text-xs text-slate-400">Enterprise Super Admin Control Plane</p>
-          </div>
+    // 2. Probe current session via GET /me
+    const checkSession = async () => {
+      try {
+        setLoading(true);
+        const res = await adminApi.getMe();
+        if (res && res.user && res.csrfToken) {
+          setAuth(res.user, res.csrfToken);
+        } else {
+          clearAuth();
+        }
+      } catch {
+        // Normal 401 or network error when unauthenticated
+        clearAuth();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+  }, [setAuth, clearAuth, setLoading]);
+
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
+          <Shield className="w-6 h-6" />
         </div>
-
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Admin Base Active
-          </span>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <div className="flex-1 p-8 max-w-5xl mx-auto w-full">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white">Foundation Base Verified</h2>
-          <p className="text-sm text-slate-400 mt-1">Clean slate architecture ready for modular feature-by-feature implementation.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card 1: Admin Panel Runtime */}
-          <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-                <Activity className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-white">Admin UI Engine</h3>
-                <p className="text-xs text-slate-400">React 19 + Vite 6 + Tailwind CSS</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Base Bundle Compiled Cleanly (0 Errors)</span>
-            </div>
-          </div>
-
-          {/* Card 2: Backend Probe */}
-          <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-                <Server className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-white">Backend Interop</h3>
-                <p className="text-xs text-slate-400">Fastify REST + Drizzle PostgreSQL</p>
-              </div>
-            </div>
-            {loading ? (
-              <div className="text-sm text-slate-400 p-3 bg-slate-800/40 rounded-lg">Probing backend runtime...</div>
-            ) : backendHealth?.status === 'healthy' ? (
-              <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Backend Online (DB Connected)</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-slate-400 bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
-                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>Backend Daemon Standby (Normal - Not Running)</span>
-              </div>
-            )}
-          </div>
+        <div className="flex items-center gap-2 text-xs font-medium tracking-wide">
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+          <span>Verifying Administrative Session Security...</span>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+      {/* Reset Password Modal (Direct Token or URL trigger) */}
+      {resetToken && (
+        <ResetPasswordModal
+          initialToken={resetToken}
+          onClose={() => {
+            setResetToken(null);
+            // Clean URL query
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }}
+          onSuccess={() => {
+            setResetToken(null);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }}
+        />
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
+
+      {/* Regenerate Recovery Codes Modal (Authenticated) */}
+      {showRegenerateRecovery && (
+        <RegenerateRecoveryModal onClose={() => setShowRegenerateRecovery(false)} />
+      )}
+
+      {/* Authenticated Dashboard View */}
+      {isAuthenticated ? (
+        <div className="min-h-screen flex flex-col">
+          <AdminHeader onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)} />
+          <main className="flex-1">
+            <AdminDashboard onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)} />
+          </main>
+        </div>
+      ) : (
+        /* Unauthenticated Authentication Flow */
+        <div className="min-h-screen flex items-center justify-center">
+          {/* 1. First-Time Mandatory MFA Enrollment Modal */}
+          {requiresMfaSetup && (
+            <MfaEnrollmentModal onCancel={clearChallenge} />
+          )}
+
+          {/* 2. Standard MFA Verification Modal */}
+          {requiresMfa && !useRecoveryCode && (
+            <MfaVerifyModal
+              onSwitchToRecovery={() => setUseRecoveryCode(true)}
+              onCancel={clearChallenge}
+            />
+          )}
+
+          {/* 3. Emergency Recovery Code Modal */}
+          {requiresMfa && useRecoveryCode && (
+            <RecoveryCodeModal
+              onSwitchToTotp={() => setUseRecoveryCode(false)}
+              onCancel={() => {
+                setUseRecoveryCode(false);
+                clearChallenge();
+              }}
+            />
+          )}
+
+          {/* 4. Primary Sign In Page */}
+          <AdminLogin onOpenForgotPassword={() => setShowForgotPassword(true)} />
+        </div>
+      )}
     </div>
   );
 }

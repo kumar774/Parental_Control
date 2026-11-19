@@ -140,16 +140,30 @@ describe('3. Audit Archive & Pruning Security Tests (admin-audit-pruning.test.ts
   }
 
   before(async () => {
+    let usePgMem = false;
     try {
       const client = await pool.connect();
-      await client.query('SELECT 1');
+      const tableCheck = await client.query(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_auth_audit_logs'"
+      );
       client.release();
-      isPostgresConnected = true;
-      console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: CONNECTED (parental_control_db on port 5432).');
+      if (tableCheck.rows.length > 0) {
+        isPostgresConnected = true;
+        console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: CONNECTED (parental_control_admin_db on port 5432 with verified tables).');
+      } else {
+        usePgMem = true;
+        isPostgresConnected = false;
+        console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: CONNECTED but AUTH-001 tables unmigrated.');
+        console.log('[PostgreSQL Gate] Executing integration test suite against pg-mem in-memory mock engine.');
+      }
     } catch (err: any) {
+      usePgMem = true;
       isPostgresConnected = false;
       console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: OFFLINE (' + err.message + ').');
       console.log('[PostgreSQL Gate] Executing integration test suite against pg-mem in-memory mock engine.');
+    }
+
+    if (usePgMem) {
 
       const mem = newDb();
       mem.public.registerFunction({

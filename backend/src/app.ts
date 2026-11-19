@@ -9,7 +9,10 @@ import { isAllowedOrigin } from './middleware/admin-session.guard';
 
 export async function buildApp() {
   const app = Fastify({
-    trustProxy: true,
+    // Trust proxy only from localhost / ingress private network hops (prevents arbitrary client IP spoofing)
+    trustProxy: env.NODE_ENV === 'production'
+      ? ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+      : ['127.0.0.1', '::1'],
     logger: {
       level: env.LOG_LEVEL,
       transport: env.NODE_ENV === 'development' ? {
