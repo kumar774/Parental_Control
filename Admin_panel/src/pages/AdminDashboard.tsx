@@ -184,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
             </div>
           </div>
           <div className="text-xl font-bold text-white font-mono text-sm truncate">
-            {csrfToken ? `${csrfToken.slice(0, 16)}...` : 'Active'}
+            {csrfToken ? 'Session-bound token active' : 'Unavailable'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">256-bit Memory Secret</div>
         </div>
@@ -196,8 +196,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
               <FileCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold text-white">Immutable WORM</div>
-          <div className="text-[11px] text-slate-400 mt-1">90-Day Retention Locked</div>
+          <div className="text-xl font-bold text-white">Admin Auth Audit</div>
+          <div className="text-[11px] text-slate-400 mt-1">Login, MFA and session events</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
