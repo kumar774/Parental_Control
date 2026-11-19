@@ -11,8 +11,24 @@ on:
 
 jobs:
   backend:
-    name: Backend CI (Typecheck & Tests)
+    name: Backend CI (Typecheck & Multi-Engine Tests)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci_test_user
+          POSTGRES_PASSWORD: ci_test_password_secure_2026
+          POSTGRES_DB: auth001_ci_disposable_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,6 +40,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
+      - name: Install PostgreSQL Client Tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Install Backend Dependencies
         working-directory: backend
         run: npm ci
@@ -32,14 +51,30 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
-      - name: Backend Test Suite
+      - name: Run Cryptographic Unit & Mock Tests
         working-directory: backend
         env:
           NODE_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/parental_control_test
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
-        run: npm test
+        run: npm run test
+
+      - name: Apply AUTH-001 Migrations to Ephemeral CI PostgreSQL
+        working-directory: backend
+        env:
+          PGPASSWORD: ci_test_password_secure_2026
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
+
+      - name: Run Genuine PostgreSQL Integration Test Suite (No pg-mem)
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
+          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+        run: npm run test:real-pg
 
   frontend:
     name: Frontend CI (Typecheck, Tests & Build)

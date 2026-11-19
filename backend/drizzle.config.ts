@@ -1,17 +1,22 @@
 import { defineConfig } from 'drizzle-kit';
-import dotenv from 'dotenv';
-import path from 'path';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+const databaseUrl = process.env.DATABASE_URL;
+
+// Enforce migration safety: Require explicit DATABASE_URL for database connection commands.
+// Never provide an implicit fallback to any application or production database.
+if (!databaseUrl && process.argv.some((arg) => ['push', 'migrate', 'studio', 'pull', 'check'].includes(arg))) {
+  throw new Error(
+    '[Drizzle Configuration Error] Explicit DATABASE_URL environment variable is required for database connection commands. Implicit fallback to application/production databases is strictly forbidden.'
+  );
+}
 
 export default defineConfig({
   schema: './src/db/schema/index.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://parental_admin:parental_secure_password_2026@localhost:5432/parental_control_admin_db',
+    url: databaseUrl || '',
   },
   verbose: true,
   strict: true,
 });
-
