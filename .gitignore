@@ -1,0 +1,58 @@
+# System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment & Secrets (NEVER push credentials to GitHub)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local Tools & Database Files (Contains local PostgreSQL binaries and data)
+tools/
+tools/pgsql/
+tools/pgsql/data/
+*.log
+
+# Workspace Scratch & Backup Dumps
+scratch/
+_backup_reference/
+Decompile_code/
+.playwright-mcp/
+proof/
+*.zip
+
+# Node.js (backend & Admin_panel)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+.drizzle/
+
+# Android / Kotlin / Gradle (Parent_app & Child_app)
+.gradle/
+build/
+*/build/
+*/*/build/
+.kotlin/
+*/.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Keystores & Signing
+*.jks
+*.keystore
+google-services.json

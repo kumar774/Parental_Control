@@ -1,0 +1,9 @@
+# Baseline Profiles for Parental Control Parent App
+# Enables <450ms cold launch and 120 FPS buttery smooth scrolling
+HSPLcom/parentalcontrol/parent/MainActivity;-><init>()V
+HSPLcom/parentalcontrol/parent/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/parentalcontrol/parent/ui/theme/ThemeKt;->ParentAppTheme(ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/parentalcontrol/parent/ui/dashboard/DashboardViewModel;-><init>(Lcom/parentalcontrol/core/model/repository/IChildDeviceRepository;Lcom/parentalcontrol/core/model/repository/IRulesRepository;)V
+HSPLcom/parentalcontrol/parent/ui/dashboard/DashboardScreenKt;->DashboardScreen(Lcom/parentalcontrol/parent/ui/dashboard/DashboardViewModel;Landroidx/compose/runtime/Composer;I)V
+HSPLcom/parentalcontrol/core/database/ParentalDatabase;-><init>(Lcom/parentalcontrol/core/database/crypto/KeystorePassphraseProvider;Lcom/parentalcontrol/core/database/mmkv/IMmkvStorage;)V
+HSPLcom/parentalcontrol/core/network/sync/BackendSyncManager;-><init>(Lcom/parentalcontrol/core/network/rest/FastifyRestClient;Lcom/parentalcontrol/core/network/websocket/FastifyWebSocketHubClient;)V

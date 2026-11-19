@@ -1,0 +1,161 @@
+package com.parentalcontrol.core.database
+
+import com.parentalcontrol.core.database.crypto.KeystorePassphraseProvider
+import com.parentalcontrol.core.database.entity.*
+import com.parentalcontrol.core.database.mmkv.FastMmkvStorage
+import com.parentalcontrol.core.database.repository.*
+import com.parentalcontrol.core.model.location.GeofenceZone
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+
+class DatabaseAndLocalStorageUnitTest {
+
+    private lateinit var database: ParentalDatabase
+    private lateinit var childRepo: LocalChildDeviceRepository
+    private lateinit var rulesRepo: LocalRulesRepository
+    private lateinit var locationRepo: LocalLocationRepository
+    private lateinit var authRepo: LocalAuthRepository
+
+    @Before
+    fun setup() {
+        database = ParentalDatabase()
+        childRepo = LocalChildDeviceRepository(database)
+        rulesRepo = LocalRulesRepository(database)
+        locationRepo = LocalLocationRepository(database)
+        authRepo = LocalAuthRepository(database)
+    }
+
+    @Test
+    fun testMmkvFastPathStorageAndPurge() {
+        val mmkv = FastMmkvStorage()
+        assertNull(mmkv.accessToken)
+        assertTrue(mmkv.isDarkMode) // Default Obsidian Frost theme
+
+        mmkv.accessToken = "test_access_jwt_token"
+        mmkv.refreshToken = "test_refresh_jwt_token"
+        mmkv.selectedChildId = "child_123"
+        mmkv.wifiOnlyStreaming = true
+
+        assertEquals("test_access_jwt_token", mmkv.accessToken)
+        assertEquals("test_refresh_jwt_token", mmkv.refreshToken)
+        assertEquals("child_123", mmkv.selectedChildId)
+        assertTrue(mmkv.wifiOnlyStreaming)
+
+        mmkv.clearSession()
+        assertNull(mmkv.accessToken)
+        assertNull(mmkv.refreshToken)
+        assertNull(mmkv.selectedChildId)
+        assertTrue(mmkv.wifiOnlyStreaming) // App preference remains intact
+    }
+
+    @Test
+    fun testKeystorePassphraseProviderGenerates256BitKey() {
+        val provider = KeystorePassphraseProvider()
+        val passphrase = provider.getOrCreatePassphrase()
+        assertNotNull(passphrase)
+        assertEquals(32, passphrase.size) // 256 bits = 32 bytes
+    }
+
+    @Test
+    fun testChildDeviceDaoAndRepositoryFlow() = runBlocking {
+        val childId = "child_test_1"
+        childRepo.updateChildProfile(childId, "Emma", 11)
+
+        val children = childRepo.getChildrenDevices().first()
+        assertEquals(1, children.size)
+        assertEquals("Emma", children[0].name)
+
+        // Select active child via MMKV
+        childRepo.selectActiveChild(childId)
+        assertEquals(childId, database.mmkv.selectedChildId)
+
+        // Offline unlock QR generation
+        val unlockQrResult = childRepo.generateOfflineUnlockQr(childId)
+        assertTrue(unlockQrResult.isSuccess)
+        assertTrue(unlockQrResult.getOrThrow().contains("offline-unlock"))
+    }
+
+    @Test
+    fun testRulesDaoAndRepositoryInstantLock() = runBlocking {
+        val childId = "child_test_lock"
+        val initialConfig = rulesRepo.observeScreenTimeConfig(childId).first()
+        assertFalse(initialConfig.isInstantLocked)
+
+        rulesRepo.toggleInstantDeviceLock(childId, true)
+        val lockedConfig = rulesRepo.observeScreenTimeConfig(childId).first()
+        assertTrue(lockedConfig.isInstantLocked)
+
+        rulesRepo.grantTemporaryBonusTime(childId, 30)
+        val bonusConfig = rulesRepo.observeScreenTimeConfig(childId).first()
+        assertEquals(30, bonusConfig.bonusMinutesToday)
+    }
+
+    @Test
+    fun testGeofenceDaoAndLocationRepository() = runBlocking {
+        val zone = GeofenceZone(
+            id = "zone-home",
+            childId = "child_1",
+            name = "Home Sanctuary",
+            centerLatitude = 37.7749,
+            centerLongitude = -122.4194,
+            radiusMeters = 150f,
+            isSafeZone = true,
+            alertOnEntry = true,
+            alertOnExit = true
+        )
+        locationRepo.createGeofence(zone)
+
+        val zones = locationRepo.observeGeofences("child_1").first()
+        assertEquals(1, zones.size)
+        assertEquals("Home Sanctuary", zones[0].name)
+        assertTrue(zones[0].alertOnEntry)
+
+        locationRepo.deleteGeofence("zone-home")
+        val emptyZones = locationRepo.observeGeofences("child_1").first()
+        assertTrue(emptyZones.isEmpty())
+    }
+
+    @Test
+    fun testAuthRepositorySessionAndLogout() = runBlocking {
+        val loginResult = authRepo.login("parent@test.com", "Password@123")
+        assertTrue(loginResult.isSuccess)
+        assertNotNull(database.mmkv.accessToken)
+
+        val session = authRepo.observeCurrentAccount().first()
+        assertNotNull(session)
+        assertEquals("Alex Smith", session?.fullName)
+
+        authRepo.logout()
+        assertNull(database.mmkv.accessToken)
+        val clearedSession = authRepo.observeCurrentAccount().first()
+        assertNull(clearedSession)
+    }
+
+    @Test
+    fun testAllTenEntitiesInstantiateCorrectly() {
+        val child = ChildDeviceEntity("c-1", "Phone", "Sam", 10, null, false, 80, true, true, null, 10.0, 20.0, 1000L)
+        val rule = AppRuleEntity("r-1", "c-1", "com.game", "Game", null, "GAMES", false, 60)
+        val geo = GeofenceZoneEntity("g-1", "c-1", "School", 10.0, 20.0, 200f, "SAFE", true, true, true)
+        val alert = AlertHistoryEntity("a-1", "c-1", "SOS", "SOS Triggered", "Emergency button pressed", "CRITICAL", null)
+        val stay = StayLocationPointEntity("s-1", "c-1", "Library", 10.0, 20.0, 1000L, 2000L, 45)
+        val filter = NotificationFilterEntity("f-1", "c-1", "com.chat", "ChatApp", true)
+        val clip = AmbientAudioClipEntity("cl-1", "c-1", 1000L, 15, "/local/clip.m4a", null)
+        val req = ChildApprovalRequestEntity("req-1", "c-1", "APP", "com.game", "Game", 1000L, "PENDING")
+        val medal = DigitalMedalEntity("m-1", "c-1", "STUDY_STAR", "Study Star", "3 hours reading", "Today", "star")
+        val speed = EmergencySpeedDialEntity("e-1", "c-1", "Mom", "+123456", "Mother", true)
+
+        assertEquals("c-1", child.id)
+        assertEquals("r-1", rule.id)
+        assertEquals("g-1", geo.id)
+        assertEquals("a-1", alert.id)
+        assertEquals("s-1", stay.id)
+        assertEquals("f-1", filter.id)
+        assertEquals("cl-1", clip.id)
+        assertEquals("req-1", req.id)
+        assertEquals("m-1", medal.id)
+        assertEquals("e-1", speed.id)
+    }
+}

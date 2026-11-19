@@ -1,0 +1,922 @@
+<resources>
+    <string name="app_name">Parental Control</string>
+
+    <!-- Navigation Bar Labels -->
+    <string name="nav_home">Home</string>
+    <string name="nav_map">Live Map</string>
+    <string name="nav_lock">Instant Lock</string>
+    <string name="nav_limits">Limits</string>
+    <string name="nav_family">Family Hub</string>
+
+    <!-- Screen Time & Dial -->
+    <string name="screen_time_title">Screen Time</string>
+    <string name="screen_time_limit_format">Limit: %1$dh %2$dm</string>
+    <string name="screen_time_used_format">%1$dh %2$dm</string>
+    <string name="screen_time_left_format">%1$dh %2$dm left</string>
+    <string name="screen_time_limit_exceeded">Limit Exceeded</string>
+    <string name="grant_bonus_30m">Grant +30m Bonus</string>
+
+    <!-- Common Actions & Status -->
+    <string name="btn_back">Back</string>
+    <string name="btn_save_changes">Save Changes</string>
+    <string name="action_lock_device">Lock Device</string>
+    <string name="action_unlock_device">Unlock Device</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_safe">Safe</string>
+    <string name="status_warning">Warning</string>
+    <string name="status_danger">Danger</string>
+
+    <!-- Toast Notifications -->
+    <string name="toast_device_locked">Child device locked successfully</string>
+    <string name="toast_device_unlocked">Child device unlocked</string>
+    <string name="toast_bonus_granted">30 minutes bonus time granted</string>
+    <string name="toast_error_connection">Connection failed. Please retry.</string>
+
+    <!-- Screen 01: SplashScreen -->
+    <string name="splash_tagline">Next-Gen Liquid Glass Family Safety</string>
+    <string name="app_version_tag">v2.4.0-liquid</string>
+
+    <!-- Screen 02: WelcomeCarouselScreen -->
+    <string name="carousel_slide1_title">Live GPS &amp; Geofences</string>
+    <string name="carousel_slide1_desc">Sub-second real-time location tracking with polygon safe zones and live boundary alerts.</string>
+    <string name="carousel_slide2_title">Screen Time &amp; App Shield</string>
+    <string name="carousel_slide2_desc">Empower healthy digital habits with balanced screen limits, focus mode, and bedtime downtime.</string>
+    <string name="carousel_slide3_title">Live WebRTC Remote Assist</string>
+    <string name="carousel_slide3_desc">1080p screen mirroring, ambient surrounding audio prober, and live telestration screen guidance.</string>
+    <string name="action_get_started">Get Started</string>
+    <string name="action_already_have_account">I already have an account</string>
+
+    <!-- Screen 03: LoginScreen -->
+    <string name="login_title">Welcome Back</string>
+    <string name="login_subtitle">Sign in to your parental command center</string>
+    <string name="email_label">Email Address</string>
+    <string name="email_placeholder">parent@example.com</string>
+    <string name="password_label">Password</string>
+    <string name="password_placeholder">Enter your secure password</string>
+    <string name="action_sign_in">Sign In</string>
+    <string name="action_sign_in_google">Sign in with Google</string>
+    <string name="action_biometric_login">Biometric Instant Unlock</string>
+    <string name="action_forgot_password">Forgot Password?</string>
+    <string name="prompt_no_account">Don\'t have an account?</string>
+    <string name="action_sign_up">Sign Up</string>
+
+    <!-- Screen 04: RegisterScreen -->
+    <string name="register_title">Create Family Account</string>
+    <string name="register_subtitle">Protect and guide your children with ease</string>
+    <string name="full_name_label">Full Name</string>
+    <string name="full_name_placeholder">Alex Johnson</string>
+    <string name="confirm_password_label">Confirm Password</string>
+    <string name="confirm_password_placeholder">Re-enter your password</string>
+    <string name="password_strength_title">Password Strength</string>
+    <string name="terms_agreement_text">I agree to the Family Safety Terms &amp; Privacy Policy</string>
+    <string name="action_create_account">Create Account</string>
+    <string name="prompt_have_account">Already have an account?</string>
+
+    <!-- Screen 05: ForgotPasswordScreen -->
+    <string name="forgot_password_title">Reset Password</string>
+    <string name="forgot_password_subtitle">Enter your registered email to receive a 6-digit verification code</string>
+    <string name="action_send_reset_code">Send Reset Code</string>
+    <string name="otp_description">Enter the 6-digit code sent to your email</string>
+    <string name="resend_code_cooldown">Resend code in %1$ds</string>
+    <string name="action_resend_code">Resend Code</string>
+    <string name="new_password_label">New Password</string>
+    <string name="action_update_password">Update Password</string>
+
+    <!-- Screen 06: DevicePairingScreen -->
+    <string name="pairing_title">Pair Child Device</string>
+    <string name="pairing_subtitle">Scan the QR code or enter the 6-digit PIN on your child\'s device</string>
+    <string name="pairing_pin_label">Pairing PIN</string>
+    <string name="action_copy_pin">Copy PIN</string>
+    <string name="pin_copied_toast">PIN copied to clipboard</string>
+    <string name="pairing_timer_label">Code expires in: %1$02d:%2$02d</string>
+    <string name="pairing_step1">1. Install KidsLink Child App on child\'s phone</string>
+    <string name="pairing_step2">2. Open app and choose \"Scan Parent QR Code\"</string>
+    <string name="pairing_step3">3. Scan this QR or enter the 6-digit PIN above</string>
+    <string name="action_scan_child_qr">Scan Child\'s QR Instead</string>
+    <string name="action_pair_success_preview">Pairing Verified (Demo)</string>
+
+    <!-- Modal 01: InstantLockSheet -->
+    <string name="instant_lock_title">Instant Device Lock</string>
+    <string name="instant_lock_subtitle">Immediately pause all child screen activity</string>
+    <string name="lock_duration_label">Lock Duration</string>
+    <string name="duration_15m">15 Min</string>
+    <string name="duration_1h">1 Hour</string>
+    <string name="duration_bedtime">Until Bedtime</string>
+    <string name="duration_indefinite">Indefinite</string>
+    <string name="lock_message_label">Custom Lock Screen Message</string>
+    <string name="lock_message_placeholder">Time for dinner and homework!</string>
+    <string name="action_apply_lock">Lock Phone Now</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Phase 3 - Screen 10: DashboardScreen -->
+    <string name="dashboard_active_child_title">Protected Child</string>
+    <string name="dashboard_battery_format">%1$d%%</string>
+    <string name="dashboard_quick_actions">Quick Remote Controls</string>
+    <string name="action_bonus_30m">Add Bonus</string>
+    <string name="action_live_camera">Live Camera</string>
+    <string name="action_locate_kid">Locate Kid</string>
+    <string name="action_ring_siren">Sound Siren</string>
+    <string name="device_health_title">Device Health Status</string>
+    <string name="telemetry_battery_label">Battery</string>
+    <string name="telemetry_network_label">Network</string>
+    <string name="telemetry_gps_label">GPS Accuracy</string>
+    <string name="telemetry_gps_high">High Precision</string>
+    <string name="top_apps_today">Top Apps Today</string>
+    <string name="view_all_apps">View All Apps</string>
+    <string name="app_youtube">YouTube</string>
+    <string name="app_roblox">Roblox</string>
+    <string name="app_tiktok">TikTok</string>
+    <string name="app_chrome">Chrome</string>
+
+    <!-- Phase 3 - Screen 11: LiveTrackingHubScreen -->
+    <string name="tracking_hub_title">Live Tracking &amp; Geofences</string>
+    <string name="tracking_search_placeholder">Search address or safe zone…</string>
+    <string name="tracking_current_location">Current Location</string>
+    <string name="tracking_sample_address">742 Evergreen Terrace, Springfield</string>
+    <string name="tracking_speed_format">Walking • %1$d km/h</string>
+    <string name="tracking_last_seen">Updated 5s ago</string>
+    <string name="action_view_route_history">View Route History</string>
+    <string name="action_center_child">Center Child</string>
+    <string name="action_toggle_map_layer">Toggle Layers</string>
+    <string name="action_geofence_zones">Geofence Zones</string>
+
+    <!-- Phase 3 - Screen 12: RulesHubScreen -->
+    <string name="rules_hub_title">Parental Rules &amp; Limits</string>
+    <string name="rules_master_pause_title">Pause All Restrictions Today</string>
+    <string name="rules_master_pause_desc">Temporarily relax all app limits &amp; bedtime schedules</string>
+    <string name="rule_cat_screen_time_title">Screen Time &amp; Downtime</string>
+    <string name="rule_cat_screen_time_desc">Daily 4h limit active • Bedtime at 9:00 PM</string>
+    <string name="rule_cat_app_limits_title">App Limits &amp; Blocking</string>
+    <string name="rule_cat_app_limits_desc">3 apps blocked • 1h gaming budget</string>
+    <string name="rule_cat_web_safety_title">Web Safety &amp; Content Guard</string>
+    <string name="rule_cat_web_safety_desc">SafeSearch enforced • Adult &amp; gambling filtered</string>
+    <string name="rule_cat_call_guard_title">Call &amp; SMS Whitelist Guard</string>
+    <string name="rule_cat_call_guard_desc">Whitelist active • Unknown callers rejected</string>
+
+    <!-- Phase 3 - Screen 13: ActivityAuditHubScreen -->
+    <string name="activity_audit_title">Activity &amp; Safety Audit</string>
+    <string name="tab_timeline">Timeline</string>
+    <string name="tab_app_usage">App Usage</string>
+    <string name="tab_alerts">Alerts</string>
+    <string name="tab_reports">Weekly Reports</string>
+    <string name="filter_all">All</string>
+    <string name="filter_geofences">Geofences</string>
+    <string name="filter_app_blocks">App Blocks</string>
+    <string name="filter_keywords">Keywords</string>
+    <string name="audit_event_geofence_left">Left Home Safe Zone</string>
+    <string name="audit_event_geofence_arrived">Arrived at Lincoln Middle School</string>
+    <string name="audit_event_app_blocked">Blocked launch attempt: TikTok</string>
+    <string name="audit_event_keyword_flagged">Sensitive word flagged in notification</string>
+
+    <!-- Phase 3 - Screen 14: FamilySettingsHubScreen -->
+    <string name="family_settings_title">Family &amp; App Settings</string>
+    <string name="vip_banner_title">Family Pro — Active VIP</string>
+    <string name="vip_banner_desc">Unlimited 1080p WebRTC, 30-day route history &amp; ambient audio enabled</string>
+    <string name="section_family_mgmt">Family Management</string>
+    <string name="item_children_profiles">Manage Child Profiles</string>
+    <string name="item_coparents">Co-Parents &amp; Guardians</string>
+    <string name="item_family_pin">Master Family Unlock PIN</string>
+    <string name="section_preferences">App Preferences</string>
+    <string name="item_biometric_lock">Biometric App Lock (60s grace)</string>
+    <string name="item_dark_mode">Dark Mode (Obsidian Frost)</string>
+    <string name="item_push_notifications">Push Alerts &amp; Critical Alarms</string>
+    <string name="section_help">Support &amp; Troubleshooting</string>
+    <string name="item_oem_guide">OEM Background Running Guide</string>
+    <string name="item_faq">Offline Help &amp; FAQ</string>
+    <string name="item_network_diag">Network &amp; WebRTC Diagnostics</string>
+    <string name="section_legal">Legal &amp; About</string>
+    <string name="item_privacy_policy">Privacy Policy &amp; COPPA</string>
+    <string name="item_terms_of_service">Terms of Service</string>
+    <string name="action_sign_out">Sign Out</string>
+
+    <!-- Phase 3 - Screen 41: FamilyPinManagementScreen -->
+    <string name="family_pin_title">Family Unlock PIN</string>
+    <string name="family_pin_subtitle">Set a 4-digit master offline bypass PIN to unlock your child\'s phone anywhere without internet access</string>
+    <string name="pin_current_label">Enter 4-Digit PIN</string>
+    <string name="pin_setup_helper">This PIN bypasses app blocks locally on the child\'s phone</string>
+    <string name="action_save_pin">Save Master PIN</string>
+    <string name="pin_saved_toast">Master PIN updated successfully</string>
+
+    <!-- Phase 3 - Modal 02: GrantBonusTimeSheet -->
+    <string name="grant_bonus_title">Grant Bonus Screen Time</string>
+    <string name="grant_bonus_subtitle">Select a quick extra time allowance for today without changing weekly schedules</string>
+    <string name="bonus_15m">+15 Minutes</string>
+    <string name="bonus_30m">+30 Minutes</string>
+    <string name="bonus_1h">+1 Hour</string>
+    <string name="bonus_until_bedtime">Until Bedtime</string>
+    <string name="action_grant_bonus_confirm">Grant Extra Time Now</string>
+
+    <!-- Phase 3 - Modal 03: EmergencyUnlockQrSheet -->
+    <string name="offline_qr_title">Offline Emergency Unlock QR</string>
+    <string name="offline_qr_subtitle">Hold this HMAC-signed QR code in front of the child\'s phone camera to unlock it immediately when offline</string>
+    <string name="offline_qr_validity">HMAC Nonce • Valid for 60 seconds</string>
+    <string name="action_refresh_qr">Refresh Nonce</string>
+    <string name="action_done">Done</string>
+
+    <!-- Phase 4 - Screen 15: ChildDevicePickerScreen -->
+    <string name="device_picker_title">Select Child Device</string>
+    <string name="device_picker_subtitle">Choose an active tracked phone or tablet</string>
+    <string name="device_synced_format">Synced %1$s ago</string>
+
+    <!-- Phase 4 - Screen 16: LiveLocationMapScreen -->
+    <string name="live_map_title">Real-Time Location</string>
+    <string name="action_directions">Directions</string>
+    <string name="action_trigger_ring">Loud Siren</string>
+    <string name="action_set_geofence_here">Set Safe Zone</string>
+    <string name="status_moving_speed">Moving at %1$d km/h</string>
+    <string name="status_stationary_dwell">Stationary for %1$s</string>
+
+    <!-- Phase 4 - Screen 17: LocationHistoryScreen -->
+    <string name="location_history_title">30-Day Route History</string>
+    <string name="history_walking_legend">&lt; 20 km/h Walking</string>
+    <string name="history_transit_legend">20–60 km/h Transit</string>
+    <string name="history_highway_legend">&gt; 80 km/h Highway</string>
+    <string name="history_playback_speed">%1$dx Speed</string>
+
+    <!-- Phase 4 - Screen 18: GeofenceConfigScreen -->
+    <string name="geofence_config_title">Configure Geofence</string>
+    <string name="geofence_name_label">Safe Zone Label</string>
+    <string name="geofence_name_placeholder">e.g. Lincoln High School</string>
+    <string name="geofence_radius_label">Radius: %1$d meters</string>
+    <string name="notify_on_entry">Notify on Entry</string>
+    <string name="notify_on_exit">Notify on Exit</string>
+    <string name="geofence_schedule_title">Active Hours (8:00 AM – 3:30 PM)</string>
+    <string name="action_save_safe_zone">Save Safe Zone</string>
+
+    <!-- Phase 4 - Screen 19: PolygonGeofenceScreen -->
+    <string name="polygon_geofence_title">Polygon Safe Boundary</string>
+    <string name="action_add_point">Add Point</string>
+    <string name="action_undo_point">Undo</string>
+    <string name="action_clear_all">Clear All</string>
+    <string name="action_close_polygon">Close Boundary</string>
+    <string name="polygon_area_badge">Zone Area: %1$.1f km²</string>
+    <string name="action_save_polygon">Save Custom Boundary</string>
+
+    <!-- Phase 4 - Screen 47: FindKidAlarmScreen -->
+    <string name="siren_alarm_title">Acoustic Device Siren</string>
+    <string name="siren_alarm_subtitle">Plays max-volume siren for 60 seconds even if child\'s device is set to Silent or Do Not Disturb</string>
+    <string name="siren_distance_badge">Estimated distance: ~15 meters</string>
+    <string name="action_start_siren">START LOUD SIREN</string>
+    <string name="action_stop_siren">STOP SIREN</string>
+    <string name="siren_active_countdown">Alarm sounding: %1$ds</string>
+
+    <!-- Phase 4 - Screen 49: StayLocationTimelineScreen -->
+    <string name="stay_timeline_title">Stationary Stay Points</string>
+    <string name="dwell_duration_format">Dwell: %1$s</string>
+    <string name="action_create_zone_here">Create Safe Zone Here</string>
+
+    <!-- Phase 4 - Modals 04, 05, 23 -->
+    <string name="geofence_sheet_title">Edit Geofence Zone</string>
+    <string name="locate_ring_sheet_title">Locate &amp; Sound Siren</string>
+    <string name="locate_ring_sheet_subtitle">Select siren pattern to locate child device nearby</string>
+    <string name="gps_drift_sheet_title">GPS Drift &amp; Accuracy Filter</string>
+    <string name="gps_drift_sheet_subtitle">Filter out satellite drift spikes and enable Wi-Fi anchor triangulation</string>
+    <string name="drift_threshold_label">Max Allowed Inaccuracy: %1$d meters</string>
+    <string name="enable_wifi_triangulation">Enable Indoor Wi-Fi Anchor Triangulation</string>
+    <string name="action_apply_filter">Save Filter Settings</string>
+
+    <!-- Phase 5 - Screen 20: ScreenTimeLimitScreen -->
+    <string name="screen_limit_title">Daily Screen Time Limit</string>
+    <string name="tab_weekdays">Mon – Thu</string>
+    <string name="tab_weekends">Fri – Sun</string>
+    <string name="screen_time_limit_display">%1$d hrs %2$02d mins</string>
+    <string name="lock_behavior_title">When Limit is Reached</string>
+    <string name="lock_behavior_block_all">Block All Non-Emergency Apps</string>
+    <string name="lock_behavior_allow_edu">Allow Educational Apps Only</string>
+    <string name="toast_warning_toggle">Show 5-Minute Warning Toast to Child</string>
+    <string name="action_apply_limits">Save Daily Limit</string>
+
+    <!-- Phase 5 - Screen 21: DowntimeScheduleScreen -->
+    <string name="downtime_title">Downtime &amp; Bedtime Schedules</string>
+    <string name="bedtime_schedule_title">Bedtime Downtime</string>
+    <string name="bedtime_time_range">9:00 PM – 7:00 AM</string>
+    <string name="school_schedule_title">School Hours Focus</string>
+    <string name="school_time_range">8:30 AM – 3:00 PM</string>
+    <string name="holiday_pause_toggle">Pause Schedules During School Holidays</string>
+    <string name="action_add_custom_schedule">+ Add Custom Schedule</string>
+
+    <!-- Phase 5 - Screen 22: AlwaysAllowedAppsScreen -->
+    <string name="always_allowed_title">Always Allowed Apps</string>
+    <string name="always_allowed_subtitle">These apps remain accessible even during bedtime downtime and when daily screen limits expire</string>
+    <string name="pinned_emergency_section">Essential Communications</string>
+    <string name="app_phone_dialer">Phone &amp; Contacts</string>
+    <string name="app_sms_messages">Emergency SMS</string>
+    <string name="educational_section">Educational Apps</string>
+    <string name="app_google_classroom">Google Classroom</string>
+    <string name="app_duolingo">Duolingo</string>
+    <string name="app_khan_academy">Khan Academy</string>
+
+    <!-- Phase 5 - Screen 23: AppTimeLimitConfigScreen -->
+    <string name="app_limit_config_title">App Rule: %1$s</string>
+    <string name="app_daily_allowance_label">Daily Allowance: %1$d minutes</string>
+    <string name="app_block_bedtime_toggle">Block during Bedtime &amp; School hours</string>
+    <string name="app_cooldown_toggle">Enforce 15-min rest after 45m continuous use</string>
+    <string name="action_save_app_rule">Save App Rule</string>
+
+    <!-- Phase 5 - Screen 24: CategoryLimitConfigScreen -->
+    <string name="category_limits_title">App Category Budgets</string>
+    <string name="cat_games_title">Games &amp; Arcade</string>
+    <string name="cat_games_desc">Roblox, Minecraft, Subway Surfers</string>
+    <string name="cat_social_title">Social &amp; Messaging</string>
+    <string name="cat_social_desc">Instagram, Snapchat, TikTok</string>
+    <string name="cat_video_title">Video Streaming</string>
+    <string name="cat_video_desc">YouTube, Netflix, Twitch</string>
+    <string name="cat_budget_format">Budget: %1$dh %2$02dm / day</string>
+
+    <!-- Phase 5 - Screen 52: AppNotificationFilterScreen -->
+    <string name="notif_filter_title">Notification Forwarding Guard</string>
+    <string name="notif_filter_subtitle">Select which child app notifications trigger real-time alerts to your parent dashboard</string>
+    <string name="action_select_all_messaging">Enable All Messaging Apps</string>
+    <string name="action_mute_all_games">Mute All Games</string>
+    <string name="action_save_preferences">Save Notification Preferences</string>
+
+    <!-- Phase 5 - Screen 25: AppManagementScreen -->
+    <string name="app_mgmt_title">Installed Apps Manager</string>
+    <string name="search_apps_placeholder">Search installed apps…</string>
+    <string name="filter_limited">Limited</string>
+    <string name="filter_always_allowed">Always Allowed</string>
+    <string name="filter_blocked">Blocked</string>
+    <string name="status_app_blocked">Blocked</string>
+    <string name="status_app_active">Allowed</string>
+    <string name="action_bulk_block">Bulk Category Block</string>
+
+    <!-- Phase 5 - Screen 26: NewAppInstallAuditScreen -->
+    <string name="new_apps_title">New App Install Watchdog</string>
+    <string name="zero_trust_banner_title">Zero-Trust New App Quarantine</string>
+    <string name="zero_trust_banner_desc">Automatically blocks newly installed apps on child phone until parent reviews safety permissions</string>
+    <string name="action_approve_app">Approve &amp; Allow</string>
+    <string name="action_keep_blocked">Keep Blocked</string>
+    <string name="pegi_rating">PEGI 12 • Contains in-app purchases</string>
+
+    <!-- Phase 5 - Screen 27: AppDetailScreen -->
+    <string name="app_detail_title">App Security &amp; Usage Audit</string>
+    <string name="app_version_format">Version: %1$s • Installed %2$s</string>
+    <string name="trend_7day_title">7-Day Usage Trend</string>
+    <string name="data_consumption_title">Data Consumption</string>
+    <string name="data_consumption_format">Wi-Fi: 1.4 GB • Mobile Data: 320 MB</string>
+    <string name="permissions_audit_title">Sensitive OS Permissions Granted</string>
+    <string name="perm_mic">Microphone (Audio Recording)</string>
+    <string name="perm_bg_location">Background Location</string>
+    <string name="perm_granted">Granted</string>
+    <string name="action_open_play_store">Open in Google Play Store</string>
+    <string name="action_permanent_block">Permanently Block This App</string>
+
+    <!-- Phase 5 - Screen 58: RuleConflictResolutionScreen -->
+    <string name="conflict_title">Rule Conflict Resolution</string>
+    <string name="conflict_detected_banner">1 Conflict Detected Between Guardians</string>
+    <string name="mom_rule_label">Mom\'s Rule: Bedtime starts at 9:00 PM</string>
+    <string name="dad_rule_label">Dad\'s Rule: Gaming allowed until 10:00 PM</string>
+    <string name="action_keep_mom">Keep Mom\'s Rule (Strict Safety)</string>
+    <string name="action_keep_dad">Keep Dad\'s Rule (Extended Privilege)</string>
+    <string name="action_compromise">Compromise (9:30 PM)</string>
+    <string name="action_apply_resolution">Apply Resolution</string>
+
+    <!-- Phase 5 - Modals 06, 07, 17 -->
+    <string name="app_rule_sheet_title">Configure App Limit</string>
+    <string name="focus_mode_sheet_title">Instant Focus Mode (Kiosk)</string>
+    <string name="focus_mode_subtitle">Pin child device into 1 educational app for selected duration</string>
+    <string name="focus_duration_label">Duration: %1$d minutes</string>
+    <string name="action_start_focus">Start Focus Session</string>
+    <string name="child_approval_sheet_title">Child App Access Request</string>
+    <string name="child_approval_subtitle">Your child wants to open: %1$s</string>
+    <string name="action_approve_15m">Approve +15m</string>
+    <string name="action_approve_1h">Approve 1 Hour</string>
+    <string name="action_deny_request">Deny Request</string>
+
+    <!-- Phase 6 - Screen 28: WebFilterConfigScreen -->
+    <string name="web_filter_title">Web Safety &amp; Content Filtering</string>
+    <string name="web_tab_categories">Categories &amp; Engines</string>
+    <string name="web_tab_custom_urls">Custom Domains</string>
+    <string name="web_tab_history">Browsing History</string>
+    <string name="master_web_safety_title">Master Web Protection</string>
+    <string name="master_web_safety_desc">Enforces on-device DNS filtering and blocks hazardous internet content</string>
+    <string name="safesearch_title">Strict SafeSearch Enforcement</string>
+    <string name="safesearch_desc">Forces strict filtered results on Google, Bing, Yahoo &amp; DuckDuckGo</string>
+    <string name="youtube_restricted_title">YouTube Restricted Mode</string>
+    <string name="youtube_restricted_desc">Hides potentially mature videos flagged by YouTube algorithm</string>
+    <string name="incognito_block_title">Block Incognito &amp; Private Browsing</string>
+    <string name="incognito_block_desc">Forces regular browsing mode so web safety rules are respected</string>
+    <string name="doh_title">Encrypted DNS-over-HTTPS (DoH)</string>
+    <string name="doh_desc">Prevents ISP tampering &amp; DNS spoofing using Cloudflare/Quad9</string>
+    <string name="walled_garden_title">Walled Garden Mode (Whitelist Only)</string>
+    <string name="walled_garden_desc">Blocks ALL websites on the internet except parent-approved whitelist domains</string>
+    <string name="categories_header">24 Content Category Filters</string>
+    <string name="category_adult">Adult &amp; Mature Content</string>
+    <string name="category_gambling">Gambling &amp; Betting</string>
+    <string name="category_violence">Weapons &amp; Graphic Violence</string>
+    <string name="category_drugs">Drugs &amp; Illicit Substances</string>
+    <string name="category_phishing">Phishing &amp; Financial Scams</string>
+    <string name="category_malware">Malware &amp; Known Exploits</string>
+    <string name="category_dating">Online Dating &amp; Chatrooms</string>
+    <string name="category_hate">Hate Speech &amp; Cyberbullying</string>
+    <string name="category_piracy">Piracy &amp; Illegal Downloads</string>
+    <string name="category_social">Social Media Platforms</string>
+    <string name="category_gaming">Online Gaming Websites</string>
+    <string name="category_vpn_proxy">VPN &amp; Proxy Bypass Sites</string>
+    <string name="category_anime">Uncensored Anime &amp; Manga</string>
+    <string name="category_alcohol">Alcohol, Vape &amp; Tobacco</string>
+    <string name="category_crypto">Cryptocurrency &amp; NFT Trading</string>
+    <string name="category_streaming">Unauthorized Video Streaming</string>
+    <string name="category_torrents">P2P File Sharing &amp; Torrents</string>
+    <string name="category_self_harm">Suicide &amp; Self-Harm Content</string>
+    <string name="category_cheating">Academic Cheating &amp; Plagiarism</string>
+    <string name="category_dark_web">Dark Web Gateways &amp; Tor</string>
+    <string name="category_ads">Aggressive Ads &amp; Trackers</string>
+    <string name="category_shopping">Online Marketplaces &amp; Shopping</string>
+    <string name="category_occult">Cults &amp; Occult Extremism</string>
+    <string name="category_search">Search &amp; Web Portals</string>
+    <string name="search_domains_placeholder">Search domain or wildcard...</string>
+    <string name="action_add_url">Add Domain Rule</string>
+    <string name="blacklist_header">Custom Blacklisted Domains (Blocked)</string>
+    <string name="whitelist_header">Custom Whitelisted Domains (Always Allowed)</string>
+    <string name="empty_custom_urls">No custom domain rules added yet</string>
+    <string name="action_export_history_pdf">Export Browsing PDF Report</string>
+    <string name="browsing_threat_blocked">Blocked</string>
+    <string name="browsing_threat_warning">Warning</string>
+    <string name="browsing_threat_safe">Safe</string>
+    <string name="vpn_disclosure_pill">Local DNS VPN Privacy Info</string>
+
+    <!-- Phase 6 - Modals 08, 18, 22 -->
+    <string name="add_url_sheet_title">Add Custom Domain Rule</string>
+    <string name="domain_input_label">Domain or Wildcard</string>
+    <string name="domain_input_placeholder">e.g. reddit.com or *.tiktok.com</string>
+    <string name="rule_type_label">Rule Action</string>
+    <string name="rule_type_blacklist">Block Website</string>
+    <string name="rule_type_whitelist">Allow Website</string>
+    <string name="note_label">Guardian Note (Optional)</string>
+    <string name="note_placeholder">Reason for restriction...</string>
+    <string name="action_save_domain">Save Domain Rule</string>
+    <string name="child_web_approval_title">Child Website Access Request</string>
+    <string name="child_web_approval_subtitle">Your child wants to visit: %1$s</string>
+    <string name="flagged_category_format">Flagged Category: %1$s</string>
+    <string name="action_allow_30m">Allow for 30 Mins</string>
+    <string name="action_whitelist_permanent">Always Allow Domain</string>
+    <string name="action_deny_web_request">Keep Blocked</string>
+    <string name="vpn_disclosure_title">Local Loopback DNS Protection</string>
+    <string name="vpn_disclosure_subtitle">Zero External Traffic Routing • 100% On-Device Privacy</string>
+    <string name="vpn_point1_title">100% Local DNS Resolution</string>
+    <string name="vpn_point1_desc">Website domain checks occur exclusively on the child device via loopback 127.0.0.1. No internet traffic or browsing history is redirected to remote VPN proxy servers.</string>
+    <string name="vpn_point2_title">Zero Personal Data Logging</string>
+    <string name="vpn_point2_desc">Passwords, form submissions, and private banking data remain strictly encrypted end-to-end and are never inspected or recorded.</string>
+    <string name="vpn_point3_title">COPPA &amp; GDPR Child Shield</string>
+    <string name="vpn_point3_desc">Fully compliant with international child online safety standards. Protection stays active seamlessly across home Wi-Fi and 4G/5G mobile carriers.</string>
+    <string name="action_got_it">Got It, I Understand</string>
+
+    <!-- Phase 7 - WebRTC Surveillance, Telestration & Media Vault -->
+    <!-- Screen 29: ScreenMirrorViewerScreen -->
+    <string name="screen_mirror_title">Live Screen Mirror</string>
+    <string name="mirror_hud_format">1080p 30fps • %1$s ms • %2$s kbps</string>
+    <string name="action_take_snapshot">Snapshot</string>
+    <string name="action_start_recording">Record</string>
+    <string name="action_stop_recording">Stop Record</string>
+    <string name="action_live_paint">Live Paint</string>
+    <string name="action_mute_audio">Mute Audio</string>
+    <string name="action_unmute_audio">Unmute Audio</string>
+    <string name="action_fullscreen">Full Screen</string>
+    <string name="stream_status_live">LIVE</string>
+    <string name="stream_status_connecting">Connecting WebRTC Peer…</string>
+
+    <!-- Screen 30: RemoteCameraViewerScreen -->
+    <string name="remote_camera_title">Remote Camera Viewer</string>
+    <string name="action_switch_camera">Switch Lens</string>
+    <string name="action_toggle_torch">Flashlight</string>
+    <string name="action_low_light">Night Boost</string>
+    <string name="camera_rear">Rear Camera (Wide)</string>
+    <string name="camera_front">Front Camera (Selfie)</string>
+    <string name="camera_zoom_format">%1$.1fx</string>
+
+    <!-- Screen 31: LiveAmbientAudioScreen -->
+    <string name="ambient_audio_title">Live Ambient Audio</string>
+    <string name="ambient_audio_desc">1-way real-time listen-in stream via child device microphone</string>
+    <string name="audio_gain_label">Microphone Gain Boost: %1$d dB</string>
+    <string name="audio_visualizer_live">Real-Time 30-Band Audio Spectrogram</string>
+    <string name="audio_listening_status">Microphone Active • Encrypted P2P</string>
+
+    <!-- Screen 32: PrivateGalleryVaultScreen -->
+    <string name="vault_title">Encrypted Media Vault</string>
+    <string name="vault_security_notice">FLAG_SECURE Active: Screenshots &amp; OS Recents Thumbnails Blocked</string>
+    <string name="vault_biometric_lock">Biometric Verification Required to Decrypt Vault</string>
+    <string name="action_unlock_vault">Unlock Vault with Biometrics</string>
+    <string name="vault_count_format">%1$d Encrypted Snapshots • %2$d Audio Recordings</string>
+
+    <!-- Screen 33: ChildMediaGalleryScreen -->
+    <string name="child_gallery_title">Child Photo Album &amp; NSFW Shield</string>
+    <string name="filter_all_photos">All Photos</string>
+    <string name="filter_flagged_nsfw">Flagged Sensitive</string>
+    <string name="filter_camera_shots">Camera Roll</string>
+    <string name="nsfw_sensitivity_label">NSFW Detection Sensitivity: %1$d/10</string>
+    <string name="nsfw_blurred_badge">Sensitive Content Shielded</string>
+    <string name="action_unblur_photo">Inspect (Parent Auth)</string>
+
+    <!-- Screen 34: ScheduledSnapshotConfigScreen -->
+    <string name="scheduled_snapshot_title">Recurring Screen Capture</string>
+    <string name="scheduled_snapshot_desc">Automated periodic screen snapshots sent to encrypted vault</string>
+    <string name="interval_15m">Every 15 Minutes</string>
+    <string name="interval_30m">Every 30 Minutes</string>
+    <string name="interval_1h">Every 1 Hour</string>
+    <string name="snapshot_window_label">Active Window: 08:00 AM – 09:00 PM</string>
+    <string name="snapshot_wifi_only_title">Capture Only on Wi-Fi</string>
+    <string name="snapshot_daily_quota">Daily Quota: 24 / 100 Captures</string>
+
+    <!-- Screen 50: DataSaverSettingsScreen -->
+    <string name="data_saver_title">Streaming Data Saver &amp; Bitrate</string>
+    <string name="max_res_label">Maximum Stream Resolution</string>
+    <string name="audio_only_fallback_title">Auto-Fallback to Audio on Weak Network</string>
+    <string name="wifi_only_stream_title">Stream Only on Wi-Fi (Disable 4G/5G)</string>
+
+    <!-- Screen 51: SnapshotRetentionSettingsScreen -->
+    <string name="retention_title">Storage &amp; Auto-Purge Settings</string>
+    <string name="retention_7d">7 Days</string>
+    <string name="retention_15d">15 Days</string>
+    <string name="retention_30d">30 Days</string>
+    <string name="retention_never">Manual Only</string>
+    <string name="storage_consumed_format">Cloud Storage Used: 1.2 GB / 5.0 GB</string>
+    <string name="action_purge_all">Purge All Saved Media Now</string>
+
+    <!-- Screen 53: RecordedAudioClipPlayerScreen -->
+    <string name="audio_player_title">Ambient Audio Recording</string>
+    <string name="recorded_at_format">Recorded: %1$s • Duration: %2$s</string>
+    <string name="speed_05x">0.5x</string>
+    <string name="speed_1x">1.0x</string>
+    <string name="speed_15x">1.5x</string>
+    <string name="speed_2x">2.0x</string>
+    <string name="action_download_clip">Download Lossless WAV</string>
+
+    <!-- Phase 7 - Modals 13, 14, 21 -->
+    <!-- Modal 13: LivePaintToolbarBottomSheet -->
+    <string name="live_paint_title">Live Paint Telestration Whiteboard</string>
+    <string name="live_paint_desc">Draw live glowing arrows &amp; annotations on child screen</string>
+    <string name="action_clear_canvas">Clear Strokes</string>
+    <string name="action_undo_stroke">Undo</string>
+
+    <!-- Modal 14: TemporaryAccessGrantBottomSheet -->
+    <string name="temp_access_title">Grant Temporary Stream Access</string>
+    <string name="temp_access_desc">Allow child device to stream screen/camera with temporary authorization</string>
+    <string name="stream_duration_5m">5 Minutes</string>
+    <string name="stream_duration_15m">15 Minutes</string>
+    <string name="stream_duration_30m">30 Minutes</string>
+    <string name="temp_access_notice">Child phone will display prominent notification: \'Parent is observing screen\'</string>
+    <string name="action_grant_stream">Grant Access</string>
+
+    <!-- Modal 21: RemoteStreamTroubleshooterSheet -->
+    <string name="troubleshooter_title">Stream Connection Diagnostics</string>
+    <string name="check_turn_relay">Coturn P2P Relay Server Reachable</string>
+    <string name="check_battery_exempt">Child Phone Battery Optimization Exempt</string>
+    <string name="check_foreground_service">Child Foreground MediaProjection Active</string>
+    <string name="check_permissions">Camera &amp; Audio Permissions Granted</string>
+    <string name="action_retry_connection">Retry WebRTC Connection</string>
+    <string name="action_switch_turn_server">Switch to Secondary TURN Node</string>
+
+    <!-- Phase 8 - Intelligence, Communication Guard & Keywords -->
+    <!-- Screen 35: UsageAnalyticsScreen -->
+    <string name="analytics_title">Screen Time &amp; Usage Analytics</string>
+    <string name="range_today">Today</string>
+    <string name="range_7days">7 Days</string>
+    <string name="range_30days">30 Days</string>
+    <string name="total_screen_time_label">Total Screen Time</string>
+    <string name="screen_time_delta_format">%1$s%% vs last week</string>
+    <string name="device_pickups_label">Phone Pickups</string>
+    <string name="pickups_count_format">%1$d unlocks today</string>
+    <string name="first_pickup_time_format">First unlocked at %1$s</string>
+    <string name="ai_habit_digest_title">AI Digital Habit Digest</string>
+    <string name="ai_habit_digest_content">Screen time is within healthy limits. Peak usage occurs between 4:00 PM and 6:30 PM after school. Educational app ratio is 38%.</string>
+    <string name="top_used_apps_header">Top Used Apps Ranked</string>
+    <string name="app_usage_ratio_format">%1$s • %2$d%% of screen time</string>
+
+    <!-- Screen 36: SocialVideoAuditScreen -->
+    <string name="social_video_audit_title">Short-Form Video Addiction Audit</string>
+    <string name="short_videos_swiped_label">Short Videos Swiped Today</string>
+    <string name="short_videos_count_format">~%1$d Videos</string>
+    <string name="avg_watch_time_label">Average Time per Clip</string>
+    <string name="avg_watch_time_format">%1$d seconds</string>
+    <string name="night_scroll_warning_title">Late Night Scrolling Audit</string>
+    <string name="night_scroll_warning_desc">%1$d short videos watched past 10:00 PM bedtime curfew</string>
+    <string name="action_set_video_curfew">Set Short Video Curfew</string>
+    <string name="platform_tiktok">TikTok</string>
+    <string name="platform_reels">Instagram Reels</string>
+    <string name="platform_shorts">YouTube Shorts</string>
+    <string name="video_watch_time_format">%1$dh %2$02dm • %3$d clips</string>
+
+    <!-- Screen 37: NotificationTimelineScreen -->
+    <string name="notif_timeline_title">Child Notification Mirror</string>
+    <string name="filter_app_all">All Apps</string>
+    <string name="filter_app_whatsapp">WhatsApp</string>
+    <string name="filter_app_instagram">Instagram</string>
+    <string name="filter_app_snapchat">Snapchat</string>
+    <string name="filter_app_sms">Messages</string>
+    <string name="keyword_flagged_badge">Sensitive Keyword Flagged</string>
+    <string name="empty_timeline_message">No mirrored notifications in this window</string>
+    <string name="action_flag_alert">Flag as Alert</string>
+
+    <!-- Screen 38: CallSmsLogScreen -->
+    <string name="call_sms_log_title">Communication Safety Log</string>
+    <string name="tab_call_history">Call History</string>
+    <string name="tab_sms_history">SMS Messages</string>
+    <string name="whitelist_guard_title">Contact Whitelist Guard Mode</string>
+    <string name="whitelist_guard_desc">Silently blocks all calls &amp; SMS from unknown numbers not in child contacts</string>
+    <string name="stranger_call_badge">Unknown Caller</string>
+    <string name="contact_verified_badge">Approved Contact</string>
+    <string name="call_type_incoming">Incoming</string>
+    <string name="call_type_outgoing">Outgoing</string>
+    <string name="call_type_missed">Missed</string>
+    <string name="call_duration_format">%1$d min %2$d sec</string>
+
+    <!-- Screen 39: KeywordAlertScreen -->
+    <string name="keyword_alert_screen_title">Sensitive Keyword Alerts</string>
+    <string name="active_incident_banner">1 High-Priority Safety Incident Flagged</string>
+    <string name="incident_context_header">Full Sentence &amp; Message Context</string>
+    <string name="action_view_context">View Surrounding Chat</string>
+    <string name="action_lock_child_phone">Lock Child Phone Immediately</string>
+    <string name="action_mark_false_alarm">Mark False Alarm</string>
+    <string name="action_manage_categories">Manage Keyword Rules</string>
+    <string name="incident_detected_at">Detected in %1$s at %2$s</string>
+
+    <!-- Screen 48: SensitiveKeywordCategoryDetailScreen -->
+    <string name="keyword_cat_detail_title">Keyword Category: %1$s</string>
+    <string name="sensitivity_level_title">Detection Sensitivity Level</string>
+    <string name="sensitivity_high_desc">High: Instant alert on single keyword match</string>
+    <string name="sensitivity_med_desc">Medium: Alert if repeated 2+ times</string>
+    <string name="sensitivity_low_desc">Low: Log silently in daily safety digest</string>
+    <string name="active_keyword_chips_title">Active Monitored Words (%1$d)</string>
+    <string name="add_custom_word_label">Add Custom Sensitive Word</string>
+    <string name="add_custom_word_placeholder">e.g. bully, secret, meet me</string>
+    <string name="action_add_word">Add Word</string>
+    <string name="preset_suggestions_title">Recommended Word Library</string>
+
+    <!-- Screen 60: DigitalWellbeingMedalsScreen -->
+    <string name="wellbeing_medals_title">Digital Wellbeing Trophies</string>
+    <string name="wellbeing_medals_subtitle">Celebrate healthy screen time habits and positive milestones</string>
+    <string name="this_week_trophy_title">This Week\'s Active Quest</string>
+    <string name="quest_balance_title">Screen Balance Hero</string>
+    <string name="quest_balance_desc">Keep screen time under 3h/day for 5 consecutive days</string>
+    <string name="earned_trophies_header">Earned Trophy Showcase</string>
+    <string name="medal_bedtime_title">Early Bedtime Star</string>
+    <string name="medal_bedtime_desc">Zero screen usage after 9:00 PM for 7 days</string>
+    <string name="medal_focus_title">Focus Mode Champion</string>
+    <string name="medal_focus_desc">Finished 10 study sessions without opening games</string>
+    <string name="medal_commuter_title">Safe Commuter</string>
+    <string name="medal_commuter_desc">Arrived on time at school all 5 days this week</string>
+    <string name="action_send_praise">Send Praise Sticker to Child</string>
+
+    <!-- Phase 8 - Modal 09: KeywordConfigSheet -->
+    <string name="keyword_config_sheet_title">Add Sensitive Keyword Rule</string>
+    <string name="keyword_config_sheet_subtitle">Add a word or phrase to trigger parent notifications</string>
+    <string name="category_picker_label">Target Category</string>
+    <string name="category_cyberbullying">Cyberbullying &amp; Harassment</string>
+    <string name="category_self_harm_risk">Self-Harm &amp; Mental Health</string>
+    <string name="category_drugs_vape">Drugs, Vape &amp; Alcohol</string>
+    <string name="category_predators_risk">Stranger Danger &amp; Meetups</string>
+    <string name="input_keyword_label">Sensitive Word or Phrase</string>
+    <string name="input_keyword_placeholder">Enter keyword...</string>
+    <string name="action_save_keyword_rule">Save Keyword Rule</string>
+
+    <!-- Phase 9 - Family Hub, Multi-Guardian Collaboration & Emergency Screens -->
+    <!-- Screen 40: FamilyChatScreen -->
+    <string name="family_chat_title">Family Chat &amp; Doodle</string>
+    <string name="chat_input_placeholder">Type a message to %1$s...</string>
+    <string name="action_open_doodle">Doodle Canvas</string>
+    <string name="action_record_voice">Hold to Record</string>
+    <string name="recording_audio_badge">Recording Audio...</string>
+    <string name="preset_dinner">Dinner is ready! 🍽️</string>
+    <string name="preset_homework">How is homework going? 📚</string>
+    <string name="preset_pride">Proud of you today! ⭐</string>
+    <string name="preset_call_me">Please call me when you can 📞</string>
+
+    <!-- Screen 42: CoParentSharingScreen -->
+    <string name="coparent_sharing_title">Family Guardians</string>
+    <string name="coparent_subtitle">Share parental controls and safety monitoring with a spouse or guardian</string>
+    <string name="action_invite_guardian">Invite New Guardian</string>
+    <string name="active_guardians_header">Active Family Guardians (%1$d)</string>
+    <string name="role_owner">Family Owner</string>
+    <string name="role_coparent">Co-Parent (Full Control)</string>
+    <string name="role_viewer">Guardian (View Only)</string>
+    <string name="guardian_audit_log_header">Recent Guardian Actions</string>
+    <string name="audit_log_format">%1$s • %2$s</string>
+
+    <!-- Screen 62: EmergencySpeedDialConfigScreen -->
+    <string name="speed_dial_title">Emergency Speed Dial</string>
+    <string name="speed_dial_subtitle">Configured 1-tap emergency contacts accessible from child\'s lock screen</string>
+    <string name="pinned_services_header">Pinned Public Emergency Services</string>
+    <string name="police_label">Police &amp; Emergency</string>
+    <string name="police_number">911 / 112</string>
+    <string name="fire_label">Fire Department</string>
+    <string name="fire_number">911</string>
+    <string name="childline_label">National Child Safety Helpline</string>
+    <string name="childline_number">1-800-422-4453</string>
+    <string name="trusted_circle_header">Trusted Family Circle (%1$d / 5)</string>
+    <string name="action_call_now">Call</string>
+    <string name="action_add_emergency_contact">Add Emergency Contact</string>
+
+    <!-- Modal 10: InviteCoParentSheet -->
+    <string name="invite_coparent_title">Invite Family Guardian</string>
+    <string name="invite_coparent_subtitle">Send a secure invite to collaborate on family safety</string>
+    <string name="guardian_name_label">Guardian Name</string>
+    <string name="guardian_name_placeholder">e.g. Sarah Johnson</string>
+    <string name="guardian_contact_label">Email or Mobile Number</string>
+    <string name="guardian_contact_placeholder">spouse@example.com or phone</string>
+    <string name="permission_level_label">Access Permissions</string>
+    <string name="perm_full_control_title">Full Control</string>
+    <string name="perm_full_control_desc">Can adjust schedules, lock devices, and view live streams</string>
+    <string name="perm_view_only_title">View Only</string>
+    <string name="perm_view_only_desc">Can view real-time location and screen time statistics only</string>
+    <string name="action_send_invite">Send Guardian Invitation</string>
+
+    <!-- Modal 11: SOSAlertOverlay -->
+    <string name="sos_alert_title">EMERGENCY SOS TRIGGERED!</string>
+    <string name="sos_alert_subtitle">%1$s pressed the physical Emergency SOS button</string>
+    <string name="sos_location_label">Current Beacon Location</string>
+    <string name="sos_battery_label">Battery: %1$d%% • GPS Active</string>
+    <string name="action_open_tracker">Track Live Location Now</string>
+    <string name="action_call_child">Call Child Immediately</string>
+    <string name="action_dismiss_sos">Acknowledge &amp; Dismiss</string>
+
+    <!-- Modal 16: ChildUrgentBroadcastBottomSheet -->
+    <string name="urgent_broadcast_title">Urgent Screen Broadcast</string>
+    <string name="urgent_broadcast_subtitle">Flash a persistent full-screen priority notice on %1$s\'s phone</string>
+    <string name="broadcast_message_label">Broadcast Message</string>
+    <string name="broadcast_message_placeholder">Enter urgent announcement...</string>
+    <string name="play_loud_tone_toggle">Sound Loud Alert Tone (Bypasses Silent Mode)</string>
+    <string name="action_send_broadcast">Broadcast to Child Screen</string>
+
+    <!-- Phase 10 - Final Screens & Modals (Completion of all 66 Screens + 26 Modals) -->
+    <!-- Screen 07: PairingSuccessScreen -->
+    <string name="pairing_success_title">Child Device Paired!</string>
+    <string name="pairing_success_desc">KidsLink security shield is now active on your child\'s phone</string>
+    <string name="device_connected_as">Connected Device: %1$s</string>
+    <string name="action_go_to_dashboard">Enter Command Center</string>
+
+    <!-- Screen 08: ChildProfileEditScreen -->
+    <string name="child_profile_title">Edit Child Profile</string>
+    <string name="child_name_label">Child Name</string>
+    <string name="child_age_label">Child Age</string>
+    <string name="child_gender_label">Gender Profile</string>
+    <string name="action_save_profile">Save Profile</string>
+    <string name="action_delete_child">Remove Child Profile</string>
+
+    <!-- Screen 09: ChildUninstallGuideScreen -->
+    <string name="uninstall_guide_title">Child App Uninstall Guide</string>
+    <string name="uninstall_guide_desc">How to cleanly unbind and uninstall KidsLink on child device</string>
+    <string name="uninstall_step1">1. Enter Master Family PIN inside Child App settings</string>
+    <string name="uninstall_step2">2. Deactivate Device Administrator &amp; Accessibility Services</string>
+    <string name="uninstall_step3">3. Proceed with standard Android system app uninstallation</string>
+    <string name="device_admin_warning">Uninstall protection prevents unauthorized removal by child</string>
+
+    <!-- Screen 54: ParentEmailVerificationScreen -->
+    <string name="email_verification_title">Verify Guardian Email</string>
+    <string name="email_verification_subtitle">Enter 6-digit confirmation code sent to %1$s</string>
+    <string name="enter_otp_label">Verification Code</string>
+    <string name="action_verify_email">Verify Account</string>
+
+    <!-- Screen 55: ChooseDeviceTypeScreen -->
+    <string name="choose_device_title">Select Child Platform</string>
+    <string name="choose_device_subtitle">Choose the operating system of your child\'s device</string>
+    <string name="platform_android">Android Phone / Tablet</string>
+    <string name="platform_android_desc">Full surveillance: 1080p WebRTC, App blocking, GPS, SMS &amp; Call guard</string>
+    <string name="platform_ios">Apple iPhone / iPad</string>
+    <string name="platform_ios_desc">Supervised MDM profile: Web safety, location beacon &amp; screen time limits</string>
+    <string name="platform_chromebook">Chromebook / Android TV</string>
+    <string name="platform_chromebook_desc">Educational kiosk mode &amp; scheduled school hours limits</string>
+    <string name="action_continue_setup">Continue Setup</string>
+
+    <!-- Screen 63: AdbUsbActivationGuideScreen -->
+    <string name="adb_guide_title">Non-Root ADB Permission Guide</string>
+    <string name="adb_step1">1. Enable USB Debugging in Developer Options on child phone</string>
+    <string name="adb_step2">2. Connect child phone to PC via USB cable</string>
+    <string name="adb_step3">3. Run command: adb shell pm grant com.parentalcontrol.child android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="action_copy_adb_cmd">Copy ADB Command</string>
+    <string name="action_check_activation_status">Verify Permission Granted</string>
+
+    <!-- Screen 66: QrScannerScreen -->
+    <string name="qr_scanner_title">Scan Child QR Code</string>
+    <string name="qr_scanner_hint">Point camera at the QR code displayed on child phone</string>
+    <string name="action_toggle_scanner_torch">Flashlight</string>
+
+    <!-- Screen 43: ParentSettingsScreen -->
+    <string name="parent_settings_title">Guardian App Settings</string>
+    <string name="settings_quota_label">Connected Devices: 1 / 5 Allowed</string>
+    <string name="settings_theme_label">Dark Obsidian Frost Theme</string>
+    <string name="settings_biometrics_label">Biometric App Lock on Launch</string>
+    <string name="action_gdpr_delete_account">Delete Family Account &amp; All Data (GDPR)</string>
+
+    <!-- Screen 44: SubscriptionPlansScreen (Dual Paywall) -->
+    <string name="paywall_title">Unlock KidsLink Family VIP</string>
+    <string name="paywall_subtitle">Comprehensive real-time parental protection without compromises</string>
+    <string name="plan_monthly">Monthly Pass</string>
+    <string name="plan_monthly_price">$4.99 / month</string>
+    <string name="plan_annual">Annual Protection (VIP)</string>
+    <string name="plan_annual_price">$39.99 / year</string>
+    <string name="plan_save_tag">Save 35%</string>
+    <string name="feature_unlimited_webrtc">Unlimited 1080p Live Screen Mirror &amp; Remote Camera</string>
+    <string name="feature_30day_history">30-Day Route History &amp; Ambient Audio Playback</string>
+    <string name="feature_5devices">Protect up to 5 Child Devices Concurrently</string>
+    <string name="feature_vip_support">24/7 Dedicated Child Safety VIP Support</string>
+    <string name="action_subscribe_google_play">Subscribe via Google Play</string>
+    <string name="action_subscribe_direct_web">Pay via Secure Web Gateway</string>
+
+    <!-- Screen 45: TroubleshootingGuideScreen (100% Native Offline Guide) -->
+    <string name="troubleshoot_title">OEM Background Running Guide</string>
+    <string name="brand_xiaomi">Xiaomi (MIUI / HyperOS)</string>
+    <string name="brand_samsung">Samsung (OneUI)</string>
+    <string name="brand_vivo">Vivo (FuntouchOS / OriginOS)</string>
+    <string name="brand_oppo">Oppo &amp; Realme (ColorOS)</string>
+    <string name="oem_step_battery">Set Battery Saver to \'No Restrictions\'</string>
+    <string name="oem_step_autostart">Enable \'Autostart\' permission in App Info</string>
+    <string name="oem_step_lock_recents">Lock KidsLink in Recent Apps task manager</string>
+
+    <!-- Screen 46: NativeLegalScreen (100% Native Cached Reader) -->
+    <string name="legal_reader_title">Legal &amp; Privacy Disclosures</string>
+    <string name="tab_privacy">Privacy Policy</string>
+    <string name="tab_terms">Terms of Service</string>
+    <string name="tab_coppa">COPPA &amp; GDPR-K</string>
+    <string name="legal_privacy_text">We take child privacy seriously. All video streams, audio feeds, and location coordinates are encrypted with 256-bit AES end-to-end encryption. No third-party ad networks or data brokers ever have access to child device telemetry.</string>
+    <string name="legal_terms_text">By using KidsLink Parental Control, you confirm you are the legal parent or guardian of the child whose device is being supervised. Monitoring devices without legal parental consent is strictly prohibited.</string>
+    <string name="legal_coppa_text">KidsLink complies strictly with the Children\'s Online Privacy Protection Act (COPPA) and GDPR for Kids. Parents retain absolute ownership and deletion rights over all gathered media and location logs.</string>
+
+    <!-- Screen 56: NetworkDiagnosticsScreen -->
+    <string name="network_diag_title">Network &amp; WebRTC Diagnostics</string>
+    <string name="ping_api_label">Fastify REST Core API (Frankfurt)</string>
+    <string name="ping_coturn_label">Coturn WebRTC Relay (P2P TURN)</string>
+    <string name="ping_cdn_label">Encrypted Cloudflare Vault Storage</string>
+    <string name="packet_loss_label">Connection Quality: Optimal (0.0% Packet Loss)</string>
+    <string name="action_run_diagnostics">Run Real-Time Ping Test</string>
+
+    <!-- Screen 57: ParentBugFeedbackScreen -->
+    <string name="bug_feedback_title">Send Guardian Feedback &amp; Bug Report</string>
+    <string name="bug_cat_label">Issue Category</string>
+    <string name="bug_desc_label">Describe the Problem</string>
+    <string name="bug_desc_placeholder">Please describe what happened and how to reproduce it...</string>
+    <string name="attach_logs_label">Attach sanitized diagnostic log (auto-strips passwords)</string>
+    <string name="action_submit_bug">Submit Report to Engineers</string>
+
+    <!-- Screen 59: SystemMaintenanceScreen -->
+    <string name="maintenance_title">Scheduled Cloud Maintenance</string>
+    <string name="maintenance_subtitle">Upgrading family security servers for enhanced WebRTC performance</string>
+    <string name="maintenance_countdown_format">Estimated Completion: ~%1$d minutes</string>
+    <string name="action_refresh_status">Check Server Status</string>
+
+    <!-- Screen 61: ParentFaqHelpScreen (100% Native Offline Accordion) -->
+    <string name="faq_title">Help Center &amp; Offline FAQ</string>
+    <string name="faq_search_placeholder">Search questions or troubleshooting tips...</string>
+    <string name="faq_q1">Why does live camera streaming say \'Child Offline\'?</string>
+    <string name="faq_a1">Check that the child device has active Wi-Fi or mobile data, and ensure battery optimization is disabled according to our OEM Guide.</string>
+    <string name="faq_q2">Is my child\'s browsing and audio data private?</string>
+    <string name="faq_a2">Yes! All audio streams and web inspection happen locally via on-device loopback DNS and encrypted WebRTC channels.</string>
+    <string name="faq_q3">How do I unlock my child\'s phone if we have no internet?</string>
+    <string name="faq_a3">Open Settings &gt; Master Family PIN and enter the 4-digit master PIN directly on child phone keypad to bypass all blocks offline.</string>
+    <string name="action_contact_support">Contact Human Support 24/7</string>
+
+    <!-- Screen 64: ParentProfileScreen -->
+    <string name="profile_title">Parent Guardian Profile</string>
+    <string name="parent_name_label">Full Name</string>
+    <string name="parent_email_label">Email Address</string>
+    <string name="parent_phone_label">Mobile Phone Number</string>
+    <string name="family_id_label">Master Family Account ID</string>
+    <string name="action_save_profile_changes">Save Profile Changes</string>
+
+    <!-- Screen 65: AppOtaUpdateScreen -->
+    <string name="ota_update_title">App Software Update</string>
+    <string name="ota_version_format">Latest Version: %1$s (Current: %2$s)</string>
+    <string name="ota_changelog_header">What\'s New in this Version</string>
+    <string name="ota_downloading_format">Downloaded %1$d MB / %2$d MB</string>
+    <string name="action_install_update">Download &amp; Install Update</string>
+
+    <!-- Phase 10 - Modals 12, 15, 19, 20, 24, 25, 26 -->
+    <!-- Modal 12: UpgradeToPremiumSheet -->
+    <string name="upgrade_premium_sheet_title">Upgrade to Family Pro</string>
+    <string name="upgrade_premium_sheet_desc">Unlock unlimited 1080p live surveillance, audio recording &amp; 30-day location history</string>
+    <string name="action_upgrade_now">View VIP Plans</string>
+
+    <!-- Modal 15: VipDiscountPromoBottomSheet -->
+    <string name="vip_promo_title">Special Family Protection Discount!</string>
+    <string name="vip_promo_desc">Get 40% OFF Annual Family VIP today only</string>
+    <string name="promo_countdown_format">Offer expires in: %1$02d:%2$02d:%3$02d</string>
+    <string name="action_claim_discount">Claim 40% Discount Now</string>
+
+    <!-- Modal 19: VoucherRedemptionBottomSheet -->
+    <string name="voucher_sheet_title">Redeem Gift Voucher</string>
+    <string name="voucher_sheet_subtitle">Enter your 16-character promotional license or gift key</string>
+    <string name="voucher_input_label">Voucher License Code</string>
+    <string name="action_redeem_voucher">Redeem Voucher</string>
+
+    <!-- Modal 20: BindPhoneAuthBottomSheet -->
+    <string name="bind_phone_title">Bind Mobile Phone (2FA)</string>
+    <string name="bind_phone_subtitle">Receive critical emergency SOS SMS alerts on your verified mobile phone</string>
+    <string name="phone_input_label">Mobile Phone Number</string>
+    <string name="action_send_sms_otp">Send Verification SMS</string>
+
+    <!-- Modal 24: StreamQuotaExhaustedSheet -->
+    <string name="stream_quota_title">Daily Free Stream Quota Reached</string>
+    <string name="stream_quota_desc">You have used your daily 30 minutes of free live mirror streaming. Upgrade to Family Pro for unlimited 24/7 streaming or add +15m bonus.</string>
+    <string name="action_boost_stream">Add +15m Bonus Stream</string>
+
+    <!-- Modal 25: LogoutConfirmBottomSheet -->
+    <string name="logout_confirm_title">Sign Out of Family Account?</string>
+    <string name="logout_confirm_desc">You will stop receiving real-time SOS alarms and geofence notifications until you sign in again.</string>
+    <string name="action_logout_confirm">Sign Out</string>
+    <string name="action_logout_cancel">Stay Signed In</string>
+
+    <!-- Modal 26: AvatarImageCropperBottomSheet -->
+    <string name="cropper_title">Crop Guardian Avatar</string>
+    <string name="action_apply_crop">Save Profile Photo</string>
+</resources>

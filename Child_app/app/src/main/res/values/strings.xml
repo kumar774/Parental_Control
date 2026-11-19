@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Child Guard</string>
+    <string name="device_admin_description">Device Administrator permissions required for Anti-Tamper and Parental Protection.</string>
+</resources>
