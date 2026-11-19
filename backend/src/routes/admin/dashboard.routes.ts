@@ -50,14 +50,14 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     return reply.send({
       generatedAt: new Date().toISOString(),
       parents: {
-        total: parentCount.total,
-        active: activeParents.total,
-        suspended: suspendedParents.total,
+        total: (parentCount?.total ?? 0),
+        active: (activeParents?.total ?? 0),
+        suspended: (suspendedParents?.total ?? 0),
       },
       devices: {
-        total: deviceCount.total,
-        recentlySeen: onlineDevices.total,
-        locked: lockedDevices.total,
+        total: (deviceCount?.total ?? 0),
+        recentlySeen: (onlineDevices?.total ?? 0),
+        locked: (lockedDevices?.total ?? 0),
       },
       freshnessWindowSeconds: 300,
     });
@@ -90,7 +90,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
-    return reply.send({ items: rows, page, pageSize, total: total.total });
+    return reply.send({ items: rows, page, pageSize, total: total?.total ?? 0 });
   });
 
   app.get('/parents/:id', async (request, reply) => {
@@ -115,7 +115,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .select({ total: count() })
       .from(childDevices)
       .where(eq(childDevices.parentId, parent.id));
-    return reply.send({ ...parent, deviceCount: deviceCount.total });
+    return reply.send({ ...parent, deviceCount: deviceCount?.total ?? 0 });
   });
 
   app.get('/devices', async (request, reply) => {
