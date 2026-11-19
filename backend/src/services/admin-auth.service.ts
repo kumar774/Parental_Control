@@ -70,13 +70,14 @@ export interface AuditLogParams {
 
 export async function logAuditEvent(params: AuditLogParams): Promise<void> {
   try {
+    const source = params.source ?? 'WEB';
     await db.insert(adminAuthAuditLogs).values({
       adminId: params.adminId ?? null,
       eventType: params.eventType,
       status: params.status,
-      source: params.source ?? 'WEB',
-      ipAddress: params.source === 'WEB' ? (params.ipAddress ?? null) : null,
-      userAgent: params.source === 'WEB' ? (params.userAgent ?? null) : null,
+      source,
+      ipAddress: source === 'WEB' ? (params.ipAddress ?? null) : null,
+      userAgent: source === 'WEB' ? (params.userAgent ?? null) : null,
       metadata: params.metadata ?? null,
     });
   } catch (err: any) {

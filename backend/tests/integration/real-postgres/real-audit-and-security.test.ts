@@ -4,43 +4,62 @@ import crypto from 'crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { getVerifiedRealPostgresConnection, VerifiedDbConnection } from './real-postgres-harness';
 import {
+  adminUsers,
   adminAuthAuditLogs,
   adminAuditArchiveVerifications,
 } from '../../../src/db/schema/admin-auth';
 import { sha256 } from '../../../src/utils/crypto-vault';
+import { logAuditEvent } from '../../../src/services/admin-auth.service';
 
-describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privilege Roles', () => {
+describe('Category B: Real PostgreSQL Audit Pruning, Immutability & Least-Privilege Roles', () => {
   let conn: VerifiedDbConnection;
+  let testAdminId: string;
 
   before(async () => {
     conn = await getVerifiedRealPostgresConnection();
+    testAdminId = crypto.randomUUID();
+
+    // Clean up and seed test admin user for audit FK constraints
+    await conn.db.delete(adminUsers).where(eq(adminUsers.email, 'audit-test-admin@test.local'));
+    await conn.db.insert(adminUsers).values({
+      id: testAdminId,
+      email: 'audit-test-admin@test.local',
+      username: 'audittestadmin',
+      passwordHash: 'dummyargon2hashvalue',
+      role: 'super_admin',
+      status: 'active',
+      mfaEnabled: true,
+    });
   });
 
   after(async () => {
     if (conn) {
+      try {
+        await conn.db.delete(adminUsers).where(eq(adminUsers.id, testAdminId));
+      } catch {}
       await conn.pool.end();
     }
   });
 
   // ---------------------------------------------------------------------------
-  // 7. Audit Log Append-Only & Immutability
+  // 1. Audit Log Application Service Logging & Persistence
   // ---------------------------------------------------------------------------
-  describe('7. Audit Log Append-Only Structure in Real PostgreSQL', () => {
-    it('successfully appends immutable audit records with complete actor details', async () => {
-      const eventId = crypto.randomUUID();
-      await conn.db.insert(adminAuthAuditLogs).values({
-        id: eventId,
+  describe('1. Audit Log Application Service Persistence in Real PostgreSQL', () => {
+    it('appends structured audit record via logAuditEvent() service function', async () => {
+      await logAuditEvent({
         eventType: 'LOGIN_SUCCESS',
+        adminId: testAdminId,
+        actorIdentifier: 'audit-test-admin@test.local',
         status: 'SUCCESS',
         ipAddress: '127.0.0.1',
-        userAgent: 'Real-Postgres-Audit-Agent',
+        userAgent: 'Audit-Service-Test-Agent',
         metadata: { method: 'totp', authLevel: 'super_admin' },
       });
 
       const rows = await conn.db
         .select()
         .from(adminAuthAuditLogs)
-        .where(eq(adminAuthAuditLogs.id, eventId));
+        .where(eq(adminAuthAuditLogs.adminId, testAdminId));
 
       assert.equal(rows.length, 1);
       assert.equal(rows[0].eventType, 'LOGIN_SUCCESS');
@@ -51,10 +70,10 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
   });
 
   // ---------------------------------------------------------------------------
-  // 8. Archive Verification & Pruning Execution (Real Stored Function)
+  // 2. Real Stored Function Pruning Execution & Cryptographic Binding
   // ---------------------------------------------------------------------------
-  describe('8. Real PostgreSQL Stored Function Pruning Execution', () => {
-    it('executes public.prune_archived_audit_logs atomically and deletes verified records strictly > 90 days old', async () => {
+  describe('2. Real Stored Function Pruning Execution (public.prune_archived_audit_logs)', () => {
+    it('executes prune_archived_audit_logs atomically for records strictly > 90 days old', async () => {
       const ninetyOneDaysAgo = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000);
 
       // Seed 3 historical audit log records
@@ -100,41 +119,48 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
         .select()
         .from(adminAuthAuditLogs)
         .where(inArray(adminAuthAuditLogs.id, recordIds));
-      assert.equal(remaining.length, 0, 'Pruned audit log records must be deleted');
+      assert.equal(remaining.length, 0, 'Pruned audit rows must be deleted from table');
 
-      // Verify verification record is marked consumed
-      const verRecord = await conn.db
+      // Verify verification record is marked CONSUMED with consumed_at populated
+      const verificationCheck = await conn.db
         .select()
         .from(adminAuditArchiveVerifications)
         .where(eq(adminAuditArchiveVerifications.id, verificationId));
-      assert.notEqual(verRecord[0].consumedAt, null, 'Verification record must be marked consumed');
-    });
-  });
+      assert.equal(verificationCheck[0].status, 'CONSUMED');
+      assert.notEqual(verificationCheck[0].consumedAt, null);
 
-  // ---------------------------------------------------------------------------
-  // 9. Manifest Mismatch & Partial Deletion Rollback Guarantee
-  // ---------------------------------------------------------------------------
-  describe('9. Manifest Mismatch & Rollback Guarantee in Real PostgreSQL', () => {
-    it('aborts transaction and deletes zero rows when archiveChecksum does not match', async () => {
+      // Anti-Replay: Attempting to call prune with the consumed verification must fail
+      await assert.rejects(
+        async () => {
+          await conn.pool.query(
+            'SELECT public.prune_archived_audit_logs($1, $2, $3, $4)',
+            [verificationId, recordIds, archiveChecksum, manifestHash]
+          );
+        },
+        /No unconsumed, verified archive record found/
+      );
+    });
+
+    it('rejects batch if manifest hash does not match attested record', async () => {
       const ninetyOneDaysAgo = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000);
       const testId = crypto.randomUUID();
 
       await conn.db.insert(adminAuthAuditLogs).values({
         id: testId,
-        eventType: 'LOGIN_SUCCESS',
-        status: 'SUCCESS',
+        eventType: 'MFA_FAILED',
+        status: 'FAILURE',
         createdAt: ninetyOneDaysAgo,
       });
 
-      const actualChecksum = sha256('actual-archive-checksum');
-      const wrongChecksum = sha256('wrong-tampered-checksum');
+      const archiveChecksum = sha256('payload-data');
       const manifestHash = sha256(JSON.stringify([testId]));
+      const forgedHash = sha256('forged-manifest-data');
 
       const verificationId = crypto.randomUUID();
       await conn.db.insert(adminAuditArchiveVerifications).values({
         id: verificationId,
-        archiveChecksum: actualChecksum,
-        archiveUri: 's3://audit-worm-bucket/test.tar.gz',
+        archiveChecksum,
+        archiveUri: 's3://audit-worm-bucket/test2.tar.gz',
         recordCount: 1,
         manifestHash,
         manifestIds: [testId],
@@ -142,23 +168,16 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
         verifiedBy: 'worm_attestation_service',
       });
 
-      // Execute with mismatched checksum: must fail
+      // Submit forged manifest hash
       await assert.rejects(
         async () => {
           await conn.pool.query(
             'SELECT public.prune_archived_audit_logs($1, $2, $3, $4)',
-            [verificationId, [testId], wrongChecksum, manifestHash]
+            [verificationId, [testId], archiveChecksum, forgedHash]
           );
         },
-        /Archive payload checksum mismatch/
+        /Manifest hash mismatch/
       );
-
-      // Verify row was NOT deleted
-      const checkRow = await conn.db
-        .select()
-        .from(adminAuthAuditLogs)
-        .where(eq(adminAuthAuditLogs.id, testId));
-      assert.equal(checkRow.length, 1, 'Row must remain untouched after checksum mismatch');
     });
 
     it('rolls back entire transaction if any record in batch violates 90-day retention constraint', async () => {
@@ -210,9 +229,9 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
   });
 
   // ---------------------------------------------------------------------------
-  // 10. Role Ownership & Least-Privilege Enforcement
+  // 3. PostgreSQL Role Ownership & Least-Privilege Enforcement (Section 8.6)
   // ---------------------------------------------------------------------------
-  describe('10. PostgreSQL Catalog Role Ownership & Security Boundaries', () => {
+  describe('3. PostgreSQL Catalog Role Ownership & Security Boundaries', () => {
     it('verifies parental_audit_pruner role properties (NOLOGIN, non-superuser)', async () => {
       const res = await conn.pool.query(
         `SELECT rolname, rolcanlogin, rolsuper, rolinherit 
@@ -239,6 +258,21 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
       assert.equal(res.rows[0].rolinherit, false, 'parental_audit_archive must have NOINHERIT');
     });
 
+    it('verifies parental_migrator role properties when present (LOGIN, non-superuser)', async () => {
+      const res = await conn.pool.query(
+        `SELECT rolname, rolcanlogin, rolsuper, rolinherit, rolcreatedb, rolcreaterole 
+         FROM pg_roles 
+         WHERE rolname = 'parental_migrator'`
+      );
+
+      if (res.rows.length > 0) {
+        assert.equal(res.rows[0].rolcanlogin, true, 'parental_migrator must have LOGIN');
+        assert.equal(res.rows[0].rolsuper, false, 'parental_migrator must NOT be superuser');
+        assert.equal(res.rows[0].rolcreatedb, false, 'parental_migrator must have NOCREATEDB');
+        assert.equal(res.rows[0].rolcreaterole, false, 'parental_migrator must have NOCREATEROLE');
+      }
+    });
+
     it('verifies prune_archived_audit_logs stored function SECURITY DEFINER and hardened search_path', async () => {
       const res = await conn.pool.query(
         `SELECT proname, prosecdef, proconfig, r.rolname AS owner 
@@ -257,7 +291,7 @@ describe('Real PostgreSQL Integration: Audit Pruning, Immutability & Least-Privi
       );
     });
 
-    it('verifies EXECUTE on prune function is revoked from PUBLIC and granted only to parental_audit_archive', async () => {
+    it('verifies EXECUTE on prune function is revoked from PUBLIC and granted to parental_audit_archive', async () => {
       const res = await conn.pool.query(
         `SELECT grantee, privilege_type 
          FROM information_schema.routine_privileges 

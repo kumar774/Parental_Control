@@ -9,6 +9,7 @@ export interface VerifiedDbConnection {
   db: ReturnType<typeof drizzle>;
   dbName: string;
   port: number;
+  currentUser: string;
   serverVersion: string;
 }
 
@@ -16,20 +17,45 @@ const FORBIDDEN_DATABASES = new Set([
   'parental_control_db',
   'parental_control_admin_db',
   'postgres',
+  'template0',
   'template1',
 ]);
 
 /**
  * Initializes and strictly verifies a genuine PostgreSQL connection.
  * Guarantees zero connection to protected production/development databases.
- * Throws immediately if isolation conditions are not satisfied.
+ * Throws immediately if isolation conditions or environment bindings are not satisfied.
  */
 export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbConnection> {
   const databaseUrl = process.env.DATABASE_URL;
+  const expectedDbName = process.env.AUTH001_TEST_DATABASE_NAME;
+  const expectedDbPort = process.env.AUTH001_TEST_DATABASE_PORT;
 
   if (!databaseUrl) {
     throw new Error(
       '[Real PostgreSQL Gate FATAL] Explicit DATABASE_URL environment variable is required. In-memory mock fallback is forbidden.'
+    );
+  }
+
+  if (!expectedDbName || !expectedDbPort) {
+    throw new Error(
+      '[Real PostgreSQL Gate FATAL] Explicit AUTH001_TEST_DATABASE_NAME and AUTH001_TEST_DATABASE_PORT environment variables are required.'
+    );
+  }
+
+  // 1. Loopback Host Verification (Sanitized parse without leaking credentials)
+  let hostname = '';
+  try {
+    const parsedUrl = new URL(databaseUrl);
+    hostname = parsedUrl.hostname;
+  } catch (err: any) {
+    throw new Error('[Real PostgreSQL Gate FATAL] Failed to parse DATABASE_URL.');
+  }
+
+  const isLoopback = /^(127\.0\.0\.1|localhost|::1)$/.test(hostname);
+  if (!isLoopback) {
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Safety Violation: Host '${hostname}' is not a local loopback address. Only loopback connections are permitted.`
     );
   }
 
@@ -40,27 +66,37 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     connectionTimeoutMillis: 5000,
   });
 
-  const client = await pool.connect();
   let dbName = '';
   let port = 0;
+  let currentUser = '';
   let serverVersion = '';
 
   try {
-    const res = await client.query(`
-      SELECT 
-        current_database() AS db_name,
-        inet_server_port() AS port,
-        version() AS version
-    `);
+    const client = await pool.connect();
+    try {
+      const res = await client.query(`
+        SELECT 
+          current_database() AS db_name,
+          inet_server_port() AS port,
+          CURRENT_USER AS current_user,
+          version() AS version
+      `);
 
-    dbName = res.rows[0]?.db_name;
-    port = Number(res.rows[0]?.port || 0);
-    serverVersion = res.rows[0]?.version || '';
-  } finally {
-    client.release();
+      dbName = res.rows[0]?.db_name;
+      port = Number(res.rows[0]?.port || 0);
+      currentUser = res.rows[0]?.current_user || '';
+      serverVersion = res.rows[0]?.version || '';
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    await pool.end().catch(() => {});
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Failed to query PostgreSQL identity parameters: ${err.message}`
+    );
   }
 
-  // 1. Strict Database Identity Safety Boundary
+  // 2. Strict Database Identity Safety Boundary (Protected DB Rejection)
   if (!dbName || FORBIDDEN_DATABASES.has(dbName.toLowerCase())) {
     await pool.end();
     throw new Error(
@@ -68,7 +104,31 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     );
   }
 
-  // 2. Strict Disposable Pattern Requirement
+  // 3. Exact Database Name & Port Matching
+  if (dbName !== expectedDbName) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Database name mismatch: connected to '${dbName}', expected '${expectedDbName}'.`
+    );
+  }
+
+  const expectedPortNum = Number(expectedDbPort);
+  if (port !== expectedPortNum) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Database port mismatch: connected to port ${port}, expected port ${expectedPortNum}.`
+    );
+  }
+
+  // 4. Current User Verification
+  if (!currentUser) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] CURRENT_USER query returned empty identity. Test execution aborted.`
+    );
+  }
+
+  // 5. Strict Disposable Pattern Requirement
   const isDisposableName = /gate3|test|disposable|ephemeral|ci/i.test(dbName);
   if (!isDisposableName) {
     await pool.end();
@@ -77,30 +137,36 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     );
   }
 
-  // 3. Verify Table Availability
-  const client2 = await pool.connect();
+  // 6. Verify Table Availability
   try {
-    const tableRes = await client2.query(`
-      SELECT count(*)::int AS count 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-        AND table_name IN ('admin_users', 'admin_sessions', 'admin_auth_audit_logs')
-    `);
-    if (Number(tableRes.rows[0]?.count) < 3) {
-      throw new Error(
-        `[Real PostgreSQL Gate FATAL] Database '${dbName}' does not have required AUTH-001 tables migrated. Run migrations first.`
-      );
+    const client2 = await pool.connect();
+    try {
+      const tableRes = await client2.query(`
+        SELECT count(*)::int AS count 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name IN ('admin_users', 'admin_sessions', 'admin_auth_audit_logs')
+      `);
+      if (Number(tableRes.rows[0]?.count) < 3) {
+        throw new Error(
+          `[Real PostgreSQL Gate FATAL] Database '${dbName}' does not have required AUTH-001 tables migrated. Run migrations first.`
+        );
+      }
+    } finally {
+      client2.release();
     }
-  } finally {
-    client2.release();
+  } catch (err: any) {
+    await pool.end().catch(() => {});
+    throw err;
   }
 
   console.log(`\n========================================================================`);
   console.log(`[GENUINE POSTGRESQL HARNESS VERIFIED]`);
-  console.log(`  Database:  ${dbName}`);
-  console.log(`  Port:      ${port}`);
-  console.log(`  Version:   ${serverVersion.split('\n')[0]}`);
-  console.log(`  Engine:    Genuine Native PostgreSQL (No pg-mem)`);
+  console.log(`  Database:     ${dbName}`);
+  console.log(`  Port:         ${port}`);
+  console.log(`  Current User: ${currentUser}`);
+  console.log(`  Version:      ${serverVersion.split('\n')[0]}`);
+  console.log(`  Engine:       Genuine Native PostgreSQL (No pg-mem)`);
   console.log(`========================================================================\n`);
 
   const db = drizzle(pool, { schema });
@@ -110,6 +176,7 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     db,
     dbName,
     port,
+    currentUser,
     serverVersion,
   };
 }
