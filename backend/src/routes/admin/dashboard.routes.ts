@@ -14,22 +14,16 @@ const listQuerySchema = z.object({
 
 const idSchema = z.object({ id: z.string().uuid() });
 
-function requireSuperAdmin(request: any, reply: any): boolean {
-  if (request.adminUser?.role !== 'super_admin') {
-    reply.status(403).send({
-      statusCode: 403,
-      error: 'Forbidden',
-      message: 'Super administrator permission required',
-    });
-    return false;
-  }
-  return true;
-}
-
 export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.addHook('preHandler', requireAdminSession);
   app.addHook('preHandler', async (request, reply) => {
-    requireSuperAdmin(request, reply);
+    if (request.adminUser?.role !== 'super_admin') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Super administrator permission required',
+      });
+    }
   });
 
   // Only aggregate operational metadata; never return credentials or raw identifiers.
