@@ -14,23 +14,17 @@ jobs:
     name: Backend CI (Typecheck & Multi-Engine Tests)
     runs-on: ubuntu-latest
 
-    env:
-      CI_MIGRATOR_PASS: migrator_ci_secure_pass_2026
-      CI_ADMIN_PASS: admin_role_ci_secure_pass_2026
-      CI_ARCHIVE_PASS: archive_role_ci_secure_pass_2026
-      CI_ATTESTATION_PASS: attestation_role_ci_secure_pass_2026
-
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_USER: ci_test_user
-          POSTGRES_PASSWORD: ci_test_password_secure_2026
           POSTGRES_DB: auth001_ci_disposable_test
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U ci_test_user -d auth001_ci_disposable_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -38,6 +32,32 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify Credential Hygiene (Static Password Literal Scan)
+        run: node backend/scripts/check-credential-hygiene.mjs
+
+      - name: Generate Ephemeral Runtime Database Credentials
+        run: |
+          # Generate cryptographically secure random passwords from OS random source (192-bit entropy)
+          MIGRATOR_PASS=$(openssl rand -hex 24)
+          ADMIN_PASS=$(openssl rand -hex 24)
+          ARCHIVE_PASS=$(openssl rand -hex 24)
+          ATTESTATION_PASS=$(openssl rand -hex 24)
+
+          # Mask all generated credentials in runner logs
+          echo "::add-mask::$MIGRATOR_PASS"
+          echo "::add-mask::$ADMIN_PASS"
+          echo "::add-mask::$ARCHIVE_PASS"
+          echo "::add-mask::$ATTESTATION_PASS"
+
+          # Export to GITHUB_ENV for use across subsequent job steps
+          echo "CI_MIGRATOR_PASS=$MIGRATOR_PASS" >> $GITHUB_ENV
+          echo "CI_ADMIN_PASS=$ADMIN_PASS" >> $GITHUB_ENV
+          echo "CI_ARCHIVE_PASS=$ARCHIVE_PASS" >> $GITHUB_ENV
+          echo "CI_ATTESTATION_PASS=$ATTESTATION_PASS" >> $GITHUB_ENV
+
+          # Ephemeral loopback connection URL using container trust-authentication (no hardcoded password)
+          echo "DATABASE_URL=postgres://ci_test_user@127.0.0.1:5432/auth001_ci_disposable_test" >> $GITHUB_ENV
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -61,15 +81,13 @@ jobs:
         working-directory: backend
         env:
           NODE_ENV: test
-          DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
         run: npm run test
 
       - name: Bootstrap Section 8.6 Roles (Superuser Step)
         working-directory: backend
-        env:
-          PGPASSWORD: ci_test_password_secure_2026
         run: |
           psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
             -v migrator_password="$CI_MIGRATOR_PASS" \
@@ -88,8 +106,6 @@ jobs:
 
       - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
         working-directory: backend
-        env:
-          PGPASSWORD: ci_test_password_secure_2026
         run: |
           psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "REVOKE parental_audit_pruner FROM parental_migrator;"
 
@@ -97,7 +113,7 @@ jobs:
         working-directory: backend
         env:
           NODE_ENV: test
-          DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           AUTH001_TEST_DATABASE_NAME: auth001_ci_disposable_test
           AUTH001_TEST_DATABASE_PORT: "5432"
           AUTH001_ADMIN_ROLE_PASSWORD: ${{ env.CI_ADMIN_PASS }}
