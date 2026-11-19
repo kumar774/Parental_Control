@@ -24,6 +24,9 @@ scratch/
 _backup_reference/
 Decompile_code/
 .playwright-mcp/
+test-results/
+playwright-report/
+blob-report/
 proof/
 *.zip
 

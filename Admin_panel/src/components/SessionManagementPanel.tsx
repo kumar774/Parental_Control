@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Laptop,
   Smartphone,
@@ -76,6 +76,11 @@ export const SessionManagementPanel: React.FC = () => {
   const [revoking, setRevoking] = useState<boolean>(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
 
+  // Accessibility refs & focus management
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -97,10 +102,61 @@ export const SessionManagementPanel: React.FC = () => {
     fetchSessions();
   }, [fetchSessions]);
 
-  const handleOpenRevokeConfirm = (session: ActiveSession) => {
+  // Focus management and keyboard navigation for accessible modal
+  useEffect(() => {
+    if (!revokeTarget) {
+      if (triggerElementRef.current) {
+        triggerElementRef.current.focus?.();
+        triggerElementRef.current = null;
+      }
+      return;
+    }
+
+    // Auto-focus Cancel button on modal open for safe default
+    const timer = setTimeout(() => {
+      cancelButtonRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (!revoking) {
+          handleCancelRevoke();
+        }
+      } else if (e.key === 'Tab' && dialogRef.current) {
+        // Tab trap inside modal dialog
+        const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [revokeTarget, revoking]);
+
+  const handleOpenRevokeConfirm = (session: ActiveSession, event?: React.MouseEvent) => {
     // Accidental current session revocation protection
     if (session.isCurrentSession) {
       return;
+    }
+    if (event?.currentTarget instanceof HTMLElement) {
+      triggerElementRef.current = event.currentTarget;
     }
     setRevokeError(null);
     setRevokeTarget(session);
@@ -320,7 +376,7 @@ export const SessionManagementPanel: React.FC = () => {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleOpenRevokeConfirm(session)}
+                            onClick={(e) => handleOpenRevokeConfirm(session, e)}
                             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 text-[11px] font-medium transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -397,7 +453,7 @@ export const SessionManagementPanel: React.FC = () => {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleOpenRevokeConfirm(session)}
+                        onClick={(e) => handleOpenRevokeConfirm(session, e)}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium border border-rose-500/20 transition-colors w-full justify-center"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -414,15 +470,31 @@ export const SessionManagementPanel: React.FC = () => {
 
       {/* Confirmation Modal for Revoking a Remote Session */}
       {revokeTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !revoking) {
+              handleCancelRevoke();
+            }
+          }}
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revoke-dialog-title"
+            aria-describedby="revoke-dialog-desc"
+            className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Revoke Session?</h4>
+                  <h4 id="revoke-dialog-title" className="text-sm font-bold text-white">
+                    Revoke Session?
+                  </h4>
                   <p className="text-[11px] text-slate-400">Immediate server-side token invalidation</p>
                 </div>
               </div>
@@ -430,13 +502,14 @@ export const SessionManagementPanel: React.FC = () => {
                 type="button"
                 onClick={handleCancelRevoke}
                 disabled={revoking}
+                aria-label="Close dialog"
                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p id="revoke-dialog-desc" className="text-xs text-slate-300 leading-relaxed">
               Are you sure you want to terminate this active session? The remote device will be immediately logged out and will require full MFA re-authentication.
             </p>
 
@@ -474,6 +547,7 @@ export const SessionManagementPanel: React.FC = () => {
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
+                ref={cancelButtonRef}
                 type="button"
                 onClick={handleCancelRevoke}
                 disabled={revoking}
