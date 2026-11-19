@@ -59,6 +59,27 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
         }),
       });
     });
+
+    // 3. Mock dashboard routes
+    await page.route('**/api/v1/admin/dashboard/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          generatedAt: new Date().toISOString(),
+          parents: { total: 0, active: 0, suspended: 0, registeredLast24h: 0, registeredLast7d: 0 },
+          devices: { total: 0, online: 0, offline: 0, locked: 0, healthyA11y: 0 },
+          auth: { successfulLoginsLast24h: 0, failedLoginsLast24h: 0, activeSessions: 1 },
+          system: { status: 'healthy', dbStatus: 'connected', dbLatencyMs: 1 },
+          recentActivity: [],
+          freshnessWindowSeconds: 300,
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 10,
+        }),
+      });
+    });
   });
 
   test('Scenario 1, 2 & 3: Renders SessionManagementPanel, parses devices, and protects current session', async ({
@@ -72,7 +93,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       });
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     // Verify Panel is mounted
     const heading = page.getByRole('heading', { name: /Active Administrator Sessions/i });
@@ -125,7 +146,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     // Click Revoke on the remote session
     const revokeButton = page.getByRole('button', { name: /^Revoke$/i }).first();
@@ -172,7 +193,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     const revokeButton = page.getByRole('button', { name: /^Revoke$/i }).first();
     await revokeButton.click();
@@ -226,7 +247,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     // Initial check: remote session visible
     await expect(page.getByText('192.168.1.150').first()).toBeVisible();
@@ -268,7 +289,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       });
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
     const revokeButton = page.getByRole('button', { name: /^Revoke$/i }).first();
     await revokeButton.click();
 
@@ -321,7 +342,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     await page.getByRole('button', { name: /^Revoke$/i }).first().click();
     const dialog = page.getByRole('dialog');
@@ -353,7 +374,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       });
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     await expect(page.getByText('No active sessions found')).toBeVisible();
     await expect(page.getByText(/Your account currently has zero active sessions/i)).toBeVisible();
@@ -370,7 +391,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       });
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     // While loading
     const loadingText = page.getByText(/Loading active administrator sessions/i);
@@ -405,7 +426,7 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/?tab=sessions');
 
     // Error alert must appear
     await expect(page.getByText('Active session registry temporarily unavailable')).toBeVisible();

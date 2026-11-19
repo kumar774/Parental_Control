@@ -145,11 +145,11 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
         SELECT count(*)::int AS count 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-          AND table_name IN ('admin_users', 'admin_sessions', 'admin_auth_audit_logs')
+          AND table_name IN ('admin_users', 'admin_sessions', 'admin_auth_audit_logs', 'users', 'child_devices', 'admin_control_audit_logs')
       `);
-      if (Number(tableRes.rows[0]?.count) < 3) {
+      if (Number(tableRes.rows[0]?.count) < 6) {
         throw new Error(
-          `[Real PostgreSQL Gate FATAL] Database '${dbName}' does not have required AUTH-001 tables migrated. Run migrations first.`
+          `[Real PostgreSQL Gate FATAL] Database '${dbName}' does not have required AUTH-001 and hybrid dashboard tables migrated. Run migrations first.`
         );
       }
     } finally {
