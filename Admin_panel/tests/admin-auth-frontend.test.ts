@@ -174,4 +174,93 @@ describe('Admin Frontend Auth Test Suite', () => {
       }
     });
   });
+
+  describe('3. Audit Findings Fix Verification (FINDING-01, 02, 03)', () => {
+    it('FINDING-03: setCsrfToken updates only csrfToken and preserves user & auth state', () => {
+      const mockUser: AdminUser = {
+        id: 'admin-123',
+        email: 'super@enterprise.local',
+        username: 'superadmin',
+        role: 'super_admin',
+      };
+      useAdminAuthStore.getState().setAuth(mockUser, 'initial-csrf-1');
+
+      // Rotate CSRF token
+      useAdminAuthStore.getState().setCsrfToken('rotated-csrf-2');
+
+      const state = useAdminAuthStore.getState();
+      assert.equal(state.csrfToken, 'rotated-csrf-2');
+      assert.deepEqual(state.user, mockUser);
+      assert.equal(state.isAuthenticated, true);
+    });
+
+    it('FINDING-01: changePassword response schema does not require user and updates csrfToken cleanly', async () => {
+      const mockUser: AdminUser = {
+        id: 'admin-123',
+        email: 'super@enterprise.local',
+        username: 'superadmin',
+        role: 'super_admin',
+      };
+      useAdminAuthStore.getState().setAuth(mockUser, 'initial-csrf-1');
+
+      let capturedBody: any = null;
+      let capturedHeaders: Headers | null = null;
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedHeaders = new Headers(init?.headers);
+        capturedBody = JSON.parse(init?.body as string);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            csrfToken: 'brand-new-csrf-token-xyz',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }) as typeof fetch;
+
+      try {
+        const res = await adminApi.changePassword('OldPassword123!', 'NewPassword456!');
+        assert.equal(res.success, true);
+        assert.equal(res.csrfToken, 'brand-new-csrf-token-xyz');
+        assert.equal((res as any).user, undefined); // Does not return user
+
+        // Apply store action
+        useAdminAuthStore.getState().setCsrfToken(res.csrfToken);
+
+        // Verify user is preserved and auth remains active
+        const state = useAdminAuthStore.getState();
+        assert.deepEqual(state.user, mockUser);
+        assert.equal(state.isAuthenticated, true);
+        assert.equal(state.csrfToken, 'brand-new-csrf-token-xyz');
+
+        // Verify payload and CSRF header sent
+        assert.equal(capturedBody.currentPassword, 'OldPassword123!');
+        assert.equal(capturedBody.newPassword, 'NewPassword456!');
+        assert.equal((capturedHeaders as Headers).get('X-CSRF-Token'), 'initial-csrf-1');
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it('FINDING-02: vite.config.ts contains /health proxy routing to Fastify port 3000', async () => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const viteConfigContent = fs.readFileSync(
+        path.resolve(process.cwd(), 'vite.config.ts'),
+        'utf-8'
+      );
+
+      assert.ok(viteConfigContent.includes("'/health':"), "vite.config.ts must define '/health' proxy");
+      assert.ok(
+        viteConfigContent.includes("target: 'http://127.0.0.1:3000'"),
+        "vite.config.ts must target 'http://127.0.0.1:3000'"
+      );
+      assert.ok(viteConfigContent.includes("'/api':"), "vite.config.ts must retain '/api' proxy");
+      assert.ok(viteConfigContent.includes("'/ws':"), "vite.config.ts must retain '/ws' proxy");
+    });
+  });
 });

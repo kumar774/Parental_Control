@@ -30,6 +30,11 @@ export interface RegenerateRecoveryResponse {
   recoveryCodes: string[];
 }
 
+export interface ChangePasswordResponse {
+  success: boolean;
+  csrfToken: string;
+}
+
 export interface GenericSuccessResponse {
   success: boolean;
   message?: string;
