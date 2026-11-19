@@ -52,7 +52,7 @@ export const ParentDeviceManagementPanel: React.FC = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 id="control-plane-heading" className="text-base font-semibold text-white">Parent &amp; Device Control Plane</h3>
-          <p className="mt-1 text-xs text-slate-400">Live records from the administrative API. Device presence uses a five-minute freshness window.</p>
+          <p className="mt-1 text-xs text-slate-400">Current records from the administrative API. Device presence uses a five-minute freshness window.</p>
         </div>
         <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 disabled:opacity-50">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
