@@ -2,7 +2,7 @@
 -- Hardened Security Definer Audit Pruning Function & Role Setup (Section 8.6)
 -- ============================================================================
 
--- Step 1: Ensure required audit maintenance roles exist and temporarily grant CREATE on schema public
+-- Step 1: Ensure required audit maintenance roles exist (bootstrapped by superuser in Section 8.6)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'parental_audit_pruner') THEN
@@ -123,30 +123,46 @@ END;
 $$;
 
 --> statement-breakpoint
--- Step 3: Transfer function ownership to parental_audit_pruner
-ALTER FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) OWNER TO parental_audit_pruner;
-
---> statement-breakpoint
--- Step 4: Immediately revoke temporary migration-time CREATE privilege and membership
-REVOKE CREATE ON SCHEMA public FROM parental_audit_pruner;
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'parental_migrator') THEN
-    EXECUTE 'REVOKE parental_audit_pruner FROM parental_migrator';
-  END IF;
-EXCEPTION WHEN OTHERS THEN
-  NULL;
-END $$;
-
---> statement-breakpoint
--- Step 5: Revoke PUBLIC execution and grant to archival worker
+-- Step 3: Revoke PUBLIC execution and grant solely to archival worker (performed while parental_migrator is function owner)
 REVOKE ALL ON FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) FROM parental_admin;
+REVOKE EXECUTE ON FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) FROM parental_audit_attestation;
 GRANT EXECUTE ON FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) TO parental_audit_archive;
 
 --> statement-breakpoint
--- Step 6: Configure persistent runtime schema and table permissions
+-- Step 4: Transfer function ownership to parental_audit_pruner
+ALTER FUNCTION public.prune_archived_audit_logs(uuid, uuid[], text, text) OWNER TO parental_audit_pruner;
+
+--> statement-breakpoint
+-- Step 5: Immediately revoke temporary migration-time CREATE privilege from parental_audit_pruner
+REVOKE CREATE ON SCHEMA public FROM parental_audit_pruner;
+
+--> statement-breakpoint
+-- Step 6: Configure persistent runtime schema and table permissions (Blueprint Section 8.6 Phase 3)
+
+-- 6A. Function Owner Role: parental_audit_pruner
 GRANT USAGE ON SCHEMA public TO parental_audit_pruner;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM parental_audit_pruner;
 GRANT SELECT, DELETE ON public.admin_auth_audit_logs TO parental_audit_pruner;
 GRANT SELECT, UPDATE ON public.admin_audit_archive_verifications TO parental_audit_pruner;
+
+-- 6B. Application Web Role: parental_admin
+GRANT USAGE ON SCHEMA public TO parental_admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO parental_admin;
+REVOKE UPDATE, DELETE, TRUNCATE ON public.admin_auth_audit_logs FROM parental_admin;
+REVOKE ALL ON public.admin_audit_archive_verifications FROM parental_admin;
+
+-- 6C. Archival Worker Role: parental_audit_archive
+GRANT USAGE ON SCHEMA public TO parental_audit_archive;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM parental_audit_archive;
+GRANT SELECT ON public.admin_auth_audit_logs TO parental_audit_archive;
+REVOKE UPDATE, DELETE, TRUNCATE ON public.admin_auth_audit_logs FROM parental_audit_archive;
+GRANT SELECT ON public.admin_audit_archive_verifications TO parental_audit_archive;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.admin_audit_archive_verifications FROM parental_audit_archive;
+
+-- 6D. Archive Attestation Role: parental_audit_attestation
+GRANT USAGE ON SCHEMA public TO parental_audit_attestation;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM parental_audit_attestation;
+GRANT INSERT, SELECT ON public.admin_audit_archive_verifications TO parental_audit_attestation;
+REVOKE ALL ON public.admin_auth_audit_logs FROM parental_audit_attestation;

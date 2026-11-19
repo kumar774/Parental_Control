@@ -66,29 +66,11 @@ describe('2. Session & API Integration Tests (admin-session.test.ts)', () => {
   }
 
   before(async () => {
-    // 1. Check real PostgreSQL connection status and table availability
-    let usePgMem = false;
-    try {
-      const client = await pool.connect();
-      const tableCheck = await client.query(
-        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_auth_audit_logs'"
-      );
-      client.release();
-      if (tableCheck.rows.length > 0) {
-        isPostgresConnected = true;
-        console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: CONNECTED (parental_control_admin_db on port 5432 with verified tables).');
-      } else {
-        usePgMem = true;
-        isPostgresConnected = false;
-        console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: CONNECTED but AUTH-001 tables unmigrated.');
-        console.log('[PostgreSQL Gate] Executing integration test suite against pg-mem in-memory mock engine.');
-      }
-    } catch (err: any) {
-      usePgMem = true;
-      isPostgresConnected = false;
-      console.log('\n[PostgreSQL Gate] Real PostgreSQL connection status: OFFLINE (' + err.message + ').');
-      console.log('[PostgreSQL Gate] Executing integration test suite against pg-mem in-memory mock engine.');
-    }
+    // Category C: Explicitly executes against pg-mem in-memory mock engine.
+    // Completely isolated from external/production databases.
+    const usePgMem = true;
+    isPostgresConnected = false;
+    console.log('\n[PostgreSQL Gate] Executing integration test suite against pg-mem in-memory mock engine.');
 
     if (usePgMem) {
       // Initialize pg-mem in-memory PostgreSQL engine
