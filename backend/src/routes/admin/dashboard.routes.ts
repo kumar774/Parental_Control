@@ -159,7 +159,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
-    return reply.send({ items: rows, page, pageSize, total: total.total, freshnessWindowSeconds: 300 });
+    return reply.send({ items: rows, page, pageSize, total: total?.total ?? 0, freshnessWindowSeconds: 300 });
   });
 
   app.get('/devices/:id', async (request, reply) => {
