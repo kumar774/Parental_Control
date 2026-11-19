@@ -206,7 +206,7 @@ export const adminApi = {
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     if (params.search) query.set('search', params.search);
     if (params.status) query.set('status', params.status);
-    return request('/parents?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
+    return request<{ items: DashboardParent[]; page: number; pageSize: number; total: number }>('/parents?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
   },
 
   async getDevices(params: { page?: number; pageSize?: number; search?: string; parentId?: string; connection?: 'recent' | 'stale' } = {}): Promise<{ items: DashboardDevice[]; page: number; pageSize: number; total: number; freshnessWindowSeconds: number }> {
@@ -216,7 +216,7 @@ export const adminApi = {
     if (params.search) query.set('search', params.search);
     if (params.parentId) query.set('parentId', params.parentId);
     if (params.connection) query.set('connection', params.connection);
-    return request('/devices?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
+    return request<{ items: DashboardDevice[]; page: number; pageSize: number; total: number; freshnessWindowSeconds: number }>('/devices?' + query.toString(), { method: 'GET' }, DASHBOARD_BASE_URL);
   },
   /**
    * Revokes current session
