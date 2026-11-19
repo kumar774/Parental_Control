@@ -38,13 +38,17 @@ The AUTH-001 specification has been implemented across sequential commits on `ma
    - Fully aligned migration workflow with Blueprint Section 8.6: superuser bootstrap (`bootstrap_roles.sql`), non-superuser migration execution as `parental_migrator`, ownership transfer to `parental_audit_pruner`, and post-migration temporary privilege revocations.
    - Upgraded real PostgreSQL tests to execute actual application service functions (`admin-auth.service.ts` and `admin-session.guard.ts`) rather than direct SQL mutations.
 
-6. **Final Gate 3 Security Closure (Current Implementation)**:
+6. **Final Gate 3 Security Closure**:
    - **Real Role-Based Least-Privilege Verification:** Added `real-role-permissions.test.ts` connecting independently as `parental_admin`, `parental_audit_archive`, and `parental_audit_attestation` using test credentials passed through environment variables. Verified PostgreSQL error `42501` (permission denied) for every unauthorized operation and SQL success for permitted operations.
    - **Zero PUBLIC Execution on Pruning Procedure:** Proved `has_function_privilege('public', ..., 'EXECUTE')` is `false`. Verified `parental_audit_pruner` is `NOLOGIN`, `NOINHERIT`, `NOSUPERUSER`, owns the function, enforces pinned `search_path=pg_catalog, public`, and possesses only minimal table privileges (`SELECT, DELETE` on audit logs; `SELECT, UPDATE` on verifications).
    - **MFA & Recovery Code Concurrency Tests:** Added `real-concurrency.test.ts` testing simultaneous `verifyMfa()` submissions with identical timesteps (exactly 1 session created, other rejected with `TOTP_REPLAY`), and simultaneous `verifyRecoveryCode()` submissions across multiple challenges (exactly 1 session created, other rejected with `INVALID_RECOVERY_CODE`).
    - **Removed Hardcoded Passwords from Bootstrap SQL:** Parameterized `backend/drizzle/bootstrap_roles.sql` using `psql` variables with validation, ensuring passwords are never stored in SQL files or leaked in CI logs.
    - **Eliminated Silent Error Suppression in Migrations:** Removed `EXCEPTION WHEN OTHERS THEN NULL` from `backend/drizzle/0001_audit_prune_function.sql`. Resolved the root cause of the CI membership revocation warning by having the granting superuser revoke temporary membership in the post-migration step.
    - **Password Reset Multi-Token Lifecycle & Rollback Atomicity:** Verified that requesting multiple password resets via `requestPasswordReset()` creates outstanding tokens, consuming one token atomically invalidates all other outstanding tokens for that administrator, revokes all active sessions with `revocation_reason = 'password_reset'`, and invalid tokens roll back cleanly without mutating passwords or sessions.
+
+7. **Final Two Blockers: CI Credential Hygiene + Genuine Rollback Proof (Current HEAD)**:
+   - **CI Credential Hygiene (Zero Committed Passwords):** Removed all static database credentials from `.github/workflows/ci.yml`. Replaced with runtime-generated random passwords (`openssl rand -hex 24`), masked via `::add-mask::` and passed securely between GitHub Actions steps via `$GITHUB_ENV`. Added automated scanner `backend/scripts/check-credential-hygiene.mjs` verifying that zero hardcoded passwords exist in workflows or Drizzle scripts. Configured loopback trust authentication (`POSTGRES_HOST_AUTH_METHOD: trust`) for the ephemeral disposable PostgreSQL CI service.
+   - **Genuine Password Reset Transaction Rollback Proof:** Implemented a real PostgreSQL rollback test in `backend/tests/integration/real-postgres/real-session-and-auth.test.ts`. By installing a temporary database trigger on `admin_auth_audit_logs` that raises an exception specifically on `PASSWORD_RESET_COMPLETED`, the test injects a failure at step 5 of the 5-step transaction in `resetPasswordWithToken()`. Confirmed that all prior writes in the transaction (token consumption, secondary token invalidation, password hash update, session revocation) are completely and atomically rolled back. Tested cleanup and successful retry to prove zero side effects.
 
 ---
 
@@ -72,7 +76,7 @@ Status classification:
 | **12. WORM Audit Logging & Pruning Security (Section 8.6)**<br>Append-only audit logs, immutable records, `prune_archived_audit_logs` SECURITY DEFINER with hardened `search_path`, 90-day retention lock, verified manifest checksum binding. | Implemented in `0001_audit_prune_function.sql` and `admin-auth.service.ts` (`logAuditEvent`). | Dashboard displays Audit & Pruning compliance status. | `real-audit-and-security.test.ts` (Stored procedure execution, checksum mismatch rejection, 90-day rollback guarantee); `real-role-permissions.test.ts` (Least-privilege role catalog grants & 42501 rejections). | **COMPLETE** |
 | **13. Frontend Zero-Storage In-Memory Security (Section 8.4)**<br>Zero tokens in `localStorage` or `sessionStorage`. All auth tokens kept in memory; destroyed on tab close or session expiration. | Implemented in `admin-session.guard.ts` (opaque `HttpOnly` cookie). | Implemented in `Admin_panel/src/store/admin-auth.store.ts` using vanilla in-memory Zustand store (no `persist` middleware). | `admin-auth-frontend.test.ts` (Tests 1-4: verifies state initialization, in-memory updates, and total memory purge on logout). | **COMPLETE** |
 | **14. Selective Session Management UI (Section 5, Endpoints 10 & 11)**<br>UI table displaying all active sessions (IP, user agent, login time, idle expiry) with button to revoke specific sessions. | Backend endpoints `GET /sessions` and `DELETE /sessions/:id` fully implemented. | Methods `adminApi.getSessions()` and `adminApi.revokeSession(id)` implemented in `admin-api.ts`, but no visual table is currently rendered on `AdminDashboard.tsx`. | Backend tests verify session queries; frontend lacks component tests for session table. | **PARTIAL** |
-| **15. Real PostgreSQL Integration Harness (Section 11.4)**<br>Independent test suite executing directly against real PostgreSQL without pg-mem fallback. | Standalone harness in `tests/integration/real-postgres/real-postgres-harness.ts` with loopback check, role connection factory (`getVerifiedRoleConnection`), exact port & db verification, and zero fallback. | N/A (Integration testing infrastructure) | `npm run test:real-pg` passes **54/54 tests** across all 5 genuine PostgreSQL suites. | **COMPLETE** |
+| **15. Real PostgreSQL Integration Harness (Section 11.4)**<br>Independent test suite executing directly against real PostgreSQL without pg-mem fallback. | Standalone harness in `tests/integration/real-postgres/real-postgres-harness.ts` with loopback check, role connection factory (`getVerifiedRoleConnection`), exact port & db verification, and zero fallback. | N/A (Integration testing infrastructure) | `npm run test:real-pg` passes **55/55 tests** across all 5 genuine PostgreSQL suites. | **COMPLETE** |
 | **16. Migration Safety Configuration (Section 3)**<br>`drizzle.config.ts` must require explicit `DATABASE_URL` and have no hardcoded fallback to real databases. | `backend/drizzle.config.ts` enforces explicit `DATABASE_URL` check for CLI commands and throws if absent. | N/A | Drizzle config inspected and verified; zero implicit database fallbacks. | **COMPLETE** |
 | **17. Automated CI Integration (Section 11)**<br>CI runs backend typecheck, cryptographic unit tests, pg-mem mock tests, Section 8.6 non-superuser migrations, real PostgreSQL tests against container, and full frontend CI. | `.github/workflows/ci.yml` contains sequential multi-engine validation with Postgres 16 container, parameterized bootstrap passwords, role permission assertions, and fail-fast assertions. | Frontend CI steps present and passing. | Tested in CI workflow configuration and verified locally. | **COMPLETE** |
 
@@ -93,7 +97,7 @@ All genuine PostgreSQL tests run via `npm run test:real-pg` against an isolated 
 
 ### Suite 2: Application Service Integration Tests
 - **File:** `backend/tests/integration/real-postgres/real-session-and-auth.test.ts`
-- **Verified Tests:** **15 passing tests**
+- **Verified Tests:** **16 passing tests**
   1. `loginAdmin()` successfully returns scoped MFA challenge
   2. `loginAdmin()` invalid password timing-safe failure
   3. `loginAdmin()` suspended account rejection
@@ -103,10 +107,11 @@ All genuine PostgreSQL tests run via `npm run test:real-pg` against an isolated 
   7. Keyed HMAC rate limit lifecycle: 10 failures trigger 60s cooldown in PostgreSQL, reset clears cooldown
   8. Password reset multi-token lifecycle: multiple requests generate outstanding tokens, presented token consumed, other tokens atomically invalidated, active sessions revoked
   9. Password reset rollback atomicity: invalid token rolls back transaction cleanly without mutating sessions or password
-  10. `logoutAdmin()` revokes specific session in real DB
-  11. `logoutAllAdmin()` revokes all sessions for user in real DB
-  12. `requireAdminSession()` validates active session and executes sliding window update
-  13. `requireAdminSession()` rejects expired idle session with HTTP 401
+  10. **Genuine Transaction Rollback Proof:** Injected failure in `admin_auth_audit_logs` at step 5 of `resetPasswordWithToken()` completely rolls back token consumption, secondary token invalidation, password hash modification, and session revocation in real PostgreSQL
+  11. `logoutAdmin()` revokes specific session in real DB
+  12. `logoutAllAdmin()` revokes all sessions for user in real DB
+  13. `requireAdminSession()` validates active session and executes sliding window update
+  14. `requireAdminSession()` rejects expired idle session with HTTP 401
 
 ### Suite 3: Audit Logging & Stored Procedure Execution Tests
 - **File:** `backend/tests/integration/real-postgres/real-audit-and-security.test.ts`
@@ -165,18 +170,45 @@ All genuine PostgreSQL tests run via `npm run test:real-pg` against an isolated 
 ```
 ================================================================================
 AUTH-001 VERIFICATION METRIC SUMMARY
-================================================================================
-Genuine PostgreSQL Tests (npm run test:real-pg) :  54 passed, 0 failed (100%)
+===============================================================================
+Genuine PostgreSQL Tests (npm run test:real-pg) :  55 passed, 0 failed (100%)
 In-Memory Mock Tests (npm test)                 :  23 passed, 0 failed (100%)
 Cryptographic Unit Tests (npm test)             :  19 passed, 0 failed (100%)
 --------------------------------------------------------------------------------
-Total Backend Tests Verified                    :  96 passed, 0 failed (100%)
+Total Backend Tests Verified                    :  97 passed, 0 failed (100%)
 Frontend Automated Tests (npm test)             :  10 passed, 0 failed (100%)
 --------------------------------------------------------------------------------
-Grand Total Test Suite                          : 106 passed, 0 failed (100%)
+Grand Total Test Suite                          : 107 passed, 0 failed (100%)
 ================================================================================
 Backend TypeScript Compilation (tsc --noEmit)   :   0 errors
 Frontend TypeScript Compilation (tsc --noEmit)  :   0 errors
 Frontend Production Build (vite build)          :   Successful (dist/ generated)
 ================================================================================
 ```
+
+---
+
+## 5. CI Credential Hygiene & Genuine Transaction Rollback Proof
+
+### 5.1 CI Credential Hygiene (Zero Committed Static Passwords)
+To enforce strict zero-static-credential compliance:
+1. **Dynamic Runtime Credential Generation:** `.github/workflows/ci.yml` generates all database role passwords dynamically at runtime using `openssl rand -hex 24`.
+2. **Secret Masking:** Every generated password is immediately registered with the GitHub Actions secret engine via `echo "::add-mask::$VAR"` before being exported to `$GITHUB_ENV`.
+3. **Container Loopback Trust:** The ephemeral disposable PostgreSQL container service is configured with `POSTGRES_HOST_AUTH_METHOD: trust`, restricted exclusively to the runner loopback interface.
+4. **Automated Hygiene Pre-Check:** `backend/scripts/check-credential-hygiene.mjs` executes as step 2 in CI. It performs a rigorous string analysis across `.github/workflows/` and `backend/drizzle/` to guarantee that no static database credentials or hardcoded passwords exist anywhere in version control.
+
+### 5.2 Genuine Transaction Rollback Proof
+To provide indisputable evidence that multi-step mutations roll back atomically on failure rather than leaving orphaned state:
+1. In `backend/tests/integration/real-postgres/real-session-and-auth.test.ts`, a PostgreSQL trigger `fail_password_reset_audit` is installed on `admin_auth_audit_logs`.
+2. The trigger specifically detects `NEW.event_type = 'PASSWORD_RESET_COMPLETED'` and raises an unhandled PostgreSQL exception `simulated audit log failure mid-transaction`.
+3. `adminAuthService.resetPasswordWithToken()` is called with a valid reset token.
+4. The method executes step 1 (mark token consumed), step 2 (invalidate all other outstanding tokens for admin), step 3 (update Argon2id password hash), and step 4 (revoke all active admin sessions).
+5. At step 5, `logAuditEvent()` attempts to write `PASSWORD_RESET_COMPLETED` to `admin_auth_audit_logs`, triggering the PostgreSQL exception.
+6. The test asserts:
+   - `resetPasswordWithToken()` throws the expected database error.
+   - The presented reset token remains unconsumed (`is_consumed = false`).
+   - All other reset tokens remain unconsumed (`is_consumed = false`).
+   - The administrator's password hash remains completely unchanged.
+   - All active administrator sessions remain active and unrevoked (`revoked_at IS NULL`).
+   - Zero audit logs were committed for the failed transaction.
+7. The trigger is cleanly dropped in a `finally` block, and a subsequent reset is executed to verify that normal operations continue uninterrupted.

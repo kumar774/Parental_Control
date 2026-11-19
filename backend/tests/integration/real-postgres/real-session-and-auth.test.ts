@@ -500,6 +500,201 @@ describe('Category B: Real PostgreSQL Application Service Integration Tests', ()
       });
       assert.equal(loginCheck.status, 'MFA_REQUIRED', 'Original password must remain functional');
     });
+
+    it('proves genuine transaction rollback: injected audit failure rolls back token consumption, password update, and session revocation', async () => {
+      // 1. Create active session
+      const rawSessionToken = crypto.randomUUID();
+      const sessionHash = sha256(rawSessionToken);
+      const sessionRowId = crypto.randomUUID();
+      await conn.db.insert(adminSessions).values({
+        id: sessionRowId,
+        adminId: testAdminId,
+        sessionTokenHash: sessionHash,
+        csrfTokenHash: sha256('rollback_test_csrf'),
+        idleExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        rememberMe: false,
+        ipAddress: '127.0.0.1',
+        userAgent: 'Rollback-TestAgent',
+      });
+
+      // 2. Generate two outstanding reset tokens through genuine lifecycle
+      const reqA = await requestPasswordReset(testEmail, '127.0.0.1', 'Rollback-TestAgent');
+      const reqB = await requestPasswordReset(testEmail, '127.0.0.1', 'Rollback-TestAgent');
+      assert.ok(reqA.rawToken && reqB.rawToken);
+      const tokenA = reqA.rawToken;
+      const tokenB = reqB.rawToken;
+      const tokenAHash = sha256(tokenA);
+      const tokenBHash = sha256(tokenB);
+
+      // 3. Record initial state: password hash and token unused state
+      const userResBefore = await conn.pool.query(
+        'SELECT password_hash FROM admin_users WHERE id = $1',
+        [testAdminId]
+      );
+      const initialPasswordHash = userResBefore.rows[0].password_hash;
+
+      const tokensBefore = await conn.pool.query(
+        'SELECT id, token_hash, used_at FROM admin_password_resets WHERE token_hash IN ($1, $2)',
+        [tokenAHash, tokenBHash]
+      );
+      assert.equal(tokensBefore.rows.length, 2);
+      assert.equal(tokensBefore.rows[0].used_at, null);
+      assert.equal(tokensBefore.rows[1].used_at, null);
+
+      const sessionBefore = await conn.pool.query(
+        'SELECT revoked_at FROM admin_sessions WHERE id = $1',
+        [sessionRowId]
+      );
+      assert.equal(sessionBefore.rows[0].revoked_at, null);
+
+      const auditBefore = await conn.pool.query(
+        "SELECT count(*)::int AS count FROM admin_auth_audit_logs WHERE admin_id = $1 AND event_type = 'PASSWORD_RESET_COMPLETED'",
+        [testAdminId]
+      );
+      const initialAuditCount = auditBefore.rows[0].count;
+
+      // 4. Install temporary test-only PostgreSQL trigger on admin_auth_audit_logs
+      // Raises deliberate exception specifically when event_type = 'PASSWORD_RESET_COMPLETED'
+      await conn.pool.query(`
+        CREATE OR REPLACE FUNCTION fail_password_reset_audit()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          IF NEW.event_type = 'PASSWORD_RESET_COMPLETED' THEN
+            RAISE EXCEPTION 'INJECTED_AUDIT_LOG_FAILURE_FOR_ROLLBACK_TEST';
+          END IF;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trigger_fail_password_reset_audit ON public.admin_auth_audit_logs;
+        CREATE TRIGGER trigger_fail_password_reset_audit
+        BEFORE INSERT ON public.admin_auth_audit_logs
+        FOR EACH ROW
+        EXECUTE FUNCTION fail_password_reset_audit();
+      `);
+
+      try {
+        // 5. Call resetPasswordWithToken with valid tokenB - must fail on step 5 (audit log insert)
+        await assert.rejects(
+          async () => {
+            await resetPasswordWithToken({
+              token: tokenB,
+              newPassword: 'ShouldBeRolledBackPassword2026!',
+              ip: '127.0.0.1',
+              userAgent: 'Rollback-TestAgent',
+            });
+          },
+          (err: any) => {
+            assert.match(err.message, /INJECTED_AUDIT_LOG_FAILURE_FOR_ROLLBACK_TEST/);
+            return true;
+          }
+        );
+
+        // 6. Verify GENUINE ROLLBACK: all partial writes in transaction were rolled back
+        // (a) Presented tokenB remains UNUSED
+        const tokenBCheck = await conn.pool.query(
+          'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+          [tokenBHash]
+        );
+        assert.equal(tokenBCheck.rows[0].used_at, null, 'Presented token must remain UNUSED following rollback');
+
+        // (b) Other outstanding tokenA remains UNUSED
+        const tokenACheck = await conn.pool.query(
+          'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+          [tokenAHash]
+        );
+        assert.equal(tokenACheck.rows[0].used_at, null, 'Secondary token must remain UNUSED following rollback');
+
+        // (c) Password hash remains UNCHANGED
+        const userResAfter = await conn.pool.query(
+          'SELECT password_hash FROM admin_users WHERE id = $1',
+          [testAdminId]
+        );
+        assert.equal(
+          userResAfter.rows[0].password_hash,
+          initialPasswordHash,
+          'Password hash must remain completely unchanged'
+        );
+
+        // (d) Session remains ACTIVE and UNREVOKED
+        const sessionAfter = await conn.pool.query(
+          'SELECT revoked_at FROM admin_sessions WHERE id = $1',
+          [sessionRowId]
+        );
+        assert.equal(sessionAfter.rows[0].revoked_at, null, 'Session must remain ACTIVE and unrevoked');
+
+        // (e) Zero PASSWORD_RESET_COMPLETED audit events exist from aborted transaction
+        const auditCheck = await conn.pool.query(
+          "SELECT count(*)::int AS count FROM admin_auth_audit_logs WHERE admin_id = $1 AND event_type = 'PASSWORD_RESET_COMPLETED'",
+          [testAdminId]
+        );
+        assert.equal(auditCheck.rows[0].count, initialAuditCount, 'No new audit record must exist for aborted transaction');
+
+        // (f) Login still works with original password, fails with unapplied password
+        const validLogin = await loginAdmin({
+          identifier: testEmail,
+          password: testPassword,
+          ip: '127.0.0.1',
+          userAgent: 'Rollback-TestAgent',
+        });
+        assert.equal(validLogin.status, 'MFA_REQUIRED', 'Original password must remain active');
+
+        const invalidLogin = await loginAdmin({
+          identifier: testEmail,
+          password: 'ShouldBeRolledBackPassword2026!',
+          ip: '127.0.0.1',
+          userAgent: 'Rollback-TestAgent',
+        });
+        assert.equal(invalidLogin.status, 'INVALID_CREDENTIALS', 'Unapplied password must be rejected');
+      } finally {
+        // 8. Always remove trigger and function in finally block
+        await conn.pool.query(`
+          DROP TRIGGER IF EXISTS trigger_fail_password_reset_audit ON public.admin_auth_audit_logs;
+          DROP FUNCTION IF EXISTS fail_password_reset_audit();
+        `);
+      }
+
+      // 9. Re-run successful reset using tokenB to prove trigger cleanup and normal operation
+      const successfulReset = await resetPasswordWithToken({
+        token: tokenB,
+        newPassword: 'CleanAfterTriggerRemovalPass2026!',
+        ip: '127.0.0.1',
+        userAgent: 'Rollback-TestAgent',
+      });
+      assert.equal(successfulReset.status, 'SUCCESS', 'Normal reset must succeed after trigger cleanup');
+
+      // Verify tokenB is now used, tokenA is invalidated, and session is revoked
+      const finalTokenB = await conn.pool.query(
+        'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+        [tokenBHash]
+      );
+      assert.notEqual(finalTokenB.rows[0].used_at, null);
+
+      const finalTokenA = await conn.pool.query(
+        'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+        [tokenAHash]
+      );
+      assert.notEqual(finalTokenA.rows[0].used_at, null);
+
+      const finalSession = await conn.pool.query(
+        'SELECT revoked_at, revocation_reason FROM admin_sessions WHERE id = $1',
+        [sessionRowId]
+      );
+      assert.notEqual(finalSession.rows[0].revoked_at, null);
+      assert.equal(finalSession.rows[0].revocation_reason, 'password_reset');
+
+      const auditFinal = await conn.pool.query(
+        "SELECT count(*)::int AS count FROM admin_auth_audit_logs WHERE admin_id = $1 AND event_type = 'PASSWORD_RESET_COMPLETED'",
+        [testAdminId]
+      );
+      assert.equal(auditFinal.rows[0].count, initialAuditCount + 1, 'Exactly one new audit record must exist for successful reset');
+
+      // Restore original password for subsequent tests
+      await conn.db.update(adminUsers).set({
+        passwordHash: await hashPassword(testPassword),
+      }).where(eq(adminUsers.id, testAdminId));
+    });
   });
 
   // ---------------------------------------------------------------------------
