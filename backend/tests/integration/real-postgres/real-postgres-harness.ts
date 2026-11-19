@@ -180,3 +180,127 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     serverVersion,
   };
 }
+
+export type Auth001Role = 'parental_admin' | 'parental_audit_archive' | 'parental_audit_attestation';
+
+export interface VerifiedRoleConnection {
+  pool: pg.Pool;
+  roleName: Auth001Role;
+  dbName: string;
+  port: number;
+  currentUser: string;
+}
+
+/**
+ * Initializes and strictly verifies an independent connection authenticated as a specific runtime role.
+ * Enforces loopback restriction, database identity verification, and least-privilege role validation.
+ * Never logs or exposes role credentials.
+ */
+export async function getVerifiedRoleConnection(
+  roleName: Auth001Role
+): Promise<VerifiedRoleConnection> {
+  const databaseUrl = process.env.DATABASE_URL;
+  const expectedDbName = process.env.AUTH001_TEST_DATABASE_NAME;
+  const expectedDbPort = process.env.AUTH001_TEST_DATABASE_PORT;
+
+  if (!databaseUrl || !expectedDbName || !expectedDbPort) {
+    throw new Error(
+      '[Real PostgreSQL Gate FATAL] Required environment variables (DATABASE_URL, AUTH001_TEST_DATABASE_NAME, AUTH001_TEST_DATABASE_PORT) are missing.'
+    );
+  }
+
+  let rolePassword = '';
+  if (roleName === 'parental_admin') {
+    rolePassword = process.env.AUTH001_ADMIN_ROLE_PASSWORD || '';
+  } else if (roleName === 'parental_audit_archive') {
+    rolePassword = process.env.AUTH001_ARCHIVE_ROLE_PASSWORD || '';
+  } else if (roleName === 'parental_audit_attestation') {
+    rolePassword = process.env.AUTH001_ATTESTATION_ROLE_PASSWORD || '';
+  }
+
+  if (!rolePassword) {
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Missing credential environment variable for role '${roleName}'.`
+    );
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(databaseUrl);
+  } catch (err: any) {
+    throw new Error('[Real PostgreSQL Gate FATAL] Failed to parse DATABASE_URL.');
+  }
+
+  const hostname = parsedUrl.hostname;
+  const isLoopback = /^(127\.0\.0\.1|localhost|::1)$/.test(hostname);
+  if (!isLoopback) {
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Safety Violation: Host '${hostname}' is not a local loopback address.`
+    );
+  }
+
+  parsedUrl.username = roleName;
+  parsedUrl.password = rolePassword;
+
+  const pool = new Pool({
+    connectionString: parsedUrl.toString(),
+    max: 2,
+    idleTimeoutMillis: 3000,
+    connectionTimeoutMillis: 5000,
+  });
+
+  let currentUser = '';
+  let dbName = '';
+  let port = 0;
+
+  try {
+    const client = await pool.connect();
+    try {
+      const res = await client.query(`
+        SELECT 
+          current_database() AS db_name,
+          inet_server_port() AS port,
+          CURRENT_USER AS current_user
+      `);
+      dbName = res.rows[0]?.db_name;
+      port = Number(res.rows[0]?.port || 0);
+      currentUser = res.rows[0]?.current_user || '';
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    await pool.end().catch(() => {});
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Failed to authenticate as role '${roleName}': ${err.message}`
+    );
+  }
+
+  if (currentUser !== roleName) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Connected user mismatch: expected '${roleName}', got '${currentUser}'.`
+    );
+  }
+
+  if (!dbName || FORBIDDEN_DATABASES.has(dbName.toLowerCase())) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Safety Violation: Connected to forbidden/protected database '${dbName}'.`
+    );
+  }
+
+  if (dbName !== expectedDbName || port !== Number(expectedDbPort)) {
+    await pool.end();
+    throw new Error(
+      `[Real PostgreSQL Gate FATAL] Database identity mismatch: ${dbName}:${port} vs ${expectedDbName}:${expectedDbPort}.`
+    );
+  }
+
+  return {
+    pool,
+    roleName,
+    dbName,
+    port,
+    currentUser,
+  };
+}

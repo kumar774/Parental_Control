@@ -1354,7 +1354,7 @@ export async function requestPasswordReset(
   email: string,
   ip: string,
   userAgent?: string
-): Promise<{ message: string }> {
+): Promise<{ message: string; rawToken?: string }> {
   const normalized = normalizeIdentifier(email);
   const users = await db
     .select()
@@ -1362,6 +1362,7 @@ export async function requestPasswordReset(
     .where(and(sql`LOWER(${adminUsers.email}) = ${normalized}`, eq(adminUsers.status, 'active')))
     .limit(1);
 
+  let rawTokenForTest: string | undefined;
   const user = users[0];
   if (user) {
     const rawToken = generateRandomToken(32);
@@ -1384,10 +1385,14 @@ export async function requestPasswordReset(
       userAgent,
     });
     // Security Rule: NEVER log raw token into Pino logs or response!
+    if (process.env.NODE_ENV === 'test') {
+      rawTokenForTest = rawToken;
+    }
   }
 
   return {
     message: 'If an administrative account matches that email, password reset instructions have been dispatched.',
+    ...(rawTokenForTest ? { rawToken: rawTokenForTest } : {}),
   };
 }
 

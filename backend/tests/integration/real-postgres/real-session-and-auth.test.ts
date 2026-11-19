@@ -356,8 +356,8 @@ describe('Category B: Real PostgreSQL Application Service Integration Tests', ()
   // ---------------------------------------------------------------------------
   // 5. Application Service: Password Reset & Session Revocation
   // ---------------------------------------------------------------------------
-  describe('5. Password Reset Workflow & Session Revocation via Application Service', () => {
-    it('requests password reset, resets password with token, and revokes all active sessions', async () => {
+  describe('5. Password Reset Lifecycle & Atomicity via Application Service', () => {
+    it('requests multiple reset tokens, consumes presented token, invalidates all other tokens, and revokes sessions', async () => {
       // 1. Create active session first
       const rawSessionToken = crypto.randomUUID();
       const sessionHash = sha256(rawSessionToken);
@@ -373,39 +373,70 @@ describe('Category B: Real PostgreSQL Application Service Integration Tests', ()
         userAgent: 'RealPg-Service-TestAgent',
       });
 
-      // 2. Request password reset via application service
-      const resetReq = await requestPasswordReset(testEmail, '127.0.0.1', 'RealPg-Service-TestAgent');
-      assert.ok(resetReq.message);
+      // 2. Request first password reset token via application service lifecycle
+      const resetReq1 = await requestPasswordReset(testEmail, '127.0.0.1', 'RealPg-Service-TestAgent');
+      assert.ok(resetReq1.message);
+      assert.ok(resetReq1.rawToken, 'Test environment must receive generated rawToken from lifecycle');
+      const rawToken1 = resetReq1.rawToken;
 
-      // 3. Seed an active reset token for testing token verification & password update
-      const testResetRawToken = generateRandomToken(32);
-      const testResetTokenHash = sha256(testResetRawToken);
-      await conn.db.insert(adminPasswordResets).values({
-        id: crypto.randomUUID(),
-        adminId: testAdminId,
-        tokenHash: testResetTokenHash,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-        ipAddress: '127.0.0.1',
-      });
+      // 3. Request second password reset token via application service lifecycle
+      const resetReq2 = await requestPasswordReset(testEmail, '127.0.0.1', 'RealPg-Service-TestAgent');
+      assert.ok(resetReq2.message);
+      assert.ok(resetReq2.rawToken, 'Test environment must receive generated rawToken from lifecycle');
+      const rawToken2 = resetReq2.rawToken;
 
-      // 4. Reset password with token via application service
+      // Both tokens must be distinct
+      assert.notEqual(rawToken1, rawToken2);
+
+      // Verify both tokens are currently outstanding (unconsumed) in real PostgreSQL
+      const unconsumedTokens = await conn.pool.query(
+        'SELECT count(*)::int AS count FROM admin_password_resets WHERE admin_id = $1 AND used_at IS NULL',
+        [testAdminId]
+      );
+      assert.ok(unconsumedTokens.rows[0].count >= 2, 'At least two outstanding reset tokens must exist');
+
+      // 4. Reset password using the second token
       const newPassword = 'NewlyUpdatedSuperSecurePassword2026!';
       const updateResult = await resetPasswordWithToken({
-        token: testResetRawToken,
+        token: rawToken2,
         newPassword,
         ip: '127.0.0.1',
         userAgent: 'RealPg-Service-TestAgent',
       });
       assert.equal(updateResult.status, 'SUCCESS');
 
-      // 5. Verify previous active session was revoked in real PostgreSQL
+      // 5. Verify presented token is consumed
+      const token2Check = await conn.pool.query(
+        'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+        [sha256(rawToken2)]
+      );
+      assert.notEqual(token2Check.rows[0].used_at, null, 'Presented token must be marked used');
+
+      // 6. Verify first token was ALSO atomically invalidated in the same transaction
+      const token1Check = await conn.pool.query(
+        'SELECT used_at FROM admin_password_resets WHERE token_hash = $1',
+        [sha256(rawToken1)]
+      );
+      assert.notEqual(token1Check.rows[0].used_at, null, 'All other outstanding reset tokens must be atomically invalidated');
+
+      // 7. Verify subsequent attempt to consume first token is rejected
+      const retryResult = await resetPasswordWithToken({
+        token: rawToken1,
+        newPassword: 'AttemptToReuseOlderTokenPassword2026!',
+        ip: '127.0.0.1',
+        userAgent: 'RealPg-Service-TestAgent',
+      });
+      assert.equal(retryResult.status, 'INVALID_OR_EXPIRED_TOKEN', 'Subsequent use of invalidated token must fail');
+
+      // 8. Verify active session was revoked in real PostgreSQL with password_reset reason
       const sessionCheck = await conn.pool.query(
-        'SELECT revoked_at FROM admin_sessions WHERE session_token_hash = $1',
+        'SELECT revoked_at, revocation_reason FROM admin_sessions WHERE session_token_hash = $1',
         [sessionHash]
       );
       assert.notEqual(sessionCheck.rows[0].revoked_at, null, 'Session must be revoked after password reset');
+      assert.equal(sessionCheck.rows[0].revocation_reason, 'password_reset');
 
-      // 6. Verify login succeeds with NEW password and fails with OLD password
+      // 9. Verify login succeeds with NEW password and fails with OLD password
       const newLogin = await loginAdmin({
         identifier: testEmail,
         password: newPassword,
@@ -426,6 +457,48 @@ describe('Category B: Real PostgreSQL Application Service Integration Tests', ()
       await conn.db.update(adminUsers).set({
         passwordHash: await hashPassword(testPassword),
       }).where(eq(adminUsers.id, testAdminId));
+    });
+
+    it('rolls back cleanly on invalid reset token without mutating sessions or password', async () => {
+      // 1. Create active session
+      const rawSessionToken = crypto.randomUUID();
+      const sessionHash = sha256(rawSessionToken);
+      await conn.db.insert(adminSessions).values({
+        id: crypto.randomUUID(),
+        adminId: testAdminId,
+        sessionTokenHash: sessionHash,
+        csrfTokenHash: sha256('testcsrf2'),
+        idleExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        rememberMe: false,
+        ipAddress: '127.0.0.1',
+        userAgent: 'RealPg-Service-TestAgent',
+      });
+
+      // 2. Submit completely invalid token
+      const failedResult = await resetPasswordWithToken({
+        token: 'invalid_unrecognized_token_sequence_99999',
+        newPassword: 'ShouldNeverBeAppliedPass2026!',
+        ip: '127.0.0.1',
+        userAgent: 'RealPg-Service-TestAgent',
+      });
+      assert.equal(failedResult.status, 'INVALID_OR_EXPIRED_TOKEN');
+
+      // 3. Verify session was NOT revoked
+      const sessionCheck = await conn.pool.query(
+        'SELECT revoked_at FROM admin_sessions WHERE session_token_hash = $1',
+        [sessionHash]
+      );
+      assert.equal(sessionCheck.rows[0].revoked_at, null, 'Session must remain unrevoked on failed reset');
+
+      // 4. Verify password was NOT changed (original password still succeeds)
+      const loginCheck = await loginAdmin({
+        identifier: testEmail,
+        password: testPassword,
+        ip: '127.0.0.1',
+        userAgent: 'RealPg-Service-TestAgent',
+      });
+      assert.equal(loginCheck.status, 'MFA_REQUIRED', 'Original password must remain functional');
     });
   });
 
