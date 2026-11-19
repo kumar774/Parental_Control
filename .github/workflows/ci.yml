@@ -143,13 +143,21 @@ jobs:
           npm ci
           npm install -D tsx --no-save
 
+      - name: Install Playwright Browsers
+        working-directory: Admin_panel
+        run: npx playwright install --with-deps chromium
+
       - name: Frontend Typecheck
         working-directory: Admin_panel
         run: npm run typecheck
 
-      - name: Frontend Test Suite
+      - name: Frontend Unit & API Test Suite
         working-directory: Admin_panel
         run: npm test
+
+      - name: Playwright E2E Browser Test Suite
+        working-directory: Admin_panel
+        run: npm run test:e2e
 
       - name: Frontend Production Build
         working-directory: Admin_panel
