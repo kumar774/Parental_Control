@@ -55,23 +55,40 @@ jobs:
         working-directory: backend
         env:
           NODE_ENV: test
+          DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
         run: npm run test
 
-      - name: Apply AUTH-001 Migrations to Ephemeral CI PostgreSQL
+      - name: Bootstrap Section 8.6 Roles (Superuser Step)
         working-directory: backend
         env:
           PGPASSWORD: ci_test_password_secure_2026
         run: |
-          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
-          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -f drizzle/bootstrap_roles.sql
+
+      - name: Apply AUTH-001 Migrations as parental_migrator (Section 8.6)
+        working-directory: backend
+        env:
+          PGPASSWORD: migrator_secure_pass_2026
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
+
+      - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
+        working-directory: backend
+        env:
+          PGPASSWORD: ci_test_password_secure_2026
+        run: |
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "REVOKE parental_audit_pruner FROM parental_migrator;"
 
       - name: Run Genuine PostgreSQL Integration Test Suite (No pg-mem)
         working-directory: backend
         env:
           NODE_ENV: test
           DATABASE_URL: postgres://ci_test_user:ci_test_password_secure_2026@127.0.0.1:5432/auth001_ci_disposable_test
+          AUTH001_TEST_DATABASE_NAME: auth001_ci_disposable_test
+          AUTH001_TEST_DATABASE_PORT: "5432"
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
         run: npm run test:real-pg
