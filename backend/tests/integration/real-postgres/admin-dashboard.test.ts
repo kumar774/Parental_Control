@@ -79,7 +79,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   });
 
   it('returns real aggregate counts to an authenticated Super Admin', async () => {
-    const response = await readyApp.inject({
+    const response = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/overview',
       headers: { cookie: `admin_session=${sessionToken}` },
@@ -92,7 +92,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   });
 
   it('paginates parent records without exposing authentication hashes', async () => {
-    const response = await readyApp.inject({
+    const response = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/parents?page=1&pageSize=10&search=hybrid-dashboard-parent',
       headers: { cookie: `admin_session=${sessionToken}` },
@@ -106,7 +106,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
   });
 
   it('returns child-device inventory without exposing stable device fingerprints', async () => {
-    const response = await readyApp.inject({
+    const response = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/devices?search=Test%20Child',
       headers: { cookie: `admin_session=${sessionToken}` },
@@ -122,7 +122,7 @@ describe('Hybrid Admin Dashboard API — real PostgreSQL', () => {
 
   it('rejects non-Super-Admin roles', async () => {
     await db.update(adminUsers).set({ role: 'support_admin' }).where(eq(adminUsers.id, adminId));
-    const response = await readyApp.inject({
+    const response = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/overview',
       headers: { cookie: `admin_session=${sessionToken}` },
