@@ -1149,17 +1149,23 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
     // 16c3. Cross-Parent Resource Isolation: Parent B cannot access Parent A's child device
     const parentBId = crypto.randomUUID();
+    const parentBEmail = `parent-b-${Date.now()}@example.test`;
     await db.insert(parentUsers).values({
       id: parentBId,
-      email: `parent-b-${Date.now()}@example.test`,
+      email: parentBEmail,
       passwordHash,
       status: 'active',
     });
-    const parentBToken = jwt.sign(
-      { userId: parentBId, email: `parent-b-${Date.now()}@example.test`, role: 'parent' },
-      env.JWT_ACCESS_SECRET,
-      { expiresIn: '15m' }
-    );
+    const resLoginB = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: parentBEmail,
+        password: plainPassword,
+      },
+    });
+    assert.equal(resLoginB.statusCode, 200);
+    const parentBToken = resLoginB.json().accessToken;
     const resCrossParent = await readyApp!.inject({
       method: 'GET',
       url: `/api/v1/devices/${childDeviceId}`,
