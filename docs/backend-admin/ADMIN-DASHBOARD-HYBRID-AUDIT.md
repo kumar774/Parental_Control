@@ -3,7 +3,7 @@
 **Repository:** `kumar774/Parental_Control`  
 **Current Baseline Commit (`main`):** `afb4e4fdd3fe8cebb428b9d78eb9a78116d380d5`  
 **Target Branch:** `feat/admin-dashboard-hybrid-control-plane-v2`  
-**Date:** 2026-11-19  
+**Date:** 2026-11-19 / Remediation: 2026-11-20  
 
 ---
 
@@ -57,19 +57,51 @@ Closed PR #4 was inspected as reference material.
 
 ---
 
-## 3. Domain Models Elsewhere in Repository
+## 3. PR #5 Remediation Findings & Audit Verification (2026-11-20)
 
-- **`docs/backend-admin/Database.md`:** Authoritative specification for `users`, `child_devices`, `device_policies`, `admin_control_audit_logs`, and telemetry tables.
-- **`Parent_app/` & `Child_app/`:** Android applications with Gradle builds, Jetpack Compose UI, and background services. They do not contain backend code or shared database definitions.
-- **Command Delivery Pipeline:** No durable command outbox, WebSocket message bus, signed command delivery queue, or device acknowledgement pipeline currently exists in the backend.
+Review of initial PR #5 implementation revealed seven core areas requiring architectural remediation:
+
+### 3.1 Audit Log Architecture
+- **Finding:** The system previously lacked distinct separation between authentication audit events (`admin_auth_audit_logs`) and control-plane administrative activity (`admin_control_audit_logs`). Furthermore, `admin_control_audit_logs` lacked a `severity` column, and inspection of sensitive parent/device details was not recorded.
+- **Remediation:**
+  - Added forward-only migration `0003_admin_control_audit_severity.sql` adding `severity text NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical'))` and index on `(severity, created_at)`.
+  - Implemented `recordControlAudit()` helper that logs administrative reads (`view_parent_details`, `view_device_details`) to `admin_control_audit_logs` with sanitized target IDs and zero secrets.
+  - Unified audit endpoint supports filtering by `source` (`'all' | 'auth' | 'control'`) and `severity` via Drizzle `unionAll`.
+
+### 3.2 Health Check Semantics & Timeouts
+- **Finding:** Health probe endpoints lacked bounded timeouts and reported artificial queue health without actual queue infrastructure.
+- **Remediation:**
+  - Enforced strict timeouts: PostgreSQL probe <= 2000ms (`SELECT 1`), Redis probe <= 1500ms (`client.ping()`).
+  - Implemented explicit component statuses: `healthy`, `degraded`, `unavailable`, and `not_configured`.
+  - If Redis is configured but fails, overall health degrades honestly to `degraded`.
+  - Background queues honestly report `status: 'not_configured'` rather than pretending to monitor unconfigured queues.
+
+### 3.3 Database Permissions & Least Privilege
+- **Finding:** `parental_admin` role was granted SELECT on `users` and `child_devices`, but needed explicit revocation of mutating permissions to guarantee tamper-proof security.
+- **Remediation:**
+  - Added explicit `REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "users", "child_devices", "admin_control_audit_logs", "admin_auth_audit_logs" FROM parental_admin;` in `0003_admin_control_audit_severity.sql`.
+  - Verified with real PostgreSQL tests asserting SQLSTATE 42501 (insufficient privilege) on all mutation attempts.
+
+### 3.4 Bounded Parent Detail Pagination
+- **Finding:** `GET /parents/:id` loaded all child devices unboundedly in memory, risking OOM or latency degradation for large accounts.
+- **Remediation:**
+  - Bounded `GET /parents/:id` child device queries with `devicePage` and `devicePageSize` (clamped to max 50).
+  - Provided dedicated `GET /parents/:id/devices` endpoint for full paginated device exploration.
+
+### 3.5 Frontend UX Realism
+- **Finding:** Audit tab lacked source/severity filters, health cards displayed unconfigured queue statuses as active, and action buttons lacked clear disabled rationale.
+- **Remediation:**
+  - Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filter selectors to the Audit log table.
+  - Health panel displays real probe latency, honest component statuses, and `Not Configured` for queue workers.
+  - High-impact parent/device actions are safely disabled with explicit tooltips detailing pending downstream push/protocol dependencies.
 
 ---
 
-## 4. Controlled Write Operations & Safety Boundary (STEP 4)
+## 4. Controlled Write Operations & Safety Boundary
 
 - **Finding:** The backend does not yet possess:
   1. A parent authentication or account lifecycle service.
   2. A durable child-command delivery or queueing mechanism (e.g., BullMQ Redis queue, WebSocket dispatcher, or FCM bridge).
   3. Cryptographic command signing or device acknowledgement tracking.
-- **Decision:** As mandated by STEP 4, this slice will implement safe, read-only platform monitoring, parent inventory, child device inventory, security audit logs, and system health.
-- High-impact destructive toggles (parent suspension, device remote lock/unlock/wipe) will not be exposed as false database-only flags. The missing workflow (step-up auth, signed commands, idempotency, device ack) is documented for future implementation.
+- **Decision:** As mandated by the architecture blueprint, this slice implements safe, read-only platform monitoring, parent inventory, child device inventory, security audit logs, and system health.
+- High-impact destructive toggles (parent suspension, device remote lock/unlock/wipe) are not exposed as false database-only flags. The required workflow (step-up auth, signed commands, idempotency, device ack) is documented for future implementation.

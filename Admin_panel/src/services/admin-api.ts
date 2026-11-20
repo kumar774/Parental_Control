@@ -93,14 +93,21 @@ export interface DashboardDevice {
 export interface DashboardParentDetails extends DashboardParent {
   childDevices: DashboardDevice[];
   deviceCount: number;
+  totalDevices?: number;
+  devicePage?: number;
+  devicePageSize?: number;
 }
 
 export interface DashboardAuditLog {
   id: string;
+  source: 'auth' | 'control';
   adminId: string | null;
+  action: string;
   eventType: string;
+  severity: 'info' | 'warning' | 'critical';
   status: string;
-  source: string;
+  targetType?: string;
+  targetId?: string | null;
   ipAddress: string | null;
   userAgent: string | null;
   metadata: unknown;
@@ -108,16 +115,21 @@ export interface DashboardAuditLog {
 }
 
 export interface SystemHealth {
-  status: 'healthy' | 'degraded';
+  status: 'healthy' | 'degraded' | 'unavailable';
   timestamp: string;
   uptimeSeconds: number;
   database: {
-    status: string;
+    status: 'healthy' | 'degraded' | 'unavailable' | 'connected' | 'disconnected' | string;
     latencyMs: number;
   };
   redis: {
-    status: string;
+    status: 'healthy' | 'degraded' | 'unavailable' | 'not_configured' | string;
     enabled: boolean;
+    latencyMs?: number;
+  };
+  queues?: {
+    status: 'not_configured' | 'healthy' | 'degraded';
+    details?: string;
   };
   memory: {
     rssMb: number;
@@ -362,10 +374,39 @@ export const adminApi = {
   },
 
   /**
-   * Fetches single parent details with child devices
+   * Fetches single parent details with bounded child devices
    */
-  async getParent(id: string): Promise<DashboardParentDetails> {
-    return request<DashboardParentDetails>(`/parents/${encodeURIComponent(id)}`, { method: 'GET' }, DASHBOARD_BASE_URL);
+  async getParent(
+    id: string,
+    params: { devicePage?: number; devicePageSize?: number } = {}
+  ): Promise<DashboardParentDetails> {
+    const query = new URLSearchParams();
+    if (params.devicePage) query.set('devicePage', String(params.devicePage));
+    if (params.devicePageSize) query.set('devicePageSize', String(params.devicePageSize));
+    const qs = query.toString();
+    return request<DashboardParentDetails>(
+      `/parents/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches paginated child devices for a specific parent
+   */
+  async getParentDevices(
+    parentId: string,
+    params: { page?: number; pageSize?: number } = {}
+  ): Promise<{ items: DashboardDevice[]; page: number; pageSize: number; total: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const qs = query.toString();
+    return request<{ items: DashboardDevice[]; page: number; pageSize: number; total: number }>(
+      `/parents/${encodeURIComponent(parentId)}/devices${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
   },
 
   /**
@@ -400,25 +441,33 @@ export const adminApi = {
   },
 
   /**
-   * Fetches administrative security & authentication audit logs
+   * Fetches administrative security & control plane audit logs
    */
   async getAuditLogs(params: {
     page?: number;
     pageSize?: number;
+    source?: 'all' | 'auth' | 'control';
+    severity?: 'info' | 'warning' | 'critical';
+    action?: string;
     eventType?: string;
     status?: string;
+    adminId?: string;
     startDate?: string;
     endDate?: string;
-  } = {}): Promise<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number }> {
+  } = {}): Promise<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number; source?: string }> {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.source) query.set('source', params.source);
+    if (params.severity) query.set('severity', params.severity);
+    if (params.action) query.set('action', params.action);
     if (params.eventType) query.set('eventType', params.eventType);
     if (params.status) query.set('status', params.status);
+    if (params.adminId) query.set('adminId', params.adminId);
     if (params.startDate) query.set('startDate', params.startDate);
     if (params.endDate) query.set('endDate', params.endDate);
     const qs = query.toString();
-    return request<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number }>(
+    return request<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number; source?: string }>(
       `/audit-logs${qs ? `?${qs}` : ''}`,
       { method: 'GET' },
       DASHBOARD_BASE_URL

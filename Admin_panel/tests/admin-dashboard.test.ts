@@ -118,7 +118,7 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
       assert.strictEqual(res.items[0].email, 'parent@example.com');
     });
 
-    it('getParent fetches single parent details by ID', async () => {
+    it('getParent fetches single parent details by ID with bounded device pagination parameters', async () => {
       const mockParentDetail = {
         id: 'parent-uuid-99',
         email: 'detail@example.com',
@@ -127,6 +127,9 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
         createdAt: '2026-11-01T00:00:00.000Z',
         childDevices: [],
         deviceCount: 0,
+        totalDevices: 0,
+        devicePage: 1,
+        devicePageSize: 10,
       };
 
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -139,11 +142,35 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
         } as Response;
       };
 
-      const res = await adminApi.getParent('parent-uuid-99');
+      const res = await adminApi.getParent('parent-uuid-99', { devicePage: 1, devicePageSize: 10 });
       assert.strictEqual(interceptedRequests.length, 1);
-      assert.strictEqual(interceptedRequests[0].url, '/api/v1/admin/dashboard/parents/parent-uuid-99');
+      assert.strictEqual(interceptedRequests[0].url, '/api/v1/admin/dashboard/parents/parent-uuid-99?devicePage=1&devicePageSize=10');
       assert.strictEqual(res.id, 'parent-uuid-99');
       assert.strictEqual(res.email, 'detail@example.com');
+    });
+
+    it('getParentDevices calls dedicated parent child devices endpoint', async () => {
+      const mockDevicesResponse = {
+        items: [],
+        page: 1,
+        pageSize: 10,
+        total: 0,
+      };
+
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        interceptedRequests.push({ url: input.toString(), options: init || {} });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => mockDevicesResponse,
+        } as Response;
+      };
+
+      const res = await adminApi.getParentDevices('parent-uuid-99', { page: 1, pageSize: 10 });
+      assert.strictEqual(interceptedRequests.length, 1);
+      assert.strictEqual(interceptedRequests[0].url, '/api/v1/admin/dashboard/parents/parent-uuid-99/devices?page=1&pageSize=10');
+      assert.strictEqual(res.total, 0);
     });
   });
 
@@ -232,12 +259,13 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
   });
 
   describe('4. Audit Logs & System Health Methods', () => {
-    it('getAuditLogs sends eventType and status filter queries', async () => {
+    it('getAuditLogs sends source, severity, eventType and status filter queries', async () => {
       const mockLogsResponse = {
         items: [],
         total: 0,
         page: 1,
         pageSize: 50,
+        source: 'control',
       };
 
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -250,12 +278,21 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
         } as Response;
       };
 
-      await adminApi.getAuditLogs({ page: 1, pageSize: 50, eventType: 'LOGIN_FAILURE', status: 'failure' });
+      await adminApi.getAuditLogs({
+        page: 1,
+        pageSize: 50,
+        source: 'control',
+        severity: 'info',
+        action: 'view_parent_details',
+        status: 'success',
+      });
       assert.strictEqual(interceptedRequests.length, 1);
       const url = new URL(interceptedRequests[0].url, 'http://localhost');
       assert.strictEqual(url.pathname, '/api/v1/admin/dashboard/audit-logs');
-      assert.strictEqual(url.searchParams.get('eventType'), 'LOGIN_FAILURE');
-      assert.strictEqual(url.searchParams.get('status'), 'failure');
+      assert.strictEqual(url.searchParams.get('source'), 'control');
+      assert.strictEqual(url.searchParams.get('severity'), 'info');
+      assert.strictEqual(url.searchParams.get('action'), 'view_parent_details');
+      assert.strictEqual(url.searchParams.get('status'), 'success');
     });
 
     it('getSystemHealth fetches live system health telemetry', async () => {

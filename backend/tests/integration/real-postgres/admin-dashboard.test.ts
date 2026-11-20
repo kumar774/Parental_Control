@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
-import { parentUsers, childDevices } from '../../../src/db/schema/parental-control';
+import { parentUsers, childDevices, adminControlAuditLogs } from '../../../src/db/schema/parental-control';
 import { generateRandomToken, sha256 } from '../../../src/utils/crypto-vault';
 
 describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () => {
@@ -107,6 +107,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
   after(async () => {
     // Cleanup test data
+    await db.delete(adminControlAuditLogs).where(eq(adminControlAuditLogs.adminId, adminId)).catch(() => {});
     await db.delete(childDevices).where(eq(childDevices.parentId, parentId)).catch(() => {});
     await db.delete(parentUsers).where(eq(parentUsers.id, parentId)).catch(() => {});
     await db.delete(adminAuthAuditLogs).where(eq(adminAuthAuditLogs.adminId, adminId)).catch(() => {});
@@ -205,7 +206,8 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal('family_pin_hash' in targetParent, false);
   });
 
-  it('5. GET /parents/:id returns parent details with associated child devices', async () => {
+  it('5. GET /parents/:id returns parent details with strictly bounded child devices and records audit', async () => {
+    // 5a. Test default pagination (all 2 devices)
     const res = await readyApp!.inject({
       method: 'GET',
       url: `/api/v1/admin/dashboard/parents/${parentId}`,
@@ -216,7 +218,9 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
     assert.equal(body.id, parentId);
     assert.equal(body.email, parentEmail);
-    assert.equal(body.deviceCount, 2);
+    assert.equal(body.totalDevices, 2);
+    assert.equal(body.devicePage, 1);
+    assert.equal(body.devicePageSize, 10);
     assert.ok(Array.isArray(body.childDevices));
     assert.equal(body.childDevices.length, 2);
 
@@ -229,6 +233,53 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     // Sensitive field exclusion
     assert.equal('oaidFingerprint' in device, false);
     assert.equal('passwordHash' in body, false);
+
+    // 5b. Test bounded device pagination (devicePageSize=1)
+    const pagedRes = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/admin/dashboard/parents/${parentId}?devicePage=1&devicePageSize=1`,
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(pagedRes.statusCode, 200);
+    const pagedBody = pagedRes.json();
+    assert.equal(pagedBody.totalDevices, 2);
+    assert.equal(pagedBody.devicePage, 1);
+    assert.equal(pagedBody.devicePageSize, 1);
+    assert.equal(pagedBody.childDevices.length, 1);
+
+    // 5c. Test devicePageSize > 50 rejection (bound enforcement)
+    const invalidLimitRes = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/admin/dashboard/parents/${parentId}?devicePageSize=100`,
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(invalidLimitRes.statusCode, 400);
+
+    // 5d. Verify control-plane audit log was recorded for parent inspection
+    const auditRes = await db
+      .select()
+      .from(adminControlAuditLogs)
+      .where(eq(adminControlAuditLogs.action, 'view_parent_details'));
+    assert.ok(auditRes.length >= 1);
+    const parentAudit = auditRes.find((a) => a.targetId === parentId);
+    assert.ok(parentAudit);
+    assert.equal(parentAudit.severity, 'info');
+    assert.equal(parentAudit.targetType, 'parent');
+  });
+
+  it('5b. GET /parents/:id/devices provides dedicated paginated child device endpoint', async () => {
+    const res = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/devices?page=1&pageSize=1`,
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json();
+    assert.equal(body.total, 2);
+    assert.equal(body.page, 1);
+    assert.equal(body.pageSize, 1);
+    assert.equal(body.items.length, 1);
+    assert.equal('oaidFingerprint' in body.items[0], false);
   });
 
   // --- Module C: Child & Device Management ---
@@ -262,7 +313,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal('oaid_fingerprint' in onlineDev, false);
   });
 
-  it('7. GET /devices/:id returns single device details', async () => {
+  it('7. GET /devices/:id returns single device details and records control audit', async () => {
     const res = await readyApp!.inject({
       method: 'GET',
       url: `/api/v1/admin/dashboard/devices/${deviceId}`,
@@ -276,30 +327,66 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(body.isOnline, true);
     assert.equal(body.parentEmail, parentEmail);
     assert.equal('oaidFingerprint' in body, false);
+
+    // Verify control audit log recorded
+    const auditRes = await db
+      .select()
+      .from(adminControlAuditLogs)
+      .where(eq(adminControlAuditLogs.action, 'view_device_details'));
+    assert.ok(auditRes.length >= 1);
+    const deviceAudit = auditRes.find((a) => a.targetId === deviceId);
+    assert.ok(deviceAudit);
+    assert.equal(deviceAudit.severity, 'info');
+    assert.equal(deviceAudit.targetType, 'device');
   });
 
   // --- Module D: Security & Audit Logs ---
 
-  it('8. GET /audit-logs paginates and filters administrative security events', async () => {
-    const res = await readyApp!.inject({
+  it('8. GET /audit-logs supports source filtering (auth, control, all) and severity filtering', async () => {
+    // 8a. Test auth source filtering
+    const authRes = await readyApp!.inject({
       method: 'GET',
-      url: '/api/v1/admin/dashboard/audit-logs?eventType=LOGIN_SUCCESS&status=SUCCESS',
+      url: '/api/v1/admin/dashboard/audit-logs?source=auth&eventType=LOGIN_SUCCESS',
       headers: { cookie: `admin_session=${sessionToken}` },
     });
-    assert.equal(res.statusCode, 200);
-    const body = res.json();
+    assert.equal(authRes.statusCode, 200);
+    const authBody = authRes.json();
+    assert.ok(authBody.total >= 1);
+    assert.equal(authBody.source, 'auth');
+    assert.ok(authBody.items.every((i: any) => i.source === 'auth'));
 
-    assert.ok(body.total >= 1);
-    assert.ok(Array.isArray(body.items));
-    const log = body.items.find((l: any) => l.adminId === adminId);
-    assert.ok(log);
-    assert.equal(log.eventType, 'LOGIN_SUCCESS');
-    assert.equal(log.status, 'SUCCESS');
+    // 8b. Test control source filtering
+    const controlRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/admin/dashboard/audit-logs?source=control&severity=info',
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(controlRes.statusCode, 200);
+    const controlBody = controlRes.json();
+    assert.ok(controlBody.total >= 1);
+    assert.equal(controlBody.source, 'control');
+    assert.ok(controlBody.items.every((i: any) => i.source === 'control' && i.severity === 'info'));
+
+    // 8c. Test unified stream (source=all)
+    const allRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/admin/dashboard/audit-logs?source=all&page=1&pageSize=20',
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(allRes.statusCode, 200);
+    const allBody = allRes.json();
+    assert.ok(allBody.total >= 2);
+    assert.equal(allBody.source, 'all');
+    // Ensure both sources exist in unified stream
+    const hasAuth = allBody.items.some((i: any) => i.source === 'auth');
+    const hasControl = allBody.items.some((i: any) => i.source === 'control');
+    assert.ok(hasAuth);
+    assert.ok(hasControl);
   });
 
   // --- Module E: Authenticated System Health ---
 
-  it('9. GET /health returns authenticated, sanitized system telemetry', async () => {
+  it('9. GET /health returns authenticated, sanitized system telemetry with bounded semantics', async () => {
     const res = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/health',
@@ -309,13 +396,21 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     const body = res.json();
 
     assert.equal(body.status, 'healthy');
-    assert.equal(body.database.status, 'connected');
+    assert.equal(body.database.status, 'healthy');
     assert.ok(typeof body.database.latencyMs === 'number');
+    assert.equal(body.queues.status, 'not_configured');
+    assert.ok(body.queues.details.includes('not configured'));
     assert.ok(typeof body.uptimeSeconds === 'number');
     assert.ok(body.memory.rssMb > 0);
     assert.ok(body.memory.heapUsedMb > 0);
     assert.ok(typeof body.nodeVersion === 'string');
     assert.ok(typeof body.environment === 'string');
+
+    // Sanitization: Ensure no sensitive credentials or internal hostnames leaked
+    const rawString = JSON.stringify(body);
+    assert.equal(rawString.includes('password'), false);
+    assert.equal(rawString.includes('postgres://'), false);
+    assert.equal(rawString.includes('redis://'), false);
   });
 
   // --- Input Validation & Error Boundaries ---

@@ -88,6 +88,7 @@ export const adminControlAuditLogs = pgTable(
     action: varchar('action', { length: 80 }).notNull(),
     targetType: varchar('target_type', { length: 40 }).notNull(),
     targetId: uuid('target_id'),
+    severity: varchar('severity', { length: 20 }).notNull().default('info'),
     ipAddress: varchar('ip_address', { length: 45 }),
     userAgent: text('user_agent'),
     metadata: jsonb('metadata'),
@@ -96,6 +97,8 @@ export const adminControlAuditLogs = pgTable(
   (table) => [
     index('idx_admin_control_audit_created').on(table.createdAt),
     index('idx_admin_control_audit_target').on(table.targetType, table.targetId, table.createdAt),
+    index('idx_admin_control_audit_severity_created').on(table.severity, table.createdAt),
+    check('admin_control_audit_severity_check', sql`${table.severity} IN ('info', 'warning', 'critical')`),
   ]
 );
 

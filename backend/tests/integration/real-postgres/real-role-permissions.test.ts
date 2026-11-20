@@ -139,6 +139,164 @@ describe('Category D: Genuine Role-Based Privilege & Least-Privilege Verificatio
         }
       );
     });
+
+    // --- Control Plane Least-Privilege & Append-Only Assertions (Step 4 & Step 2) ---
+
+    it('permits SELECT on users (parents table)', async () => {
+      const res = await adminConn.pool.query('SELECT count(*)::int AS count FROM public.users');
+      assert.equal(typeof res.rows[0].count, 'number');
+    });
+
+    it('denies UPDATE on users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query("UPDATE public.users SET status = 'suspended'");
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.users');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.users');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('permits SELECT on child_devices', async () => {
+      const res = await adminConn.pool.query('SELECT count(*)::int AS count FROM public.child_devices');
+      assert.equal(typeof res.rows[0].count, 'number');
+    });
+
+    it('denies UPDATE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('UPDATE public.child_devices SET is_locked = true');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.child_devices');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.child_devices');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('permits SELECT and INSERT on admin_control_audit_logs with severity field', async () => {
+      const auditId = crypto.randomUUID();
+      const res = await adminConn.pool.query(
+        `INSERT INTO public.admin_control_audit_logs (
+          id, admin_id, action, target_type, target_id, severity, ip_address, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id, severity`,
+        [auditId, testAdminId, 'view_parent_details', 'parent', testAdminId, 'info', '127.0.0.1']
+      );
+      assert.equal(res.rows[0].id, auditId);
+      assert.equal(res.rows[0].severity, 'info');
+
+      const selectRes = await adminConn.pool.query(
+        'SELECT id, severity FROM public.admin_control_audit_logs WHERE id = $1',
+        [auditId]
+      );
+      assert.equal(selectRes.rows[0].id, auditId);
+      assert.equal(selectRes.rows[0].severity, 'info');
+    });
+
+    it('denies UPDATE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query(
+            "UPDATE public.admin_control_audit_logs SET severity = 'critical'"
+          );
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.admin_control_audit_logs');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.admin_control_audit_logs');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('enforces severity check constraint on admin_control_audit_logs with PostgreSQL 23514', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query(
+            `INSERT INTO public.admin_control_audit_logs (
+              id, admin_id, action, target_type, target_id, severity, ip_address, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+            [crypto.randomUUID(), testAdminId, 'invalid_action', 'test', testAdminId, 'unsupported_severity', '127.0.0.1']
+          );
+        },
+        (err: any) => {
+          assert.equal(err.code, '23514', `Expected 23514 check constraint violation, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

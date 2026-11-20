@@ -119,6 +119,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
   const [auditLogs, setAuditLogs] = useState<DashboardAuditLog[]>([]);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotal, setAuditTotal] = useState(0);
+  const [auditSource, setAuditSource] = useState<'all' | 'auth' | 'control'>('all');
+  const [auditSeverity, setAuditSeverity] = useState<'' | 'info' | 'warning' | 'critical'>('');
   const [auditEventType, setAuditEventType] = useState('');
   const [auditStatus, setAuditStatus] = useState('');
   const [auditLoading, setAuditLoading] = useState(false);
@@ -142,6 +144,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
   const parentStatusId = useId();
   const deviceSearchId = useId();
   const deviceConnectionId = useId();
+  const auditSourceId = useId();
+  const auditSeverityId = useId();
   const auditEventTypeId = useId();
   const auditStatusId = useId();
 
@@ -205,6 +209,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
       const res = await adminApi.getAuditLogs({
         page: auditPage,
         pageSize: 20,
+        source: auditSource,
+        severity: auditSeverity || undefined,
+        action: auditEventType || undefined,
         eventType: auditEventType || undefined,
         status: auditStatus || undefined,
       });
@@ -215,7 +222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
     } finally {
       setAuditLoading(false);
     }
-  }, [auditPage, auditEventType, auditStatus]);
+  }, [auditPage, auditSource, auditSeverity, auditEventType, auditStatus]);
 
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
@@ -1209,9 +1216,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Security &amp; Authentication Audit</h2>
+                <h2 className="text-xl font-bold text-white tracking-tight">Security &amp; Control Plane Audit</h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Inspect genuine administrative authentication, MFA validations, session rotations, and access logs.
+                  Append-only activity ledger recording administrative operations, detail inspections, authentication events, and session rotations.
                 </p>
               </div>
               <button
@@ -1226,47 +1233,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
             </div>
 
             {/* Filter Bar */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <label htmlFor={auditEventTypeId} className="text-xs text-slate-400 shrink-0">
-                  Event:
-                </label>
-                <select
-                  id={auditEventTypeId}
-                  value={auditEventType}
-                  onChange={(e) => {
-                    setAuditEventType(e.target.value);
-                    setAuditPage(1);
-                  }}
-                  className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="">All Events</option>
-                  <option value="LOGIN_SUCCESS">LOGIN_SUCCESS</option>
-                  <option value="LOGIN_FAILED">LOGIN_FAILED</option>
-                  <option value="MFA_CHALLENGE_CREATED">MFA_CHALLENGE_CREATED</option>
-                  <option value="MFA_VERIFIED">MFA_VERIFIED</option>
-                  <option value="PASSWORD_RESET_COMPLETED">PASSWORD_RESET_COMPLETED</option>
-                  <option value="SESSION_REVOKED">SESSION_REVOKED</option>
-                </select>
-              </div>
+            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                {/* Source Filter */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor={auditSourceId} className="text-xs text-slate-400 shrink-0">
+                    Source:
+                  </label>
+                  <select
+                    id={auditSourceId}
+                    value={auditSource}
+                    onChange={(e) => {
+                      setAuditSource(e.target.value as any);
+                      setAuditPage(1);
+                    }}
+                    className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="all">All Sources (Unified)</option>
+                    <option value="auth">Authentication (Auth)</option>
+                    <option value="control">Control Plane (Control)</option>
+                  </select>
+                </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <label htmlFor={auditStatusId} className="text-xs text-slate-400 shrink-0">
-                  Status:
-                </label>
-                <select
-                  id={auditStatusId}
-                  value={auditStatus}
-                  onChange={(e) => {
-                    setAuditStatus(e.target.value);
-                    setAuditPage(1);
-                  }}
-                  className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="">All Outcomes</option>
-                  <option value="SUCCESS">SUCCESS</option>
-                  <option value="FAILED">FAILED</option>
-                </select>
+                {/* Severity Filter */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor={auditSeverityId} className="text-xs text-slate-400 shrink-0">
+                    Severity:
+                  </label>
+                  <select
+                    id={auditSeverityId}
+                    value={auditSeverity}
+                    onChange={(e) => {
+                      setAuditSeverity(e.target.value as any);
+                      setAuditPage(1);
+                    }}
+                    className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">All Severities</option>
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                {/* Event/Action Filter */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor={auditEventTypeId} className="text-xs text-slate-400 shrink-0">
+                    Action:
+                  </label>
+                  <input
+                    id={auditEventTypeId}
+                    type="text"
+                    value={auditEventType}
+                    placeholder="Filter by action..."
+                    onChange={(e) => {
+                      setAuditEventType(e.target.value);
+                      setAuditPage(1);
+                    }}
+                    className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-36 sm:w-44"
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor={auditStatusId} className="text-xs text-slate-400 shrink-0">
+                    Outcome:
+                  </label>
+                  <select
+                    id={auditStatusId}
+                    value={auditStatus}
+                    onChange={(e) => {
+                      setAuditStatus(e.target.value);
+                      setAuditPage(1);
+                    }}
+                    className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">All Outcomes</option>
+                    <option value="SUCCESS">SUCCESS / OK</option>
+                    <option value="FAILED">FAILED / BLOCKED</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1292,11 +1338,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-400 font-medium text-[11px] uppercase tracking-wider bg-slate-950/40">
-                        <th className="py-3.5 px-4">Event Type</th>
-                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Action / Event</th>
                         <th className="py-3.5 px-4">Source</th>
+                        <th className="py-3.5 px-4">Severity</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Target / Actor</th>
                         <th className="py-3.5 px-4">IP Address</th>
-                        <th className="py-3.5 px-4">Admin Identifier</th>
                         <th className="py-3.5 px-4 text-right">Recorded Timestamp</th>
                       </tr>
                     </thead>
@@ -1304,12 +1351,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                       {auditLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-medium text-slate-200">
-                            {log.eventType}
+                            {log.action || log.eventType}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                                log.source === 'control'
+                                  ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                                  : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              }`}
+                            >
+                              {log.source || 'AUTH'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                                log.severity === 'critical'
+                                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                  : log.severity === 'warning'
+                                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                  : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                              }`}
+                            >
+                              {log.severity || 'info'}
+                            </span>
                           </td>
                           <td className="py-3.5 px-4">
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                log.status === 'SUCCESS'
+                                log.status === 'SUCCESS' || log.status === 'success'
                                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                                   : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                               }`}
@@ -1317,12 +1388,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                               {log.status}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-slate-400">{log.source || 'WEB'}</td>
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-300">
+                            {log.targetType ? `${log.targetType}` : log.adminId ? `admin:${log.adminId.slice(0, 8)}` : 'System'}
+                          </td>
                           <td className="py-3.5 px-4 font-mono text-slate-300">
                             {log.ipAddress || '127.0.0.1'}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-[10px] text-slate-500">
-                            {log.adminId ? `${log.adminId.slice(0, 8)}...` : 'Anonymous / System'}
                           </td>
                           <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-400">
                             {formatDate(log.createdAt)}
@@ -1400,7 +1470,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                 <div className="text-xl font-bold text-white flex items-center gap-2">
                   <span
                     className={`w-2.5 h-2.5 rounded-full ${
-                      systemHealth?.database.status === 'connected' ? 'bg-emerald-400' : 'bg-rose-400'
+                      systemHealth?.database.status === 'healthy' || systemHealth?.database.status === 'connected'
+                        ? 'bg-emerald-400'
+                        : systemHealth?.database.status === 'degraded'
+                        ? 'bg-amber-400'
+                        : 'bg-rose-400'
                     }`}
                   />
                   <span className="capitalize">{systemHealth?.database.status || 'Querying...'}</span>
@@ -1420,19 +1494,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
               {/* Redis & Stream Status */}
               <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">Redis Cache &amp; Fallback</span>
+                  <span className="text-xs font-semibold text-slate-300">Redis Cache</span>
                   <Activity className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div className="text-xl font-bold text-white flex items-center gap-2">
                   <span
                     className={`w-2.5 h-2.5 rounded-full ${
-                      systemHealth?.redis.status === 'connected' ? 'bg-emerald-400' : 'bg-amber-400'
+                      systemHealth?.redis.status === 'healthy' || systemHealth?.redis.status === 'connected'
+                        ? 'bg-emerald-400'
+                        : systemHealth?.redis.status === 'not_configured'
+                        ? 'bg-slate-400'
+                        : 'bg-rose-400'
                     }`}
                   />
                   <span className="capitalize text-sm font-semibold truncate">
-                    {systemHealth?.redis.status === 'connected'
+                    {systemHealth?.redis.status === 'healthy' || systemHealth?.redis.status === 'connected'
                       ? 'Connected'
-                      : 'PostgreSQL Fallback Active'}
+                      : systemHealth?.redis.status === 'not_configured'
+                      ? 'Not Configured'
+                      : systemHealth?.redis.status === 'degraded'
+                      ? 'Degraded'
+                      : 'Unavailable'}
                   </span>
                 </div>
                 <div className="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
@@ -1441,10 +1523,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     <span className="text-slate-200">{systemHealth?.redis.enabled ? 'Yes' : 'No'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Mode:</span>
-                    <span className="text-slate-200">
-                      {systemHealth?.redis.status === 'connected' ? 'Distributed' : 'Graceful In-Memory/DB'}
-                    </span>
+                    <span>Roundtrip Ping:</span>
+                    <span className="font-mono text-slate-200">{systemHealth?.redis.latencyMs != null ? `${systemHealth.redis.latencyMs} ms` : '—'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Background Queues (Deferred) */}
+              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-300">Background Job Queues</span>
+                  <Server className="w-4 h-4 text-slate-500" />
+                </div>
+                <div className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                  <span className="text-sm font-semibold text-slate-300">Not Configured</span>
+                </div>
+                <div className="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
+                  <div className="text-slate-400 text-[11px]">
+                    Queue processing is intentionally deferred to dedicated worker milestone.
                   </div>
                 </div>
               </div>
