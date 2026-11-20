@@ -82,6 +82,7 @@ export async function probePostgres(
         } catch {
           // Suppress error
         }
+        clientRef = null;
       }
       reject(new Error(`PostgreSQL probe statement timed out after ${timeoutMs}ms`));
     }, timeoutMs);
@@ -92,7 +93,6 @@ export async function probePostgres(
 
     // Prevent connection leak if connect resolves after timeout has fired
     const guardedConnectPromise = rawConnectPromise.then((acquiredClient) => {
-      clientRef = acquiredClient;
       if (timedOut) {
         try {
           acquiredClient.release(true);
@@ -101,6 +101,7 @@ export async function probePostgres(
         }
         throw new Error(`Connection acquired after timeout (${timeoutMs}ms)`);
       }
+      clientRef = acquiredClient;
       return acquiredClient;
     });
 
@@ -130,6 +131,7 @@ export async function probePostgres(
   } finally {
     if (timer) clearTimeout(timer);
     const c = clientRef as PoolClient | null;
+    clientRef = null;
     if (c) {
       try {
         // If timedOut, pass true to force discard/destruction of the socket
@@ -144,8 +146,9 @@ export async function probePostgres(
 /**
  * Genuinely bounded Redis probe.
  * Checks whether Redis is configured in the environment.
- * If configured, verifies connection readiness and ping responsiveness within bounded timeout.
- * On timeout, forcibly disconnects client to cancel and clear pending commands.
+ * Uses a dedicated, disposable connection that cannot disconnect or destabilize
+ * the shared application rate limiter client.
+ * On timeout, forcibly disconnects the disposable connection to cancel pending commands.
  */
 export async function probeRedis(
   timeoutMs = 1500,
@@ -166,26 +169,27 @@ export async function probeRedis(
     };
   }
 
+  const start = Date.now();
+  let timer: NodeJS.Timeout | null = null;
+  let client: any = targetClient;
+  let isDisposable = false;
+
   try {
-    let client = targetClient;
     if (!client) {
-      const { getRedisClient, isRedisAvailable } = await import('../utils/redis');
-      client = getRedisClient();
-
-      if (!client || !isRedisAvailable()) {
-        return {
-          status: 'unavailable',
-          details: 'Redis client is not connected or in fallback mode',
-        };
-      }
+      const Redis = (await import('ioredis')).default;
+      client = new Redis(env.REDIS_URL, {
+        connectTimeout: timeoutMs,
+        maxRetriesPerRequest: 0,
+        lazyConnect: true,
+        enableOfflineQueue: false,
+        retryStrategy: () => null,
+      });
+      isDisposable = true;
     }
-
-    const start = Date.now();
-    let timer: NodeJS.Timeout | null = null;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
-        // Forcibly abort/disconnect to cancel pending in-flight commands and avoid connection linger
+        // Forcibly abort/disconnect disposable client on timeout to cancel pending in-flight commands
         try {
           if (typeof client.disconnect === 'function') {
             client.disconnect();
@@ -197,31 +201,40 @@ export async function probeRedis(
       }, timeoutMs);
     });
 
-    try {
-      const pingPromise = client.ping();
-      const pong = await Promise.race([pingPromise, timeoutPromise]);
-      const latencyMs = Date.now() - start;
-
-      if (pong === 'PONG') {
-        return {
-          status: latencyMs > 250 ? 'degraded' : 'healthy',
-          latencyMs,
-        };
-      }
-      return {
-        status: 'degraded',
-        latencyMs,
-        details: 'Unexpected ping response from Redis',
-      };
-    } finally {
-      if (timer) clearTimeout(timer);
+    if (isDisposable && (client.status === 'wait' || client.status === 'close')) {
+      await Promise.race([client.connect(), timeoutPromise]);
     }
+
+    const pingPromise = client.ping();
+    const pong = await Promise.race([pingPromise, timeoutPromise]);
+    const latencyMs = Date.now() - start;
+
+    if (pong === 'PONG') {
+      return {
+        status: latencyMs > 250 ? 'degraded' : 'healthy',
+        latencyMs,
+      };
+    }
+    return {
+      status: 'degraded',
+      latencyMs,
+      details: 'Unexpected ping response from Redis',
+    };
   } catch (err: any) {
     logger.warn({ err: err?.message }, 'Redis health probe failed');
     return {
       status: 'unavailable',
       details: err?.message || 'Redis probe failed',
     };
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (isDisposable && client) {
+      try {
+        client.disconnect();
+      } catch {
+        // Suppress disconnect error
+      }
+    }
   }
 }
 

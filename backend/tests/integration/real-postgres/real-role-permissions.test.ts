@@ -305,6 +305,64 @@ describe('Category D: Genuine Role-Based Privilege & Least-Privilege Verificatio
         }
       );
     });
+
+    it('permits SELECT, INSERT, UPDATE, and DELETE on parent_refresh_tokens for parent session management', async () => {
+      // First insert a test parent user via superConn to satisfy FK
+      const testParentId = crypto.randomUUID();
+      await superConn.pool.query(
+        `INSERT INTO public.users (id, email, password_hash, status) VALUES ($1, $2, $3, 'active')`,
+        [testParentId, `role-test-parent-${Date.now()}@test.local`, 'dummyhash']
+      );
+
+      const tokenId = crypto.randomUUID();
+      const tokenHash = crypto.randomBytes(32).toString('hex');
+
+      // 1. INSERT
+      const insRes = await adminConn.pool.query(
+        `INSERT INTO public.parent_refresh_tokens (
+          id, parent_id, token_hash, family_card_no, expires_at, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, NOW() + INTERVAL '30 days', NOW(), NOW()) RETURNING id`,
+        [tokenId, testParentId, tokenHash, 'FAM-TEST-01']
+      );
+      assert.equal(insRes.rows[0].id, tokenId);
+
+      // 2. SELECT
+      const selRes = await adminConn.pool.query(
+        `SELECT id, token_hash, is_revoked FROM public.parent_refresh_tokens WHERE id = $1`,
+        [tokenId]
+      );
+      assert.equal(selRes.rows[0].id, tokenId);
+      assert.equal(selRes.rows[0].is_revoked, false);
+
+      // 3. UPDATE (e.g. token revocation)
+      const updRes = await adminConn.pool.query(
+        `UPDATE public.parent_refresh_tokens SET is_revoked = true, revoked_at = NOW() WHERE id = $1 RETURNING is_revoked`,
+        [tokenId]
+      );
+      assert.equal(updRes.rows[0].is_revoked, true);
+
+      // 4. DELETE
+      const delRes = await adminConn.pool.query(
+        `DELETE FROM public.parent_refresh_tokens WHERE id = $1`,
+        [tokenId]
+      );
+      assert.equal(delRes.rowCount, 1);
+
+      // Clean up test parent
+      await superConn.pool.query(`DELETE FROM public.users WHERE id = $1`, [testParentId]);
+    });
+
+    it('denies TRUNCATE on parent_refresh_tokens with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.parent_refresh_tokens');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

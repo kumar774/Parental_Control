@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { parentUsers, childDevices, adminControlAuditLogs } from '../../db/schema/parental-control';
+import { parentUsers, childDevices, adminControlAuditLogs, parentRefreshTokens } from '../../db/schema/parental-control';
 import { adminAuthAuditLogs, adminSessions } from '../../db/schema/admin-auth';
 import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { env } from '../../config/env';
@@ -567,6 +567,23 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
             updatedAt: sql`NOW()`,
           })
           .where(eq(parentUsers.id, parent.id));
+
+        // When suspending, immediately revoke all active refresh tokens for this parent
+        if (targetStatus === 'suspended') {
+          await tx
+            .update(parentRefreshTokens)
+            .set({
+              isRevoked: true,
+              revokedAt: sql`NOW()`,
+              updatedAt: sql`NOW()`,
+            })
+            .where(
+              and(
+                eq(parentRefreshTokens.parentId, parent.id),
+                eq(parentRefreshTokens.isRevoked, false)
+              )
+            );
+        }
 
         // Record mandatory audit within transaction boundary
         if (auditOverrideForTest) {

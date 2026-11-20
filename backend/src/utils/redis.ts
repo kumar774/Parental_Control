@@ -7,7 +7,13 @@ let redisAvailable = false;
 
 export function getRedisClient(): Redis | null {
   if (redisInstance) {
-    return redisAvailable ? redisInstance : null;
+    // If client reached terminal end status, clear reference to allow clean re-initialization
+    if (redisInstance.status === 'end') {
+      redisInstance = null;
+      redisAvailable = false;
+    } else {
+      return redisAvailable ? redisInstance : null;
+    }
   }
 
   try {
@@ -53,4 +59,16 @@ export function getRedisClient(): Redis | null {
 
 export function isRedisAvailable(): boolean {
   return redisAvailable && redisInstance !== null;
+}
+
+export function resetRedisClientForTest(): void {
+  if (redisInstance) {
+    try {
+      redisInstance.disconnect();
+    } catch {
+      // Suppress disconnect error during test teardown
+    }
+    redisInstance = null;
+    redisAvailable = false;
+  }
 }

@@ -156,6 +156,25 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
   - Added real protected parent endpoint `/api/v1/auth/devices` guarded by `requireParentAuth`.
   - Added end-to-end integration test proving that a pre-issued access token is immediately rejected with HTTP 403 (`Account suspended. Please contact support.`) on both `/api/v1/auth/me` and `/api/v1/auth/devices` upon administrative suspension, and restored upon reactivation.
 
+### 3.12 Disposable Redis Health Probe & Shared Client Isolation (Remediated)
+- **Finding:** Health probe disconnecting the shared Redis client could permanently break caching or rate-limiting for subsequent application requests.
+- **Remediation:**
+  - In `HealthProbeService.probeRedis()`, a dedicated disposable Redis instance (`isDisposable: true`) is instantiated specifically for probing. The shared application client is never disconnected or altered.
+  - On timeout or completion, only the disposable probe client is disconnected, leaving the application's shared singleton completely intact.
+  - In `backend/src/utils/redis.ts`, reconnection recovery was implemented so if a client reaches `'end'` status, it cleanly resets and transparently re-establishes connections on subsequent access.
+
+### 3.13 Real Parent_app API Contracts & Refresh-Token Lifecycle (Remediated)
+- **Finding:** The mobile app calls `GET /api/v1/devices` directly (per `FastifyRestClient.kt:351`), expects specific device DTO mappings, uses a refresh token stored in `MMKV`, and requires protection against cross-parent device tampering.
+- **Remediation:**
+  - Mounted a dedicated plugin at `/api/v1/devices` with:
+    - `GET /api/v1/devices`: Returns `{ devices: [...] }` matching `DeviceDto` structure.
+    - `GET /api/v1/devices/:deviceId`: Validates parent ownership; returns 404 if not found, and HTTP 403 Forbidden if the device belongs to another parent.
+    - `POST /api/v1/devices/:deviceId/commands`: Returns HTTP 501 Not Implemented with `BLOCKED_PENDING_ANDROID_TRANSPORT` advisory.
+  - Implemented stateful `parent_refresh_tokens` store (migration `0004_parental_admin_user_status_update.sql`) storing SHA-256 hashed 256-bit random tokens with 30-day expiry.
+  - Added `POST /api/v1/auth/refresh` implementing rotation, reuse detection (compromise defense revoking all family tokens), and rejection of suspended accounts.
+  - Added `POST /api/v1/auth/logout` revoking the caller's refresh token.
+  - In `admin/dashboard.routes.ts`, parent suspension atomically revokes all active refresh tokens for that parent.
+
 ---
 
 ## 4. Controlled Write Operations & Safety Boundary

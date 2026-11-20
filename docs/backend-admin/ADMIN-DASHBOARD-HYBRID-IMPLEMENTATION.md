@@ -93,17 +93,25 @@ The hybrid dashboard consists of five core functional modules:
   GRANT UPDATE (status, updated_at) ON TABLE "users" TO parental_admin;
   ```
   All other columns (`email`, `password_hash`, `family_pin_hash`, etc.) and all `DELETE`/`TRUNCATE` operations remain strictly denied to `parental_admin`.
+- **`parent_refresh_tokens` Table:** Secure, stateful refresh-token store supporting genuine Parent_app refresh token lifecycle:
+  - Columns: `id` (UUID PK), `parent_id` (FK to `users`), `token_hash` (varchar 64, unique), `family_card_no`, `device_info`, `ip_address`, `is_revoked`, `revoked_at`, `expires_at`, `created_at`, `updated_at`.
+  - Indexes: `idx_parent_refresh_tokens_hash`, `idx_parent_refresh_tokens_parent`, `idx_parent_refresh_tokens_expires`.
+- **Scoped Role Grant:**
+  ```sql
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "parent_refresh_tokens" TO parental_admin;
+  REVOKE TRUNCATE ON TABLE "parent_refresh_tokens" FROM parental_admin;
+  ```
 
 ---
 
 ## 4. Privilege Matrix
 
-| Role | `users` | `child_devices` | `admin_control_audit_logs` | `admin_auth_audit_logs` | `admin_sessions` / `admin_mfa` |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`parental_admin`** | `SELECT`, `UPDATE (status, updated_at)` | `SELECT` only (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
-| **`parental_audit_archive`** | None | None | None | `SELECT` only | None |
-| **`parental_audit_pruner`** | None | None | None | `SELECT`, `DELETE` (via Security Definer function) | None |
-| **`parental_migrator`** | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) |
+| Role | `users` | `child_devices` | `parent_refresh_tokens` | `admin_control_audit_logs` | `admin_auth_audit_logs` | `admin_sessions` / `admin_mfa` |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`parental_admin`** | `SELECT`, `UPDATE (status, updated_at)` | `SELECT` only (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` (TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| **`parental_audit_archive`** | None | None | None | None | `SELECT` only | None |
+| **`parental_audit_pruner`** | None | None | None | None | `SELECT`, `DELETE` (via Security Definer function) | None |
+| **`parental_migrator`** | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) |
 
 ---
 
@@ -113,11 +121,11 @@ The hybrid dashboard consists of five core functional modules:
 | :--- | :--- | :--- | :--- |
 | **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript strict compilation | **PASSED** (0 errors) |
 | **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting, Crypto) | **PASSED** (42 tests) |
-| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), column-scoped grants, severity check (SQLSTATE 23514) | **PASSED** (13 assertions) |
-| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 21 tests covering 5 health scenarios, bounded probes with connection leak prevention, delayed connect/SET/SELECT/ping tests, fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent registration password policy & rate limiting (Test 15), Parent_app E2E token invalidation on protected routes `/me` and `/devices` (Test 16), and overview metrics (Test 17) | **PASSED** (21 tests) |
+| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 14 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), column-scoped grants, severity check (SQLSTATE 23514), and `parent_refresh_tokens` grants/revocations | **PASSED** (14 assertions) |
+| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 25 tests covering 5 health scenarios, bounded probes with connection leak prevention, delayed connect/SET/SELECT/ping tests, disposable Redis probe preventing shared client disconnection (Test 9g), PostgreSQL repeated timeout connection cleanup (Test 9h), fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent registration password policy & rate limiting (Test 15), Parent_app exact contract matching `/api/v1/devices` and ownership isolation with 403 (Test 16), overview metrics (Test 17), and full Parent refresh-token lifecycle with rotation, compromise revocation, and logout (Test 18) | **PASSED** (25 tests) |
 | **Credential Hygiene Scanner** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
 | **Frontend Typecheck** | `npm run typecheck` | Admin_panel React 19 TypeScript compilation | **PASSED** (0 errors) |
-| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 53.4s) |
+| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 17.0s) |
 | **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions, Status update) | **PASSED** (35 tests) |
 | **Playwright E2E Tests** | `npm run test:e2e` | Browser session management workflows | **PASSED** (9 tests) |
 

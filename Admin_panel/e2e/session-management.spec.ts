@@ -273,8 +273,8 @@ test.describe('AUTH-001: Session Management & Device Control E2E Suite', () => {
     // Verify GET /sessions was refreshed (fetchCount >= 2)
     expect(sessionFetchCount).toBeGreaterThanOrEqual(2);
 
-    // Verify revoked session has disappeared from the UI
-    await expect(page.getByText('192.168.1.150')).not.toBeVisible();
+    // Verify revoked session has disappeared from the table/cards
+    await expect(page.getByRole('table').getByText('192.168.1.150')).not.toBeVisible();
 
     // Current session remains active
     await expect(page.getByText('127.0.0.1').first()).toBeVisible();

@@ -2,13 +2,20 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { parentUsers, childDevices } from '../../db/schema/parental-control';
+import { parentUsers, childDevices, parentRefreshTokens } from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 import { parentRegisterRateLimiter, parentLoginRateLimiter } from '../../middleware/parent-rate-limiter';
+
+/**
+ * SHA-256 hash helper for refresh tokens to avoid storing plaintext tokens in database.
+ */
+export function hashRefreshToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Enterprise Password Policy for Parent Accounts:
@@ -61,6 +68,14 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+const logoutSchema = z.object({
+  refreshToken: z.string().optional(),
 });
 
 export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
@@ -129,10 +144,21 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
-    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const derivedFullName = parsed.data.fullName || newUser.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
+
+    // Persist hashed refresh token for real session lifecycle
+    await db.insert(parentRefreshTokens).values({
+      parentId: newUser.id,
+      tokenHash,
+      familyCardNo: derivedFamilyCard,
+      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
 
     return reply.status(201).send({
       user: {
@@ -145,7 +171,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         status: newUser.status,
       },
       accessToken: token,
-      refreshToken,
+      refreshToken: rawRefreshToken,
       expiresIn: 900,
     });
   });
@@ -205,10 +231,21 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
-    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const derivedFullName = user.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+    // Persist hashed refresh token for real session lifecycle
+    await db.insert(parentRefreshTokens).values({
+      parentId: user.id,
+      tokenHash,
+      familyCardNo: derivedFamilyCard,
+      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
 
     return reply.send({
       user: {
@@ -221,7 +258,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         status: user.status,
       },
       accessToken: token,
-      refreshToken,
+      refreshToken: rawRefreshToken,
       expiresIn: 900,
     });
   });
@@ -251,10 +288,153 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
   });
 
   /**
-   * GET /devices
+   * POST /refresh
+   * Rotates and issues a new access token and new refresh token.
+   * - Validates token existence, expiry, and revocation status.
+   * - Token reuse detection: if a revoked token is presented, revokes ALL sessions for that parent.
+   * - Validates parent account status: rejects suspended accounts with HTTP 403.
+   * - Rotates token: revokes old token and generates new token pair.
+   */
+  app.post('/refresh', async (request, reply) => {
+    const parsed = refreshSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid refresh token payload',
+      });
+    }
+
+    const tokenHash = hashRefreshToken(parsed.data.refreshToken);
+
+    const [record] = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.tokenHash, tokenHash))
+      .limit(1);
+
+    if (!record) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid refresh token',
+      });
+    }
+
+    // Token reuse detection: if a revoked token is presented, compromise is suspected
+    if (record.isRevoked) {
+      await db
+        .update(parentRefreshTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: sql`NOW()`,
+          updatedAt: sql`NOW()`,
+        })
+        .where(
+          and(
+            eq(parentRefreshTokens.parentId, record.parentId),
+            eq(parentRefreshTokens.isRevoked, false)
+          )
+        );
+
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Token reuse detected. All sessions have been revoked for security.',
+      });
+    }
+
+    // Expiry check
+    if (new Date(record.expiresAt).getTime() < Date.now()) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Refresh token has expired',
+      });
+    }
+
+    // Account status check
+    const [user] = await db
+      .select({
+        id: parentUsers.id,
+        email: parentUsers.email,
+        phone: parentUsers.phone,
+        status: parentUsers.status,
+      })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, record.parentId))
+      .limit(1);
+
+    if (!user || user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    // Token Rotation: revoke current token
+    await db
+      .update(parentRefreshTokens)
+      .set({
+        isRevoked: true,
+        revokedAt: sql`NOW()`,
+        updatedAt: sql`NOW()`,
+      })
+      .where(eq(parentRefreshTokens.id, record.id));
+
+    // Generate new token pair
+    const newAccessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: 'parent' },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+    const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = hashRefreshToken(newRawRefreshToken);
+
+    await db.insert(parentRefreshTokens).values({
+      parentId: user.id,
+      tokenHash: newTokenHash,
+      familyCardNo: record.familyCardNo,
+      deviceInfo: (request.headers['user-agent'] as string) || record.deviceInfo,
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    return reply.send({
+      accessToken: newAccessToken,
+      refreshToken: newRawRefreshToken,
+      expiresIn: 900,
+    });
+  });
+
+  /**
+   * POST /logout
+   * Revokes the provided refresh token.
+   */
+  app.post('/logout', async (request, reply) => {
+    const parsed = logoutSchema.safeParse(request.body);
+    if (parsed.success && parsed.data.refreshToken) {
+      const tokenHash = hashRefreshToken(parsed.data.refreshToken);
+      await db
+        .update(parentRefreshTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: sql`NOW()`,
+          updatedAt: sql`NOW()`,
+        })
+        .where(eq(parentRefreshTokens.tokenHash, tokenHash));
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Logged out successfully',
+    });
+  });
+
+  /**
+   * GET /devices (alias for /api/v1/devices)
    * Retrieves list of child devices belonging to the authenticated parent.
-   * Mirrors Parent_app's FastifyRestClient.kt line 351 (executeGet("/api/v1/devices", accessToken)).
-   * Real-time zero-trust status check: rejects suspended parent with HTTP 403.
    */
   app.get('/devices', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const user = request.parentUser!;
@@ -278,6 +458,13 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       .from(childDevices)
       .where(eq(childDevices.parentId, user.id));
 
-    return reply.send({ devices });
+    const formattedDevices = devices.map((d) => ({
+      ...d,
+      deviceName: d.deviceModel || `${d.childName}'s Device`,
+      model: d.deviceModel,
+      kioskMode: d.isLocked,
+    }));
+
+    return reply.send({ devices: formattedDevices });
   });
 };

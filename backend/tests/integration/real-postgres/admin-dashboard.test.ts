@@ -724,6 +724,67 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(disconnectCalled, true, 'Redis client must be disconnected to abort in-flight commands upon timeout');
   });
 
+  it('9g. Health Probes: verifies Redis probe timeout does NOT disconnect the application shared Redis client', async () => {
+    const { getRedisClient } = await import('../../../src/utils/redis');
+    const sharedClient = getRedisClient();
+
+    // Probe with a mock client that times out
+    let mockDisconnected = false;
+    const mockTimeoutClient = {
+      status: 'ready',
+      ping: async () => {
+        await new Promise((r) => setTimeout(r, 120));
+        return 'PONG';
+      },
+      disconnect: () => {
+        mockDisconnected = true;
+      },
+    };
+
+    const resTimeout = await probeRedis(50, mockTimeoutClient as any);
+    assert.equal(resTimeout.status, 'unavailable');
+    assert.equal(mockDisconnected, true, 'Timeout must disconnect only the probe client');
+
+    // Verify shared application client was NOT disconnected
+    if (sharedClient) {
+      assert.notEqual(sharedClient.status, 'end', 'Shared Redis client must remain active');
+    }
+
+    // Verify Redis can become healthy again on subsequent probe
+    const mockHealthyClient = {
+      status: 'ready',
+      ping: async () => 'PONG',
+      disconnect: () => {},
+    };
+    const resHealthy = await probeRedis(2000, mockHealthyClient as any);
+    assert.equal(resHealthy.status, 'healthy');
+  });
+
+  it('9h. Health Probes: verifies repeated PostgreSQL timeout calls clean up timers and never leak connections', async () => {
+    let destroyCount = 0;
+    const mockPool = {
+      connect: async () => {
+        await new Promise((r) => setTimeout(r, 100)); // Exceeds 30ms timeout
+        return {
+          query: async () => ({ rows: [{ alive: 1 }] }),
+          release: (destroy?: boolean) => {
+            if (destroy) destroyCount++;
+          },
+        } as any;
+      },
+    };
+
+    // Run 3 consecutive timed-out probes
+    for (let i = 0; i < 3; i++) {
+      const res = await probePostgres(30, mockPool as any);
+      assert.equal(res.status, 'unavailable');
+    }
+
+    // Wait for all delayed promises to settle
+    await new Promise((r) => setTimeout(r, 150));
+    assert.equal(destroyCount, 3, 'Every late connection must be destroyed, preventing pool exhaustion');
+  });
+
   // --- Input Validation & Error Boundaries ---
 
   it('10. Rejects invalid pagination values with HTTP 400', async () => {
@@ -1059,10 +1120,10 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(meData.user.status, 'active');
     assert.ok(meData.user.familyCardNo);
 
-    // 16c. Parent accesses protected devices list /api/v1/auth/devices (FastifyRestClient.kt:351)
+    // 16c. Parent accesses protected devices list at the real client path /api/v1/devices (FastifyRestClient.kt:351)
     const resDevicesActive = await readyApp!.inject({
       method: 'GET',
-      url: '/api/v1/auth/devices',
+      url: '/api/v1/devices',
       headers: {
         authorization: `Bearer ${preIssuedToken}`,
       },
@@ -1071,6 +1132,58 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     const devicesData = resDevicesActive.json();
     assert.equal(devicesData.devices.length, 1);
     assert.equal(devicesData.devices[0].childName, 'Alice');
+    assert.equal(devicesData.devices[0].deviceName, 'Pixel 8');
+    assert.equal(devicesData.devices[0].model, 'Pixel 8');
+    assert.equal(devicesData.devices[0].kioskMode, false);
+
+    // 16c2. Parent accesses single device detail /api/v1/devices/:id
+    const resSingleDevice = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${childDeviceId}`,
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resSingleDevice.statusCode, 200);
+    assert.equal(resSingleDevice.json().device.childName, 'Alice');
+
+    // 16c3. Cross-Parent Resource Isolation: Parent B cannot access Parent A's child device
+    const parentBId = crypto.randomUUID();
+    await db.insert(parentUsers).values({
+      id: parentBId,
+      email: `parent-b-${Date.now()}@example.test`,
+      passwordHash,
+      status: 'active',
+    });
+    const parentBToken = jwt.sign(
+      { userId: parentBId, email: `parent-b-${Date.now()}@example.test`, role: 'parent' },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+    const resCrossParent = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${childDeviceId}`,
+      headers: {
+        authorization: `Bearer ${parentBToken}`,
+      },
+    });
+    assert.equal(resCrossParent.statusCode, 403, 'Cross-parent device access must be rejected with HTTP 403');
+    assert.ok(resCrossParent.json().message.includes('do not own'));
+
+    // 16c4. Remote hardware commands are honestly rejected with HTTP 501
+    const resCommand = await readyApp!.inject({
+      method: 'POST',
+      url: `/api/v1/devices/${childDeviceId}/commands`,
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+      payload: {
+        command: 'lock',
+        payload: { durationMinutes: 30 },
+      },
+    });
+    assert.equal(resCommand.statusCode, 501);
+    assert.equal(resCommand.json().commandStatus, 'BLOCKED_PENDING_ANDROID_TRANSPORT');
 
     // 16d. Super Admin suspends the parent account in the Admin Control Plane
     const resSuspend = await readyApp!.inject({
@@ -1098,16 +1211,27 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resMeSuspended.statusCode, 403);
     assert.ok(resMeSuspended.json().message.includes('suspended'));
 
-    // 16f. The PREVIOUSLY ISSUED token is immediately rejected on protected /api/v1/auth/devices with HTTP 403 Forbidden
+    // 16f. The PREVIOUSLY ISSUED token is immediately rejected on protected /api/v1/devices with HTTP 403 Forbidden
     const resDevicesSuspended = await readyApp!.inject({
       method: 'GET',
-      url: '/api/v1/auth/devices',
+      url: '/api/v1/devices',
       headers: {
         authorization: `Bearer ${preIssuedToken}`,
       },
     });
     assert.equal(resDevicesSuspended.statusCode, 403);
     assert.ok(resDevicesSuspended.json().message.includes('suspended'));
+
+    // 16f2. Refreshing tokens is immediately rejected with HTTP 403 when suspended
+    const resRefreshSuspended = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: loginData.refreshToken,
+      },
+    });
+    assert.equal(resRefreshSuspended.statusCode, 403);
+    assert.ok(resRefreshSuspended.json().message.includes('suspended'));
 
     // 16g. Attempted login with valid credentials is rejected with HTTP 403 Forbidden
     const resLoginSuspended = await readyApp!.inject({
@@ -1147,10 +1271,10 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resMeRestored.statusCode, 200);
     assert.equal(resMeRestored.json().user.status, 'active');
 
-    // 16j. With the SAME token, access to protected /api/v1/auth/devices is restored (HTTP 200)
+    // 16j. With the SAME token, access to protected /api/v1/devices is restored (HTTP 200)
     const resDevicesRestored = await readyApp!.inject({
       method: 'GET',
-      url: '/api/v1/auth/devices',
+      url: '/api/v1/devices',
       headers: {
         authorization: `Bearer ${preIssuedToken}`,
       },
@@ -1177,6 +1301,124 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       headers: { cookie: `admin_session=${sessionToken}` },
     });
     assert.equal(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(typeof body.devices.recentlyActive24h === 'number');
+    assert.ok(body.system.databaseStatus);
+    assert.ok(body.system.redisStatus);
+  });
+
+  it('18. Real Parent Refresh-Token Lifecycle: rotation, reuse detection, revocation, and logout', async () => {
+    resetParentRateLimitsForTest();
+    const testEmail = `parent-refresh-${Date.now()}@example.test`;
+    const testPassword = 'ParentSecureRefreshPass2026!';
+    const passwordHash = await hashPassword(testPassword);
+    const parentId = crypto.randomUUID();
+
+    await db.insert(parentUsers).values({
+      id: parentId,
+      email: testEmail,
+      passwordHash,
+      status: 'active',
+    });
+
+    // 18a. Login creates real persisted refresh token
+    const resLogin = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: testPassword,
+      },
+    });
+    assert.equal(resLogin.statusCode, 200);
+    const { accessToken: token1, refreshToken: refToken1 } = resLogin.json();
+    assert.ok(token1);
+    assert.ok(refToken1);
+
+    // 18b. Happy Path Token Rotation: /refresh returns new access token and new rotated refresh token
+    const resRefresh1 = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: refToken1,
+      },
+    });
+    assert.equal(resRefresh1.statusCode, 200);
+    const { accessToken: token2, refreshToken: refToken2 } = resRefresh1.json();
+    assert.ok(token2);
+    assert.ok(refToken2);
+    assert.notEqual(refToken2, refToken1, 'Rotated refresh token must differ from old token');
+
+    // 18c. New access token works to query protected resources
+    const resMe = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { authorization: `Bearer ${token2}` },
+    });
+    assert.equal(resMe.statusCode, 200);
+
+    // 18d. Token Reuse Detection: presenting previously rotated token (refToken1) triggers compromise defense
+    const resReuse = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: refToken1,
+      },
+    });
+    assert.equal(resReuse.statusCode, 401);
+    assert.ok(resReuse.json().message.includes('Token reuse detected'));
+
+    // 18e. Compromise defense verified: refToken2 was also revoked because of reuse attempt
+    const resSubsequent = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: refToken2,
+      },
+    });
+    assert.equal(resSubsequent.statusCode, 401);
+
+    // 18f. Non-existent refresh token is rejected with HTTP 401
+    const resNonExistent = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      },
+    });
+    assert.equal(resNonExistent.statusCode, 401);
+
+    // 18g. Logout explicitly revokes refresh token
+    const resLoginLogout = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: testPassword,
+      },
+    });
+    assert.equal(resLoginLogout.statusCode, 200);
+    const { refreshToken: refToken3 } = resLoginLogout.json();
+
+    const resLogout = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      payload: {
+        refreshToken: refToken3,
+      },
+    });
+    assert.equal(resLogout.statusCode, 200);
+
+    // After logout, refreshing with refToken3 is rejected
+    const resRefreshLoggedOut = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: refToken3,
+      },
+    });
+    assert.equal(resRefreshLoggedOut.statusCode, 401);
+  });
     const body = res.json();
     assert.ok(typeof body.devices.recentlyActive24h === 'number');
     assert.ok(body.system.databaseStatus);

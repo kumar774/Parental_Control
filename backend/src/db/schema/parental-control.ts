@@ -103,6 +103,36 @@ export const adminControlAuditLogs = pgTable(
   ]
 );
 
+/**
+ * Parent Refresh Tokens.
+ * Stores cryptographically hashed refresh tokens for parent mobile sessions.
+ * Implements token rotation, expiry, and zero-trust revocation upon account suspension.
+ * Plaintext tokens are never stored (only SHA-256 hex digests).
+ */
+export const parentRefreshTokens = pgTable(
+  'parent_refresh_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    familyCardNo: varchar('family_card_no', { length: 64 }),
+    deviceInfo: varchar('device_info', { length: 255 }),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    isRevoked: boolean('is_revoked').notNull().default(false),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_parent_refresh_tokens_hash').on(table.tokenHash),
+    index('idx_parent_refresh_tokens_parent').on(table.parentId),
+    index('idx_parent_refresh_tokens_expires').on(table.expiresAt),
+  ]
+);
+
 // Type Exports
 export type ParentUser = typeof parentUsers.$inferSelect;
 export type NewParentUser = typeof parentUsers.$inferInsert;
