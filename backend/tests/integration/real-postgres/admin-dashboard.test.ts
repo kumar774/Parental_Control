@@ -961,7 +961,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       url: '/api/v1/auth/register',
       payload: {
         email: `policy-weak-${Date.now()}@example.test`,
-        password: 'password123!',
+        password: 'Password123!',
       },
     });
     assert.equal(resWeak.statusCode, 400);

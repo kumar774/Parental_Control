@@ -20,6 +20,18 @@ import { parentRegisterRateLimiter, parentLoginRateLimiter } from '../../middlew
  * - Block list of trivial / common passwords
  */
 export function validateParentPassword(password: string): { valid: boolean; message?: string } {
+  const commonWeak = [
+    'password123!',
+    'password123#',
+    'admin12345!',
+    'qwerty1234!',
+    '1234567890!',
+    'welcome123!',
+    'parental123!',
+  ];
+  if (commonWeak.includes(password.toLowerCase()) || commonWeak.some((w) => password.toLowerCase().includes(w))) {
+    return { valid: false, message: 'Password is too common or easily guessable' };
+  }
   if (password.length < 10) {
     return { valid: false, message: 'Password must be at least 10 characters long' };
   }
@@ -34,10 +46,6 @@ export function validateParentPassword(password: string): { valid: boolean; mess
   }
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     return { valid: false, message: 'Password must contain at least one special character' };
-  }
-  const commonWeak = ['password123!', 'admin12345!', 'qwerty1234!', '1234567890!'];
-  if (commonWeak.includes(password.toLowerCase())) {
-    return { valid: false, message: 'Password is too common or easily guessable' };
   }
   return { valid: true };
 }
