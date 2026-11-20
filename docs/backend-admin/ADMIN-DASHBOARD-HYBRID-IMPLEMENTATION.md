@@ -134,6 +134,8 @@ The hybrid dashboard consists of five core functional modules:
 ## 6. PR & Deployment Status
 
 - **Pull Request:** Open & active on GitHub: [PR #5](https://github.com/kumar774/Parental_Control/pull/5).
+- **Latest Commit:** [`e4602c2`](https://github.com/kumar774/Parental_Control/commit/e4602c29fe0d8f07b9efafae7747e099684cbf9b)
+- **GitHub Actions CI Run:** [Run #44693149007](https://github.com/kumar774/Parental_Control/actions/runs/44693149007) — **100% GREEN (Frontend & Backend Passing)**
 - **Safety Boundary Compliance:** Production databases (`parental_control_db`, `parental_control_admin_db`) remain untouched. PR #5 has not been merged, and no production deployment was triggered.
 
 ---
