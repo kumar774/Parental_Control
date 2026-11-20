@@ -147,10 +147,18 @@ describe('Category D: Genuine Role-Based Privilege & Least-Privilege Verificatio
       assert.equal(typeof res.rows[0].count, 'number');
     });
 
-    it('denies UPDATE on users with PostgreSQL 42501 (permission denied)', async () => {
+    it('permits column-scoped UPDATE (status, updated_at) on users for parent account lifecycle', async () => {
+      const res = await adminConn.pool.query(
+        "UPDATE public.users SET status = 'active', updated_at = NOW() WHERE id = $1",
+        [crypto.randomUUID()]
+      );
+      assert.equal(res.rowCount, 0);
+    });
+
+    it('denies unscoped UPDATE on protected columns of users with PostgreSQL 42501 (permission denied)', async () => {
       await assert.rejects(
         async () => {
-          await adminConn.pool.query("UPDATE public.users SET status = 'suspended'");
+          await adminConn.pool.query("UPDATE public.users SET email = 'hacked@example.com'");
         },
         (err: any) => {
           assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
