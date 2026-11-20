@@ -151,7 +151,7 @@ export const RegenerateRecoveryModal: React.FC<RegenerateRecoveryModalProps> = (
           <form onSubmit={handleRegenerate} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Current Master Password
+                Current Password
               </label>
               <input
                 type="password"

@@ -402,7 +402,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Lock className="w-4 h-4 text-indigo-400" />
-                <span>Rotate Master Password</span>
+                <span>Change Password</span>
               </h3>
               <button
                 type="button"
@@ -448,7 +448,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                   disabled={submittingPassword || !currentPassword || newPassword.length < 12}
                   className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
                 >
-                  {submittingPassword ? 'Rotating...' : 'Update & Rotate'}
+                  {submittingPassword ? 'Updating...' : 'Update Password'}
                 </button>
                 <button
                   type="button"

@@ -14,12 +14,47 @@ NODE_ENV=production
 PORT=3000
 DATABASE_URL=postgresql://parental:strongpass@postgres:5432/parental_db
 REDIS_URL=redis://redis:6379
-JWT_ACCESS_SECRET=<32+ byte random hex>
-JWT_REFRESH_SECRET=<32+ byte random hex>
-ENCRYPTION_MASTER_KEY=<32 byte hex for AES-256-GCM provider keys>
+JWT_ACCESS_SECRET=<64-char random hex or 32+ byte string>
+ENCRYPTION_MASTER_KEY=<64-char hex key (32 bytes) for AES-256-GCM vault>
+IDENTIFIER_RATE_LIMIT_KEY=<64-char hex key (32 bytes) for rate limiting HMAC>
 CORS_ORIGIN=https://admin.yourdomain.com
 ```
-*(Note: R2, FCM, Agora, TRTC, LiveKit, Razorpay keys `.env` me hardcoded nahi hongi — wo Admin Panel se encrypted DB me store hongi!)*
+*(Note: Production startup strictly validates that `ENCRYPTION_MASTER_KEY`, `IDENTIFIER_RATE_LIMIT_KEY`, and `JWT_ACCESS_SECRET` are provided and do not use known development fallback keys. Dead credentials `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, and `JWT_REFRESH_SECRET` have been removed. See `backend/.env.example` for reference.)*
+
+---
+
+## 2.1 Database Migrations
+Execute all database migrations sequentially and idempotently:
+```bash
+cd backend
+npm run db:migrate
+```
+This executes `backend/src/db/migrate.ts` which applies all `.sql` migrations in `backend/drizzle` order, ensuring roles, triggers, and indices (including `0005_protected_superadmin.sql`) are applied properly.
+
+---
+
+## 2.2 First-Time Superadmin Provisioning
+Provision the single permanent protected Superadmin account via CLI:
+
+```bash
+# Interactive (prompts masked password securely):
+npx tsx backend/bin/admin-cli.ts provision --email admin@domain.com --username superadmin
+
+# Non-interactive / CI / Docker bootstrap:
+BOOTSTRAP_SUPERADMIN_EMAIL=admin@domain.com \
+BOOTSTRAP_SUPERADMIN_USERNAME=superadmin \
+BOOTSTRAP_SUPERADMIN_PASSWORD="StrongSuperadminPassword123!" \
+npx tsx backend/bin/admin-cli.ts provision
+
+# Reconcile existing installations with multiple or legacy superadmins:
+npx tsx backend/bin/admin-cli.ts provision --designate <existing_username>
+
+# Update email or username of existing protected superadmin without removing protection:
+npx tsx backend/bin/admin-cli.ts update-admin --username new_superadmin --email new_email@domain.com
+```
+- **Idempotency Guarantee:** If a protected Superadmin already exists, the command reports existing account details and exits 0 without failing or overwriting.
+- **Engine Protection:** PostgreSQL trigger `trg_protect_superadmin` strictly blocks deletion, role demotion, deactivation, or unprotecting the default Superadmin account at the database level.
+- **Security Limitations:** Database table owners and PostgreSQL superusers can override triggers via `ALTER TABLE ... DISABLE TRIGGER`. Trigger protections safeguard against application bugs and standard query execution.
 
 ---
 

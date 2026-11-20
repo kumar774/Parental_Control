@@ -142,7 +142,7 @@ export const MfaEnrollmentModal: React.FC<MfaEnrollmentModalProps> = ({ onCancel
               </div>
               <h2 className="text-xl font-bold text-white tracking-tight">Mandatory MFA Onboarding</h2>
               <p className="text-xs text-slate-400 mt-1 max-w-md">
-                Administrative security policy strictly mandates Two-Factor Authentication. Please enroll an RFC 6238 compatible Authenticator application.
+                Two-factor authentication is required for administrator access. Connect your authenticator app (e.g., Google Authenticator, Authy, or 1Password) to continue.
               </p>
             </div>
 
