@@ -103,6 +103,9 @@ jobs:
         run: |
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0002_admin_dashboard_hybrid.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0003_admin_control_audit_severity.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0004_parental_admin_user_status_update.sql
 
       - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
         working-directory: backend

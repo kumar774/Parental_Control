@@ -24,10 +24,134 @@ export class AdminApiError extends Error {
 }
 
 const BASE_URL = '/api/v1/admin/auth';
+const DASHBOARD_BASE_URL = '/api/v1/admin/dashboard';
+
+export interface DashboardOverview {
+  generatedAt: string;
+  parents: {
+    total: number;
+    active: number;
+    suspended: number;
+    registeredLast24h: number;
+    registeredLast7d: number;
+  };
+  devices: {
+    total: number;
+    online: number;
+    offline: number;
+    recentlyActive24h?: number;
+    locked: number;
+    healthyA11y: number;
+  };
+  auth: {
+    successfulLoginsLast24h: number;
+    failedLoginsLast24h: number;
+    activeSessions: number;
+  };
+  system: {
+    status: 'healthy' | 'degraded';
+    databaseStatus?: string;
+    redisStatus?: string;
+    uptimeSeconds?: number;
+    memoryUsageMb?: number;
+    nodeVersion?: string;
+    environment?: string;
+    dbStatus?: string;
+    dbLatencyMs?: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    eventType: string;
+    status: string;
+    source: string;
+    ipAddress?: string;
+    createdAt: string;
+  }>;
+  freshnessWindowSeconds: number;
+}
+
+export interface DashboardParent {
+  id: string;
+  email: string;
+  phone: string | null;
+  status: 'active' | 'suspended';
+  createdAt: string;
+}
+
+export interface DashboardDevice {
+  id: string;
+  parentId: string;
+  parentEmail?: string;
+  childName: string;
+  childAvatarId: number | null;
+  deviceModel: string | null;
+  osVersion: string | null;
+  appVersion: string | null;
+  isLocked: boolean;
+  batteryPct: number | null;
+  isCharging: boolean;
+  accessibilityHealthy: boolean;
+  deviceAdminActive: boolean;
+  knoxActive: boolean;
+  lastSeenAt: string | null;
+  isOnline: boolean;
+}
+
+export interface DashboardParentDetails extends DashboardParent {
+  childDevices: DashboardDevice[];
+  deviceCount: number;
+  totalDevices?: number;
+  devicePage?: number;
+  devicePageSize?: number;
+}
+
+export interface DashboardAuditLog {
+  id: string;
+  source: 'auth' | 'control';
+  adminId: string | null;
+  action: string;
+  eventType: string;
+  severity: 'info' | 'warning' | 'critical';
+  status: string | null;
+  targetType?: string;
+  targetId?: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: unknown;
+  createdAt: string;
+}
+
+export interface SystemHealth {
+  status: 'healthy' | 'degraded' | 'unavailable';
+  timestamp: string;
+  uptimeSeconds: number;
+  database: {
+    status: 'healthy' | 'degraded' | 'unavailable' | 'connected' | 'disconnected' | string;
+    latencyMs: number;
+  };
+  redis: {
+    status: 'healthy' | 'degraded' | 'unavailable' | 'not_configured' | string;
+    enabled: boolean;
+    latencyMs?: number;
+  };
+  queues?: {
+    status: 'not_configured' | 'healthy' | 'degraded';
+    details?: string;
+  };
+  memory: {
+    rssMb: number;
+    heapUsedMb: number;
+    heapTotalMb: number;
+  };
+  nodeVersion: string;
+  environment: string;
+  version: string;
+}
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  baseUrl = BASE_URL
 ): Promise<T> {
   const method = (options.method || 'GET').toUpperCase();
   const headers = new Headers(options.headers || {});
@@ -45,7 +169,7 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     method,
     headers,
@@ -225,5 +349,160 @@ export const adminApi = {
     return request<GenericSuccessResponse>(`/sessions/${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',
     });
+  },
+
+  /**
+   * Fetches real platform overview metrics
+   */
+  async getDashboardOverview(): Promise<DashboardOverview> {
+    return request<DashboardOverview>('/overview', { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
+
+  /**
+   * Fetches paginated parent accounts
+   */
+  async getParents(params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    status?: 'active' | 'suspended';
+  } = {}): Promise<{ items: DashboardParent[]; page: number; pageSize: number; total: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.search) query.set('search', params.search);
+    if (params.status) query.set('status', params.status);
+    const qs = query.toString();
+    return request<{ items: DashboardParent[]; page: number; pageSize: number; total: number }>(
+      `/parents${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches single parent details with bounded child devices
+   */
+  async getParent(
+    id: string,
+    params: { devicePage?: number; devicePageSize?: number } = {}
+  ): Promise<DashboardParentDetails> {
+    const query = new URLSearchParams();
+    if (params.devicePage) query.set('devicePage', String(params.devicePage));
+    if (params.devicePageSize) query.set('devicePageSize', String(params.devicePageSize));
+    const qs = query.toString();
+    return request<DashboardParentDetails>(
+      `/parents/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Suspends or reactivates a parent account with explicit reason
+   */
+  async updateParentStatus(
+    id: string,
+    status: 'active' | 'suspended',
+    reason: string
+  ): Promise<{ success: boolean; parent: DashboardParent; message: string }> {
+    return request<{ success: boolean; parent: DashboardParent; message: string }>(
+      `/parents/${encodeURIComponent(id)}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status, reason }),
+      },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches paginated child devices for a specific parent
+   */
+  async getParentDevices(
+    parentId: string,
+    params: { page?: number; pageSize?: number } = {}
+  ): Promise<{ items: DashboardDevice[]; page: number; pageSize: number; total: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const qs = query.toString();
+    return request<{ items: DashboardDevice[]; page: number; pageSize: number; total: number }>(
+      `/parents/${encodeURIComponent(parentId)}/devices${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches paginated enrolled devices
+   */
+  async getDevices(params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    parentId?: string;
+    connection?: 'all' | 'online' | 'offline';
+  } = {}): Promise<{ items: DashboardDevice[]; page: number; pageSize: number; total: number; freshnessWindowSeconds: number }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.search) query.set('search', params.search);
+    if (params.parentId) query.set('parentId', params.parentId);
+    if (params.connection && params.connection !== 'all') query.set('connection', params.connection);
+    const qs = query.toString();
+    return request<{ items: DashboardDevice[]; page: number; pageSize: number; total: number; freshnessWindowSeconds: number }>(
+      `/devices${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches single device details
+   */
+  async getDevice(id: string): Promise<DashboardDevice> {
+    return request<DashboardDevice>(`/devices/${encodeURIComponent(id)}`, { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
+
+  /**
+   * Fetches administrative security & control plane audit logs
+   */
+  async getAuditLogs(params: {
+    page?: number;
+    pageSize?: number;
+    source?: 'all' | 'auth' | 'control';
+    severity?: 'info' | 'warning' | 'critical';
+    action?: string;
+    eventType?: string;
+    status?: string;
+    adminId?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {}): Promise<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number; source?: string }> {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.source) query.set('source', params.source);
+    if (params.severity) query.set('severity', params.severity);
+    if (params.action) query.set('action', params.action);
+    if (params.eventType) query.set('eventType', params.eventType);
+    if (params.status) query.set('status', params.status);
+    if (params.adminId) query.set('adminId', params.adminId);
+    if (params.startDate) query.set('startDate', params.startDate);
+    if (params.endDate) query.set('endDate', params.endDate);
+    const qs = query.toString();
+    return request<{ items: DashboardAuditLog[]; page: number; pageSize: number; total: number; source?: string }>(
+      `/audit-logs${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches authenticated system telemetry & health
+   */
+  async getSystemHealth(): Promise<SystemHealth> {
+    return request<SystemHealth>('/health', { method: 'GET' }, DASHBOARD_BASE_URL);
   },
 };

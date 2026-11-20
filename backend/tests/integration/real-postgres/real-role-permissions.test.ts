@@ -139,6 +139,230 @@ describe('Category D: Genuine Role-Based Privilege & Least-Privilege Verificatio
         }
       );
     });
+
+    // --- Control Plane Least-Privilege & Append-Only Assertions (Step 4 & Step 2) ---
+
+    it('permits SELECT on users (parents table)', async () => {
+      const res = await adminConn.pool.query('SELECT count(*)::int AS count FROM public.users');
+      assert.equal(typeof res.rows[0].count, 'number');
+    });
+
+    it('permits column-scoped UPDATE (status, updated_at) on users for parent account lifecycle', async () => {
+      const res = await adminConn.pool.query(
+        "UPDATE public.users SET status = 'active', updated_at = NOW() WHERE id = $1",
+        [crypto.randomUUID()]
+      );
+      assert.equal(res.rowCount, 0);
+    });
+
+    it('denies unscoped UPDATE on protected columns of users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query("UPDATE public.users SET email = 'hacked@example.com'");
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.users');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on users with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.users');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('permits SELECT on child_devices', async () => {
+      const res = await adminConn.pool.query('SELECT count(*)::int AS count FROM public.child_devices');
+      assert.equal(typeof res.rows[0].count, 'number');
+    });
+
+    it('denies UPDATE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('UPDATE public.child_devices SET is_locked = true');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.child_devices');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on child_devices with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.child_devices');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('permits SELECT and INSERT on admin_control_audit_logs with severity field', async () => {
+      const auditId = crypto.randomUUID();
+      const res = await adminConn.pool.query(
+        `INSERT INTO public.admin_control_audit_logs (
+          id, admin_id, action, target_type, target_id, severity, ip_address, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id, severity`,
+        [auditId, testAdminId, 'view_parent_details', 'parent', testAdminId, 'info', '127.0.0.1']
+      );
+      assert.equal(res.rows[0].id, auditId);
+      assert.equal(res.rows[0].severity, 'info');
+
+      const selectRes = await adminConn.pool.query(
+        'SELECT id, severity FROM public.admin_control_audit_logs WHERE id = $1',
+        [auditId]
+      );
+      assert.equal(selectRes.rows[0].id, auditId);
+      assert.equal(selectRes.rows[0].severity, 'info');
+    });
+
+    it('denies UPDATE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query(
+            "UPDATE public.admin_control_audit_logs SET severity = 'critical'"
+          );
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies DELETE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('DELETE FROM public.admin_control_audit_logs');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('denies TRUNCATE on admin_control_audit_logs with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.admin_control_audit_logs');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('enforces severity check constraint on admin_control_audit_logs with PostgreSQL 23514', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query(
+            `INSERT INTO public.admin_control_audit_logs (
+              id, admin_id, action, target_type, target_id, severity, ip_address, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+            [crypto.randomUUID(), testAdminId, 'invalid_action', 'test', testAdminId, 'unsupported_severity', '127.0.0.1']
+          );
+        },
+        (err: any) => {
+          assert.equal(err.code, '23514', `Expected 23514 check constraint violation, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
+
+    it('permits SELECT, INSERT, UPDATE, and DELETE on parent_refresh_tokens for parent session management', async () => {
+      // First insert a test parent user via superConn to satisfy FK
+      const testParentId = crypto.randomUUID();
+      await superConn.pool.query(
+        `INSERT INTO public.users (id, email, password_hash, status) VALUES ($1, $2, $3, 'active')`,
+        [testParentId, `role-test-parent-${Date.now()}@test.local`, 'dummyhash']
+      );
+
+      const tokenId = crypto.randomUUID();
+      const tokenHash = crypto.randomBytes(32).toString('hex');
+
+      // 1. INSERT
+      const insRes = await adminConn.pool.query(
+        `INSERT INTO public.parent_refresh_tokens (
+          id, parent_id, token_hash, family_card_no, expires_at, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, NOW() + INTERVAL '30 days', NOW(), NOW()) RETURNING id`,
+        [tokenId, testParentId, tokenHash, 'FAM-TEST-01']
+      );
+      assert.equal(insRes.rows[0].id, tokenId);
+
+      // 2. SELECT
+      const selRes = await adminConn.pool.query(
+        `SELECT id, token_hash, is_revoked FROM public.parent_refresh_tokens WHERE id = $1`,
+        [tokenId]
+      );
+      assert.equal(selRes.rows[0].id, tokenId);
+      assert.equal(selRes.rows[0].is_revoked, false);
+
+      // 3. UPDATE (e.g. token revocation)
+      const updRes = await adminConn.pool.query(
+        `UPDATE public.parent_refresh_tokens SET is_revoked = true, revoked_at = NOW() WHERE id = $1 RETURNING is_revoked`,
+        [tokenId]
+      );
+      assert.equal(updRes.rows[0].is_revoked, true);
+
+      // 4. DELETE
+      const delRes = await adminConn.pool.query(
+        `DELETE FROM public.parent_refresh_tokens WHERE id = $1`,
+        [tokenId]
+      );
+      assert.equal(delRes.rowCount, 1);
+
+      // Clean up test parent
+      await superConn.pool.query(`DELETE FROM public.users WHERE id = $1`, [testParentId]);
+    });
+
+    it('denies TRUNCATE on parent_refresh_tokens with PostgreSQL 42501 (permission denied)', async () => {
+      await assert.rejects(
+        async () => {
+          await adminConn.pool.query('TRUNCATE public.parent_refresh_tokens');
+        },
+        (err: any) => {
+          assert.equal(err.code, '42501', `Expected 42501 permission denied, got ${err.code}: ${err.message}`);
+          return true;
+        }
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

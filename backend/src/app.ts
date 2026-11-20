@@ -3,8 +3,11 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import cookie from '@fastify/cookie';
 import { env } from './config/env';
-import { pool } from './db/index';
+import { probePostgres } from './services/health-probe.service';
 import { adminAuthRoutes } from './routes/admin/auth.routes';
+import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
+import { parentAuthRoutes } from './routes/parent/auth.routes';
+import { parentDeviceRoutes } from './routes/parent/device.routes';
 import { isAllowedOrigin } from './middleware/admin-session.guard';
 
 export async function buildApp() {
@@ -46,36 +49,50 @@ export async function buildApp() {
 
   // Administrative Authentication Routes
   await app.register(adminAuthRoutes, { prefix: '/api/v1/admin/auth' });
+  await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin/dashboard' });
 
-  // Base Health Check Probe
+  // Parent Mobile Authentication Routes
+  await app.register(parentAuthRoutes, { prefix: '/api/v1/auth' });
+
+  // Parent Mobile Device Routes (matches Parent_app client contract: /api/v1/devices)
+  await app.register(parentDeviceRoutes, { prefix: '/api/v1/devices' });
+
+  // Process Liveness Probe: Verifies Node.js event loop and process health (does not depend on downstream DB)
   app.get('/health', async (_request, reply) => {
-    let dbStatus = false;
-    let dbLatencyMs = 0;
-    try {
-      const start = Date.now();
-      const res = await pool.query('SELECT 1 as alive');
-      dbLatencyMs = Date.now() - start;
-      dbStatus = res.rows.length > 0;
-    } catch {
-      dbStatus = false;
-    }
+    return reply.status(200).send({
+      status: 'healthy',
+      probeType: 'liveness',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      version: '1.0.0-PROD',
+    });
+  });
 
-    const isHealthy = dbStatus;
+  // Dependency Readiness Probe: Verifies critical dependencies with bounded timeout and zero-leak cleanup
+  const readinessHandler = async (_request: any, reply: any) => {
+    const pgProbe = await probePostgres(2000);
+    const isReady = pgProbe.status === 'healthy' || pgProbe.status === 'degraded';
+
     const responsePayload = {
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: isReady ? 'ready' : 'not_ready',
+      probeType: 'readiness',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
       version: '1.0.0-PROD',
       components: {
         database: {
-          status: dbStatus ? 'connected' : 'disconnected',
-          latencyMs: dbLatencyMs,
+          status: isReady ? 'connected' : 'disconnected',
+          latencyMs: pgProbe.latencyMs,
         },
       },
     };
 
-    return reply.status(isHealthy ? 200 : 503).send(responsePayload);
-  });
+    return reply.status(isReady ? 200 : 503).send(responsePayload);
+  };
+
+  app.get('/health/ready', readinessHandler);
+  app.get('/ready', readinessHandler);
 
   return app;
 }
