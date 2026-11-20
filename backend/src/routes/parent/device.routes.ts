@@ -1,8 +1,14 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { eq } from 'drizzle-orm';
+import { eq, count, sql, desc } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '../../db/index';
 import { childDevices } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
+
+const deviceQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // All device routes require parent authentication and active account status
@@ -10,12 +16,23 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
 
   /**
    * GET /api/v1/devices
-   * Retrieves list of child devices belonging to the authenticated parent.
+   * Retrieves paginated list of child devices belonging to the authenticated parent.
    * Matches Parent_app's FastifyRestClient.kt line 351: executeGet("/api/v1/devices", accessToken).
    * Real-time zero-trust status check: rejects suspended parent with HTTP 403.
+   * Server-side bounded pagination with maximum page size 50.
    */
   app.get('/', async (request, reply) => {
     const parent = request.parentUser!;
+    const parsedQuery = deviceQuerySchema.safeParse(request.query);
+    const page = parsedQuery.success ? parsedQuery.data.page : 1;
+    const pageSize = parsedQuery.success ? parsedQuery.data.pageSize : 20;
+
+    const [totalRes] = await db
+      .select({ total: count() })
+      .from(childDevices)
+      .where(eq(childDevices.parentId, parent.id));
+
+    const total = totalRes?.total ?? 0;
 
     const devices = await db
       .select({
@@ -34,7 +51,10 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
-      .where(eq(childDevices.parentId, parent.id));
+      .where(eq(childDevices.parentId, parent.id))
+      .orderBy(sql`${childDevices.lastSeenAt} DESC NULLS LAST`, desc(childDevices.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
 
     // Formatted strictly according to Parent_app's DeviceDto in FastifyRestClient.kt
     const formattedDevices = devices.map((d) => ({
@@ -44,7 +64,12 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       kioskMode: d.isLocked,
     }));
 
-    return reply.send({ devices: formattedDevices });
+    return reply.send({
+      devices: formattedDevices,
+      total,
+      page,
+      pageSize,
+    });
   });
 
   /**

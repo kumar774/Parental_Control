@@ -14,11 +14,18 @@ This milestone delivers the **Hybrid Super Admin Dashboard** control plane for P
 Following the PR #5 code review and CI stabilization, core architectural findings were remediated:
 1. **Unified Audit Log Querying & Status Normalization**: Combines `admin_auth_audit_logs` and `admin_control_audit_logs` via Drizzle ORM `unionAll`. Accurately normalizes actual AUTH-001 stored status vocabulary (`SUCCESS`, `FAILURE`, `LOGIN_COOLDOWN_TRIGGERED`) so security failures never appear as `info`.
 2. **Fail-Closed Audit Persistence Policy**: Administrative detail views (`GET /parents/:id`, `GET /devices/:id`) enforce mandatory audit recording. If `admin_control_audit_logs` insert fails, the request fails safely with HTTP 500 (`Failed to record mandatory audit log`) without leaking parent/device details or internal SQL errors. Metadata is minimized to eliminate redundant personal data (`parentEmail`, `childName`, `deviceModel`).
-3. **Genuinely Bounded Health Probes**: PostgreSQL probe enforces statement timeout (`SET statement_timeout = 2000`) and connection destruction (`client.release(true)`) on timeout to prevent abandoned queries or connections from lingering. Redis probe is bounded to <= 1500ms with honest degradation when configured but unavailable.
-4. **Deterministic Health Test Scenarios**: Implemented dependency injection in `HealthProbeService` to deterministically verify all 5 distinct component combinations without external network dependencies.
+3. **Public Health Semantics (Liveness vs. Readiness Separation)**:
+   - `/health`: Pure process liveness endpoint returning `{ status: 'ok', uptime, probeType: 'liveness' }` without any database dependency, preventing container orchestrators (Kubernetes/ECS) from cascading restarts during database maintenance.
+   - `/health/ready` & `/ready`: Dependency readiness endpoints that execute bounded PostgreSQL checks (`probePostgres(2000)`) with automatic connection destruction on timeout, returning HTTP 200 when ready and HTTP 503 when dependencies fail.
+   - `/api/v1/admin/dashboard/health`: Authenticated admin health endpoint providing full component telemetry.
+4. **Deterministic Health Test Scenarios**: Implemented dependency injection in `HealthProbeService` to deterministically verify all 5 distinct component combinations without external network dependencies, ensuring tests accurately assert `system.status === 'degraded'` when Redis is configured but unavailable.
 5. **Database Schema & Permission Hardening**: Forward-only migration `0003_admin_control_audit_severity.sql` adds column `severity`, check constraint `admin_control_audit_severity_check`, index `idx_admin_control_audit_severity_created`, and explicit `REVOKE UPDATE, DELETE, TRUNCATE` on protected tables from `parental_admin`.
-6. **Bounded Parent Pagination**: `GET /parents/:id` bounds child device querying with `devicePage` and `devicePageSize` (clamped to max 50), accompanied by a dedicated `GET /parents/:id/devices` sub-resource.
-7. **Frontend UX Corrections**: Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filters to the audit log table, realistic health badges with `Not Configured` queue status, and explanatory disabled states for destructive operations.
+6. **Bounded Parent Device Inventory**:
+   - `GET /api/v1/devices`: Added server-side pagination (`page`, `pageSize` clamped to max 50, default 20) with ownership isolation, preserving exact `{ devices: [...] }` contract with Parent_app Kotlin client. Removed duplicate route from `auth.routes.ts`.
+   - `GET /parents/:id`: Bounds child device querying with `devicePage` and `devicePageSize` (clamped to max 50), accompanied by a dedicated `GET /parents/:id/devices` sub-resource.
+7. **Atomic Parent Registration**: Wrapped `POST /api/v1/auth/register` parent account creation and initial refresh-token persistence inside an atomic `db.transaction`, guaranteeing complete rollback if token insertion fails.
+8. **Restored Administrative Reason Validation**: Enforced minimum 10 characters and maximum 500 characters (`z.string().min(10).max(500)`) in both backend API and frontend UI for suspension/reactivation actions.
+9. **Frontend UX Corrections**: Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filters to the audit log table, realistic health badges with `Not Configured` queue status, and explanatory disabled states for destructive operations.
 
 ---
 

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { parentUsers, childDevices, parentRefreshTokens } from '../../db/schema/parental-control';
+import { parentUsers, parentRefreshTokens } from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
@@ -121,59 +121,68 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     const passwordHash = await hashPassword(parsed.data.password);
 
-    const [newUser] = await db
-      .insert(parentUsers)
-      .values({
-        email: normalizedEmail,
-        phone: parsed.data.phone || null,
-        passwordHash,
-        status: 'active',
-      })
-      .returning();
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [newUser] = await tx
+          .insert(parentUsers)
+          .values({
+            email: normalizedEmail,
+            phone: parsed.data.phone || null,
+            passwordHash,
+            status: 'active',
+          })
+          .returning();
 
-    if (!newUser) {
+        if (!newUser) {
+          throw new Error('Failed to create user account');
+        }
+
+        const token = jwt.sign(
+          { userId: newUser.id, email: newUser.email, role: 'parent' },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: '15m' }
+        );
+        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = hashRefreshToken(rawRefreshToken);
+
+        const derivedFullName = parsed.data.fullName || newUser.email.split('@')[0] || 'Parent';
+        const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
+
+        // Persist hashed refresh token for real session lifecycle within the same transaction
+        await tx.insert(parentRefreshTokens).values({
+          parentId: newUser.id,
+          tokenHash,
+          familyCardNo: derivedFamilyCard,
+          deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+          ipAddress: request.ip,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        });
+
+        return {
+          user: {
+            id: newUser.id,
+            email: newUser.email,
+            fullName: derivedFullName,
+            familyCardNo: derivedFamilyCard,
+            phone: newUser.phone,
+            isGuest: false,
+            status: newUser.status,
+          },
+          accessToken: token,
+          refreshToken: rawRefreshToken,
+          expiresIn: 900,
+        };
+      });
+
+      return reply.status(201).send(result);
+    } catch (err: any) {
+      request.log.error({ err }, 'Atomic parent registration failed');
       return reply.status(500).send({
         statusCode: 500,
         error: 'Internal Server Error',
-        message: 'Failed to create user account',
+        message: 'Failed to complete parent registration',
       });
     }
-
-    const token = jwt.sign(
-      { userId: newUser.id, email: newUser.email, role: 'parent' },
-      env.JWT_ACCESS_SECRET,
-      { expiresIn: '15m' }
-    );
-    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = hashRefreshToken(rawRefreshToken);
-
-    const derivedFullName = parsed.data.fullName || newUser.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
-
-    // Persist hashed refresh token for real session lifecycle
-    await db.insert(parentRefreshTokens).values({
-      parentId: newUser.id,
-      tokenHash,
-      familyCardNo: derivedFamilyCard,
-      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
-      ipAddress: request.ip,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    });
-
-    return reply.status(201).send({
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        fullName: derivedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: newUser.phone,
-        isGuest: false,
-        status: newUser.status,
-      },
-      accessToken: token,
-      refreshToken: rawRefreshToken,
-      expiresIn: 900,
-    });
   });
 
   /**
@@ -449,41 +458,5 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       statusCode: 200,
       message: 'Logged out successfully',
     });
-  });
-
-  /**
-   * GET /devices (alias for /api/v1/devices)
-   * Retrieves list of child devices belonging to the authenticated parent.
-   */
-  app.get('/devices', { preHandler: [requireParentAuth] }, async (request, reply) => {
-    const user = request.parentUser!;
-
-    const devices = await db
-      .select({
-        id: childDevices.id,
-        childName: childDevices.childName,
-        childAvatarId: childDevices.childAvatarId,
-        deviceModel: childDevices.deviceModel,
-        osVersion: childDevices.osVersion,
-        appVersion: childDevices.appVersion,
-        isLocked: childDevices.isLocked,
-        batteryPct: childDevices.batteryPct,
-        isCharging: childDevices.isCharging,
-        accessibilityHealthy: childDevices.accessibilityHealthy,
-        deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
-        lastSeenAt: childDevices.lastSeenAt,
-      })
-      .from(childDevices)
-      .where(eq(childDevices.parentId, user.id));
-
-    const formattedDevices = devices.map((d) => ({
-      ...d,
-      deviceName: d.deviceModel || `${d.childName}'s Device`,
-      model: d.deviceModel,
-      kioskMode: d.isLocked,
-    }));
-
-    return reply.send({ devices: formattedDevices });
   });
 };

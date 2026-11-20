@@ -57,28 +57,42 @@ export async function buildApp() {
   // Parent Mobile Device Routes (matches Parent_app client contract: /api/v1/devices)
   await app.register(parentDeviceRoutes, { prefix: '/api/v1/devices' });
 
-  // Base Health Check Probe (Bounded Liveness with Zero-Leak Socket Cleanup)
+  // Process Liveness Probe: Verifies Node.js event loop and process health (does not depend on downstream DB)
   app.get('/health', async (_request, reply) => {
-    const pgProbe = await probePostgres(2000);
-    const dbConnected = pgProbe.status === 'healthy' || pgProbe.status === 'degraded';
-
-    const isHealthy = dbConnected;
-    const responsePayload = {
-      status: isHealthy ? 'healthy' : 'unavailable',
+    return reply.status(200).send({
+      status: 'healthy',
       probeType: 'liveness',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      version: '1.0.0-PROD',
+    });
+  });
+
+  // Dependency Readiness Probe: Verifies critical dependencies with bounded timeout and zero-leak cleanup
+  const readinessHandler = async (_request: any, reply: any) => {
+    const pgProbe = await probePostgres(2000);
+    const isReady = pgProbe.status === 'healthy' || pgProbe.status === 'degraded';
+
+    const responsePayload = {
+      status: isReady ? 'ready' : 'not_ready',
+      probeType: 'readiness',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
       version: '1.0.0-PROD',
       components: {
         database: {
-          status: dbConnected ? 'connected' : 'disconnected',
+          status: isReady ? 'connected' : 'disconnected',
           latencyMs: pgProbe.latencyMs,
         },
       },
     };
 
-    return reply.status(isHealthy ? 200 : 503).send(responsePayload);
-  });
+    return reply.status(isReady ? 200 : 503).send(responsePayload);
+  };
+
+  app.get('/health/ready', readinessHandler);
+  app.get('/ready', readinessHandler);
 
   return app;
 }

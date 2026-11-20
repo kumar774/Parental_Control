@@ -175,6 +175,20 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
   - Added `POST /api/v1/auth/logout` revoking the caller's refresh token.
   - In `admin/dashboard.routes.ts`, parent suspension atomically revokes all active refresh tokens for that parent.
 
+### 3.14 Final Source-Review Remediation & Hardening (Completed)
+- **Public Health Liveness vs. Readiness Separation:**
+  - `/health`: Pure process liveness endpoint returning `{ status: 'ok', uptime, probeType: 'liveness' }` with zero DB dependencies, preventing orchestrator container crashloops.
+  - `/health/ready` & `/ready`: Dependency readiness endpoints executing bounded PostgreSQL health checks (`probePostgres(2000)`) with automatic connection destruction on timeout, returning HTTP 200 or HTTP 503.
+  - Detailed infrastructure telemetry remains authenticated behind `GET /api/v1/admin/dashboard/health`.
+- **Atomic Parent Registration:**
+  - `POST /api/v1/auth/register` wraps both user account creation and initial refresh-token insertion in a single `db.transaction(async (tx) => ...)`. Any failure during token generation/insertion rolls back user record creation completely.
+- **Bounded Parent Device Inventory:**
+  - `GET /api/v1/devices`: Added server-side pagination with `page` and `pageSize` (clamped to max 50, default 20) while preserving 100% Parent_app response schema (`{ devices: [...] }`). Removed redundant duplicate endpoint from `auth.routes.ts`.
+- **Restored Administrative Reason Validation:**
+  - Restored reason length validation to minimum 10 and maximum 500 characters (`z.string().min(10).max(500)`) in both backend and frontend (`AdminDashboard.tsx`).
+- **Deterministic Health Probes in Tests:**
+  - Updated integration test 3 to use `setHealthProbeOverridesForTest` to verify that when Redis is configured but unavailable, the dashboard overview reports `system.status === 'degraded'` while respecting production health probe semantics.
+
 ---
 
 ## 4. Controlled Write Operations & Safety Boundary

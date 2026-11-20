@@ -287,8 +287,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
 
   const handleConfirmStatusChange = async () => {
     if (!selectedParent || !statusConfirmTarget) return;
-    if (statusConfirmReason.trim().length < 5) {
-      setStatusConfirmError('Please provide a reason of at least 5 characters');
+    if (statusConfirmReason.trim().length < 10) {
+      setStatusConfirmError('Please provide a reason of at least 10 characters');
       return;
     }
     setStatusConfirmLoading(true);
@@ -1049,7 +1049,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     <textarea
                       id="status-reason-input"
                       rows={3}
-                      placeholder="Enter administrative justification (minimum 5 characters)..."
+                      placeholder="Enter administrative justification (minimum 10 characters)..."
                       value={statusConfirmReason}
                       onChange={(e) => setStatusConfirmReason(e.target.value)}
                       className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
@@ -1073,7 +1073,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     </button>
                     <button
                       type="button"
-                      disabled={statusConfirmLoading || statusConfirmReason.trim().length < 5}
+                      disabled={statusConfirmLoading || statusConfirmReason.trim().length < 10}
                       onClick={handleConfirmStatusChange}
                       className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-2 ${
                         statusConfirmTarget === 'suspended'

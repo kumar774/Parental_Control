@@ -163,6 +163,12 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
   // --- Module B: Operational Overview Metrics ---
 
   it('3. GET /overview computes dynamic aggregates and live DB latency', async () => {
+    // 3a. Deterministic healthy probe overrides -> system.status === 'healthy'
+    setHealthProbeOverridesForTest({
+      checkPostgres: async () => ({ status: 'healthy', latencyMs: 3 }),
+      checkRedis: async () => ({ status: 'healthy', latencyMs: 1 }),
+    });
+
     const res = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/overview',
@@ -187,6 +193,25 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(typeof body.system.memoryUsageMb === 'number');
     assert.ok(Array.isArray(body.recentEvents));
     assert.ok(typeof body.criticalEvents24h === 'number');
+
+    // 3b. Deterministic Redis unavailable override -> system.status === 'degraded' (preserves production degraded health reporting)
+    setHealthProbeOverridesForTest({
+      checkPostgres: async () => ({ status: 'healthy', latencyMs: 3 }),
+      checkRedis: async () => ({ status: 'unavailable', details: 'Redis offline' }),
+    });
+
+    const resDegraded = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/admin/dashboard/overview',
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(resDegraded.statusCode, 200);
+    const bodyDegraded = resDegraded.json();
+    assert.equal(bodyDegraded.system.status, 'degraded');
+    assert.equal(bodyDegraded.system.redisStatus, 'unavailable');
+
+    // Clean up override
+    setHealthProbeOverridesForTest(null);
   });
 
   // --- Module C: Parent Account Management ---
@@ -841,7 +866,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     });
     assert.equal(resNoCsrf.statusCode, 403);
 
-    // 13b. Rejects mutation with too-short reason
+    // 13b. Rejects mutation with reason under 10 characters
     const resShortReason = await readyApp!.inject({
       method: 'PATCH',
       url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
@@ -851,10 +876,11 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       },
       payload: {
         status: 'suspended',
-        reason: 'bad',
+        reason: '123456789', // exactly 9 chars
       },
     });
     assert.equal(resShortReason.statusCode, 400);
+    assert.ok(resShortReason.json().message.includes('Reason must be at least 10 characters'));
 
     // 13c. Successfully suspends active parent account
     const resSuspend = await readyApp!.inject({
@@ -1057,6 +1083,55 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(regExceeded.json().message.includes('Rate limit exceeded'));
 
     resetParentRateLimitsForTest();
+
+    // 15g. Atomic registration rollback: verifies that if token persistence fails, parent user creation is completely rolled back
+    const atomicTestEmail = `atomic-rollback-${Date.now()}@example.test`;
+    const conflictingToken = crypto.randomBytes(32).toString('hex');
+    const conflictingTokenHash = crypto.createHash('sha256').update(conflictingToken).digest('hex');
+
+    // Pre-insert a token with this hash to trigger a UNIQUE violation on parent_refresh_tokens
+    const dummyParentId = crypto.randomUUID();
+    await db.insert(parentUsers).values({
+      id: dummyParentId,
+      email: `dummy-${Date.now()}@example.test`,
+      passwordHash: 'dummyHash',
+      status: 'active',
+    });
+    await db.insert(parentRefreshTokens).values({
+      parentId: dummyParentId,
+      tokenHash: conflictingTokenHash,
+      expiresAt: new Date(Date.now() + 86400000),
+    });
+
+    // Attempt registration using an atomic transaction that simulates token insertion failure
+    let rollbackSucceeded = false;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(parentUsers).values({
+          email: atomicTestEmail,
+          passwordHash: 'dummyPassHash',
+          status: 'active',
+        });
+        // Intentionally violate UNIQUE constraint on token_hash
+        await tx.insert(parentRefreshTokens).values({
+          parentId: dummyParentId,
+          tokenHash: conflictingTokenHash,
+          expiresAt: new Date(Date.now() + 86400000),
+        });
+      });
+    } catch {
+      rollbackSucceeded = true;
+    }
+
+    assert.equal(rollbackSucceeded, true, 'Transaction should have aborted on token constraint violation');
+
+    // Verify parent user record was rolled back and does NOT exist
+    const [danglingUser] = await db
+      .select({ id: parentUsers.id })
+      .from(parentUsers)
+      .where(eq(parentUsers.email, atomicTestEmail));
+
+    assert.equal(danglingUser, undefined, 'Partially registered parent account must be completely rolled back');
   });
 
   it('16. Real Parent_app E2E Flow: proves pre-issued token is immediately rejected on protected routes after suspension', async () => {
@@ -1131,10 +1206,24 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resDevicesActive.statusCode, 200);
     const devicesData = resDevicesActive.json();
     assert.equal(devicesData.devices.length, 1);
+    assert.equal(devicesData.total, 1);
+    assert.equal(devicesData.page, 1);
+    assert.equal(devicesData.pageSize, 20);
     assert.equal(devicesData.devices[0].childName, 'Alice');
     assert.equal(devicesData.devices[0].deviceName, 'Pixel 8');
     assert.equal(devicesData.devices[0].model, 'Pixel 8');
     assert.equal(devicesData.devices[0].kioskMode, false);
+
+    // 16c-page. Server-side bounded pagination on /api/v1/devices (clamped to max 50)
+    const resPaged = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=100', // exceeds max 50 -> clamped to 50
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resPaged.statusCode, 200);
+    assert.equal(resPaged.json().pageSize, 50, 'Page size must be clamped to max 50');
 
     // 16c2. Parent accesses single device detail /api/v1/devices/:id
     const resSingleDevice = await readyApp!.inject({
@@ -1467,16 +1556,57 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(failedRes.json().message.includes('Token reuse detected'));
   });
 
-  it('19. Verifies public /health bounded liveness probe', async () => {
-    const res = await readyApp!.inject({
+  it('19. Verifies public /health process liveness and /health/ready dependency readiness', async () => {
+    // 19a. Process liveness: succeeds without dependency on downstream PostgreSQL
+    const resLive = await readyApp!.inject({
       method: 'GET',
       url: '/health',
     });
-    assert.equal(res.statusCode, 200);
-    const body = res.json();
-    assert.equal(body.status, 'healthy');
-    assert.equal(body.probeType, 'liveness');
-    assert.equal(body.components.database.status, 'connected');
-    assert.ok(typeof body.components.database.latencyMs === 'number');
+    assert.equal(resLive.statusCode, 200);
+    const bodyLive = resLive.json();
+    assert.equal(bodyLive.status, 'healthy');
+    assert.equal(bodyLive.probeType, 'liveness');
+    assert.ok(typeof bodyLive.uptimeSeconds === 'number');
+
+    // 19b. Dependency readiness: verifies required database connectivity with bounded timeout and client cleanup
+    const resReady = await readyApp!.inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    assert.equal(resReady.statusCode, 200);
+    const bodyReady = resReady.json();
+    assert.equal(bodyReady.status, 'ready');
+    assert.equal(bodyReady.probeType, 'readiness');
+    assert.equal(bodyReady.components.database.status, 'connected');
+    assert.ok(typeof bodyReady.components.database.latencyMs === 'number');
+
+    // 19c. Dependency readiness /ready alias
+    const resReadyAlias = await readyApp!.inject({
+      method: 'GET',
+      url: '/ready',
+    });
+    assert.equal(resReadyAlias.statusCode, 200);
+    assert.equal(resReadyAlias.json().status, 'ready');
+
+    // 19d. Dependency readiness when database is unavailable: returns 503, while process liveness stays 200
+    setHealthProbeOverridesForTest({
+      checkPostgres: async () => ({ status: 'unavailable', latencyMs: 2000 }),
+    });
+
+    const resDbDownReady = await readyApp!.inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    assert.equal(resDbDownReady.statusCode, 503);
+    assert.equal(resDbDownReady.json().status, 'not_ready');
+    assert.equal(resDbDownReady.json().components.database.status, 'disconnected');
+
+    const resDbDownLive = await readyApp!.inject({
+      method: 'GET',
+      url: '/health',
+    });
+    assert.equal(resDbDownLive.statusCode, 200, 'Process liveness must remain healthy even if downstream DB is down');
+
+    setHealthProbeOverridesForTest(null);
   });
 });
