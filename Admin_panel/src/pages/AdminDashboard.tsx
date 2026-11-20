@@ -21,6 +21,10 @@ import {
   BatteryCharging,
   Cpu,
   ShieldAlert,
+  UserCheck,
+  UserX,
+  AlertTriangle,
+  Eye,
 } from 'lucide-react';
 import { useAdminAuthStore } from '../store/admin-auth.store';
 import {
@@ -138,6 +142,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
   const [changeError, setChangeError] = useState<string | null>(null);
   const [changeSuccess, setChangeSuccess] = useState<string | null>(null);
   const [submittingPassword, setSubmittingPassword] = useState(false);
+
+  // Parent Status Confirmation State
+  const [statusConfirmModalOpen, setStatusConfirmModalOpen] = useState(false);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState<'active' | 'suspended' | null>(null);
+  const [statusConfirmReason, setStatusConfirmReason] = useState('');
+  const [statusConfirmLoading, setStatusConfirmLoading] = useState(false);
+  const [statusConfirmError, setStatusConfirmError] = useState<string | null>(null);
+
+  // Audit Detail Inspection Modal
+  const [selectedAuditLog, setSelectedAuditLog] = useState<DashboardAuditLog | null>(null);
 
   // Unique IDs for accessibility
   const parentSearchId = useId();
@@ -261,6 +275,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
       setSelectedParent({ ...parent, childDevices: [], deviceCount: 0 });
     } finally {
       setLoadingParentDetails(false);
+    }
+  };
+
+  const handleOpenStatusConfirm = (target: 'active' | 'suspended') => {
+    setStatusConfirmTarget(target);
+    setStatusConfirmReason('');
+    setStatusConfirmError(null);
+    setStatusConfirmModalOpen(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!selectedParent || !statusConfirmTarget) return;
+    if (statusConfirmReason.trim().length < 5) {
+      setStatusConfirmError('Please provide a reason of at least 5 characters');
+      return;
+    }
+    setStatusConfirmLoading(true);
+    setStatusConfirmError(null);
+    try {
+      await adminApi.updateParentStatus(selectedParent.id, statusConfirmTarget, statusConfirmReason.trim());
+      // Update local state
+      setSelectedParent((prev) => (prev ? { ...prev, status: statusConfirmTarget } : null));
+      setParents((prev) =>
+        prev.map((p) => (p.id === selectedParent.id ? { ...p, status: statusConfirmTarget } : p))
+      );
+      setStatusConfirmModalOpen(false);
+      // Refresh overview in background
+      fetchOverview();
+    } catch (err: any) {
+      setStatusConfirmError(err.message || 'Failed to update parent status');
+    } finally {
+      setStatusConfirmLoading(false);
     }
   };
 
@@ -568,6 +614,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     <span className="text-slate-400">Devices with Healthy Accessibility Service</span>
                     <span className="font-semibold text-emerald-400 font-mono">
                       {overview?.devices.healthyA11y ?? '—'}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Devices Active in Last 24 Hours</span>
+                    <span className="font-semibold text-slate-100 font-mono">
+                      {overview?.devices.recentlyActive24h ?? '—'}
                     </span>
                   </div>
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
@@ -911,13 +963,128 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     )}
                   </div>
 
-                  <div className="pt-2 flex justify-end">
+                  {/* Administrative Lifecycle Controls */}
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                      {selectedParent.status === 'active' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenStatusConfirm('suspended')}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold border border-amber-500/25 transition-colors flex items-center gap-1.5"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          <span>Suspend Parent Account</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenStatusConfirm('active')}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold border border-emerald-500/25 transition-colors flex items-center gap-1.5"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Reactivate Parent Account</span>
+                        </button>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setSelectedParent(null)}
                       className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
                     >
                       Close Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status Change Confirmation Dialog */}
+            {statusConfirmModalOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !statusConfirmLoading) setStatusConfirmModalOpen(false);
+                }}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="status-confirm-title"
+                  className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-2.5 rounded-xl ${
+                        statusConfirmTarget === 'suspended'
+                          ? 'bg-amber-500/15 text-amber-400'
+                          : 'bg-emerald-500/15 text-emerald-400'
+                      }`}
+                    >
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 id="status-confirm-title" className="text-sm font-bold text-white">
+                        {statusConfirmTarget === 'suspended' ? 'Suspend Parent Account' : 'Reactivate Parent Account'}
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono">{selectedParent?.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-300 bg-slate-950 p-3.5 rounded-xl border border-slate-800 leading-relaxed">
+                    {statusConfirmTarget === 'suspended' ? (
+                      <p>
+                        Suspension immediately revokes active parent access. The parent will be blocked from logging into the mobile application (HTTP 403) and all authenticated requests will be denied.
+                      </p>
+                    ) : (
+                      <p>
+                        Reactivating will restore mobile app access for this parent account, allowing them to authenticate and manage their enrolled child devices again.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="status-reason-input" className="text-xs font-semibold text-slate-300">
+                      Reason for {statusConfirmTarget === 'suspended' ? 'Suspension' : 'Reactivation'} (Required)
+                    </label>
+                    <textarea
+                      id="status-reason-input"
+                      rows={3}
+                      placeholder="Enter administrative justification (minimum 5 characters)..."
+                      value={statusConfirmReason}
+                      onChange={(e) => setStatusConfirmReason(e.target.value)}
+                      className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {statusConfirmError && (
+                    <div role="alert" className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 text-xs">
+                      {statusConfirmError}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      disabled={statusConfirmLoading}
+                      onClick={() => setStatusConfirmModalOpen(false)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={statusConfirmLoading || statusConfirmReason.trim().length < 5}
+                      onClick={handleConfirmStatusChange}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-2 ${
+                        statusConfirmTarget === 'suspended'
+                          ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      }`}
+                    >
+                      {statusConfirmLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>
+                        {statusConfirmTarget === 'suspended' ? 'Confirm Suspension' : 'Confirm Reactivation'}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -1192,8 +1359,91 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
-                    Remote device wipe and locking controls are safely disabled pending signed command delivery pipeline.
+                  {/* Device Protection & Admin Status Indicators */}
+                  <div className="space-y-1.5">
+                    <h5 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                      Platform Protection &amp; Security Services
+                    </h5>
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-1">
+                        <span className="text-slate-400">Accessibility</span>
+                        <span
+                          className={`font-semibold ${
+                            selectedDevice.accessibilityHealthy ? 'text-emerald-400' : 'text-slate-500'
+                          }`}
+                        >
+                          {selectedDevice.accessibilityHealthy ? 'Healthy' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-1">
+                        <span className="text-slate-400">Device Admin</span>
+                        <span
+                          className={`font-semibold ${
+                            selectedDevice.deviceAdminActive ? 'text-emerald-400' : 'text-slate-500'
+                          }`}
+                        >
+                          {selectedDevice.deviceAdminActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-1">
+                        <span className="text-slate-400">Samsung KNOX</span>
+                        <span
+                          className={`font-semibold ${
+                            selectedDevice.knoxActive ? 'text-indigo-400' : 'text-slate-500'
+                          }`}
+                        >
+                          {selectedDevice.knoxActive ? 'Enrolled' : 'Not Supported'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Administrative Remote Commands */}
+                  <div className="space-y-2">
+                    <h5 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                      Device Control Actions
+                    </h5>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-500 flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 text-xs"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Lock Device</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-500 flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 text-xs"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Unlock Device</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-500 flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 text-xs"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Remote Reboot</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2 rounded-xl bg-rose-950/20 border border-rose-900/30 text-rose-500/60 flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 text-xs"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Remote Wipe</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                    <span>
+                      Hardware-Bound Command Delivery Not Connected: Android Child Daemon lacks active push/WebSocket command transport. Remote execution disabled until Child App Daemon integrates cryptographic command signing &amp; ACK protocol.
+                    </span>
                   </div>
 
                   <div className="pt-2 flex justify-end">
@@ -1344,7 +1594,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                         <th className="py-3.5 px-4">Status</th>
                         <th className="py-3.5 px-4">Target / Actor</th>
                         <th className="py-3.5 px-4">IP Address</th>
-                        <th className="py-3.5 px-4 text-right">Recorded Timestamp</th>
+                        <th className="py-3.5 px-4">Recorded Timestamp</th>
+                        <th className="py-3.5 px-4 text-right">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
@@ -1396,8 +1647,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                           <td className="py-3.5 px-4 font-mono text-slate-300">
                             {log.ipAddress || '127.0.0.1'}
                           </td>
-                          <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-400">
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">
                             {formatDate(log.createdAt)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAuditLog(log)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 text-xs font-medium border border-indigo-500/20 transition-colors inline-flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Inspect</span>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1427,6 +1688,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                       className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 transition-colors flex items-center gap-1"
                     >
                       Next <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Audit Event Detail Inspection Modal */}
+            {selectedAuditLog && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setSelectedAuditLog(null);
+                }}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="audit-detail-title"
+                  className="w-full max-w-xl p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 id="audit-detail-title" className="text-sm font-bold text-white">
+                          Audit Event Inspection
+                        </h4>
+                        <p className="text-[11px] text-slate-400 font-mono">{selectedAuditLog.id}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAuditLog(null)}
+                      className="text-slate-400 hover:text-white p-1"
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Action / Event Type</span>
+                      <span className="font-mono text-slate-200 font-semibold">{selectedAuditLog.action}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Subsystem Source</span>
+                      <span className="uppercase text-slate-300 font-mono">{selectedAuditLog.source}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Severity</span>
+                      <span className="uppercase font-semibold text-slate-200">{selectedAuditLog.severity}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Status Outcome</span>
+                      <span className="font-mono text-slate-300">{selectedAuditLog.status || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Actor (Admin ID)</span>
+                      <span className="font-mono text-slate-300">{selectedAuditLog.adminId || 'System / Unauthenticated'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Target Type &amp; ID</span>
+                      <span className="font-mono text-slate-300">
+                        {selectedAuditLog.targetType || 'N/A'}{selectedAuditLog.targetId ? ` : ${selectedAuditLog.targetId}` : ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Client IP Address</span>
+                      <span className="font-mono text-slate-300">{selectedAuditLog.ipAddress || '127.0.0.1'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Timestamp</span>
+                      <span className="font-mono text-slate-300">{formatDate(selectedAuditLog.createdAt)}</span>
+                    </div>
+                    {selectedAuditLog.userAgent && (
+                      <div className="py-1 border-b border-slate-800/80">
+                        <span className="text-slate-400 block mb-1">User Agent</span>
+                        <span className="font-mono text-[11px] text-slate-300 break-all">{selectedAuditLog.userAgent}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedAuditLog.metadata ? (
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-semibold text-slate-400 block">Event Metadata</span>
+                      <pre className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-40">
+                        {JSON.stringify(selectedAuditLog.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  ) : null}
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAuditLog(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
+                    >
+                      Close
                     </button>
                   </div>
                 </div>

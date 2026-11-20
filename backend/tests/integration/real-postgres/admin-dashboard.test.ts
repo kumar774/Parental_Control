@@ -6,7 +6,7 @@ import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
 import { parentUsers, childDevices, adminControlAuditLogs } from '../../../src/db/schema/parental-control';
-import { generateRandomToken, sha256 } from '../../../src/utils/crypto-vault';
+import { generateRandomToken, sha256, hashPassword } from '../../../src/utils/crypto-vault';
 import { setHealthProbeOverridesForTest, probePostgres } from '../../../src/services/health-probe.service';
 import { setControlAuditOverrideForTest } from '../../../src/routes/admin/dashboard.routes';
 
@@ -675,5 +675,263 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       headers: { cookie: `admin_session=${sessionToken}` },
     });
     assert.equal(resDevice.statusCode, 404);
+  });
+
+  // --- Parent Account Status Mutation & Lifecycle Enforcement ---
+
+  it('13. Suspends and reactivates parent account with mandatory CSRF, authorization, and audit trail', async () => {
+    // 13a. Rejects mutation without CSRF token
+    const resNoCsrf = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'Violation of platform terms of service',
+      },
+    });
+    assert.equal(resNoCsrf.statusCode, 403);
+
+    // 13b. Rejects mutation with too-short reason
+    const resShortReason = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'bad',
+      },
+    });
+    assert.equal(resShortReason.statusCode, 400);
+
+    // 13c. Successfully suspends active parent account
+    const resSuspend = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'Suspension for confirmed policy violation',
+      },
+    });
+    assert.equal(resSuspend.statusCode, 200);
+    const bodySuspend = resSuspend.json();
+    assert.equal(bodySuspend.success, true);
+    assert.equal(bodySuspend.parent.status, 'suspended');
+
+    // Verify database record is actually suspended
+    const [dbParentAfterSuspend] = await db
+      .select({ status: parentUsers.status })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, parentId))
+      .limit(1);
+    assert.equal(dbParentAfterSuspend?.status, 'suspended');
+
+    // 13d. Idempotency: repeated suspension returns HTTP 409 Conflict
+    const resRepeat = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'Repeated suspension attempt',
+      },
+    });
+    assert.equal(resRepeat.statusCode, 409);
+
+    // 13e. Successfully reactivates suspended parent account
+    const resReactivate = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'active',
+        reason: 'Account reinstated following administrative appeal',
+      },
+    });
+    assert.equal(resReactivate.statusCode, 200);
+    const bodyReactivate = resReactivate.json();
+    assert.equal(bodyReactivate.success, true);
+    assert.equal(bodyReactivate.parent.status, 'active');
+
+    // Verify database record is restored to active
+    const [dbParentAfterReactivate] = await db
+      .select({ status: parentUsers.status })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, parentId))
+      .limit(1);
+    assert.equal(dbParentAfterReactivate?.status, 'active');
+
+    // Verify control audit trail has both events recorded
+    const auditLogs = await db
+      .select({ action: adminControlAuditLogs.action, targetId: adminControlAuditLogs.targetId })
+      .from(adminControlAuditLogs)
+      .where(eq(adminControlAuditLogs.targetId, parentId));
+    assert.ok(auditLogs.some((l) => l.action === 'parent_account_suspended'));
+    assert.ok(auditLogs.some((l) => l.action === 'parent_account_reactivated'));
+  });
+
+  it('14. Enforces fail-closed policy: audit persistence failure rolls back parent status change', async () => {
+    // Force audit persistence failure
+    setControlAuditOverrideForTest(async () => {
+      throw new Error('Simulated disk/database failure on audit insert');
+    });
+
+    const resFailClosed = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'Testing fail-closed transactional rollback',
+      },
+    });
+
+    // Reset override
+    setControlAuditOverrideForTest(null);
+
+    // Must return HTTP 500 without mutating parent status
+    assert.equal(resFailClosed.statusCode, 500);
+
+    const [dbParent] = await db
+      .select({ status: parentUsers.status })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, parentId))
+      .limit(1);
+    assert.equal(dbParent?.status, 'active'); // Must remain active due to rollback!
+  });
+
+  it('15. Enforces zero-trust parent authentication: suspended parent is denied by auth middleware', async () => {
+    const parentAuthTestId = crypto.randomUUID();
+    const parentAuthEmail = `auth-enforce-${Date.now()}@example.test`;
+    const plainPassword = 'ParentPassword2026!';
+    const passwordHash = await hashPassword(plainPassword);
+
+    // Insert active parent user
+    await db.insert(parentUsers).values({
+      id: parentAuthTestId,
+      email: parentAuthEmail,
+      phone: '+15550188888',
+      passwordHash,
+      status: 'active',
+    });
+
+    // 15a. Active parent can log in successfully
+    const resLoginActive = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: parentAuthEmail,
+        password: plainPassword,
+      },
+    });
+    assert.equal(resLoginActive.statusCode, 200);
+    const loginData = resLoginActive.json();
+    assert.ok(loginData.accessToken);
+
+    // 15b. Active parent can access /api/v1/auth/me with Bearer token
+    const resMeActive = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${loginData.accessToken}`,
+      },
+    });
+    assert.equal(resMeActive.statusCode, 200);
+
+    // 15c. Super admin suspends parent account
+    const resSuspend = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentAuthTestId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'suspended',
+        reason: 'Security suspension for authentication test',
+      },
+    });
+    assert.equal(resSuspend.statusCode, 200);
+
+    // 15d. Suspended parent is rejected on login with HTTP 403 Forbidden
+    const resLoginSuspended = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: parentAuthEmail,
+        password: plainPassword,
+      },
+    });
+    assert.equal(resLoginSuspended.statusCode, 403);
+    const loginSuspendedBody = resLoginSuspended.json();
+    assert.ok(loginSuspendedBody.message.includes('suspended'));
+
+    // 15e. Suspended parent is rejected on /api/v1/auth/me with HTTP 403 Forbidden
+    const resMeSuspended = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${loginData.accessToken}`,
+      },
+    });
+    assert.equal(resMeSuspended.statusCode, 403);
+    assert.ok(resMeSuspended.json().message.includes('suspended'));
+
+    // 15f. Super admin reactivates parent account
+    const resReactivate = await readyApp!.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/dashboard/parents/${parentAuthTestId}/status`,
+      headers: {
+        cookie: `admin_session=${sessionToken}`,
+        'x-csrf-token': csrfToken,
+      },
+      payload: {
+        status: 'active',
+        reason: 'Restoring access after test',
+      },
+    });
+    assert.equal(resReactivate.statusCode, 200);
+
+    // 15g. Reactivated parent can log in again
+    const resLoginRestored = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: parentAuthEmail,
+        password: plainPassword,
+      },
+    });
+    assert.equal(resLoginRestored.statusCode, 200);
+  });
+
+  it('16. Verifies enhanced Overview metrics (recently active devices & system health)', async () => {
+    const res = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/admin/dashboard/overview',
+      headers: { cookie: `admin_session=${sessionToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json();
+    assert.ok(typeof body.devices.recentlyActive24h === 'number');
+    assert.ok(body.system.databaseStatus);
+    assert.ok(body.system.redisStatus);
   });
 });

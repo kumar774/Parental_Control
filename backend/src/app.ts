@@ -6,6 +6,7 @@ import { env } from './config/env';
 import { pool } from './db/index';
 import { adminAuthRoutes } from './routes/admin/auth.routes';
 import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
+import { parentAuthRoutes } from './routes/parent/auth.routes';
 import { isAllowedOrigin } from './middleware/admin-session.guard';
 
 export async function buildApp() {
@@ -48,6 +49,9 @@ export async function buildApp() {
   // Administrative Authentication Routes
   await app.register(adminAuthRoutes, { prefix: '/api/v1/admin/auth' });
   await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin/dashboard' });
+
+  // Parent Mobile Authentication Routes
+  await app.register(parentAuthRoutes, { prefix: '/api/v1/auth' });
 
   // Base Health Check Probe
   app.get('/health', async (_request, reply) => {

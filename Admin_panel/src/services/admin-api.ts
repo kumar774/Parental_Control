@@ -39,6 +39,7 @@ export interface DashboardOverview {
     total: number;
     online: number;
     offline: number;
+    recentlyActive24h?: number;
     locked: number;
     healthyA11y: number;
   };
@@ -49,8 +50,14 @@ export interface DashboardOverview {
   };
   system: {
     status: 'healthy' | 'degraded';
-    dbStatus: string;
-    dbLatencyMs: number;
+    databaseStatus?: string;
+    redisStatus?: string;
+    uptimeSeconds?: number;
+    memoryUsageMb?: number;
+    nodeVersion?: string;
+    environment?: string;
+    dbStatus?: string;
+    dbLatencyMs?: number;
   };
   recentActivity: Array<{
     id: string;
@@ -387,6 +394,24 @@ export const adminApi = {
     return request<DashboardParentDetails>(
       `/parents/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
       { method: 'GET' },
+      DASHBOARD_BASE_URL
+    );
+  },
+
+  /**
+   * Suspends or reactivates a parent account with explicit reason
+   */
+  async updateParentStatus(
+    id: string,
+    status: 'active' | 'suspended',
+    reason: string
+  ): Promise<{ success: boolean; parent: DashboardParent; message: string }> {
+    return request<{ success: boolean; parent: DashboardParent; message: string }>(
+      `/parents/${encodeURIComponent(id)}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status, reason }),
+      },
       DASHBOARD_BASE_URL
     );
   },

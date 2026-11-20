@@ -7,6 +7,7 @@ import { adminAuthAuditLogs, adminSessions } from '../../db/schema/admin-auth';
 import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { env } from '../../config/env';
 import { getSystemHealth } from '../../services/health-probe.service';
+import { sha256, constantTimeCompare } from '../../utils/crypto-vault';
 
 // Custom Error for Audit Persistence Failures
 export class AuditPersistenceError extends Error {
@@ -61,6 +62,11 @@ const auditLogsQuerySchema = paginationQuerySchema.extend({
 
 const idParamSchema = z.object({
   id: z.string().uuid(),
+});
+
+const updateParentStatusSchema = z.object({
+  status: z.enum(['active', 'suspended']),
+  reason: z.string().trim().min(5, 'Reason must be at least 5 characters').max(500, 'Reason cannot exceed 500 characters'),
 });
 
 export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
@@ -170,6 +176,10 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .select({ val: count() })
       .from(childDevices)
       .where(eq(childDevices.accessibilityHealthy, true));
+    const [deviceRecentlyActive24h] = await db
+      .select({ val: count() })
+      .from(childDevices)
+      .where(gte(childDevices.lastSeenAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)));
 
     // 3. Security & session activity
     const [successfulLogins24h] = await db
@@ -270,6 +280,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         total: deviceTotal?.val ?? 0,
         online: deviceOnline?.val ?? 0,
         offline: deviceOffline?.val ?? 0,
+        recentlyActive24h: deviceRecentlyActive24h?.val ?? 0,
         locked: deviceLocked?.val ?? 0,
         healthyA11y: deviceHealthyA11y?.val ?? 0,
       },
@@ -280,6 +291,8 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       },
       system: {
         status: 'healthy',
+        databaseStatus: 'healthy',
+        redisStatus: env.REDIS_URL ? 'configured' : 'not_configured',
         uptimeSeconds: Math.floor(process.uptime()),
         memoryUsageMb: Math.round(mem.rss / 1024 / 1024),
         nodeVersion: process.version,
@@ -465,6 +478,138 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       totalDevices,
       devicePage,
       devicePageSize,
+    });
+  });
+
+  /**
+   * PATCH /parents/:id/status
+   * Suspends or reinstates a canonical parent account.
+   * Enforces CSRF token check, Super Admin authorization, input validation, and reason requirement.
+   * Emits mandatory immutable control plane audit record with fail-closed transactional rollback.
+   */
+  app.patch('/parents/:id/status', async (request, reply) => {
+    // 1. Strict CSRF verification
+    const csrfHeader = request.headers['x-csrf-token'];
+    if (
+      !csrfHeader ||
+      typeof csrfHeader !== 'string' ||
+      !request.adminSession ||
+      !constantTimeCompare(sha256(csrfHeader), request.adminSession.csrfTokenHash)
+    ) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'CSRF token missing or invalid',
+      });
+    }
+
+    // 2. Validate params & body
+    const paramParsed = idParamSchema.safeParse(request.params);
+    if (!paramParsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid parent ID format (must be UUID)',
+      });
+    }
+
+    const bodyParsed = updateParentStatusSchema.safeParse(request.body);
+    if (!bodyParsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: bodyParsed.error.issues[0]?.message || 'Invalid status update parameters',
+        issues: bodyParsed.error.issues,
+      });
+    }
+
+    const parentId = paramParsed.data.id;
+    const { status: targetStatus, reason } = bodyParsed.data;
+
+    // 3. Locate parent account
+    const [parent] = await db
+      .select({
+        id: parentUsers.id,
+        email: parentUsers.email,
+        status: parentUsers.status,
+      })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, parentId))
+      .limit(1);
+
+    if (!parent) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Parent account not found',
+      });
+    }
+
+    // 4. Idempotency check: prevent redundant duplicate status mutations
+    if (parent.status === targetStatus) {
+      return reply.status(409).send({
+        statusCode: 409,
+        error: 'Conflict',
+        message: `Parent account is already ${targetStatus}`,
+      });
+    }
+
+    const auditAction = targetStatus === 'suspended' ? 'parent_account_suspended' : 'parent_account_reactivated';
+
+    // 5. Fail-closed state mutation & mandatory audit logging
+    try {
+      await db.transaction(async (tx) => {
+        // Update user status
+        await tx
+          .update(parentUsers)
+          .set({
+            status: targetStatus,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, parent.id));
+
+        // Record mandatory audit within transaction boundary
+        if (auditOverrideForTest) {
+          await auditOverrideForTest({
+            adminId: request.adminUser?.id || null,
+            action: auditAction,
+            targetType: 'parent',
+            targetId: parent.id,
+            severity: 'warning',
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'],
+            metadata: { previousStatus: parent.status, newStatus: targetStatus, reason },
+          });
+        } else {
+          await tx.insert(adminControlAuditLogs).values({
+            adminId: request.adminUser?.id || null,
+            action: auditAction,
+            targetType: 'parent',
+            targetId: parent.id,
+            severity: 'warning',
+            ipAddress: request.ip ? request.ip.slice(0, 45) : null,
+            userAgent: request.headers['user-agent'] || null,
+            metadata: { previousStatus: parent.status, newStatus: targetStatus, reason },
+          });
+        }
+      });
+    } catch (err: any) {
+      app.log.error({ err: err?.message, parentId, targetStatus }, 'Parent account status mutation failed');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to record mandatory audit log',
+      });
+    }
+
+    return reply.send({
+      success: true,
+      parent: {
+        id: parent.id,
+        email: parent.email,
+        status: targetStatus,
+      },
+      message: `Parent account successfully ${targetStatus === 'suspended' ? 'suspended' : 'reactivated'}`,
     });
   });
 

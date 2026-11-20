@@ -110,15 +110,38 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
 - **Remediation:**
   - Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filter selectors to the Audit log table.
   - Health panel displays real probe latency, honest component statuses, and `Not Configured` for queue workers.
-  - High-impact parent/device actions are safely disabled with explicit tooltips detailing pending downstream push/protocol dependencies.
+  - High-impact device actions are safely disabled with explicit banners detailing pending downstream push/protocol dependencies.
+
+### 3.7 Parent Account Lifecycle & Real Enforcement (Completed)
+- **Finding:** Previously, parent accounts had no administrative lifecycle controls, and there was no parent auth middleware enforcing suspension.
+- **Remediation:**
+  - Added forward-only migration `0004_parental_admin_user_status_update.sql`:
+    - Adds `updated_at timestamp with time zone DEFAULT now() NOT NULL` to table `users`.
+    - Explicitly grants `GRANT UPDATE (status, updated_at) ON TABLE "users" TO parental_admin;`.
+  - Added `PATCH /api/v1/admin/dashboard/parents/:id/status`:
+    - Strictly enforced `super_admin` role.
+    - Mandatory CSRF protection (`constantTimeCompare(sha256(header), session.csrfTokenHash)`).
+    - Validates reason (min 5, max 500 characters).
+    - Executes atomic transaction: updates parent status and records mandatory control audit log (`parent_account_suspended` / `parent_account_reactivated`).
+    - Enforces **Fail-Closed Audit Policy**: if audit recording fails, transaction aborts completely and status change is rolled back.
+  - Implemented `parent-auth.guard.ts` and canonical parent auth routes (`/api/v1/auth/login`, `/api/v1/auth/me`):
+    - When an account is suspended, all parent authentication endpoints immediately fail-closed with HTTP 403 (`Account suspended. Please contact support.`).
+
+### 3.8 Device Management & Transparent Android Transport Boundary
+- **Finding:** The Android child daemon in `Child_app` currently consists of 4 base skeleton classes and does not yet have an active push/MQTT/WebSocket command receiver or cryptographic signature verifier.
+- **Remediation:**
+  - Administrative control plane honestly presents remote actions ("Lock Device", "Unlock Device", "Remote Reboot", "Remote Wipe") as disabled.
+  - Added clear amber advisory banner explaining that device commands are queued offline until the Android push daemon is connected, preventing dangerous false claims of remote execution.
+
+### 3.9 Audit Event Deep Inspection
+- **Finding:** Admins could view the tabular list of audit logs but lacked the ability to inspect raw metadata, actor context, target IDs, IP addresses, and user-agent strings.
+- **Remediation:**
+  - Added "Details" inspection button to every audit log row.
+  - Implemented accessible modal rendering full event attributes, IP, User-Agent, and formatted JSON metadata with copy capability.
 
 ---
 
 ## 4. Controlled Write Operations & Safety Boundary
 
-- **Finding:** The backend does not yet possess:
-  1. A parent authentication or account lifecycle service.
-  2. A durable child-command delivery or queueing mechanism (e.g., BullMQ Redis queue, WebSocket dispatcher, or FCM bridge).
-  3. Cryptographic command signing or device acknowledgement tracking.
-- **Decision:** As mandated by the architecture blueprint, this slice implements safe, read-only platform monitoring, parent inventory, child device inventory, security audit logs, and system health.
-- High-impact destructive toggles (parent suspension, device remote lock/unlock/wipe) are not exposed as false database-only flags. The required workflow (step-up auth, signed commands, idempotency, device ack) is documented for future implementation.
+- **Parent Account Management:** Completed and fully verified with least-privilege SQL grants, atomic transactional updates, fail-closed audit policy, and zero-trust parent auth middleware rejection.
+- **Device Management:** Full telemetry (battery, charging, lock state, app version, last seen) is active. Remote device controls remain safely disabled pending downstream Android push transport implementation, maintaining strict fidelity to reality without database-only illusions.

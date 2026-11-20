@@ -172,6 +172,41 @@ describe('Admin Frontend Dashboard API Client Test Suite', () => {
       assert.strictEqual(interceptedRequests[0].url, '/api/v1/admin/dashboard/parents/parent-uuid-99/devices?page=1&pageSize=10');
       assert.strictEqual(res.total, 0);
     });
+
+    it('updateParentStatus sends PATCH with status, reason, and X-CSRF-Token', async () => {
+      const mockUpdateResponse = {
+        success: true,
+        parent: {
+          id: 'parent-uuid-1',
+          email: 'parent@example.com',
+          phone: null,
+          status: 'suspended' as const,
+          createdAt: '2026-11-01T00:00:00.000Z',
+        },
+        message: 'Parent account successfully suspended',
+      };
+
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        interceptedRequests.push({ url: input.toString(), options: init || {} });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => mockUpdateResponse,
+        } as Response;
+      };
+
+      const res = await adminApi.updateParentStatus('parent-uuid-1', 'suspended', 'Suspension for terms violation');
+      assert.strictEqual(interceptedRequests.length, 1);
+      assert.strictEqual(interceptedRequests[0].url, '/api/v1/admin/dashboard/parents/parent-uuid-1/status');
+      assert.strictEqual(interceptedRequests[0].options.method, 'PATCH');
+      assert.strictEqual(
+        (interceptedRequests[0].options.headers as Headers).get('X-CSRF-Token'),
+        'test-csrf-token-xyz'
+      );
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.parent.status, 'suspended');
+    });
   });
 
   describe('3. Devices API Methods', () => {

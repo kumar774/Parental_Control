@@ -29,6 +29,7 @@ export const parentUsers = pgTable(
     avatarR2Key: text('avatar_r2_key'),
     status: varchar('status', { length: 20 }).notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [
     index('idx_users_status_created').on(table.status, table.createdAt),

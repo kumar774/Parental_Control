@@ -86,16 +86,24 @@ The hybrid dashboard consists of five core functional modules:
   REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "users", "child_devices", "admin_control_audit_logs", "admin_auth_audit_logs" FROM parental_admin;
   ```
 
+### Migration 3: `backend/drizzle/0004_parental_admin_user_status_update.sql`
+- **Updated At Column:** Adds `updated_at timestamp with time zone DEFAULT now() NOT NULL` to table `users`.
+- **Scoped Column Grant:** Explicitly grants column-level update permission on `status` and `updated_at`:
+  ```sql
+  GRANT UPDATE (status, updated_at) ON TABLE "users" TO parental_admin;
+  ```
+  All other columns (`email`, `password_hash`, `family_pin_hash`, etc.) and all `DELETE`/`TRUNCATE` operations remain strictly denied to `parental_admin`.
+
 ---
 
 ## 4. Privilege Matrix
 
-| Role | `users` / `child_devices` | `admin_control_audit_logs` | `admin_auth_audit_logs` | `admin_sessions` / `admin_mfa` |
-| :--- | :--- | :--- | :--- | :--- |
-| **`parental_admin`** | `SELECT` only (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
-| **`parental_audit_archive`** | None | None | `SELECT` only | None |
-| **`parental_audit_pruner`** | None | None | `SELECT`, `DELETE` (via Security Definer function) | None |
-| **`parental_migrator`** | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) |
+| Role | `users` | `child_devices` | `admin_control_audit_logs` | `admin_auth_audit_logs` | `admin_sessions` / `admin_mfa` |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`parental_admin`** | `SELECT`, `UPDATE (status, updated_at)` | `SELECT` only (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| **`parental_audit_archive`** | None | None | None | `SELECT` only | None |
+| **`parental_audit_pruner`** | None | None | None | `SELECT`, `DELETE` (via Security Definer function) | None |
+| **`parental_migrator`** | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) |
 
 ---
 
@@ -106,11 +114,11 @@ The hybrid dashboard consists of five core functional modules:
 | **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript strict compilation | **PASSED** (0 errors) |
 | **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting, Crypto) | **PASSED** (42 tests) |
 | **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), severity check (SQLSTATE 23514) | **PASSED** (13 assertions) |
-| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 5 health scenarios, bounded postgres probes, fail-closed audit policy, metadata minimization, auth severity mapping | **PASSED** |
+| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 16 tests covering health scenarios, bounded probes, fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent auth zero-trust suspension (Test 15), and overview metrics (Test 16) | **PASSED** (16 tests) |
 | **Credential Hygiene Scanner** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
 | **Frontend Typecheck** | `npm run typecheck` | Admin_panel React 19 TypeScript compilation | **PASSED** (0 errors) |
-| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 25.9s) |
-| **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions) | **PASSED** (34 tests) |
+| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 36.4s) |
+| **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions, Status update) | **PASSED** (35 tests) |
 | **Playwright E2E Tests** | `npm run test:e2e` | Browser session management workflows | **PASSED** (9 tests) |
 
 ---
@@ -119,3 +127,26 @@ The hybrid dashboard consists of five core functional modules:
 
 - **Pull Request:** Open & active on GitHub: [PR #5](https://github.com/kumar774/Parental_Control/pull/5).
 - **Safety Boundary Compliance:** Production databases (`parental_control_db`, `parental_control_admin_db`) remain untouched. PR #5 has not been merged, and no production deployment was triggered.
+
+---
+
+## 7. Android Child Device Integration Contract (Advisory for Mobile Team)
+
+The Android companion daemon (`Child_app`) currently contains skeleton files (`ChildMonitoringService.kt`, `ChildDeviceAdminReceiver.kt`) without an active WebSocket, MQTT, or FCM command receiver.
+
+To maintain architectural integrity, remote device operations (`lock`, `unlock`, `reboot`, `wipe`) are disabled in the Admin Panel until the following protocol contract is implemented:
+
+1. **Transport:** Encrypted MQTT or FCM High-Priority Data message with HMAC-SHA256 signature signed by the backend master key.
+2. **Payload Structure:**
+   ```json
+   {
+     "commandId": "uuidv4",
+     "targetDeviceId": "uuidv4",
+     "action": "lock | unlock | reboot | wipe",
+     "issuedAt": "iso8601",
+     "expiresAt": "iso8601",
+     "signature": "hmac_sha256_hex"
+   }
+   ```
+3. **Receipt & Acknowledgement:** Child daemon sends signed HTTP `POST /api/v1/devices/:id/commands/:commandId/ack` with execution result (`succeeded | failed | expired`).
+4. **Safety Policy:** Admin Panel will re-enable remote execution toggles as soon as this protocol is deployed and verified in `Child_app`.
