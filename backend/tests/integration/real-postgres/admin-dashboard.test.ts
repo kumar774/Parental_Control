@@ -1419,9 +1419,4 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     });
     assert.equal(resRefreshLoggedOut.statusCode, 401);
   });
-    const body = res.json();
-    assert.ok(typeof body.devices.recentlyActive24h === 'number');
-    assert.ok(body.system.databaseStatus);
-    assert.ok(body.system.redisStatus);
-  });
 });
