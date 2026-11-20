@@ -105,7 +105,7 @@ export interface DashboardAuditLog {
   action: string;
   eventType: string;
   severity: 'info' | 'warning' | 'critical';
-  status: string;
+  status: string | null;
   targetType?: string;
   targetId?: string | null;
   ipAddress: string | null;

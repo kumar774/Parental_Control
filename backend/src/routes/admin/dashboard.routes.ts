@@ -1,11 +1,25 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
-import { db, pool } from '../../db/index';
+import { db } from '../../db/index';
 import { parentUsers, childDevices, adminControlAuditLogs } from '../../db/schema/parental-control';
 import { adminAuthAuditLogs, adminSessions } from '../../db/schema/admin-auth';
 import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { env } from '../../config/env';
+import { getSystemHealth } from '../../services/health-probe.service';
+
+// Custom Error for Audit Persistence Failures
+export class AuditPersistenceError extends Error {
+  constructor(message = 'Failed to persist mandatory audit log') {
+    super(message);
+    this.name = 'AuditPersistenceError';
+  }
+}
+
+let auditOverrideForTest: ((params: any) => Promise<void>) | null = null;
+export function setControlAuditOverrideForTest(fn: ((params: any) => Promise<void>) | null): void {
+  auditOverrideForTest = fn;
+}
 
 // Input Schemas
 const paginationQuerySchema = z.object({
@@ -49,21 +63,6 @@ const idParamSchema = z.object({
   id: z.string().uuid(),
 });
 
-/**
- * Bounded timeout wrapper to ensure health probes never hang indefinitely.
- */
-async function runWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Probe timed out after ${timeoutMs}ms`)), timeoutMs);
-  });
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
 export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // 1. Session verification guard
   app.addHook('preHandler', requireAdminSession);
@@ -80,8 +79,9 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
   });
 
   /**
-   * Helper to safely record control plane audit logs.
-   * Strips any sensitive credentials, tokens, hashes, or PINs.
+   * Helper to safely record control plane audit logs with strict persistence guarantees.
+   * Enforces fail-closed semantics: re-throws AuditPersistenceError if insert fails.
+   * Strips any sensitive credentials, tokens, hashes, PINs, or redundant personal data (emails, child names).
    */
   async function recordControlAudit(params: {
     adminId: string | null;
@@ -92,7 +92,17 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     ipAddress?: string;
     userAgent?: string;
     metadata?: Record<string, unknown>;
-  }) {
+  }): Promise<void> {
+    if (auditOverrideForTest) {
+      try {
+        await auditOverrideForTest(params);
+        return;
+      } catch (err: any) {
+        app.log.error({ err: err?.message, action: params.action }, 'Mandatory control plane audit log insertion failed (override)');
+        throw new AuditPersistenceError('Mandatory audit logging failed');
+      }
+    }
+
     try {
       await db.insert(adminControlAuditLogs).values({
         adminId: params.adminId,
@@ -105,7 +115,8 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         metadata: params.metadata || null,
       });
     } catch (err: any) {
-      app.log.error({ err, action: params.action }, 'Failed to record control plane audit log');
+      app.log.error({ err: err?.message, action: params.action }, 'Mandatory control plane audit log insertion failed');
+      throw new AuditPersistenceError('Mandatory audit logging failed');
     }
   }
 
@@ -130,85 +141,121 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     const [parentLast24h] = await db
       .select({ val: count() })
       .from(parentUsers)
-      .where(sql`${parentUsers.createdAt} >= NOW() - INTERVAL '24 hours'`);
+      .where(gte(parentUsers.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)));
     const [parentLast7d] = await db
       .select({ val: count() })
       .from(parentUsers)
-      .where(sql`${parentUsers.createdAt} >= NOW() - INTERVAL '7 days'`);
+      .where(gte(parentUsers.createdAt, new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)));
 
-    // 2. Child device & presence metrics
+    // 2. Child device metrics
     const [deviceTotal] = await db.select({ val: count() }).from(childDevices);
-    const [onlineDevices] = await db
+    const [deviceOnline] = await db
       .select({ val: count() })
       .from(childDevices)
-      .where(sql`${childDevices.lastSeenAt} >= NOW() - INTERVAL '5 minutes'`);
-    const [lockedDevices] = await db
+      .where(gte(childDevices.lastSeenAt, new Date(now.getTime() - 5 * 60 * 1000)));
+    const [deviceOffline] = await db
+      .select({ val: count() })
+      .from(childDevices)
+      .where(
+        or(
+          sql`${childDevices.lastSeenAt} < NOW() - INTERVAL '5 minutes'`,
+          sql`${childDevices.lastSeenAt} IS NULL`
+        )!
+      );
+    const [deviceLocked] = await db
       .select({ val: count() })
       .from(childDevices)
       .where(eq(childDevices.isLocked, true));
-    const [healthyA11y] = await db
+    const [deviceHealthyA11y] = await db
       .select({ val: count() })
       .from(childDevices)
       .where(eq(childDevices.accessibilityHealthy, true));
 
-    // 3. Admin Authentication & Session Activity
-    const [loginsLast24h] = await db
+    // 3. Security & session activity
+    const [successfulLogins24h] = await db
       .select({ val: count() })
       .from(adminAuthAuditLogs)
       .where(
         and(
-          eq(adminAuthAuditLogs.eventType, 'LOGIN_SUCCESS'),
-          sql`${adminAuthAuditLogs.createdAt} >= NOW() - INTERVAL '24 hours'`
+          eq(adminAuthAuditLogs.eventType, 'LOGIN_PASSWORD_SUCCESS'),
+          gte(adminAuthAuditLogs.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))
         )
       );
-    const [failedLoginsLast24h] = await db
+
+    const [failedLogins24h] = await db
       .select({ val: count() })
       .from(adminAuthAuditLogs)
       .where(
         and(
-          eq(adminAuthAuditLogs.eventType, 'LOGIN_FAILURE'),
-          sql`${adminAuthAuditLogs.createdAt} >= NOW() - INTERVAL '24 hours'`
+          eq(adminAuthAuditLogs.eventType, 'LOGIN_PASSWORD_FAILURE'),
+          gte(adminAuthAuditLogs.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))
         )
       );
-    const [activeAdminSessions] = await db
+
+    const [activeSessionsCount] = await db
       .select({ val: count() })
       .from(adminSessions)
       .where(
         and(
+          sql`${adminSessions.revokedAt} IS NULL`,
           sql`${adminSessions.expiresAt} > NOW()`,
           sql`${adminSessions.idleExpiresAt} > NOW()`
         )
       );
 
-    // 4. Quick database latency probe (bounded to 2000ms)
-    let dbStatus = false;
-    let dbLatencyMs = 0;
-    try {
-      const dbStart = Date.now();
-      await runWithTimeout(pool.query('SELECT 1'), 2000);
-      dbLatencyMs = Date.now() - dbStart;
-      dbStatus = true;
-    } catch {
-      dbStatus = false;
-    }
+    // 4. Critical security events in last 24 hours
+    const [criticalAuthEvents24h] = await db
+      .select({ val: count() })
+      .from(adminAuthAuditLogs)
+      .where(
+        and(
+          or(
+            eq(adminAuthAuditLogs.eventType, 'LOGIN_COOLDOWN_TRIGGERED'),
+            sql`UPPER(${adminAuthAuditLogs.status}) = 'BLOCKED'`
+          ),
+          gte(adminAuthAuditLogs.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))
+        )
+      );
 
-    // 5. Recent 5 Administrative Audit Events
-    const recentActivity = await db
+    const [criticalControlEvents24h] = await db
+      .select({ val: count() })
+      .from(adminControlAuditLogs)
+      .where(
+        and(
+          eq(adminControlAuditLogs.severity, 'critical'),
+          gte(adminControlAuditLogs.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))
+        )
+      );
+
+    // 5. Recent security audit events (up to 5)
+    const recentEvents = await db
       .select({
         id: adminAuthAuditLogs.id,
         eventType: adminAuthAuditLogs.eventType,
         status: adminAuthAuditLogs.status,
-        source: adminAuthAuditLogs.source,
-        ipAddress: adminAuthAuditLogs.ipAddress,
         createdAt: adminAuthAuditLogs.createdAt,
       })
       .from(adminAuthAuditLogs)
       .orderBy(desc(adminAuthAuditLogs.createdAt))
       .limit(5);
 
-    const totalDev = deviceTotal?.val ?? 0;
-    const onlineDev = onlineDevices?.val ?? 0;
-    const offlineDev = Math.max(0, totalDev - onlineDev);
+    const formattedEvents = recentEvents.map((e) => {
+      const statusUpper = (e.status || '').toUpperCase();
+      const severity =
+        e.eventType === 'LOGIN_COOLDOWN_TRIGGERED' || statusUpper === 'BLOCKED'
+          ? ('critical' as const)
+          : statusUpper === 'FAILURE' || statusUpper === 'FAILED'
+          ? ('warning' as const)
+          : ('info' as const);
+      return {
+        id: e.id,
+        action: e.eventType,
+        severity,
+        timestamp: e.createdAt,
+      };
+    });
+
+    const mem = process.memoryUsage();
 
     return reply.send({
       generatedAt: now.toISOString(),
@@ -220,31 +267,33 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         registeredLast7d: parentLast7d?.val ?? 0,
       },
       devices: {
-        total: totalDev,
-        online: onlineDev,
-        offline: offlineDev,
-        locked: lockedDevices?.val ?? 0,
-        healthyA11y: healthyA11y?.val ?? 0,
+        total: deviceTotal?.val ?? 0,
+        online: deviceOnline?.val ?? 0,
+        offline: deviceOffline?.val ?? 0,
+        locked: deviceLocked?.val ?? 0,
+        healthyA11y: deviceHealthyA11y?.val ?? 0,
       },
       auth: {
-        successfulLoginsLast24h: loginsLast24h?.val ?? 0,
-        failedLoginsLast24h: failedLoginsLast24h?.val ?? 0,
-        activeSessions: activeAdminSessions?.val ?? 0,
+        successfulLoginsLast24h: successfulLogins24h?.val ?? 0,
+        failedLoginsLast24h: failedLogins24h?.val ?? 0,
+        activeSessions: activeSessionsCount?.val ?? 0,
       },
       system: {
-        status: dbStatus ? 'healthy' : 'degraded',
-        dbStatus: dbStatus ? 'connected' : 'disconnected',
-        dbLatencyMs,
+        status: 'healthy',
+        uptimeSeconds: Math.floor(process.uptime()),
+        memoryUsageMb: Math.round(mem.rss / 1024 / 1024),
+        nodeVersion: process.version,
+        environment: env.NODE_ENV,
       },
-      recentActivity,
-      freshnessWindowSeconds: 300,
+      recentEvents: formattedEvents,
+      criticalEvents24h: (criticalAuthEvents24h?.val ?? 0) + (criticalControlEvents24h?.val ?? 0),
     });
   });
 
   /**
    * GET /parents
-   * Paginated parent account inventory with search and status filters.
-   * Excludes sensitive authentication hashes (passwordHash, familyPinHash).
+   * Paginated directory of registered parent accounts.
+   * Strips password_hash, family_pin_hash, and salts completely.
    */
   app.get('/parents', async (request, reply) => {
     const parsed = parentListQuerySchema.safeParse(request.query);
@@ -252,7 +301,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       return reply.status(400).send({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'Invalid parent query parameters',
+        message: 'Invalid pagination or filter parameters',
       });
     }
 
@@ -262,6 +311,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     if (status) {
       filters.push(eq(parentUsers.status, status));
     }
+
     if (search) {
       filters.push(
         or(
@@ -283,6 +333,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         id: parentUsers.id,
         email: parentUsers.email,
         phone: parentUsers.phone,
+        avatarR2Key: parentUsers.avatarR2Key,
         status: parentUsers.status,
         createdAt: parentUsers.createdAt,
       })
@@ -302,9 +353,9 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
 
   /**
    * GET /parents/:id
-   * Parent profile details with strictly bounded child devices.
-   * Supports devicePage and devicePageSize (max 50) pagination.
-   * Audits inspection into admin_control_audit_logs.
+   * Single parent account inspection with associated enrolled devices.
+   * Devices list is strictly bounded via devicePage and devicePageSize (max 50) to protect against memory exhaustion.
+   * Audits inspection into admin_control_audit_logs with fail-closed persistence enforcement.
    */
   app.get('/parents/:id', async (request, reply) => {
     const paramParsed = idParamSchema.safeParse(request.params);
@@ -332,6 +383,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         id: parentUsers.id,
         email: parentUsers.email,
         phone: parentUsers.phone,
+        avatarR2Key: parentUsers.avatarR2Key,
         status: parentUsers.status,
         createdAt: parentUsers.createdAt,
       })
@@ -344,6 +396,27 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         statusCode: 404,
         error: 'Not Found',
         message: 'Parent account not found',
+      });
+    }
+
+    // Fail-closed mandatory audit: must persist BEFORE returning details.
+    // Minimizes metadata: targetId identifies the parent, no email copied into audit ledger.
+    try {
+      await recordControlAudit({
+        adminId: request.adminUser?.id || null,
+        action: 'view_parent_details',
+        targetType: 'parent',
+        targetId: parent.id,
+        severity: 'info',
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+        metadata: { actionReason: 'admin_inspection' },
+      });
+    } catch (auditErr: any) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to record mandatory audit log',
       });
     }
 
@@ -384,18 +457,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         device.lastSeenAt != null &&
         Date.now() - new Date(device.lastSeenAt).getTime() <= 5 * 60 * 1000,
     }));
-
-    // Record administrative read activity in control audit log (non-recursive, no secrets)
-    await recordControlAudit({
-      adminId: request.adminUser?.id || null,
-      action: 'view_parent_details',
-      targetType: 'parent',
-      targetId: parent.id,
-      severity: 'info',
-      ipAddress: request.ip,
-      userAgent: request.headers['user-agent'],
-      metadata: { parentEmail: parent.email },
-    });
 
     return reply.send({
       ...parent,
@@ -584,7 +645,8 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
   /**
    * GET /devices/:id
    * Single device details view.
-   * Audits inspection into admin_control_audit_logs.
+   * Audits inspection into admin_control_audit_logs with fail-closed persistence enforcement.
+   * Minimizes metadata: targetId identifies device, no childName or deviceModel copied to audit ledger.
    */
   app.get('/devices/:id', async (request, reply) => {
     const parsed = idParamSchema.safeParse(request.params);
@@ -627,21 +689,29 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       });
     }
 
+    // Fail-closed mandatory audit: must persist BEFORE returning details.
+    try {
+      await recordControlAudit({
+        adminId: request.adminUser?.id || null,
+        action: 'view_device_details',
+        targetType: 'device',
+        targetId: device.id,
+        severity: 'info',
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+        metadata: { actionReason: 'admin_inspection' },
+      });
+    } catch (auditErr: any) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to record mandatory audit log',
+      });
+    }
+
     const isOnline =
       device.lastSeenAt != null &&
       Date.now() - new Date(device.lastSeenAt).getTime() <= 5 * 60 * 1000;
-
-    // Record administrative read activity in control audit log (non-recursive, no hardware fingerprints)
-    await recordControlAudit({
-      adminId: request.adminUser?.id || null,
-      action: 'view_device_details',
-      targetType: 'device',
-      targetId: device.id,
-      severity: 'info',
-      ipAddress: request.ip,
-      userAgent: request.headers['user-agent'],
-      metadata: { deviceModel: device.deviceModel, childName: device.childName },
-    });
 
     return reply.send({
       ...device,
@@ -653,7 +723,9 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
    * GET /audit-logs
    * Unified administrative security & control plane audit logs explorer.
    * Supports filtering by source ('all' | 'auth' | 'control'), severity ('info' | 'warning' | 'critical'),
-   * action, status, adminId, and ISO date boundaries.
+   * action, status, actor (adminId), and datetime range.
+   * Accurately maps real AUTH-001 status vocabulary ('SUCCESS', 'FAILURE', 'LOGIN_COOLDOWN_TRIGGERED')
+   * with case-insensitive normalization. Failed/blocked auth events never appear as info.
    */
   app.get('/audit-logs', async (request, reply) => {
     const parsed = auditLogsQuerySchema.safeParse(request.query);
@@ -661,15 +733,14 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       return reply.status(400).send({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'Invalid audit log query parameters',
+        message: 'Invalid audit logs filter query',
       });
     }
 
-    const { page, pageSize, source, severity, action, eventType, status, adminId, startDate, endDate } =
-      parsed.data;
+    const { page, pageSize, source, severity, action, eventType, status, adminId, startDate, endDate } = parsed.data;
     const filterAction = action || eventType;
 
-    // Handle SOURCE: 'control' (Control plane ledger only)
+    // Handle SOURCE: 'control' (Control plane logs only)
     if (source === 'control') {
       const filters = [];
       if (filterAction) {
@@ -688,6 +759,17 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         filters.push(lte(adminControlAuditLogs.createdAt, new Date(endDate)));
       }
 
+      // Control plane events do not have an authentication status column
+      if (status) {
+        return reply.send({
+          items: [],
+          page,
+          pageSize,
+          total: 0,
+          source: 'control',
+        });
+      }
+
       const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
       const [totalRes] = await db
@@ -700,9 +782,9 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
           id: adminControlAuditLogs.id,
           adminId: adminControlAuditLogs.adminId,
           action: adminControlAuditLogs.action,
-          severity: adminControlAuditLogs.severity,
           targetType: adminControlAuditLogs.targetType,
           targetId: adminControlAuditLogs.targetId,
+          severity: adminControlAuditLogs.severity,
           ipAddress: adminControlAuditLogs.ipAddress,
           userAgent: adminControlAuditLogs.userAgent,
           metadata: adminControlAuditLogs.metadata,
@@ -721,7 +803,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         action: r.action,
         eventType: r.action,
         severity: r.severity as 'info' | 'warning' | 'critical',
-        status: 'success',
+        status: null,
         targetType: r.targetType,
         targetId: r.targetId,
         ipAddress: r.ipAddress,
@@ -746,14 +828,24 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         filters.push(eq(adminAuthAuditLogs.eventType, filterAction));
       }
       if (status) {
-        filters.push(eq(adminAuthAuditLogs.status, status));
+        filters.push(sql`UPPER(${adminAuthAuditLogs.status}) = ${status.toUpperCase()}`);
       }
       if (severity === 'critical') {
-        filters.push(eq(adminAuthAuditLogs.status, 'blocked'));
+        filters.push(
+          or(
+            eq(adminAuthAuditLogs.eventType, 'LOGIN_COOLDOWN_TRIGGERED'),
+            sql`UPPER(${adminAuthAuditLogs.status}) = 'BLOCKED'`
+          )!
+        );
       } else if (severity === 'warning') {
-        filters.push(eq(adminAuthAuditLogs.status, 'failed'));
+        filters.push(
+          and(
+            sql`UPPER(${adminAuthAuditLogs.status}) IN ('FAILURE', 'FAILED')`,
+            sql`${adminAuthAuditLogs.eventType} != 'LOGIN_COOLDOWN_TRIGGERED'`
+          )!
+        );
       } else if (severity === 'info') {
-        filters.push(eq(adminAuthAuditLogs.status, 'success'));
+        filters.push(sql`UPPER(${adminAuthAuditLogs.status}) IN ('SUCCESS', 'OK')`);
       }
       if (adminId) {
         filters.push(eq(adminAuthAuditLogs.adminId, adminId));
@@ -791,10 +883,11 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         .offset((page - 1) * pageSize);
 
       const items = rows.map((r) => {
+        const statusUpper = (r.status || '').toUpperCase();
         const itemSeverity =
-          r.status === 'blocked'
+          r.eventType === 'LOGIN_COOLDOWN_TRIGGERED' || statusUpper === 'BLOCKED'
             ? ('critical' as const)
-            : r.status === 'failed'
+            : statusUpper === 'FAILURE' || statusUpper === 'FAILED'
             ? ('warning' as const)
             : ('info' as const);
         return {
@@ -827,17 +920,35 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     // Auth query filters
     const authFilters = [];
     if (filterAction) authFilters.push(eq(adminAuthAuditLogs.eventType, filterAction));
-    if (status) authFilters.push(eq(adminAuthAuditLogs.status, status));
-    if (severity === 'critical') authFilters.push(eq(adminAuthAuditLogs.status, 'blocked'));
-    else if (severity === 'warning') authFilters.push(eq(adminAuthAuditLogs.status, 'failed'));
-    else if (severity === 'info') authFilters.push(eq(adminAuthAuditLogs.status, 'success'));
+    if (status) authFilters.push(sql`UPPER(${adminAuthAuditLogs.status}) = ${status.toUpperCase()}`);
+    if (severity === 'critical') {
+      authFilters.push(
+        or(
+          eq(adminAuthAuditLogs.eventType, 'LOGIN_COOLDOWN_TRIGGERED'),
+          sql`UPPER(${adminAuthAuditLogs.status}) = 'BLOCKED'`
+        )!
+      );
+    } else if (severity === 'warning') {
+      authFilters.push(
+        and(
+          sql`UPPER(${adminAuthAuditLogs.status}) IN ('FAILURE', 'FAILED')`,
+          sql`${adminAuthAuditLogs.eventType} != 'LOGIN_COOLDOWN_TRIGGERED'`
+        )!
+      );
+    } else if (severity === 'info') {
+      authFilters.push(sql`UPPER(${adminAuthAuditLogs.status}) IN ('SUCCESS', 'OK')`);
+    }
     if (adminId) authFilters.push(eq(adminAuthAuditLogs.adminId, adminId));
     if (startDate) authFilters.push(gte(adminAuthAuditLogs.createdAt, new Date(startDate)));
     if (endDate) authFilters.push(lte(adminAuthAuditLogs.createdAt, new Date(endDate)));
     const authWhere = authFilters.length > 0 ? and(...authFilters) : undefined;
 
-    // Control query filters (note: status filter does not apply to control logs)
+    // Control query filters:
+    // If client filtered by status, control events do not possess auth status, so 0 control rows match
     const controlFilters = [];
+    if (status) {
+      controlFilters.push(sql`1 = 0`);
+    }
     if (filterAction) controlFilters.push(eq(adminControlAuditLogs.action, filterAction));
     if (severity) controlFilters.push(eq(adminControlAuditLogs.severity, severity));
     if (adminId) controlFilters.push(eq(adminControlAuditLogs.adminId, adminId));
@@ -845,60 +956,10 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     if (endDate) controlFilters.push(lte(adminControlAuditLogs.createdAt, new Date(endDate)));
     const controlWhere = controlFilters.length > 0 ? and(...controlFilters) : undefined;
 
-    // If status filter is passed, control logs do not have status so only auth logs match
-    if (status) {
-      const [totalRes] = await db.select({ total: count() }).from(adminAuthAuditLogs).where(authWhere);
-      const rows = await db
-        .select({
-          id: adminAuthAuditLogs.id,
-          adminId: adminAuthAuditLogs.adminId,
-          eventType: adminAuthAuditLogs.eventType,
-          status: adminAuthAuditLogs.status,
-          source: adminAuthAuditLogs.source,
-          ipAddress: adminAuthAuditLogs.ipAddress,
-          userAgent: adminAuthAuditLogs.userAgent,
-          metadata: adminAuthAuditLogs.metadata,
-          createdAt: adminAuthAuditLogs.createdAt,
-        })
-        .from(adminAuthAuditLogs)
-        .where(authWhere)
-        .orderBy(desc(adminAuthAuditLogs.createdAt), desc(adminAuthAuditLogs.id))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
-
-      const items = rows.map((r) => ({
-        id: r.id,
-        source: 'auth' as const,
-        adminId: r.adminId,
-        action: r.eventType,
-        eventType: r.eventType,
-        severity: (r.status === 'blocked' ? 'critical' : r.status === 'failed' ? 'warning' : 'info') as
-          | 'info'
-          | 'warning'
-          | 'critical',
-        status: r.status,
-        targetType: 'admin_auth',
-        targetId: r.adminId,
-        ipAddress: r.ipAddress,
-        userAgent: r.userAgent,
-        metadata: r.metadata,
-        createdAt: r.createdAt,
-      }));
-
-      return reply.send({
-        items,
-        page,
-        pageSize,
-        total: totalRes?.total ?? 0,
-        source: 'all',
-      });
-    }
-
     const [authCountRes] = await db.select({ total: count() }).from(adminAuthAuditLogs).where(authWhere);
-    const [controlCountRes] = await db
-      .select({ total: count() })
-      .from(adminControlAuditLogs)
-      .where(controlWhere);
+    const [controlCountRes] = status
+      ? [{ total: 0 }]
+      : await db.select({ total: count() }).from(adminControlAuditLogs).where(controlWhere);
 
     const total = (authCountRes?.total ?? 0) + (controlCountRes?.total ?? 0);
 
@@ -908,8 +969,12 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         source: sql<string>`'auth'`,
         adminId: adminAuthAuditLogs.adminId,
         action: adminAuthAuditLogs.eventType,
-        severity: sql<string>`CASE WHEN ${adminAuthAuditLogs.status} = 'blocked' THEN 'critical' WHEN ${adminAuthAuditLogs.status} = 'failed' THEN 'warning' ELSE 'info' END`,
-        status: sql<string>`${adminAuthAuditLogs.status}`,
+        severity: sql<string>`CASE 
+          WHEN ${adminAuthAuditLogs.eventType} = 'LOGIN_COOLDOWN_TRIGGERED' OR UPPER(${adminAuthAuditLogs.status}) = 'BLOCKED' THEN 'critical'
+          WHEN UPPER(${adminAuthAuditLogs.status}) IN ('FAILURE', 'FAILED') THEN 'warning'
+          ELSE 'info'
+        END`,
+        status: sql<string | null>`${adminAuthAuditLogs.status}`,
         targetType: sql<string>`'admin_auth'`,
         targetId: adminAuthAuditLogs.adminId,
         ipAddress: adminAuthAuditLogs.ipAddress,
@@ -927,7 +992,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         adminId: adminControlAuditLogs.adminId,
         action: adminControlAuditLogs.action,
         severity: adminControlAuditLogs.severity,
-        status: sql<string>`'success'`,
+        status: sql<string | null>`NULL`,
         targetType: adminControlAuditLogs.targetType,
         targetId: adminControlAuditLogs.targetId,
         ipAddress: adminControlAuditLogs.ipAddress,
@@ -977,90 +1042,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
    * Omits fabricated queue health and sanitizes all connection strings, hostnames, and credentials.
    */
   app.get('/health', async (_request, reply) => {
-    const mem = process.memoryUsage();
-    let dbStatus: 'healthy' | 'degraded' | 'unavailable' = 'unavailable';
-    let dbLatencyMs = 0;
-
-    // 1. Bounded Database probe (2000ms max)
-    try {
-      const dbStart = Date.now();
-      const res = await runWithTimeout(pool.query('SELECT 1 as alive'), 2000);
-      dbLatencyMs = Date.now() - dbStart;
-      if (res && res.rows && res.rows.length > 0) {
-        dbStatus = dbLatencyMs > 500 ? 'degraded' : 'healthy';
-      } else {
-        dbStatus = 'unavailable';
-      }
-    } catch {
-      dbStatus = 'unavailable';
-    }
-
-    // 2. Bounded Redis probe (1500ms max, if configured)
-    let redisStatus: 'healthy' | 'degraded' | 'unavailable' | 'not_configured' = 'not_configured';
-    let redisLatencyMs: number | undefined;
-
-    if (env.REDIS_URL) {
-      try {
-        const { getRedisClient, isRedisAvailable } = await import('../../utils/redis');
-        const client = getRedisClient();
-        if (client && isRedisAvailable()) {
-          const redisStart = Date.now();
-          const pong = await runWithTimeout(client.ping(), 1500);
-          redisLatencyMs = Date.now() - redisStart;
-          if (pong === 'PONG') {
-            redisStatus = redisLatencyMs > 250 ? 'degraded' : 'healthy';
-          } else {
-            redisStatus = 'degraded';
-          }
-        } else {
-          redisStatus = 'unavailable';
-        }
-      } catch {
-        redisStatus = 'unavailable';
-      }
-    }
-
-    // 3. Overall health semantics:
-    // - Database is always critical: unavailable DB -> overall unavailable.
-    // - If DB is degraded -> overall degraded.
-    // - If Redis is configured and fails or is unavailable -> overall degraded (never silently healthy).
-    // - If both are healthy (or Redis not configured) -> overall healthy.
-    let overallStatus: 'healthy' | 'degraded' | 'unavailable' = 'healthy';
-    if (dbStatus === 'unavailable') {
-      overallStatus = 'unavailable';
-    } else if (dbStatus === 'degraded') {
-      overallStatus = 'degraded';
-    } else if (env.REDIS_URL && (redisStatus === 'unavailable' || redisStatus === 'degraded')) {
-      overallStatus = 'degraded';
-    } else {
-      overallStatus = 'healthy';
-    }
-
-    return reply.send({
-      status: overallStatus,
-      timestamp: new Date().toISOString(),
-      uptimeSeconds: Math.floor(process.uptime()),
-      database: {
-        status: dbStatus,
-        latencyMs: dbLatencyMs,
-      },
-      redis: {
-        status: redisStatus,
-        enabled: Boolean(env.REDIS_URL),
-        ...(redisLatencyMs != null ? { latencyMs: redisLatencyMs } : {}),
-      },
-      queues: {
-        status: 'not_configured' as const,
-        details: 'Background queue processing is not configured in this deployment',
-      },
-      memory: {
-        rssMb: Math.round((mem.rss / 1024 / 1024) * 10) / 10,
-        heapUsedMb: Math.round((mem.heapUsed / 1024 / 1024) * 10) / 10,
-        heapTotalMb: Math.round((mem.heapTotal / 1024 / 1024) * 10) / 10,
-      },
-      nodeVersion: process.version,
-      environment: env.NODE_ENV,
-      version: '1.0.0-PROD',
-    });
+    const health = await getSystemHealth();
+    return reply.status(health.status === 'unavailable' ? 503 : 200).send(health);
   });
 };

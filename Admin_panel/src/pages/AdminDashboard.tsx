@@ -1382,10 +1382,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenRegenerate
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                                 log.status === 'SUCCESS' || log.status === 'success'
                                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                  : log.status
+                                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
                               }`}
                             >
-                              {log.status}
+                              {log.status || '—'}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-[11px] text-slate-300">

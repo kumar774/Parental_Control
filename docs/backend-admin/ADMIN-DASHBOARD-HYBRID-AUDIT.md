@@ -59,36 +59,53 @@ Closed PR #4 was inspected as reference material.
 
 ## 3. PR #5 Remediation Findings & Audit Verification (2026-11-20)
 
-Review of initial PR #5 implementation revealed seven core areas requiring architectural remediation:
+Review of PR #5 implementation revealed seven core areas requiring architectural remediation:
 
-### 3.1 Audit Log Architecture
-- **Finding:** The system previously lacked distinct separation between authentication audit events (`admin_auth_audit_logs`) and control-plane administrative activity (`admin_control_audit_logs`). Furthermore, `admin_control_audit_logs` lacked a `severity` column, and inspection of sensitive parent/device details was not recorded.
+### 3.1 Audit Log Architecture & Fail-Closed Persistence Policy
+- **Finding:** The system previously lacked distinct separation between authentication audit events (`admin_auth_audit_logs`) and control-plane administrative activity (`admin_control_audit_logs`). In addition, `recordControlAudit()` previously caught errors silently, which could return 200 OK without persisting an audit record. Furthermore, audit metadata unnecessarily included `parentEmail`, `childName`, and `deviceModel`.
 - **Remediation:**
-  - Added forward-only migration `0003_admin_control_audit_severity.sql` adding `severity text NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical'))` and index on `(severity, created_at)`.
-  - Implemented `recordControlAudit()` helper that logs administrative reads (`view_parent_details`, `view_device_details`) to `admin_control_audit_logs` with sanitized target IDs and zero secrets.
+  - Added forward-only migration `0003_admin_control_audit_severity.sql` adding column `severity varchar(20) DEFAULT 'info' NOT NULL`, check constraint `admin_control_audit_severity_check` (`CHECK ("severity" IN ('info', 'warning', 'critical'))`), and index `idx_admin_control_audit_severity_created` on `(severity, created_at)`.
+  - Implemented **Fail-Closed Audit Policy**: For sensitive detail endpoints (`GET /parents/:id`, `GET /devices/:id`), if `admin_control_audit_logs` insertion fails, the request fails safely with HTTP 500 (`Failed to record mandatory audit log`) without leaking internal SQL errors, and sensitive parent/device details are withheld.
+  - **Metadata Minimization**: Removed `parentEmail`, `childName`, and `deviceModel` from audit metadata. Target IDs (`targetId`) identify the records, eliminating unnecessary PII duplication in the audit ledger.
   - Unified audit endpoint supports filtering by `source` (`'all' | 'auth' | 'control'`) and `severity` via Drizzle `unionAll`.
 
-### 3.2 Health Check Semantics & Timeouts
-- **Finding:** Health probe endpoints lacked bounded timeouts and reported artificial queue health without actual queue infrastructure.
+### 3.2 Real AUTH-001 Audit Status Vocabulary & Severity Mapping
+- **Finding:** AUTH-001 audit events store status in uppercase (`'SUCCESS'`, `'FAILURE'`), while rate-limit triggers write `eventType: 'LOGIN_COOLDOWN_TRIGGERED'`. Previous filters checked lowercase `'blocked'`/`'failed'`, causing failed logins to miscategorize as `'info'`.
 - **Remediation:**
-  - Enforced strict timeouts: PostgreSQL probe <= 2000ms (`SELECT 1`), Redis probe <= 1500ms (`client.ping()`).
-  - Implemented explicit component statuses: `healthy`, `degraded`, `unavailable`, and `not_configured`.
-  - If Redis is configured but fails, overall health degrades honestly to `degraded`.
-  - Background queues honestly report `status: 'not_configured'` rather than pretending to monitor unconfigured queues.
+  - Normalized status evaluation case-insensitively with `UPPER(status)`.
+  - Severity mapping:
+    - **`critical`**: `eventType = 'LOGIN_COOLDOWN_TRIGGERED'` OR `UPPER(status) = 'BLOCKED'`.
+    - **`warning`**: `UPPER(status) IN ('FAILURE', 'FAILED')` and `eventType != 'LOGIN_COOLDOWN_TRIGGERED'`.
+    - **`info`**: `UPPER(status) IN ('SUCCESS', 'OK')`.
+  - Interaction with `source=all`: Control plane events do not have an authentication status. When a `status` query parameter is supplied, control logs yield 0 rows while auth logs filter normally. When `status` is omitted, control logs return with `status: null`.
 
-### 3.3 Database Permissions & Least Privilege
-- **Finding:** `parental_admin` role was granted SELECT on `users` and `child_devices`, but needed explicit revocation of mutating permissions to guarantee tamper-proof security.
+### 3.3 Health Check Semantics & Genuinely Bounded Timeouts
+- **Finding:** Health probe endpoints previously used `Promise.race` without cancelling lingering database statements or Redis socket operations. In addition, when Redis is configured in CI or env but unavailable, the overall health correctly degrades, but test fixtures incorrectly expected `healthy`.
+- **Remediation:**
+  - **Bounded PostgreSQL Probe**: Explicitly executes `SET statement_timeout = 2000` on the connection. If acquisition or execution exceeds timeout, the client connection is destroyed with `client.release(true)`, guaranteeing that no abandoned query or orphaned TCP socket remains active on the database server.
+  - **Bounded Redis Probe**: Timeout bounded to <= 1500ms. If Redis is unconfigured, reports `not_configured`. If configured but unreachable, reports `unavailable` and degrades overall status to `degraded`.
+  - **Deterministic Dependency Injection**: Health probes support dependency injection in `HealthProbeService` to test all 5 distinct operational scenarios deterministically:
+    1. PostgreSQL healthy + Redis healthy -> overall `healthy`.
+    2. PostgreSQL healthy + Redis configured but unavailable -> overall `degraded`, DB `healthy`, Redis `unavailable`.
+    3. PostgreSQL unavailable -> overall `unavailable` (HTTP 503).
+    4. Redis not configured -> overall `healthy`, DB `healthy`, Redis `not_configured`.
+    5. Redis probe timeout -> overall `degraded`, DB `healthy`, Redis `unavailable`.
+  - Background queues honestly report `status: 'not_configured'`.
+
+### 3.4 Database Permissions & Least Privilege
+- **Finding:** `parental_admin` role was granted SELECT on `users` and `child_devices`, but needed explicit revocation of mutating permissions to guarantee tamper-proof security without breaking existing AUTH-001 workflows.
 - **Remediation:**
   - Added explicit `REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "users", "child_devices", "admin_control_audit_logs", "admin_auth_audit_logs" FROM parental_admin;` in `0003_admin_control_audit_severity.sql`.
   - Verified with real PostgreSQL tests asserting SQLSTATE 42501 (insufficient privilege) on all mutation attempts.
+  - Preserved existing AUTH-001 grants: `parental_admin` retains `SELECT, INSERT` on audit tables and full operational grants on session tables (`admin_sessions`, `admin_mfa`, etc.).
 
-### 3.4 Bounded Parent Detail Pagination
+### 3.5 Bounded Parent Detail Pagination
 - **Finding:** `GET /parents/:id` loaded all child devices unboundedly in memory, risking OOM or latency degradation for large accounts.
 - **Remediation:**
   - Bounded `GET /parents/:id` child device queries with `devicePage` and `devicePageSize` (clamped to max 50).
   - Provided dedicated `GET /parents/:id/devices` endpoint for full paginated device exploration.
 
-### 3.5 Frontend UX Realism
+### 3.6 Frontend UX Realism
 - **Finding:** Audit tab lacked source/severity filters, health cards displayed unconfigured queue statuses as active, and action buttons lacked clear disabled rationale.
 - **Remediation:**
   - Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filter selectors to the Audit log table.

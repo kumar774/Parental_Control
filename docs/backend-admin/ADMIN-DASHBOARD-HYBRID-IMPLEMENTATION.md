@@ -3,7 +3,7 @@
 **Repository:** `kumar774/Parental_Control`  
 **Branch:** `feat/admin-dashboard-hybrid-control-plane-v2`  
 **Base Branch:** `main` (`afb4e4fdd3fe8cebb428b9d78eb9a78116d380d5`)  
-**Status:** Completed, Remediated & Validated (PR #5)
+**Status:** Remediated & Stabilized (PR #5)
 
 ---
 
@@ -11,14 +11,14 @@
 
 This milestone delivers the **Hybrid Super Admin Dashboard** control plane for Parental Control, integrating real operational visibility across parent accounts, child device inventories, security audit trails, and system health telemetry. Built atop the hardened AUTH-001 session architecture, it provides an end-to-end administration panel (Fastify backend + React 19 / Vite frontend) adhering to strict zero-trust security and least-privilege standards.
 
-Following the initial PR #5 review, seven core architectural findings were remediated:
-1. Unified audit log querying distinguishing between `auth` and `control` plane events, adding `severity` tagging (`info`, `warning`, `critical`), and logging read inspections (`view_parent_details`, `view_device_details`).
-2. Robust, bounded health check semantics (PostgreSQL probe <= 2000ms, Redis probe <= 1500ms, honest component statuses, and queue handling).
-3. Schema and permission corrections via forward-only migration `0003_admin_control_audit_severity.sql` with explicit least-privilege `REVOKE` statements.
-4. Bounded pagination on parent device queries (`GET /parents/:id` max 50 devices per page, dedicated `GET /parents/:id/devices`).
-5. Frontend UX enhancements including multi-faceted audit filtering (source + severity), realistic health telemetry, and explanatory disabled states for destructive actions.
-6. Expanded integration and role permission tests covering all new constraints and permissions.
-7. Complete documentation and audit trail synchronization.
+Following the PR #5 code review and CI stabilization, core architectural findings were remediated:
+1. **Unified Audit Log Querying & Status Normalization**: Combines `admin_auth_audit_logs` and `admin_control_audit_logs` via Drizzle ORM `unionAll`. Accurately normalizes actual AUTH-001 stored status vocabulary (`SUCCESS`, `FAILURE`, `LOGIN_COOLDOWN_TRIGGERED`) so security failures never appear as `info`.
+2. **Fail-Closed Audit Persistence Policy**: Administrative detail views (`GET /parents/:id`, `GET /devices/:id`) enforce mandatory audit recording. If `admin_control_audit_logs` insert fails, the request fails safely with HTTP 500 (`Failed to record mandatory audit log`) without leaking parent/device details or internal SQL errors. Metadata is minimized to eliminate redundant personal data (`parentEmail`, `childName`, `deviceModel`).
+3. **Genuinely Bounded Health Probes**: PostgreSQL probe enforces statement timeout (`SET statement_timeout = 2000`) and connection destruction (`client.release(true)`) on timeout to prevent abandoned queries or connections from lingering. Redis probe is bounded to <= 1500ms with honest degradation when configured but unavailable.
+4. **Deterministic Health Test Scenarios**: Implemented dependency injection in `HealthProbeService` to deterministically verify all 5 distinct component combinations without external network dependencies.
+5. **Database Schema & Permission Hardening**: Forward-only migration `0003_admin_control_audit_severity.sql` adds column `severity`, check constraint `admin_control_audit_severity_check`, index `idx_admin_control_audit_severity_created`, and explicit `REVOKE UPDATE, DELETE, TRUNCATE` on protected tables from `parental_admin`.
+6. **Bounded Parent Pagination**: `GET /parents/:id` bounds child device querying with `devicePage` and `devicePageSize` (clamped to max 50), accompanied by a dedicated `GET /parents/:id/devices` sub-resource.
+7. **Frontend UX Corrections**: Added Source (`All`, `Auth`, `Control Plane`) and Severity (`All`, `Info`, `Warning`, `Critical`) filters to the audit log table, realistic health badges with `Not Configured` queue status, and explanatory disabled states for destructive operations.
 
 ---
 
@@ -32,9 +32,9 @@ The hybrid dashboard consists of five core functional modules:
 - **Endpoint:** `GET /api/v1/admin/dashboard/overview`
 
 ### Module B: Parent Account Management
-- **Directory & Search:** Paginated listing of parent accounts with server-side text query search across email and name, plus verification status filtering (`verified`, `pending`).
+- **Directory & Search:** Paginated listing of parent accounts with server-side text query search across email and name, plus verification status filtering (`active`, `suspended`).
 - **Privacy Enforcement:** Sensitive authentication fields (`password_hash`, `family_pin_hash`, `password_salt`) are explicitly stripped and never projected in responses or query results.
-- **Account Inspection & Bounded Pagination:** Detailed profile view with bounded child device pagination (`devicePage`, `devicePageSize` clamped to max 50). Detail inspection events are automatically recorded in `admin_control_audit_logs`.
+- **Account Inspection & Bounded Pagination:** Detailed profile view with bounded child device pagination (`devicePage`, `devicePageSize` clamped to max 50).
 - **Dedicated Device Sub-resource:** Dedicated `GET /api/v1/admin/dashboard/parents/:id/devices` endpoint for browsing large device inventories.
 - **Controlled Operations:** Write-action mutations (suspension, forced password reset) are safely disabled with explicit user advisories indicating child-safety protocol requirements and pending downstream parent-auth integration.
 - **Endpoints:**
@@ -43,9 +43,9 @@ The hybrid dashboard consists of five core functional modules:
   - `GET /api/v1/admin/dashboard/parents/:id/devices`
 
 ### Module C: Child & Device Inventory
-- **Inventory & Filtering:** Paginated device catalog filtered by platform (`android`, `ios`), companion app version, and active presence status (active if `last_heartbeat >= NOW() - 5m`).
+- **Inventory & Filtering:** Paginated device catalog filtered by connection status (`all`, `online`, `offline`), companion app version, and search query.
 - **Hardware Privacy:** Device fingerprints (`oaid_fingerprint`) and unique advertising/hardware identifiers are excluded from administrative payload models.
-- **Device Details:** Inspection of device metadata, battery level, storage status, agent version, and assigned parent identity. Detail inspection events are automatically recorded in `admin_control_audit_logs`.
+- **Device Details:** Inspection of device metadata, battery level, storage status, agent version, and assigned parent identity.
 - **Controlled Operations:** High-impact device commands (Remote Wipe, Emergency Lock) are strictly disabled in the control plane with explicit UI warnings noting the lack of an authenticated FCM/push delivery pipeline.
 - **Endpoints:**
   - `GET /api/v1/admin/dashboard/devices`
@@ -53,13 +53,17 @@ The hybrid dashboard consists of five core functional modules:
 
 ### Module D: Security & Audit Visibility
 - **Audit Ledger:** Chronological audit log combining authentication audit logs (`admin_auth_audit_logs`) and control plane logs (`admin_control_audit_logs`) via Drizzle ORM `unionAll`.
-- **Severity & Source Filter:** Filtering by `source` (`'all' | 'auth' | 'control'`), `severity` (`'info' | 'warning' | 'critical'`), action type, status, admin ID, and date ranges.
+- **Status & Severity Mapping:**
+  - `critical`: `LOGIN_COOLDOWN_TRIGGERED` or status `BLOCKED`.
+  - `warning`: status `FAILURE` or `FAILED`.
+  - `info`: status `SUCCESS` or `OK`.
+- **Filter Matrix:** Dynamic filtering by `source` (`'all' | 'auth' | 'control'`), `severity` (`'info' | 'warning' | 'critical'`), action type, status, actor (`adminId`), and date ranges.
 - **Endpoints:**
   - `GET /api/v1/admin/dashboard/audit-logs`
 
 ### Module E: System Health & Infrastructure
-- **Status Probes:** Real-time diagnostics with bounded timeouts (PostgreSQL <= 2000ms, Redis <= 1500ms).
-- **Semantics:** Distinct statuses (`healthy`, `degraded`, `unavailable`, `not_configured`). If Redis fails, overall status degrades to `degraded`. Unconfigured queues report `not_configured`.
+- **Status Probes:** Real-time diagnostics with bounded timeouts (PostgreSQL <= 2000ms with statement_timeout and connection cleanup, Redis <= 1500ms).
+- **Semantics:** Distinct statuses (`healthy`, `degraded`, `unavailable`, `not_configured`). If Redis fails when configured, overall status degrades to `degraded`. Unconfigured queues report `not_configured`.
 - **Endpoint:**
   - `GET /api/v1/admin/dashboard/health`
 
@@ -73,9 +77,10 @@ The hybrid dashboard consists of five core functional modules:
 - **`admin_control_audit_logs`:** Control plane audit table with FK to `admin_users`.
 - **Initial Grants:** `GRANT SELECT ON "users", "child_devices" TO parental_admin;`, `GRANT INSERT, SELECT ON "admin_control_audit_logs" TO parental_admin;`.
 
-### Migration 2: `backend/drizzle/0003_admin_control_audit_severity.sql` (PR #5 Remediation)
-- **Severity Column:** Adds `severity text NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical'))` to `admin_control_audit_logs`.
-- **Index:** Index `admin_control_audit_logs_severity_created_at_idx` ON `admin_control_audit_logs(severity, created_at)`.
+### Migration 2: `backend/drizzle/0003_admin_control_audit_severity.sql`
+- **Severity Column:** Adds `severity varchar(20) DEFAULT 'info' NOT NULL` to `admin_control_audit_logs`.
+- **Constraint:** Constraint `admin_control_audit_severity_check` checking `severity IN ('info', 'warning', 'critical')`.
+- **Index:** Index `idx_admin_control_audit_severity_created` on `admin_control_audit_logs(severity, created_at)`.
 - **Least-Privilege Hardening:** Explicitly revokes mutating permissions:
   ```sql
   REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "users", "child_devices", "admin_control_audit_logs", "admin_auth_audit_logs" FROM parental_admin;
@@ -83,16 +88,34 @@ The hybrid dashboard consists of five core functional modules:
 
 ---
 
-## 4. Verification & Test Evidence
+## 4. Privilege Matrix
+
+| Role | `users` / `child_devices` | `admin_control_audit_logs` | `admin_auth_audit_logs` | `admin_sessions` / `admin_mfa` |
+| :--- | :--- | :--- | :--- | :--- |
+| **`parental_admin`** | `SELECT` only (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT` (UPDATE/DELETE/TRUNCATE denied) | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| **`parental_audit_archive`** | None | None | `SELECT` only | None |
+| **`parental_audit_pruner`** | None | None | `SELECT`, `DELETE` (via Security Definer function) | None |
+| **`parental_migrator`** | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) | Table Owner (DDL) |
+
+---
+
+## 5. Verification & Test Evidence
 
 | Test Category | Command | Target / Scope | Result |
 | :--- | :--- | :--- | :--- |
-| **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript compilation | **PASSED** (0 errors) |
-| **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting) | **PASSED** (42 tests) |
-| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), severity check (SQLSTATE 23514) | **PASSED** (13 tests) |
-| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | Bounded pagination, inspection audits, source/severity filters, health timeouts | **PASSED** (12 tests) |
-| **Credential Hygiene** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
+| **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript strict compilation | **PASSED** (0 errors) |
+| **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting, Crypto) | **PASSED** (42 tests) |
+| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), severity check (SQLSTATE 23514) | **PASSED** (13 assertions) |
+| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 5 health scenarios, bounded postgres probes, fail-closed audit policy, metadata minimization, auth severity mapping | **PASSED** |
+| **Credential Hygiene Scanner** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
 | **Frontend Typecheck** | `npm run typecheck` | Admin_panel React 19 TypeScript compilation | **PASSED** (0 errors) |
-| **Frontend Production Build** | `npm run build` | Vite production bundle | **PASSED** (dist created) |
-| **Frontend Unit Tests** | `npm test` | Vitest / Testing Library components (Audit filters, Health, Parents) | **PASSED** (34 tests) |
+| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 25.9s) |
+| **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions) | **PASSED** (34 tests) |
 | **Playwright E2E Tests** | `npm run test:e2e` | Browser session management workflows | **PASSED** (9 tests) |
+
+---
+
+## 6. PR & Deployment Status
+
+- **Pull Request:** Open & active on GitHub: [PR #5](https://github.com/kumar774/Parental_Control/pull/5).
+- **Safety Boundary Compliance:** Production databases (`parental_control_db`, `parental_control_admin_db`) remain untouched. PR #5 has not been merged, and no production deployment was triggered.
