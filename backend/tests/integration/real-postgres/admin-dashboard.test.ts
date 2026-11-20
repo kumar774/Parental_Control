@@ -444,6 +444,16 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
   it('8b. Correctly maps AUTH-001 stored statuses (SUCCESS, FAILURE, LOGIN_COOLDOWN_TRIGGERED) to severity levels', async () => {
     // Insert distinct AUTH-001 events with actual production status strings
     const testAdminId = crypto.randomUUID();
+    await db.insert(adminUsers).values({
+      id: testAdminId,
+      email: `test-audit-${testAdminId.slice(0, 8)}@example.test`,
+      username: `testadmin_${testAdminId.slice(0, 8)}`,
+      passwordHash: 'dummy-hash',
+      role: 'super_admin',
+      status: 'active',
+      mfaEnabled: true,
+    });
+
     await db.insert(adminAuthAuditLogs).values([
       {
         adminId: testAdminId,
