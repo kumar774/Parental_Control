@@ -321,6 +321,26 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    // Account status check: if account is suspended, immediately reject with HTTP 403
+    const [user] = await db
+      .select({
+        id: parentUsers.id,
+        email: parentUsers.email,
+        phone: parentUsers.phone,
+        status: parentUsers.status,
+      })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, record.parentId))
+      .limit(1);
+
+    if (!user || user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
     // Token reuse detection: if a revoked token is presented, compromise is suspected
     if (record.isRevoked) {
       await db
@@ -350,26 +370,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         statusCode: 401,
         error: 'Unauthorized',
         message: 'Refresh token has expired',
-      });
-    }
-
-    // Account status check
-    const [user] = await db
-      .select({
-        id: parentUsers.id,
-        email: parentUsers.email,
-        phone: parentUsers.phone,
-        status: parentUsers.status,
-      })
-      .from(parentUsers)
-      .where(eq(parentUsers.id, record.parentId))
-      .limit(1);
-
-    if (!user || user.status === 'suspended') {
-      return reply.status(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Account suspended. Please contact support.',
       });
     }
 
