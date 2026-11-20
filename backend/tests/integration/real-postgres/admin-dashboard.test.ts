@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
-import { parentUsers, childDevices, adminControlAuditLogs } from '../../../src/db/schema/parental-control';
+import { parentUsers, childDevices, adminControlAuditLogs, parentRefreshTokens } from '../../../src/db/schema/parental-control';
 import { generateRandomToken, sha256, hashPassword } from '../../../src/utils/crypto-vault';
 import { setHealthProbeOverridesForTest, probePostgres, probeRedis } from '../../../src/services/health-probe.service';
 import { setControlAuditOverrideForTest } from '../../../src/routes/admin/dashboard.routes';
@@ -1105,16 +1105,22 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
     // Attempt registration using an atomic transaction that simulates token insertion failure
     let rollbackSucceeded = false;
+    let failedUserId: string | null = null;
     try {
       await db.transaction(async (tx) => {
-        await tx.insert(parentUsers).values({
-          email: atomicTestEmail,
-          passwordHash: 'dummyPassHash',
-          status: 'active',
-        });
+        const [newUser] = await tx
+          .insert(parentUsers)
+          .values({
+            email: atomicTestEmail,
+            passwordHash: 'dummyPassHash',
+            status: 'active',
+          })
+          .returning();
+        failedUserId = newUser.id;
+
         // Intentionally violate UNIQUE constraint on token_hash
         await tx.insert(parentRefreshTokens).values({
-          parentId: dummyParentId,
+          parentId: newUser.id,
           tokenHash: conflictingTokenHash,
           expiresAt: new Date(Date.now() + 86400000),
         });
@@ -1132,6 +1138,23 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       .where(eq(parentUsers.email, atomicTestEmail));
 
     assert.equal(danglingUser, undefined, 'Partially registered parent account must be completely rolled back');
+
+    // Verify refresh-token row for the failed user was rolled back and does NOT exist
+    if (failedUserId) {
+      const danglingUserTokens = await db
+        .select({ id: parentRefreshTokens.id })
+        .from(parentRefreshTokens)
+        .where(eq(parentRefreshTokens.parentId, failedUserId));
+      assert.equal(danglingUserTokens.length, 0, 'Refresh tokens for partially registered account must be rolled back');
+    }
+
+    // Verify only the pre-existing dummy token exists for conflictingTokenHash
+    const conflictingTokens = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.tokenHash, conflictingTokenHash));
+    assert.equal(conflictingTokens.length, 1, 'Only pre-existing token should exist');
+    assert.equal(conflictingTokens[0].parentId, dummyParentId);
   });
 
   it('16. Real Parent_app E2E Flow: proves pre-issued token is immediately rejected on protected routes after suspension', async () => {
@@ -1214,16 +1237,60 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(devicesData.devices[0].model, 'Pixel 8');
     assert.equal(devicesData.devices[0].kioskMode, false);
 
-    // 16c-page. Server-side bounded pagination on /api/v1/devices (clamped to max 50)
-    const resPaged = await readyApp!.inject({
+    // 16c-page. Server-side bounded pagination on /api/v1/devices (clamped to max 50, defaults tested)
+    // pageSize: 1
+    const resPageSize1 = await readyApp!.inject({
       method: 'GET',
-      url: '/api/v1/devices?page=1&pageSize=100', // exceeds max 50 -> clamped to 50
-      headers: {
-        authorization: `Bearer ${preIssuedToken}`,
-      },
+      url: '/api/v1/devices?page=1&pageSize=1',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
     });
-    assert.equal(resPaged.statusCode, 200);
-    assert.equal(resPaged.json().pageSize, 50, 'Page size must be clamped to max 50');
+    assert.equal(resPageSize1.statusCode, 200);
+    assert.equal(resPageSize1.json().pageSize, 1);
+
+    // pageSize: 20
+    const resPageSize20 = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=20',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
+    });
+    assert.equal(resPageSize20.statusCode, 200);
+    assert.equal(resPageSize20.json().pageSize, 20);
+
+    // pageSize: 50
+    const resPageSize50 = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=50',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
+    });
+    assert.equal(resPageSize50.statusCode, 200);
+    assert.equal(resPageSize50.json().pageSize, 50);
+
+    // pageSize: 100 -> clamped to 50
+    const resPaged100 = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=100',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
+    });
+    assert.equal(resPaged100.statusCode, 200);
+    assert.equal(resPaged100.json().pageSize, 50, 'Page size must be clamped to max 50');
+
+    // pageSize: invalid value ("invalid") -> defaults to 20
+    const resPagedInvalid = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=invalid',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
+    });
+    assert.equal(resPagedInvalid.statusCode, 200);
+    assert.equal(resPagedInvalid.json().pageSize, 20, 'Invalid page size must default to 20');
+
+    // pageSize: negative value (-10) -> defaults to 20
+    const resPagedNegative = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/devices?page=1&pageSize=-10',
+      headers: { authorization: `Bearer ${preIssuedToken}` },
+    });
+    assert.equal(resPagedNegative.statusCode, 200);
+    assert.equal(resPagedNegative.json().pageSize, 20, 'Negative page size must default to 20');
 
     // 16c2. Parent accesses single device detail /api/v1/devices/:id
     const resSingleDevice = await readyApp!.inject({

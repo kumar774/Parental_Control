@@ -6,8 +6,20 @@ import { childDevices } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  page: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return 1;
+    const num = Number(val);
+    if (!Number.isFinite(num) || num < 1) return 1;
+    return Math.floor(num);
+  }, z.number().int().min(1).default(1)),
+  pageSize: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return 20;
+    const num = Number(val);
+    if (!Number.isFinite(num) || num < 1) return 20;
+    const intVal = Math.floor(num);
+    if (intVal > 50) return 50;
+    return intVal;
+  }, z.number().int().min(1).max(50).default(20)),
 });
 
 export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
@@ -19,13 +31,13 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
    * Retrieves paginated list of child devices belonging to the authenticated parent.
    * Matches Parent_app's FastifyRestClient.kt line 351: executeGet("/api/v1/devices", accessToken).
    * Real-time zero-trust status check: rejects suspended parent with HTTP 403.
-   * Server-side bounded pagination with maximum page size 50.
+   * Server-side bounded pagination with maximum page size 50 (clamped).
    */
   app.get('/', async (request, reply) => {
     const parent = request.parentUser!;
-    const parsedQuery = deviceQuerySchema.safeParse(request.query);
-    const page = parsedQuery.success ? parsedQuery.data.page : 1;
-    const pageSize = parsedQuery.success ? parsedQuery.data.pageSize : 20;
+    const parsedQuery = deviceQuerySchema.parse(request.query || {});
+    const page = parsedQuery.page;
+    const pageSize = parsedQuery.pageSize;
 
     const [totalRes] = await db
       .select({ total: count() })

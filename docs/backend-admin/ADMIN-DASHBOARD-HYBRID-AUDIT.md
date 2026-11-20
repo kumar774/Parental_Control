@@ -121,7 +121,7 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
   - Added `PATCH /api/v1/admin/dashboard/parents/:id/status`:
     - Strictly enforced `super_admin` role.
     - Mandatory CSRF protection (`constantTimeCompare(sha256(header), session.csrfTokenHash)`).
-    - Validates reason (min 5, max 500 characters).
+    - Validates reason (min 10, max 500 characters).
     - Executes atomic transaction: updates parent status and records mandatory control audit log (`parent_account_suspended` / `parent_account_reactivated`).
     - Enforces **Fail-Closed Audit Policy**: if audit recording fails, transaction aborts completely and status change is rolled back.
   - Implemented `parent-auth.guard.ts` and canonical parent auth routes (`/api/v1/auth/login`, `/api/v1/auth/me`):
