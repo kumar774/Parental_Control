@@ -967,6 +967,9 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resWeak.statusCode, 400);
     assert.ok(resWeak.json().message.includes('easily guessable'));
 
+    // Reset rate limits before rate limit test so preceding policy tests do not pollute sliding window
+    resetParentRateLimitsForTest();
+
     // 15f. Registration rate limiting: allows 5 registrations, 6th returns HTTP 429
     for (let i = 0; i < 5; i++) {
       const regRes = await readyApp!.inject({
