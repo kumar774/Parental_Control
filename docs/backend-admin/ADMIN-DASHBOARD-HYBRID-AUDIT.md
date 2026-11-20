@@ -171,7 +171,7 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
     - `GET /api/v1/devices/:deviceId`: Validates parent ownership; returns 404 if not found, and HTTP 403 Forbidden if the device belongs to another parent.
     - `POST /api/v1/devices/:deviceId/commands`: Returns HTTP 501 Not Implemented with `BLOCKED_PENDING_ANDROID_TRANSPORT` advisory.
   - Implemented stateful `parent_refresh_tokens` store (migration `0004_parental_admin_user_status_update.sql`) storing SHA-256 hashed 256-bit random tokens with 30-day expiry.
-  - Added `POST /api/v1/auth/refresh` implementing rotation, reuse detection (compromise defense revoking all family tokens), and rejection of suspended accounts.
+  - Added `POST /api/v1/auth/refresh` implementing atomic transaction rotation with `.for('update')` row locking, reuse detection (compromise defense revoking all active sessions for the parent user), and rejection of suspended accounts.
   - Added `POST /api/v1/auth/logout` revoking the caller's refresh token.
   - In `admin/dashboard.routes.ts`, parent suspension atomically revokes all active refresh tokens for that parent.
 

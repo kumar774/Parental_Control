@@ -121,13 +121,13 @@ The hybrid dashboard consists of five core functional modules:
 | :--- | :--- | :--- | :--- |
 | **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript strict compilation | **PASSED** (0 errors) |
 | **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting, Crypto) | **PASSED** (42 tests) |
-| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 14 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), column-scoped grants, severity check (SQLSTATE 23514), and `parent_refresh_tokens` grants/revocations | **PASSED** (14 assertions) |
-| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 25 tests covering 5 health scenarios, bounded probes with connection leak prevention, delayed connect/SET/SELECT/ping tests, disposable Redis probe preventing shared client disconnection (Test 9g), PostgreSQL repeated timeout connection cleanup (Test 9h), fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent registration password policy & rate limiting (Test 15), Parent_app exact contract matching `/api/v1/devices` and ownership isolation with 403 (Test 16), overview metrics (Test 17), and full Parent refresh-token lifecycle with rotation, compromise revocation, and logout (Test 18) | **PASSED** (25 tests) |
-| **Credential Hygiene Scanner** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
+| **Real Postgres RBAC & Integrity** | `npm run test:real-pg` | 14 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), column-scoped grants, severity check (SQLSTATE 23514), and `parent_refresh_tokens` grants/revocations | **PASSED** (14 assertions) |
+| **Real Postgres Dashboard Suite** | `npm run test:real-pg` | 19 test suites covering 5 health scenarios, bounded probes with connection leak prevention, delayed connect/SET/SELECT/ping tests, disposable Redis probe preventing shared client disconnection (Test 9g), PostgreSQL repeated timeout connection cleanup (Test 9h), fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent registration password policy & rate limiting (Test 15), Parent_app exact contract matching `/api/v1/devices` and ownership isolation with 403 (Test 16), overview metrics (Test 17), full Parent refresh-token lifecycle with atomic rotation, compromise revocation of all parent sessions, concurrent race test (Test 18), and bounded liveness probe (Test 19) | **PASSED** (19 test suites) |
+| **Credential Hygiene Scanner** | `node backend/scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
 | **Frontend Typecheck** | `npm run typecheck` | Admin_panel React 19 TypeScript compilation | **PASSED** (0 errors) |
-| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 17.0s) |
-| **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions, Status update) | **PASSED** (35 tests) |
-| **Playwright E2E Tests** | `npm run test:e2e` | Browser session management workflows | **PASSED** (9 tests) |
+| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 26.19s) |
+| **Frontend Unit Tests** | `npm test` | Node test runner UI component tests (Audit filters, Health, Parents, Sessions, Status update) | **PASSED** (35 tests) |
+| **Playwright E2E Tests** | `npm run test:e2e` | Browser E2E suite covering 9 session management scenarios and 8 full dashboard smoke scenarios | **PASSED** (17 tests) |
 
 ---
 

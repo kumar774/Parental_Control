@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import cookie from '@fastify/cookie';
 import { env } from './config/env';
-import { pool } from './db/index';
+import { probePostgres } from './services/health-probe.service';
 import { adminAuthRoutes } from './routes/admin/auth.routes';
 import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
 import { parentAuthRoutes } from './routes/parent/auth.routes';
@@ -57,27 +57,12 @@ export async function buildApp() {
   // Parent Mobile Device Routes (matches Parent_app client contract: /api/v1/devices)
   await app.register(parentDeviceRoutes, { prefix: '/api/v1/devices' });
 
-  // Base Health Check Probe (Bounded Liveness)
+  // Base Health Check Probe (Bounded Liveness with Zero-Leak Socket Cleanup)
   app.get('/health', async (_request, reply) => {
-    let dbStatus = false;
-    let dbLatencyMs = 0;
-    let timeoutTimer: NodeJS.Timeout | null = null;
-    try {
-      const start = Date.now();
-      const queryPromise = pool.query('SELECT 1 as alive');
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutTimer = setTimeout(() => reject(new Error('Liveness query timed out')), 2000);
-      });
-      const res: any = await Promise.race([queryPromise, timeoutPromise]);
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      dbLatencyMs = Date.now() - start;
-      dbStatus = Boolean(res?.rows?.length > 0);
-    } catch {
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      dbStatus = false;
-    }
+    const pgProbe = await probePostgres(2000);
+    const dbConnected = pgProbe.status === 'healthy' || pgProbe.status === 'degraded';
 
-    const isHealthy = dbStatus;
+    const isHealthy = dbConnected;
     const responsePayload = {
       status: isHealthy ? 'healthy' : 'unavailable',
       probeType: 'liveness',
@@ -86,8 +71,8 @@ export async function buildApp() {
       version: '1.0.0-PROD',
       components: {
         database: {
-          status: dbStatus ? 'connected' : 'disconnected',
-          latencyMs: dbLatencyMs,
+          status: dbConnected ? 'connected' : 'disconnected',
+          latencyMs: pgProbe.latencyMs,
         },
       },
     };
