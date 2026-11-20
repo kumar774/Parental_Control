@@ -307,43 +307,78 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     const tokenHash = hashRefreshToken(parsed.data.refreshToken);
 
-    const [record] = await db
-      .select()
-      .from(parentRefreshTokens)
-      .where(eq(parentRefreshTokens.tokenHash, tokenHash))
-      .limit(1);
+    // Atomic token rotation inside a single database transaction with row locking
+    return await db.transaction(async (tx) => {
+      // 1. Lock the token row to eliminate concurrent race conditions
+      const [record] = await tx
+        .select()
+        .from(parentRefreshTokens)
+        .where(eq(parentRefreshTokens.tokenHash, tokenHash))
+        .for('update')
+        .limit(1);
 
-    if (!record) {
-      return reply.status(401).send({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'Invalid refresh token',
-      });
-    }
+      if (!record) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Invalid refresh token',
+        });
+      }
 
-    // Account status check: if account is suspended, immediately reject with HTTP 403
-    const [user] = await db
-      .select({
-        id: parentUsers.id,
-        email: parentUsers.email,
-        phone: parentUsers.phone,
-        status: parentUsers.status,
-      })
-      .from(parentUsers)
-      .where(eq(parentUsers.id, record.parentId))
-      .limit(1);
+      // 2. Account status check: if account is suspended, immediately reject with HTTP 403
+      const [user] = await tx
+        .select({
+          id: parentUsers.id,
+          email: parentUsers.email,
+          phone: parentUsers.phone,
+          status: parentUsers.status,
+        })
+        .from(parentUsers)
+        .where(eq(parentUsers.id, record.parentId))
+        .limit(1);
 
-    if (!user || user.status === 'suspended') {
-      return reply.status(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Account suspended. Please contact support.',
-      });
-    }
+      if (!user || user.status === 'suspended') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Account suspended. Please contact support.',
+        });
+      }
 
-    // Token reuse detection: if a revoked token is presented, compromise is suspected
-    if (record.isRevoked) {
-      await db
+      // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
+      if (record.isRevoked) {
+        await tx
+          .update(parentRefreshTokens)
+          .set({
+            isRevoked: true,
+            revokedAt: sql`NOW()`,
+            updatedAt: sql`NOW()`,
+          })
+          .where(
+            and(
+              eq(parentRefreshTokens.parentId, record.parentId),
+              eq(parentRefreshTokens.isRevoked, false)
+            )
+          );
+
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Token reuse detected. All sessions have been revoked for security.',
+        });
+      }
+
+      // 4. Expiry check
+      if (new Date(record.expiresAt).getTime() < Date.now()) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Refresh token has expired',
+        });
+      }
+
+      // 5. Atomic conditional update: revoke current token
+      const [revokedRecord] = await tx
         .update(parentRefreshTokens)
         .set({
           isRevoked: true,
@@ -352,59 +387,43 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         })
         .where(
           and(
-            eq(parentRefreshTokens.parentId, record.parentId),
+            eq(parentRefreshTokens.id, record.id),
             eq(parentRefreshTokens.isRevoked, false)
           )
-        );
+        )
+        .returning();
 
-      return reply.status(401).send({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'Token reuse detected. All sessions have been revoked for security.',
+      if (!revokedRecord) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Token reuse detected. All sessions have been revoked for security.',
+        });
+      }
+
+      // 6. Generate new token pair and persist new token within transaction
+      const newAccessToken = jwt.sign(
+        { userId: user.id, email: user.email, role: 'parent' },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '15m' }
+      );
+      const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
+      const newTokenHash = hashRefreshToken(newRawRefreshToken);
+
+      await tx.insert(parentRefreshTokens).values({
+        parentId: user.id,
+        tokenHash: newTokenHash,
+        familyCardNo: record.familyCardNo,
+        deviceInfo: (request.headers['user-agent'] as string) || record.deviceInfo,
+        ipAddress: request.ip,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       });
-    }
 
-    // Expiry check
-    if (new Date(record.expiresAt).getTime() < Date.now()) {
-      return reply.status(401).send({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'Refresh token has expired',
+      return reply.send({
+        accessToken: newAccessToken,
+        refreshToken: newRawRefreshToken,
+        expiresIn: 900,
       });
-    }
-
-    // Token Rotation: revoke current token
-    await db
-      .update(parentRefreshTokens)
-      .set({
-        isRevoked: true,
-        revokedAt: sql`NOW()`,
-        updatedAt: sql`NOW()`,
-      })
-      .where(eq(parentRefreshTokens.id, record.id));
-
-    // Generate new token pair
-    const newAccessToken = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent' },
-      env.JWT_ACCESS_SECRET,
-      { expiresIn: '15m' }
-    );
-    const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
-    const newTokenHash = hashRefreshToken(newRawRefreshToken);
-
-    await db.insert(parentRefreshTokens).values({
-      parentId: user.id,
-      tokenHash: newTokenHash,
-      familyCardNo: record.familyCardNo,
-      deviceInfo: (request.headers['user-agent'] as string) || record.deviceInfo,
-      ipAddress: request.ip,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    });
-
-    return reply.send({
-      accessToken: newAccessToken,
-      refreshToken: newRawRefreshToken,
-      expiresIn: 900,
     });
   });
 

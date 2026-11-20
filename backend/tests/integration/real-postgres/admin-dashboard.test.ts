@@ -1311,6 +1311,8 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(typeof body.devices.recentlyActive24h === 'number');
     assert.ok(body.system.databaseStatus);
     assert.ok(body.system.redisStatus);
+    assert.ok(typeof body.system.databaseLatencyMs === 'number');
+    assert.ok(['healthy', 'degraded', 'unavailable'].includes(body.system.status));
   });
 
   it('18. Real Parent Refresh-Token Lifecycle: rotation, reuse detection, revocation, and logout', async () => {
@@ -1424,5 +1426,57 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       },
     });
     assert.equal(resRefreshLoggedOut.statusCode, 401);
+
+    // 18h. Atomic Token Rotation: Two concurrent refresh requests using the exact same active refresh token
+    const resLoginConcurrent = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: testPassword,
+      },
+    });
+    assert.equal(resLoginConcurrent.statusCode, 200);
+    const { refreshToken: raceRefreshToken } = resLoginConcurrent.json();
+
+    // Fire 2 concurrent refresh requests simultaneously
+    const [resConcurrentA, resConcurrentB] = await Promise.all([
+      readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        payload: { refreshToken: raceRefreshToken },
+      }),
+      readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/refresh',
+        payload: { refreshToken: raceRefreshToken },
+      }),
+    ]);
+
+    const statusCodes = [resConcurrentA.statusCode, resConcurrentB.statusCode].sort();
+    assert.deepEqual(
+      statusCodes,
+      [200, 401],
+      'Exactly one concurrent refresh request must succeed (200), and the competing request must fail (401)'
+    );
+
+    const successfulRes = resConcurrentA.statusCode === 200 ? resConcurrentA : resConcurrentB;
+    const failedRes = resConcurrentA.statusCode === 401 ? resConcurrentA : resConcurrentB;
+    assert.ok(successfulRes.json().accessToken);
+    assert.ok(successfulRes.json().refreshToken);
+    assert.ok(failedRes.json().message.includes('Token reuse detected'));
+  });
+
+  it('19. Verifies public /health bounded liveness probe', async () => {
+    const res = await readyApp!.inject({
+      method: 'GET',
+      url: '/health',
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json();
+    assert.equal(body.status, 'healthy');
+    assert.equal(body.probeType, 'liveness');
+    assert.equal(body.components.database.status, 'connected');
+    assert.ok(typeof body.components.database.latencyMs === 'number');
   });
 });

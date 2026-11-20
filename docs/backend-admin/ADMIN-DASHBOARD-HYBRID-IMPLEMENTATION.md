@@ -87,7 +87,7 @@ The hybrid dashboard consists of five core functional modules:
   ```
 
 ### Migration 3: `backend/drizzle/0004_parental_admin_user_status_update.sql`
-- **Updated At Column:** Adds `updated_at timestamp with time zone DEFAULT now() NOT NULL` to table `users`.
+- **Updated At Column:** Adds `updated_at timestamp with time zone DEFAULT now()` to table `users`.
 - **Scoped Column Grant:** Explicitly grants column-level update permission on `status` and `updated_at`:
   ```sql
   GRANT UPDATE (status, updated_at) ON TABLE "users" TO parental_admin;

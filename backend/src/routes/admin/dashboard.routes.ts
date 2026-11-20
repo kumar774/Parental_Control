@@ -5,7 +5,6 @@ import { db } from '../../db/index';
 import { parentUsers, childDevices, adminControlAuditLogs, parentRefreshTokens } from '../../db/schema/parental-control';
 import { adminAuthAuditLogs, adminSessions } from '../../db/schema/admin-auth';
 import { requireAdminSession } from '../../middleware/admin-session.guard';
-import { env } from '../../config/env';
 import { getSystemHealth } from '../../services/health-probe.service';
 import { sha256, constantTimeCompare } from '../../utils/crypto-vault';
 
@@ -265,7 +264,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       };
     });
 
-    const mem = process.memoryUsage();
+    const systemHealth = await getSystemHealth();
 
     return reply.send({
       generatedAt: now.toISOString(),
@@ -290,13 +289,15 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         activeSessions: activeSessionsCount?.val ?? 0,
       },
       system: {
-        status: 'healthy',
-        databaseStatus: 'healthy',
-        redisStatus: env.REDIS_URL ? 'configured' : 'not_configured',
-        uptimeSeconds: Math.floor(process.uptime()),
-        memoryUsageMb: Math.round(mem.rss / 1024 / 1024),
-        nodeVersion: process.version,
-        environment: env.NODE_ENV,
+        status: systemHealth.status,
+        databaseStatus: systemHealth.database.status,
+        redisStatus: systemHealth.redis.status,
+        databaseLatencyMs: systemHealth.database.latencyMs,
+        redisLatencyMs: systemHealth.redis.latencyMs,
+        uptimeSeconds: systemHealth.uptimeSeconds,
+        memoryUsageMb: systemHealth.memory.rssMb,
+        nodeVersion: systemHealth.nodeVersion,
+        environment: systemHealth.environment,
       },
       recentEvents: formattedEvents,
       criticalEvents24h: (criticalAuthEvents24h?.val ?? 0) + (criticalControlEvents24h?.val ?? 0),

@@ -116,7 +116,7 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
 - **Finding:** Previously, parent accounts had no administrative lifecycle controls, and there was no parent auth middleware enforcing suspension.
 - **Remediation:**
   - Added forward-only migration `0004_parental_admin_user_status_update.sql`:
-    - Adds `updated_at timestamp with time zone DEFAULT now() NOT NULL` to table `users`.
+    - Adds `updated_at timestamp with time zone DEFAULT now()` to table `users`.
     - Explicitly grants `GRANT UPDATE (status, updated_at) ON TABLE "users" TO parental_admin;`.
   - Added `PATCH /api/v1/admin/dashboard/parents/:id/status`:
     - Strictly enforced `super_admin` role.

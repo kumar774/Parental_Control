@@ -57,22 +57,30 @@ export async function buildApp() {
   // Parent Mobile Device Routes (matches Parent_app client contract: /api/v1/devices)
   await app.register(parentDeviceRoutes, { prefix: '/api/v1/devices' });
 
-  // Base Health Check Probe
+  // Base Health Check Probe (Bounded Liveness)
   app.get('/health', async (_request, reply) => {
     let dbStatus = false;
     let dbLatencyMs = 0;
+    let timeoutTimer: NodeJS.Timeout | null = null;
     try {
       const start = Date.now();
-      const res = await pool.query('SELECT 1 as alive');
+      const queryPromise = pool.query('SELECT 1 as alive');
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutTimer = setTimeout(() => reject(new Error('Liveness query timed out')), 2000);
+      });
+      const res: any = await Promise.race([queryPromise, timeoutPromise]);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       dbLatencyMs = Date.now() - start;
-      dbStatus = res.rows.length > 0;
+      dbStatus = Boolean(res?.rows?.length > 0);
     } catch {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       dbStatus = false;
     }
 
     const isHealthy = dbStatus;
     const responsePayload = {
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: isHealthy ? 'healthy' : 'unavailable',
+      probeType: 'liveness',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
       version: '1.0.0-PROD',
