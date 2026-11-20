@@ -7,8 +7,9 @@ import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
 import { parentUsers, childDevices, adminControlAuditLogs } from '../../../src/db/schema/parental-control';
 import { generateRandomToken, sha256, hashPassword } from '../../../src/utils/crypto-vault';
-import { setHealthProbeOverridesForTest, probePostgres } from '../../../src/services/health-probe.service';
+import { setHealthProbeOverridesForTest, probePostgres, probeRedis } from '../../../src/services/health-probe.service';
 import { setControlAuditOverrideForTest } from '../../../src/routes/admin/dashboard.routes';
+import { resetParentRateLimitsForTest } from '../../../src/middleware/parent-rate-limiter';
 
 describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () => {
   const adminId = crypto.randomUUID();
@@ -638,6 +639,91 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(result.latencyMs >= 0);
   });
 
+  it('9c. Health Probes: verifies delayed connection acquisition destroys client and prevents pool leak', async () => {
+    const releasedModes: boolean[] = [];
+    const mockClient = {
+      query: async () => ({ rows: [{ alive: 1 }] }),
+      release: (destroy?: boolean) => {
+        releasedModes.push(Boolean(destroy));
+      },
+    };
+    const mockPoolDelayedConnect = {
+      connect: async () => {
+        await new Promise((r) => setTimeout(r, 120)); // Exceeds 50ms timeout
+        return mockClient as any;
+      },
+    };
+
+    const res = await probePostgres(50, mockPoolDelayedConnect as any);
+    assert.equal(res.status, 'unavailable');
+
+    // Wait for the delayed connect promise to resolve
+    await new Promise((r) => setTimeout(r, 100));
+    // Verify client was released with destroy=true (socket destroyed, not leaked)
+    assert.ok(releasedModes.includes(true), 'Client must be destroyed on late connection resolution');
+  });
+
+  it('9d. Health Probes: verifies delayed SET statement_timeout triggers client socket destruction', async () => {
+    const releasedModes: boolean[] = [];
+    const mockClient = {
+      query: async (sql: string) => {
+        if (sql.includes('SET statement_timeout')) {
+          await new Promise((r) => setTimeout(r, 120)); // Exceeds 50ms timeout
+        }
+        return { rows: [{ alive: 1 }] };
+      },
+      release: (destroy?: boolean) => {
+        releasedModes.push(Boolean(destroy));
+      },
+    };
+    const mockPoolDelayedSet = {
+      connect: async () => mockClient as any,
+    };
+
+    const res = await probePostgres(50, mockPoolDelayedSet as any);
+    assert.equal(res.status, 'unavailable');
+    assert.ok(releasedModes.includes(true), 'Client socket must be destroyed when SET statement_timeout times out');
+  });
+
+  it('9e. Health Probes: verifies delayed SELECT query triggers client socket destruction', async () => {
+    const releasedModes: boolean[] = [];
+    const mockClient = {
+      query: async (sql: string) => {
+        if (sql.includes('SELECT 1')) {
+          await new Promise((r) => setTimeout(r, 120)); // Exceeds 50ms timeout
+        }
+        return { rows: [{ alive: 1 }] };
+      },
+      release: (destroy?: boolean) => {
+        releasedModes.push(Boolean(destroy));
+      },
+    };
+    const mockPoolDelayedSelect = {
+      connect: async () => mockClient as any,
+    };
+
+    const res = await probePostgres(50, mockPoolDelayedSelect as any);
+    assert.equal(res.status, 'unavailable');
+    assert.ok(releasedModes.includes(true), 'Client socket must be destroyed when SELECT query times out');
+  });
+
+  it('9f. Health Probes: verifies delayed Redis ping forcibly disconnects client and clears commands', async () => {
+    let disconnectCalled = false;
+    const mockRedisDelayedPing = {
+      ping: async () => {
+        await new Promise((r) => setTimeout(r, 120)); // Exceeds 50ms timeout
+        return 'PONG';
+      },
+      disconnect: () => {
+        disconnectCalled = true;
+      },
+    };
+
+    const res = await probeRedis(50, mockRedisDelayedPing as any);
+    assert.equal(res.status, 'unavailable');
+    assert.equal(disconnectCalled, true, 'Redis client must be disconnected to abort in-flight commands upon timeout');
+  });
+
   // --- Input Validation & Error Boundaries ---
 
   it('10. Rejects invalid pagination values with HTTP 400', async () => {
@@ -818,22 +904,129 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(dbParent?.status, 'active'); // Must remain active due to rollback!
   });
 
-  it('15. Enforces zero-trust parent authentication: suspended parent is denied by auth middleware', async () => {
+  it('15. Enforces parent registration security, enterprise password policy, and rate limiting', async () => {
+    resetParentRateLimitsForTest();
+
+    // 15a. Password policy: rejects password < 10 characters
+    const resShort = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `policy-short-${Date.now()}@example.test`,
+        password: 'Short1!',
+      },
+    });
+    assert.equal(resShort.statusCode, 400);
+    assert.ok(resShort.json().message.includes('10 characters'));
+
+    // 15b. Password policy: rejects missing uppercase
+    const resNoUpper = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `policy-noupper-${Date.now()}@example.test`,
+        password: 'lowercase123!',
+      },
+    });
+    assert.equal(resNoUpper.statusCode, 400);
+    assert.ok(resNoUpper.json().message.includes('uppercase'));
+
+    // 15c. Password policy: rejects missing digit
+    const resNoDigit = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `policy-nodigit-${Date.now()}@example.test`,
+        password: 'NoDigitsHere!',
+      },
+    });
+    assert.equal(resNoDigit.statusCode, 400);
+    assert.ok(resNoDigit.json().message.includes('digit'));
+
+    // 15d. Password policy: rejects missing special character
+    const resNoSpecial = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `policy-nospecial-${Date.now()}@example.test`,
+        password: 'NoSpecialChars123',
+      },
+    });
+    assert.equal(resNoSpecial.statusCode, 400);
+    assert.ok(resNoSpecial.json().message.includes('special character'));
+
+    // 15e. Password policy: rejects common weak password
+    const resWeak = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `policy-weak-${Date.now()}@example.test`,
+        password: 'password123!',
+      },
+    });
+    assert.equal(resWeak.statusCode, 400);
+    assert.ok(resWeak.json().message.includes('easily guessable'));
+
+    // 15f. Registration rate limiting: allows 5 registrations, 6th returns HTTP 429
+    for (let i = 0; i < 5; i++) {
+      const regRes = await readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: {
+          email: `ratelimit-${i}-${Date.now()}@example.test`,
+          password: 'ValidEnterprisePass2026!',
+        },
+      });
+      assert.equal(regRes.statusCode, 201);
+    }
+
+    const regExceeded = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `ratelimit-exceeded-${Date.now()}@example.test`,
+        password: 'ValidEnterprisePass2026!',
+      },
+    });
+    assert.equal(regExceeded.statusCode, 429);
+    assert.ok(regExceeded.headers['retry-after']);
+    assert.ok(regExceeded.json().message.includes('Rate limit exceeded'));
+
+    resetParentRateLimitsForTest();
+  });
+
+  it('16. Real Parent_app E2E Flow: proves pre-issued token is immediately rejected on protected routes after suspension', async () => {
+    resetParentRateLimitsForTest();
     const parentAuthTestId = crypto.randomUUID();
-    const parentAuthEmail = `auth-enforce-${Date.now()}@example.test`;
-    const plainPassword = 'ParentPassword2026!';
+    const parentAuthEmail = `parent-app-flow-${Date.now()}@example.test`;
+    const plainPassword = 'ParentSecurePassword2026!';
     const passwordHash = await hashPassword(plainPassword);
 
     // Insert active parent user
     await db.insert(parentUsers).values({
       id: parentAuthTestId,
       email: parentAuthEmail,
-      phone: '+15550188888',
+      phone: '+15550189999',
       passwordHash,
       status: 'active',
     });
 
-    // 15a. Active parent can log in successfully
+    // Create a child device belonging to this parent for testing protected device routes
+    const childDeviceId = crypto.randomUUID();
+    await db.insert(childDevices).values({
+      id: childDeviceId,
+      parentId: parentAuthTestId,
+      childName: 'Alice',
+      deviceModel: 'Pixel 8',
+      osVersion: 'Android 14',
+      appVersion: '1.2.0',
+      isLocked: false,
+      batteryPct: 88,
+      isCharging: true,
+      lastSeenAt: new Date(),
+    });
+
+    // 16a. Parent logs in via FastifyRestClient login endpoint
     const resLoginActive = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -845,18 +1038,38 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resLoginActive.statusCode, 200);
     const loginData = resLoginActive.json();
     assert.ok(loginData.accessToken);
+    assert.ok(loginData.refreshToken);
+    assert.equal(loginData.user.email, parentAuthEmail);
+    assert.equal(loginData.user.isGuest, false);
+    const preIssuedToken = loginData.accessToken;
 
-    // 15b. Active parent can access /api/v1/auth/me with Bearer token
+    // 16b. Parent verifies session on /api/v1/auth/me (FastifyRestClient.kt:42)
     const resMeActive = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
       headers: {
-        authorization: `Bearer ${loginData.accessToken}`,
+        authorization: `Bearer ${preIssuedToken}`,
       },
     });
     assert.equal(resMeActive.statusCode, 200);
+    const meData = resMeActive.json();
+    assert.equal(meData.user.status, 'active');
+    assert.ok(meData.user.familyCardNo);
 
-    // 15c. Super admin suspends parent account
+    // 16c. Parent accesses protected devices list /api/v1/auth/devices (FastifyRestClient.kt:351)
+    const resDevicesActive = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/devices',
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resDevicesActive.statusCode, 200);
+    const devicesData = resDevicesActive.json();
+    assert.equal(devicesData.devices.length, 1);
+    assert.equal(devicesData.devices[0].childName, 'Alice');
+
+    // 16d. Super Admin suspends the parent account in the Admin Control Plane
     const resSuspend = await readyApp!.inject({
       method: 'PATCH',
       url: `/api/v1/admin/dashboard/parents/${parentAuthTestId}/status`,
@@ -866,12 +1079,34 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       },
       payload: {
         status: 'suspended',
-        reason: 'Security suspension for authentication test',
+        reason: 'Immediate suspension verification for real Parent_app token invalidation',
       },
     });
     assert.equal(resSuspend.statusCode, 200);
 
-    // 15d. Suspended parent is rejected on login with HTTP 403 Forbidden
+    // 16e. The PREVIOUSLY ISSUED token is immediately rejected on /api/v1/auth/me with HTTP 403 Forbidden
+    const resMeSuspended = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resMeSuspended.statusCode, 403);
+    assert.ok(resMeSuspended.json().message.includes('suspended'));
+
+    // 16f. The PREVIOUSLY ISSUED token is immediately rejected on protected /api/v1/auth/devices with HTTP 403 Forbidden
+    const resDevicesSuspended = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/devices',
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resDevicesSuspended.statusCode, 403);
+    assert.ok(resDevicesSuspended.json().message.includes('suspended'));
+
+    // 16g. Attempted login with valid credentials is rejected with HTTP 403 Forbidden
     const resLoginSuspended = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -881,21 +1116,9 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       },
     });
     assert.equal(resLoginSuspended.statusCode, 403);
-    const loginSuspendedBody = resLoginSuspended.json();
-    assert.ok(loginSuspendedBody.message.includes('suspended'));
+    assert.ok(resLoginSuspended.json().message.includes('suspended'));
 
-    // 15e. Suspended parent is rejected on /api/v1/auth/me with HTTP 403 Forbidden
-    const resMeSuspended = await readyApp!.inject({
-      method: 'GET',
-      url: '/api/v1/auth/me',
-      headers: {
-        authorization: `Bearer ${loginData.accessToken}`,
-      },
-    });
-    assert.equal(resMeSuspended.statusCode, 403);
-    assert.ok(resMeSuspended.json().message.includes('suspended'));
-
-    // 15f. Super admin reactivates parent account
+    // 16h. Super Admin reactivates the parent account in the Admin Control Plane
     const resReactivate = await readyApp!.inject({
       method: 'PATCH',
       url: `/api/v1/admin/dashboard/parents/${parentAuthTestId}/status`,
@@ -905,12 +1128,34 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
       },
       payload: {
         status: 'active',
-        reason: 'Restoring access after test',
+        reason: 'Reinstating parent access following review',
       },
     });
     assert.equal(resReactivate.statusCode, 200);
 
-    // 15g. Reactivated parent can log in again
+    // 16i. With the SAME token, access to /api/v1/auth/me is restored (HTTP 200)
+    const resMeRestored = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resMeRestored.statusCode, 200);
+    assert.equal(resMeRestored.json().user.status, 'active');
+
+    // 16j. With the SAME token, access to protected /api/v1/auth/devices is restored (HTTP 200)
+    const resDevicesRestored = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/devices',
+      headers: {
+        authorization: `Bearer ${preIssuedToken}`,
+      },
+    });
+    assert.equal(resDevicesRestored.statusCode, 200);
+    assert.equal(resDevicesRestored.json().devices.length, 1);
+
+    // 16k. Parent can log in normally again
     const resLoginRestored = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -922,7 +1167,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.equal(resLoginRestored.statusCode, 200);
   });
 
-  it('16. Verifies enhanced Overview metrics (recently active devices & system health)', async () => {
+  it('17. Verifies enhanced Overview metrics (recently active devices & system health)', async () => {
     const res = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/admin/dashboard/overview',

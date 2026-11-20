@@ -54,8 +54,12 @@ export function setHealthProbeOverridesForTest(overrides: HealthProbeOverrides |
  * Enforces server-side statement_timeout and client-side connect/query timeout.
  * If timeout or failure occurs, client connection is destroyed with client.release(true)
  * to ensure no orphaned query or connection lingers on the database server.
+ * Handles delayed connection acquisition without leaking clients.
  */
-export async function probePostgres(timeoutMs = 2000): Promise<{
+export async function probePostgres(
+  timeoutMs = 2000,
+  targetPool: { connect: () => Promise<PoolClient> } = pool
+): Promise<{
   status: 'healthy' | 'degraded' | 'unavailable';
   latencyMs: number;
 }> {
@@ -64,27 +68,51 @@ export async function probePostgres(timeoutMs = 2000): Promise<{
   }
 
   const start = Date.now();
-  let client: PoolClient | null = null;
+  let clientRef: PoolClient | null = null;
   let timer: NodeJS.Timeout | null = null;
   let timedOut = false;
 
-  try {
-    const connectPromise = pool.connect();
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      if (clientRef) {
+        try {
+          // Immediately destroy client connection on timeout
+          clientRef.release(true);
+        } catch {
+          // Suppress error
+        }
+      }
+      reject(new Error(`PostgreSQL probe statement timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        timedOut = true;
-        reject(new Error(`PostgreSQL probe statement timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
+  try {
+    const rawConnectPromise = targetPool.connect();
+
+    // Prevent connection leak if connect resolves after timeout has fired
+    const guardedConnectPromise = rawConnectPromise.then((acquiredClient) => {
+      clientRef = acquiredClient;
+      if (timedOut) {
+        try {
+          acquiredClient.release(true);
+        } catch {
+          // Suppress error
+        }
+        throw new Error(`Connection acquired after timeout (${timeoutMs}ms)`);
+      }
+      return acquiredClient;
     });
 
-    // Race connection acquisition against timeout
-    client = await Promise.race([connectPromise, timeoutPromise]);
+    // 1. Race connection acquisition against timeout
+    const activeClient = await Promise.race([guardedConnectPromise, timeoutPromise]);
 
-    // Set explicit PostgreSQL statement_timeout on the probe connection
-    await client.query(`SET statement_timeout = ${Number(timeoutMs)}`);
+    // 2. Race SET statement_timeout against the same bounded timeout
+    const setPromise = activeClient.query(`SET statement_timeout = ${Number(timeoutMs)}`);
+    await Promise.race([setPromise, timeoutPromise]);
 
-    const queryPromise = client.query<{ alive: number }>('SELECT 1 as alive');
+    // 3. Race SELECT 1 against the bounded timeout
+    const queryPromise = activeClient.query<{ alive: number }>('SELECT 1 as alive');
     const res = await Promise.race([queryPromise, timeoutPromise]);
     const latencyMs = Date.now() - start;
 
@@ -101,10 +129,11 @@ export async function probePostgres(timeoutMs = 2000): Promise<{
     return { status: 'unavailable', latencyMs };
   } finally {
     if (timer) clearTimeout(timer);
-    if (client) {
+    const c = clientRef as PoolClient | null;
+    if (c) {
       try {
         // If timedOut, pass true to force discard/destruction of the socket
-        client.release(timedOut);
+        c.release(timedOut);
       } catch {
         // Suppress release error
       }
@@ -116,8 +145,12 @@ export async function probePostgres(timeoutMs = 2000): Promise<{
  * Genuinely bounded Redis probe.
  * Checks whether Redis is configured in the environment.
  * If configured, verifies connection readiness and ping responsiveness within bounded timeout.
+ * On timeout, forcibly disconnects client to cancel and clear pending commands.
  */
-export async function probeRedis(timeoutMs = 1500): Promise<{
+export async function probeRedis(
+  timeoutMs = 1500,
+  targetClient?: any
+): Promise<{
   status: 'healthy' | 'degraded' | 'unavailable' | 'not_configured';
   latencyMs?: number;
   details?: string;
@@ -134,14 +167,17 @@ export async function probeRedis(timeoutMs = 1500): Promise<{
   }
 
   try {
-    const { getRedisClient, isRedisAvailable } = await import('../utils/redis');
-    const client = getRedisClient();
+    let client = targetClient;
+    if (!client) {
+      const { getRedisClient, isRedisAvailable } = await import('../utils/redis');
+      client = getRedisClient();
 
-    if (!client || !isRedisAvailable()) {
-      return {
-        status: 'unavailable',
-        details: 'Redis client is not connected or in fallback mode',
-      };
+      if (!client || !isRedisAvailable()) {
+        return {
+          status: 'unavailable',
+          details: 'Redis client is not connected or in fallback mode',
+        };
+      }
     }
 
     const start = Date.now();
@@ -149,12 +185,21 @@ export async function probeRedis(timeoutMs = 1500): Promise<{
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
+        // Forcibly abort/disconnect to cancel pending in-flight commands and avoid connection linger
+        try {
+          if (typeof client.disconnect === 'function') {
+            client.disconnect();
+          }
+        } catch {
+          // Suppress disconnect error
+        }
         reject(new Error(`Redis ping timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     });
 
     try {
-      const pong = await Promise.race([client.ping(), timeoutPromise]);
+      const pingPromise = client.ping();
+      const pong = await Promise.race([pingPromise, timeoutPromise]);
       const latencyMs = Date.now() - start;
 
       if (pong === 'PONG') {

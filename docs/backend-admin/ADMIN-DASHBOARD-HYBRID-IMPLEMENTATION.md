@@ -113,11 +113,11 @@ The hybrid dashboard consists of five core functional modules:
 | :--- | :--- | :--- | :--- |
 | **Backend Typecheck** | `npm run typecheck` | Fastify backend TypeScript strict compilation | **PASSED** (0 errors) |
 | **Backend Unit Tests** | `npm test` | In-memory unit/mock tests (Auth, Sessions, Rate-limiting, Crypto) | **PASSED** (42 tests) |
-| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), severity check (SQLSTATE 23514) | **PASSED** (13 assertions) |
-| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 16 tests covering health scenarios, bounded probes, fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent auth zero-trust suspension (Test 15), and overview metrics (Test 16) | **PASSED** (16 tests) |
+| **Real Postgres RBAC & Integrity** | `npx vitest run real-role-permissions.test.ts` | 13 test assertions verifying SELECT/INSERT permitted, UPDATE/DELETE/TRUNCATE denied (SQLSTATE 42501), column-scoped grants, severity check (SQLSTATE 23514) | **PASSED** (13 assertions) |
+| **Real Postgres Dashboard Suite** | `npx vitest run admin-dashboard.test.ts` | 21 tests covering 5 health scenarios, bounded probes with connection leak prevention, delayed connect/SET/SELECT/ping tests, fail-closed audit policy, parent status mutation lifecycle (Tests 13-14), parent registration password policy & rate limiting (Test 15), Parent_app E2E token invalidation on protected routes `/me` and `/devices` (Test 16), and overview metrics (Test 17) | **PASSED** (21 tests) |
 | **Credential Hygiene Scanner** | `node scripts/check-credential-hygiene.mjs` | Automated secrets & static credential scanner | **PASSED** (0 secrets found) |
 | **Frontend Typecheck** | `npm run typecheck` | Admin_panel React 19 TypeScript compilation | **PASSED** (0 errors) |
-| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 36.4s) |
+| **Frontend Production Build** | `npm run build` | Vite production bundle compilation | **PASSED** (dist created in 53.4s) |
 | **Frontend Unit Tests** | `npm test` | Vitest / Testing Library UI component tests (Audit filters, Health, Parents, Sessions, Status update) | **PASSED** (35 tests) |
 | **Playwright E2E Tests** | `npm run test:e2e` | Browser session management workflows | **PASSED** (9 tests) |
 
@@ -150,3 +150,19 @@ To maintain architectural integrity, remote device operations (`lock`, `unlock`,
    ```
 3. **Receipt & Acknowledgement:** Child daemon sends signed HTTP `POST /api/v1/devices/:id/commands/:commandId/ack` with execution result (`succeeded | failed | expired`).
 4. **Safety Policy:** Admin Panel will re-enable remote execution toggles as soon as this protocol is deployed and verified in `Child_app`.
+
+---
+
+## 8. Explicit Feature Status Classification
+
+| Module / Capability | Status | Implementation & Evidence Notes |
+| :--- | :--- | :--- |
+| **Operational Overview Dashboard** | **Implemented & Tested** | Real-time database metrics, 24h active device tracking, online device presence (<5m), and Node.js process telemetry. |
+| **Parent Account Directory & Search** | **Implemented & Tested** | Paginated listing, query search across email/phone, status filtering, and strict sensitive data exclusion. |
+| **Parent Account Suspension / Reactivation** | **Implemented & Tested** | Super admin restricted, CSRF protected, reason validated (5-500 chars), atomic transaction, fail-closed audit log, and least-privilege column grant (`0004_parental_admin_user_status_update.sql`). |
+| **Zero-Trust Parent Auth & Token Invalidation** | **Implemented & Tested** | `requireParentAuth` checks current DB status on every request. Pre-issued tokens are immediately rejected with HTTP 403 on `/me` and protected `/devices` upon suspension, and restored upon reactivation. |
+| **Child Device Telemetry & Inventory** | **Implemented & Tested** | Paginated device catalog, battery, charging status, accessibility health, OS/app version, and last seen tracking. |
+| **Security Audit Explorer & Deep Inspection** | **Implemented & Tested** | Unified audit stream (`unionAll`), normalized AUTH-001 severity mapping, source/severity/status filtering, and accessible metadata inspection modal. |
+| **System Health Diagnostics & Bounded Probes** | **Implemented & Tested** | PostgreSQL statement timeout with connection leak prevention on late connect; Redis probe with disconnect on timeout to cancel in-flight commands. Verified with delayed connect/SET/SELECT/ping tests. |
+| **Administrative Forced Password Reset** | **Deferred** | Requires external transactional email / SMS notification gateway (e.g. AWS SES / SendGrid) to securely dispatch one-time reset tokens to parent users. |
+| **Remote Device Command Execution (Lock/Wipe)** | **Blocked / Deferred** | Blocked by absence of mobile background networking, command receiver, and cryptographic signature verifier in `Child_app` Android daemon. Safely disabled in UI with amber advisory. |

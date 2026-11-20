@@ -139,9 +139,27 @@ Review of PR #5 implementation revealed seven core areas requiring architectural
   - Added "Details" inspection button to every audit log row.
   - Implemented accessible modal rendering full event attributes, IP, User-Agent, and formatted JSON metadata with copy capability.
 
+### 3.10 Health Probe Bounding, Cancellation & Leak Prevention (Remediated)
+- **Finding:** Previously, `SET statement_timeout` was awaited outside the timeout race, late-resolving pool connections could leak if connect() resolved after timeout, and timed-out Redis pings did not abort in-flight commands.
+- **Remediation:**
+  - In `probePostgres()`, connection acquisition is wrapped with a late-resolution guard (`rawConnectPromise.then(...)`) that immediately destroys the socket (`c.release(true)`) if `timedOut` is true, preventing connection leaks.
+  - Both `SET statement_timeout` and `SELECT 1` queries are raced strictly against the bounded timeout. On timeout, `client.release(true)` is immediately executed.
+  - In `probeRedis()`, when the timeout fires, `client.disconnect()` is invoked immediately, forcibly aborting pending queued commands and destroying the socket.
+  - Verified with real integration tests covering delayed connect, delayed SET, delayed SELECT, and delayed Redis ping.
+
+### 3.11 Parent App Auth Integration & Zero-Trust Token Rejection (Remediated)
+- **Finding:** Suspension enforcement needed proof against the real `Parent_app` (`FastifyRestClient.kt`) authentication and session validation path.
+- **Remediation:**
+  - Fully aligned `parentAuthRoutes` with `FastifyRestClient.kt` contracts (`/api/v1/auth/register`, `/api/v1/auth/login`, `/api/v1/auth/me`, `/api/v1/auth/devices`).
+  - Added strict enterprise password policy: minimum 10 characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character, and rejection of common weak passwords.
+  - Added 15-minute sliding-window rate limiting on registration (max 5 requests per IP) and login throttling.
+  - Added real protected parent endpoint `/api/v1/auth/devices` guarded by `requireParentAuth`.
+  - Added end-to-end integration test proving that a pre-issued access token is immediately rejected with HTTP 403 (`Account suspended. Please contact support.`) on both `/api/v1/auth/me` and `/api/v1/auth/devices` upon administrative suspension, and restored upon reactivation.
+
 ---
 
 ## 4. Controlled Write Operations & Safety Boundary
 
-- **Parent Account Management:** Completed and fully verified with least-privilege SQL grants, atomic transactional updates, fail-closed audit policy, and zero-trust parent auth middleware rejection.
-- **Device Management:** Full telemetry (battery, charging, lock state, app version, last seen) is active. Remote device controls remain safely disabled pending downstream Android push transport implementation, maintaining strict fidelity to reality without database-only illusions.
+- **Parent Account Management (Implemented & Tested):** Account listing, profile details, and account suspension/reactivation lifecycle are fully implemented and verified with least-privilege SQL grants, atomic transactions, fail-closed audit policy, and immediate rejection of pre-issued tokens on protected parent endpoints.
+- **Forced Password Reset (Deferred):** Administrative forced password reset is explicitly classified as **DEFERRED** pending external transactional email/SMS dispatch infrastructure (e.g. AWS SES / SendGrid) to securely deliver reset codes to parents.
+- **Device Management (Blocked / Deferred):** Read-only device inventory and hardware telemetry (battery, charging, accessibility, app version, last seen) are active and tested. Remote device execution toggles (*Lock*, *Unlock*, *Reboot*, *Wipe*) are explicitly classified as **BLOCKED / DEFERRED** because the Android companion daemon in `Child_app` currently consists of 4 skeleton classes with zero networking, zero push/command receiver, and zero cryptographic signature verification. Remote actions are honestly displayed as disabled with explicit advisories.
