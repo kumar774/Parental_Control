@@ -2,9 +2,13 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, gt, desc } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { parentUsers, parentRefreshTokens } from '../../db/schema/parental-control';
+import {
+  parentUsers,
+  parentRefreshTokens,
+  parentVerificationTokens,
+} from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
@@ -31,15 +35,16 @@ export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
   emailConfiguredOverride = val;
 }
 
-interface PendingResetRecord {
-  email: string;
-  codeHash: string;
-  expiresAt: number;
+export let lastDispatchedOtpForTest: string | null = null;
+export function resetDispatchedOtpForTest(): void {
+  lastDispatchedOtpForTest = null;
 }
-const pendingResetStore = new Map<string, PendingResetRecord>();
 
+/**
+ * Backwards-compatible test helper (deprecated in favor of persistent parent_verification_tokens table).
+ */
 export function resetPendingResetStoreForTest(): void {
-  pendingResetStore.clear();
+  // no-op: tokens now live in PostgreSQL parent_verification_tokens table
 }
 
 /**
@@ -513,6 +518,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * POST /forgot-password
    * Dispatches a 6-digit password reset verification code if an email provider is configured.
    * If no email provider is configured (SMTP/SendGrid/SES/Resend), returns clean HTTP 501.
+   * Persists cryptographically hashed OTP in parent_verification_tokens table with 15-minute expiry.
    */
   app.post('/forgot-password', { preHandler: [parentForgotRateLimiter] }, async (request, reply) => {
     const parsed = forgotPasswordSchema.safeParse(request.body);
@@ -560,12 +566,33 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     // Cryptographically secure 6-digit verification code
     const rawCode = crypto.randomInt(100000, 1000000).toString();
-    const codeHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+    if (emailConfiguredOverride !== null || process.env.NODE_ENV === 'test') {
+      lastDispatchedOtpForTest = rawCode;
+    }
 
-    pendingResetStore.set(normalizedEmail, {
+    // Invalidate any previous unused password_reset tokens for this email to enforce single active code
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'password_reset'),
+          eq(parentVerificationTokens.isUsed, false)
+        )
+      );
+
+    // Persist hashed OTP in PostgreSQL table
+    await db.insert(parentVerificationTokens).values({
+      parentId: user.id,
       email: normalizedEmail,
-      codeHash,
-      expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
+      tokenHash,
+      type: 'password_reset',
+      attempts: 0,
+      maxAttempts: 5,
+      isUsed: false,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
 
     return reply.send({
@@ -578,6 +605,8 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * POST /reset-password
    * Resets account password using verified token/otpCode.
    * If no email provider is configured, returns clean HTTP 501.
+   * Enforces brute-force protection (max 5 attempts), token expiration, single-use invalidation,
+   * updates password hash, and atomically revokes all active refresh sessions.
    */
   app.post('/reset-password', async (request, reply) => {
     const parsed = resetPasswordSchema.safeParse(request.body);
@@ -598,6 +627,15 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    const codeProvided = parsed.data.otpCode || parsed.data.token;
+    if (!codeProvided) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification code or token is required',
+      });
+    }
+
     const passwordValidation = validateParentPassword(parsed.data.newPassword);
     if (!passwordValidation.valid) {
       return reply.status(400).send({
@@ -608,27 +646,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     }
 
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
-    const pending = pendingResetStore.get(normalizedEmail);
-
-    if (!pending || pending.expiresAt < Date.now()) {
-      pendingResetStore.delete(normalizedEmail);
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid or expired verification code',
-      });
-    }
-
-    const codeProvided = parsed.data.otpCode || parsed.data.token || '';
-    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
-
-    if (providedHash !== pending.codeHash) {
-      return reply.status(401).send({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'Invalid or expired verification code',
-      });
-    }
 
     const [user] = await db
       .select({ id: parentUsers.id, status: parentUsers.status })
@@ -644,9 +661,67 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    // Query latest active password_reset token from PostgreSQL
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'password_reset'),
+          eq(parentVerificationTokens.isUsed, false),
+          gt(parentVerificationTokens.expiresAt, new Date())
+        )
+      )
+      .orderBy(desc(parentVerificationTokens.createdAt))
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    // Brute-force protection: check attempt count
+    if (tokenRecord.attempts >= tokenRecord.maxAttempts) {
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Maximum verification attempts exceeded. Please request a new code.',
+      });
+    }
+
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    if (providedHash !== tokenRecord.tokenHash) {
+      // Increment attempt counter in database
+      const newAttempts = tokenRecord.attempts + 1;
+      await db
+        .update(parentVerificationTokens)
+        .set({ attempts: newAttempts })
+        .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+      if (newAttempts >= tokenRecord.maxAttempts) {
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Maximum verification attempts exceeded. Please request a new code.',
+        });
+      }
+
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
     const newPasswordHash = await hashPassword(parsed.data.newPassword);
 
     await db.transaction(async (tx) => {
+      // 1. Update user password
       await tx
         .update(parentUsers)
         .set({
@@ -655,7 +730,16 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         })
         .where(eq(parentUsers.id, user.id));
 
-      // Revoke all active sessions on password change
+      // 2. Mark verification token as used (single-use enforcement)
+      await tx
+        .update(parentVerificationTokens)
+        .set({
+          isUsed: true,
+          usedAt: sql`NOW()`,
+        })
+        .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+      // 3. Atomically revoke all active refresh tokens for this user
       await tx
         .update(parentRefreshTokens)
         .set({
@@ -671,8 +755,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         );
     });
 
-    pendingResetStore.delete(normalizedEmail);
-
     return reply.send({
       statusCode: 200,
       message: 'Your guardian account password has been reset successfully.',
@@ -683,8 +765,18 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * POST /verify-email
    * Confirms email verification token if email provider is configured.
    * If no email provider is configured, returns clean HTTP 501.
+   * Requires a valid, unexpired, single-use token in parent_verification_tokens.
    */
   app.post('/verify-email', async (request, reply) => {
+    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
+    if (!emailConfigured) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+      });
+    }
+
     const parsed = verifyEmailSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -694,14 +786,64 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
-    if (!emailConfigured) {
-      return reply.status(501).send({
-        statusCode: 501,
-        error: 'Not Implemented',
-        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+    const codeProvided = parsed.data.token || parsed.data.otpCode;
+    if (!codeProvided) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification token or OTP code is required',
       });
     }
+
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    // Query active email verification token
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          eq(parentVerificationTokens.tokenHash, providedHash),
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false),
+          gt(parentVerificationTokens.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification token',
+      });
+    }
+
+    if (tokenRecord.attempts >= tokenRecord.maxAttempts) {
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Maximum verification attempts exceeded. Please request a new verification link.',
+      });
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(parentVerificationTokens)
+        .set({
+          isUsed: true,
+          usedAt: sql`NOW()`,
+        })
+        .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+      await tx
+        .update(parentUsers)
+        .set({
+          status: 'active',
+          updatedAt: sql`NOW()`,
+        })
+        .where(eq(parentUsers.id, tokenRecord.parentId));
+    });
 
     return reply.send({
       statusCode: 200,
@@ -713,8 +855,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * GET /verify-email
    * Confirms email verification link if email provider is configured.
    * If no email provider is configured, returns clean HTTP 501.
+   * Requires a valid, unexpired, single-use token query parameter.
    */
-  app.get('/verify-email', async (_request, reply) => {
+  app.get('/verify-email', async (request, reply) => {
     const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
     if (!emailConfigured) {
       return reply.status(501).send({
@@ -723,6 +866,65 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         message: 'Email delivery service is not configured. Email verification is currently unavailable.',
       });
     }
+
+    const query = request.query as Record<string, string | undefined>;
+    const codeProvided = query?.token || query?.otpCode;
+    if (!codeProvided) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification token is required',
+      });
+    }
+
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          eq(parentVerificationTokens.tokenHash, providedHash),
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false),
+          gt(parentVerificationTokens.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification token',
+      });
+    }
+
+    if (tokenRecord.attempts >= tokenRecord.maxAttempts) {
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Maximum verification attempts exceeded. Please request a new verification link.',
+      });
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(parentVerificationTokens)
+        .set({
+          isUsed: true,
+          usedAt: sql`NOW()`,
+        })
+        .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+      await tx
+        .update(parentUsers)
+        .set({
+          status: 'active',
+          updatedAt: sql`NOW()`,
+        })
+        .where(eq(parentUsers.id, tokenRecord.parentId));
+    });
 
     return reply.send({
       statusCode: 200,

@@ -1,14 +1,21 @@
 import { describe, it, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
-import { parentUsers, parentRefreshTokens } from '../../../src/db/schema/parental-control';
+import {
+  parentUsers,
+  parentRefreshTokens,
+  parentVerificationTokens,
+} from '../../../src/db/schema/parental-control';
 import { resetParentRateLimitsForTest } from '../../../src/middleware/parent-rate-limiter';
 import {
   setEmailConfiguredOverrideForTest,
   resetPendingResetStoreForTest,
+  lastDispatchedOtpForTest,
+  resetDispatchedOtpForTest,
+  hashRefreshToken,
 } from '../../../src/routes/parent/auth.routes';
 import { hashPassword } from '../../../src/utils/crypto-vault';
 
@@ -27,6 +34,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     resetParentRateLimitsForTest();
     setEmailConfiguredOverrideForTest(null);
     resetPendingResetStoreForTest();
+    resetDispatchedOtpForTest();
   });
 
   it('1. Registration persists fullName into database and returns it in response', async () => {
@@ -343,5 +351,400 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(refreshRes.statusCode, 200);
+  });
+
+  it('9. Password reset revokes all existing refresh sessions, rejects old password, and allows login with new password', async () => {
+    setEmailConfiguredOverrideForTest(true);
+    const testEmail = `parent-revoker-${Date.now()}@example.test`;
+
+    // 1. Register parent and get initial session A
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Session Revoker',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const { user, refreshToken: refreshTokenA } = regRes.json();
+
+    // 2. Login to get a second active session B
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { refreshToken: refreshTokenB } = loginRes.json();
+
+    // Verify both sessions are currently active in PostgreSQL
+    const activeTokensBefore = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(and(eq(parentRefreshTokens.parentId, user.id), eq(parentRefreshTokens.isRevoked, false)));
+    assert.equal(activeTokensBefore.length, 2, 'Must have 2 active refresh token records in PostgreSQL');
+
+    // 3. Request password reset OTP
+    const forgotRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/forgot-password',
+      payload: { email: testEmail },
+    });
+    assert.equal(forgotRes.statusCode, 200);
+    assert.ok(lastDispatchedOtpForTest, 'OTP must be dispatched in test mode');
+
+    // 4. Perform password reset with valid OTP and new password
+    const resetRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/reset-password',
+      payload: {
+        email: testEmail,
+        otpCode: lastDispatchedOtpForTest,
+        newPassword: updatedPassword,
+      },
+    });
+    assert.equal(resetRes.statusCode, 200, `Reset failed: ${resetRes.body}`);
+
+    // 5. Verify ALL existing refresh sessions are marked revoked in PostgreSQL
+    const activeTokensAfter = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(and(eq(parentRefreshTokens.parentId, user.id), eq(parentRefreshTokens.isRevoked, false)));
+    assert.equal(activeTokensAfter.length, 0, 'All existing sessions must be revoked in PostgreSQL');
+
+    // 6. Verify neither session A nor B can refresh
+    const refreshARes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: refreshTokenA },
+    });
+    assert.equal(refreshARes.statusCode, 401, 'Old session A must be rejected');
+
+    const refreshBRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: refreshTokenB },
+    });
+    assert.equal(refreshBRes.statusCode, 401, 'Old session B must be rejected');
+
+    // 7. Verify login with OLD password fails (HTTP 401)
+    const oldLoginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(oldLoginRes.statusCode, 401, 'Login with old password must be rejected');
+
+    // 8. Verify login with NEW password succeeds (HTTP 200)
+    const newLoginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: updatedPassword,
+      },
+    });
+    assert.equal(newLoginRes.statusCode, 200, 'Login with new password must succeed');
+    const newSession = newLoginRes.json();
+    assert.ok(newSession.accessToken);
+    assert.ok(newSession.refreshToken);
+
+    // 9. Single-use token enforcement: reusing the same OTP code fails
+    const reuseResetRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/reset-password',
+      payload: {
+        email: testEmail,
+        otpCode: lastDispatchedOtpForTest,
+        newPassword: validPassword,
+      },
+    });
+    assert.equal(reuseResetRes.statusCode, 400, 'Reusing a consumed reset OTP must be rejected');
+  });
+
+  it('10. Brute-force protection: locks password reset OTP after 5 failed attempts in PostgreSQL', async () => {
+    setEmailConfiguredOverrideForTest(true);
+    const testEmail = `parent-bruteforce-${Date.now()}@example.test`;
+
+    await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Brute Force Target',
+        password: validPassword,
+      },
+    });
+
+    await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/forgot-password',
+      payload: { email: testEmail },
+    });
+
+    const realOtp = lastDispatchedOtpForTest!;
+    assert.ok(realOtp);
+
+    // Submit invalid OTP 4 times -> 401
+    for (let i = 1; i <= 4; i++) {
+      const failRes = await readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/reset-password',
+        payload: {
+          email: testEmail,
+          otpCode: '000000',
+          newPassword: updatedPassword,
+        },
+      });
+      assert.equal(failRes.statusCode, 401);
+    }
+
+    // 5th failed attempt -> 429 Too Many Requests
+    const fifthRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/reset-password',
+      payload: {
+        email: testEmail,
+        otpCode: '000000',
+        newPassword: updatedPassword,
+      },
+    });
+    assert.equal(fifthRes.statusCode, 429, '5th failed attempt must trigger 429');
+
+    // Now even if the attacker guesses the real OTP on the 6th attempt, it is locked
+    const lockedRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/reset-password',
+      payload: {
+        email: testEmail,
+        otpCode: realOtp,
+        newPassword: updatedPassword,
+      },
+    });
+    assert.equal(lockedRes.statusCode, 429, 'Locked token must reject valid OTP with 429');
+  });
+
+  it('11. Refresh token rotation, database persistence, and session restoration', async () => {
+    const testEmail = `parent-rotation-${Date.now()}@example.test`;
+
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Rotation User',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const { refreshToken: r1 } = regRes.json();
+
+    // Rotate R1 -> R2
+    const rotate1 = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: r1 },
+    });
+    assert.equal(rotate1.statusCode, 200);
+    const { accessToken: a2, refreshToken: r2 } = rotate1.json();
+    assert.notEqual(r1, r2, 'New refresh token must be distinct from old');
+
+    // In DB: verify R1 is revoked, R2 is active
+    const r1Hash = hashRefreshToken(r1);
+    const [r1Db] = await db.select().from(parentRefreshTokens).where(eq(parentRefreshTokens.tokenHash, r1Hash));
+    assert.equal(r1Db.isRevoked, true, 'R1 must be revoked in PostgreSQL');
+
+    const r2Hash = hashRefreshToken(r2);
+    const [r2Db] = await db.select().from(parentRefreshTokens).where(eq(parentRefreshTokens.tokenHash, r2Hash));
+    assert.equal(r2Db.isRevoked, false, 'R2 must be active in PostgreSQL');
+
+    // Verify session restoration: access token works with GET /me
+    const meRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { authorization: `Bearer ${a2}` },
+    });
+    assert.equal(meRes.statusCode, 200);
+    assert.equal(meRes.json().user.email, testEmail);
+
+    // Rotate R2 -> R3
+    const rotate2 = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: r2 },
+    });
+    assert.equal(rotate2.statusCode, 200);
+    const { refreshToken: r3 } = rotate2.json();
+    assert.notEqual(r2, r3);
+  });
+
+  it('12. Token reuse detection: presenting revoked token revokes all user sessions in PostgreSQL', async () => {
+    const testEmail = `parent-reuse-${Date.now()}@example.test`;
+
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Compromise Victim',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const { user, refreshToken: r1 } = regRes.json();
+
+    // Normal rotation: R1 -> R2 (R1 is now legitimately rotated / revoked)
+    const rotRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: r1 },
+    });
+    assert.equal(rotRes.statusCode, 200);
+    const { refreshToken: r2 } = rotRes.json();
+
+    // Attacker intercepts and replays R1
+    const replayRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: r1 },
+    });
+    assert.equal(replayRes.statusCode, 401);
+    assert.ok(replayRes.json().message.includes('Token reuse detected'));
+
+    // Server should have wiped ALL active refresh tokens for this parent
+    const activeTokens = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(and(eq(parentRefreshTokens.parentId, user.id), eq(parentRefreshTokens.isRevoked, false)));
+    assert.equal(activeTokens.length, 0, 'Token reuse compromise must revoke all active sessions in DB');
+
+    // Legitimate user presenting R2 is now also rejected (triggering logout/re-auth on device)
+    const legitRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: r2 },
+    });
+    assert.equal(legitRes.statusCode, 401);
+  });
+
+  it('13. Logout revokes refresh token in PostgreSQL', async () => {
+    const testEmail = `parent-logout-${Date.now()}@example.test`;
+
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Logout Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const { refreshToken } = regRes.json();
+
+    // Logout
+    const logoutRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      payload: { refreshToken },
+    });
+    assert.equal(logoutRes.statusCode, 200);
+
+    // Verify revoked in DB
+    const tokenHash = hashRefreshToken(refreshToken);
+    const [tokenDb] = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.tokenHash, tokenHash));
+    assert.equal(tokenDb.isRevoked, true, 'Token must be revoked after logout');
+
+    // Refresh after logout fails
+    const refreshRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken },
+    });
+    assert.equal(refreshRes.statusCode, 401);
+  });
+
+  it('14. Email verification rejects missing/invalid tokens and validates genuine single-use tokens', async () => {
+    setEmailConfiguredOverrideForTest(true);
+    const testEmail = `parent-verify-${Date.now()}@example.test`;
+
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Unverified Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const { user } = regRes.json();
+
+    // 1. Missing token -> 400
+    const missingRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: {},
+    });
+    assert.equal(missingRes.statusCode, 400);
+
+    // 2. Bogus token -> 400
+    const bogusRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: 'completely-bogus-token-xyz' },
+    });
+    assert.equal(bogusRes.statusCode, 400);
+
+    // 3. Insert real token into parent_verification_tokens table
+    const rawVerifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyHash = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+
+    await db.insert(parentVerificationTokens).values({
+      parentId: user.id,
+      email: testEmail,
+      tokenHash: verifyHash,
+      type: 'email_verification',
+      attempts: 0,
+      maxAttempts: 5,
+      isUsed: false,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    });
+
+    // 4. Verify email with valid token -> 200
+    const validVerifyRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: rawVerifyToken },
+    });
+    assert.equal(validVerifyRes.statusCode, 200);
+    assert.equal(validVerifyRes.json().message, 'Email verified successfully');
+
+    // 5. Verify token is marked is_used in PostgreSQL
+    const [tokenDb] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(eq(parentVerificationTokens.tokenHash, verifyHash));
+    assert.equal(tokenDb.isUsed, true);
+    assert.ok(tokenDb.usedAt);
+
+    // 6. Single-use enforcement: re-verifying with the same token -> 400
+    const reuseVerifyRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: rawVerifyToken },
+    });
+    assert.equal(reuseVerifyRes.statusCode, 400, 'Reused verification token must be rejected');
   });
 });

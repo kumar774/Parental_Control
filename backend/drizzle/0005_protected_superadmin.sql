@@ -119,3 +119,38 @@ DROP TRIGGER IF EXISTS trg_protect_superadmin ON "admin_users";
 CREATE TRIGGER trg_protect_superadmin
 BEFORE INSERT OR UPDATE OR DELETE ON "admin_users"
 FOR EACH ROW EXECUTE FUNCTION protect_superadmin_invariant();
+
+-- ============================================================================
+-- Section 8.7: Parent Authentication & Verification Schema Migrations
+-- Executed sequentially under parental_migrator during deployment / CI.
+-- ============================================================================
+
+-- Migration 0006: Add full_name column to parent users table with safe fallback
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "full_name" text;
+UPDATE "users"
+SET "full_name" = SPLIT_PART("email", '@', 1)
+WHERE "full_name" IS NULL AND "email" IS NOT NULL;
+GRANT SELECT, INSERT ON TABLE "users" TO parental_admin;
+GRANT UPDATE (full_name, status, updated_at) ON TABLE "users" TO parental_admin;
+
+-- Migration 0007: Persistent, hashed, expiring, single-use OTP and verification token storage
+CREATE TABLE IF NOT EXISTS "parent_verification_tokens" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "parent_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "email" varchar(255) NOT NULL,
+  "token_hash" varchar(64) NOT NULL,
+  "type" varchar(32) NOT NULL,
+  "attempts" integer DEFAULT 0 NOT NULL,
+  "max_attempts" integer DEFAULT 5 NOT NULL,
+  "is_used" boolean DEFAULT false NOT NULL,
+  "used_at" timestamp with time zone,
+  "expires_at" timestamp with time zone NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "parent_verification_tokens_type_check" CHECK ("type" IN ('password_reset', 'email_verification'))
+);
+
+CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_lookup" ON "parent_verification_tokens" ("email", "type", "is_used");
+CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_parent" ON "parent_verification_tokens" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_expires" ON "parent_verification_tokens" ("expires_at");
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "parent_verification_tokens" TO parental_admin;

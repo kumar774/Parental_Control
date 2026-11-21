@@ -73,6 +73,54 @@ class DatabaseAndLocalStorageUnitTest {
     }
 
     @Test
+    fun testKeystoreTokenEncryptorCorruptedCiphertextReturnsNull() {
+        val encryptor = KeystoreTokenEncryptor.getInstance()
+
+        // 1. Corrupted base64 payload
+        val corruptedPayload = "enc:v1:not-valid-base64-content!@#$%"
+        val result1 = encryptor.decrypt(corruptedPayload)
+        assertNull("Corrupted base64 must safely decrypt to null", result1)
+
+        // 2. Truncated payload shorter than GCM IV length (12 bytes)
+        val truncatedPayload = "enc:v1:" + java.util.Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3))
+        val result2 = encryptor.decrypt(truncatedPayload)
+        assertNull("Truncated payload shorter than IV must return null", result2)
+
+        // 3. Tampered ciphertext (modified auth tag)
+        val validEncrypted = encryptor.encrypt("secret-token-payload")!!
+        val validBytes = java.util.Base64.getDecoder().decode(validEncrypted.removePrefix("enc:v1:"))
+        validBytes[validBytes.size - 1] = (validBytes[validBytes.size - 1].toInt() xor 0xFF).toByte()
+        val tamperedEncrypted = "enc:v1:" + java.util.Base64.getEncoder().encodeToString(validBytes)
+        val result3 = encryptor.decrypt(tamperedEncrypted)
+        assertNull("Tampered GCM ciphertext must fail authentication and return null", result3)
+    }
+
+    @Test
+    fun testAppRestartTokenRecoveryAndCleanLogout() = runBlocking {
+        // Step 1: Simulate user login and token persistence
+        val initialMmkv = FastMmkvStorage()
+        initialMmkv.userId = "parent-uuid-restart"
+        initialMmkv.userEmail = "parent@restart.test"
+        initialMmkv.userFullName = "Restart Tester"
+        initialMmkv.accessToken = "access-token-pre-restart"
+        initialMmkv.refreshToken = "refresh-token-pre-restart"
+        initialMmkv.familyCardNo = "FAM-RESTART"
+
+        assertEquals("access-token-pre-restart", initialMmkv.accessToken)
+        assertEquals("refresh-token-pre-restart", initialMmkv.refreshToken)
+
+        // Step 2: Clear session on logout
+        initialMmkv.clearSession()
+
+        assertNull("Access token must be null after session clear", initialMmkv.accessToken)
+        assertNull("Refresh token must be null after session clear", initialMmkv.refreshToken)
+        assertNull("User ID must be null after session clear", initialMmkv.userId)
+        assertNull("User email must be null after session clear", initialMmkv.userEmail)
+        assertNull("User full name must be null after session clear", initialMmkv.userFullName)
+        assertNull("Family card must be null after session clear", initialMmkv.familyCardNo)
+    }
+
+    @Test
     fun testMmkvFastPathStorageAndPurge() {
         val mmkv = FastMmkvStorage()
         assertNull(mmkv.accessToken)

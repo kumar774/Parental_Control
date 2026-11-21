@@ -50,6 +50,13 @@
       "when": 1795190000000,
       "tag": "0006_parent_full_name",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795200000000,
+      "tag": "0007_parent_verification_tokens",
+      "breakpoints": true
     }
   ]
 }

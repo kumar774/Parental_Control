@@ -52,12 +52,20 @@ class FastMmkvStorage(
         val sp = prefs ?: return
         sp.getString(KEY_USER_ID, null)?.let { cache[KEY_USER_ID] = it }
         sp.getString(KEY_ACCESS_TOKEN, null)?.let {
-            val decrypted = encryptor.decrypt(it) ?: it
-            cache[KEY_ACCESS_TOKEN] = decrypted
+            val decrypted = encryptor.decrypt(it)
+            if (decrypted != null) {
+                cache[KEY_ACCESS_TOKEN] = decrypted
+            } else {
+                sp.edit().remove(KEY_ACCESS_TOKEN).apply()
+            }
         }
         sp.getString(KEY_REFRESH_TOKEN, null)?.let {
-            val decrypted = encryptor.decrypt(it) ?: it
-            cache[KEY_REFRESH_TOKEN] = decrypted
+            val decrypted = encryptor.decrypt(it)
+            if (decrypted != null) {
+                cache[KEY_REFRESH_TOKEN] = decrypted
+            } else {
+                sp.edit().remove(KEY_REFRESH_TOKEN).apply()
+            }
         }
         sp.getString(KEY_SELECTED_CHILD_ID, null)?.let { cache[KEY_SELECTED_CHILD_ID] = it }
         sp.getString(KEY_USER_EMAIL, null)?.let { cache[KEY_USER_EMAIL] = it }
@@ -66,8 +74,12 @@ class FastMmkvStorage(
         sp.getString(KEY_USER_PLAN, null)?.let { cache[KEY_USER_PLAN] = it }
         sp.getString(KEY_FAMILY_CARD_NO, null)?.let { cache[KEY_FAMILY_CARD_NO] = it }
         sp.getString(KEY_FAMILY_PIN, null)?.let {
-            val decrypted = encryptor.decrypt(it) ?: it
-            cache[KEY_FAMILY_PIN] = decrypted
+            val decrypted = encryptor.decrypt(it)
+            if (decrypted != null) {
+                cache[KEY_FAMILY_PIN] = decrypted
+            } else {
+                sp.edit().remove(KEY_FAMILY_PIN).apply()
+            }
         }
         if (sp.contains(KEY_DARK_MODE)) cache[KEY_DARK_MODE] = sp.getBoolean(KEY_DARK_MODE, true)
         if (sp.contains(KEY_BIOMETRIC_ENABLED)) cache[KEY_BIOMETRIC_ENABLED] = sp.getBoolean(KEY_BIOMETRIC_ENABLED, false)
