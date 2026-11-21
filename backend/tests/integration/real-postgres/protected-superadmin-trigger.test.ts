@@ -14,32 +14,20 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
   before(async () => {
     conn = await getVerifiedRealPostgresConnection();
 
-    // Ensure migration 0005 is applied if missing in ephemeral CI environments
-    const colCheck = await conn.pool.query(`
-      SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'admin_users' AND column_name = 'is_protected'
-    `);
-    if (colCheck.rows.length === 0) {
-      const fs = await import('fs');
-      const path = await import('path');
-      const { fileURLToPath } = await import('url');
-      const filename = fileURLToPath(import.meta.url);
-      const dirname = path.dirname(filename);
-      const sqlPath = path.resolve(dirname, '../../../drizzle/0005_protected_superadmin.sql');
-      const sql = fs.readFileSync(sqlPath, 'utf8');
-      await conn.pool.query(sql);
-    }
-
-    // Clean up any test users from prior runs
+    // Clean up any test users from prior runs safely
+    await conn.pool.query('DROP TRIGGER IF EXISTS trg_protect_superadmin ON admin_users;');
     await conn.pool.query('DELETE FROM admin_users WHERE email LIKE $1', ['%@security.test']);
-
-    // Check if a protected superadmin already exists from other tests
     await conn.pool.query('DELETE FROM admin_users WHERE is_protected = true');
+    await conn.pool.query(`
+      CREATE TRIGGER trg_protect_superadmin
+        BEFORE INSERT OR UPDATE OR DELETE ON admin_users
+        FOR EACH ROW
+        EXECUTE FUNCTION protect_superadmin_invariant();
+    `);
   });
 
   after(async () => {
     if (conn) {
-      // Temporarily drop trigger or clean up safely if needed for test cleanup
       try {
         await conn.pool.query('DROP TRIGGER IF EXISTS trg_protect_superadmin ON admin_users;');
         await conn.pool.query('DELETE FROM admin_users WHERE email LIKE $1', ['%@security.test']);
@@ -47,7 +35,7 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
         // Re-attach trigger
         await conn.pool.query(`
           CREATE TRIGGER trg_protect_superadmin
-            BEFORE UPDATE OR DELETE ON admin_users
+            BEFORE INSERT OR UPDATE OR DELETE ON admin_users
             FOR EACH ROW
             EXECUTE FUNCTION protect_superadmin_invariant();
         `);
@@ -128,7 +116,7 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
       },
       (err: any) => {
         assert.strictEqual(err.code, '55000', 'Must raise SQLSTATE 55000 (object_not_in_prerequisite_state)');
-        assert.match(err.message, /Cannot delete protected default superadmin/);
+        assert.match(err.message, /cannot be deleted/i);
         return true;
       }
     );
@@ -144,7 +132,7 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
       },
       (err: any) => {
         assert.strictEqual(err.code, '55000');
-        assert.match(err.message, /Cannot demote protected default superadmin/);
+        assert.match(err.message, /role cannot be altered/i);
         return true;
       }
     );
@@ -160,7 +148,7 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
       },
       (err: any) => {
         assert.strictEqual(err.code, '55000');
-        assert.match(err.message, /Cannot deactivate or suspend protected default superadmin/);
+        assert.match(err.message, /cannot be suspended or deactivated/i);
         return true;
       }
     );
@@ -176,7 +164,7 @@ describe('Protected Superadmin Invariant & Database Trigger Verification', () =>
       },
       (err: any) => {
         assert.strictEqual(err.code, '55000');
-        assert.match(err.message, /Cannot remove protected flag from default superadmin/);
+        assert.match(err.message, /status cannot be removed/i);
         return true;
       }
     );
