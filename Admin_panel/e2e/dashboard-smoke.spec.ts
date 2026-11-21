@@ -331,8 +331,8 @@ test.describe('Hybrid Admin Dashboard — End-to-End Browser Smoke Suite', () =>
     await expect(page.getByRole('heading', { name: /Parent Account Inventory/i })).toBeVisible();
 
     // Verify parent emails from mock data render in the table
-    await expect(page.getByText('john.doe@example.com')).toBeVisible();
-    await expect(page.getByText('jane.smith@example.com')).toBeVisible();
+    await expect(page.getByText('john.doe@example.com').first()).toBeVisible();
+    await expect(page.getByText('jane.smith@example.com').first()).toBeVisible();
 
     // Search input is present and functional
     const searchInput = page.getByPlaceholder(/Search by email or phone/i);
@@ -349,8 +349,8 @@ test.describe('Hybrid Admin Dashboard — End-to-End Browser Smoke Suite', () =>
     await viewButton.click();
 
     // Verify modal appears with child device info
-    await expect(page.getByText('Tommy')).toBeVisible();
-    await expect(page.getByText('Pixel 8')).toBeVisible();
+    await expect(page.getByText('Tommy').first()).toBeVisible();
+    await expect(page.getByText('Pixel 8').first()).toBeVisible();
   });
 
   test('4. Parents Tab: handles parent account suspension confirmation', async ({ page }) => {
@@ -400,10 +400,10 @@ test.describe('Hybrid Admin Dashboard — End-to-End Browser Smoke Suite', () =>
     await expect(page.getByRole('heading', { name: /Enrolled Child & Device Inventory/i })).toBeVisible();
 
     // Verify child names and models are listed
-    await expect(page.getByText('Tommy')).toBeVisible();
-    await expect(page.getByText('Sarah')).toBeVisible();
-    await expect(page.getByText('Pixel 8')).toBeVisible();
-    await expect(page.getByText('Galaxy S23')).toBeVisible();
+    await expect(page.getByText('Tommy').first()).toBeVisible();
+    await expect(page.getByText('Sarah').first()).toBeVisible();
+    await expect(page.getByText('Pixel 8').first()).toBeVisible();
+    await expect(page.getByText('Galaxy S23').first()).toBeVisible();
   });
 
   test('6. Devices Tab: remote destructive commands are safely disabled with advisory', async ({ page }) => {
@@ -429,8 +429,8 @@ test.describe('Hybrid Admin Dashboard — End-to-End Browser Smoke Suite', () =>
     await expect(page.getByRole('heading', { name: /Security & Control Plane Audit/i })).toBeVisible();
 
     // Verify audit events exist
-    await expect(page.getByText('parent_account_suspended')).toBeVisible();
-    await expect(page.getByText('LOGIN_PASSWORD_SUCCESS')).toBeVisible();
+    await expect(page.getByText('parent_account_suspended').first()).toBeVisible();
+    await expect(page.getByText('LOGIN_PASSWORD_SUCCESS').first()).toBeVisible();
 
     // Click Inspect to open detail modal
     const inspectBtn = page.getByRole('button', { name: 'Inspect' }).first();
