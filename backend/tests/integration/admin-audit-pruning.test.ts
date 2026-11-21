@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { newDb } from 'pg-mem';
 import { pool, db } from '../../src/db/index';
 import {
@@ -188,7 +192,8 @@ describe('3. Audit Archive & Pruning Security Tests (admin-audit-pruning.test.ts
         return origAdaptQuery.call(this, query, values);
       };
 
-      const ddlPath = path.resolve(process.cwd(), 'drizzle/0000_fast_yellow_claw.sql');
+      const cwdDdl = path.resolve(process.cwd(), 'drizzle/0000_fast_yellow_claw.sql');
+      const ddlPath = fs.existsSync(cwdDdl) ? cwdDdl : path.resolve(__dirname, '../../drizzle/0000_fast_yellow_claw.sql');
       const ddlSql = fs.readFileSync(ddlPath, 'utf8');
       mem.public.none(ddlSql);
 
@@ -447,7 +452,8 @@ describe('3. Audit Archive & Pruning Security Tests (admin-audit-pruning.test.ts
   // -------------------------------------------------------------
   it('Test 23: Role Privilege Boundary Enforcement validates least-privilege SQL grants and definer isolation', async () => {
     // Read and verify the SQL migration defining the hardened security definer function
-    const migrationPath = path.resolve(process.cwd(), 'drizzle/0001_audit_prune_function.sql');
+    const cwdMigration = path.resolve(process.cwd(), 'drizzle/0001_audit_prune_function.sql');
+    const migrationPath = fs.existsSync(cwdMigration) ? cwdMigration : path.resolve(__dirname, '../../drizzle/0001_audit_prune_function.sql');
     assert.ok(fs.existsSync(migrationPath), 'Migration script 0001_audit_prune_function.sql must exist');
     const migrationSql = fs.readFileSync(migrationPath, 'utf8');
 

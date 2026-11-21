@@ -13,10 +13,14 @@ Parental Control apps sensitive data (GPS, Camera, Mic, Screen, SMS, Calls) hand
 ---
 
 ## 2. Authentication, 2FA & Session Security
-- **Password Hashing:** `Argon2id` (memory-hard, GPU cracking resistant).
-- **Short-Lived JWT + Refresh Rotation:** Access token `15 min` TTL; Refresh token `30 days` (hashed in DB). Agar purana refresh token dubara use ho (theft detection), to us user ke **saare sessions turant revoke** ho jayenge.
-- **Super Admin 2FA:** Mandatory **TOTP 2FA** (Google Authenticator / Authy) + optional Admin IP allowlist.
-- **Force Logout:** Parent ya Admin 1 click me kisi bhi device/session ko revoke kar sakta hai.
+- **Password Hashing:** `Argon2id` (memory-hard, GPU cracking resistant, minimum 12 chars with complexity validation).
+- **Protected Superadmin Account (Database Invariant):** Exactly one protected Superadmin account exists (`is_protected = true`) enforced via partial unique index `idx_admin_users_single_protected` and PostgreSQL engine trigger `trg_protect_superadmin`. The trigger strictly prevents DELETE, role demotion, account suspension/deactivation, or stripping of the `is_protected` flag (raising SQLSTATE 55000), even against direct queries or application bugs.
+  > [!NOTE]
+  > **Security Scope & Limitations:** Trigger-based protection defends against application SQL queries, ORM operations, and unauthorized admin actions executed through normal database connections. However, PostgreSQL database superusers and table owners (`postgres` or roles with `ALTER TABLE` privileges) have inherent database-level administrative rights and can disable triggers (`ALTER TABLE ... DISABLE TRIGGER`) or drop database objects. This invariant provides robust application-tier and non-superuser defense-in-depth, not protection against a compromised PostgreSQL DBA/superuser role.
+- **Secure Provisioning:** `backend/bin/admin-cli.ts` provisions the initial Superadmin without hardcoded credentials, masking interactive input, rejecting weak passwords, never printing plaintext passwords, and providing idempotent execution for automated CI/CD deployments.
+- **Short-Lived JWT + Refresh Rotation:** Mobile access token `15 min` TTL; mobile refresh tokens are 256-bit cryptographically secure random values hashed via SHA-256 in `parent_refresh_tokens`.
+- **Super Admin 2FA:** Mandatory **TOTP 2FA** (Google Authenticator / Authy / 1Password) + 80-bit encrypted emergency recovery codes.
+- **Force Logout:** Admin can revoke any session with 1 click; changing password automatically revokes all existing sessions.
 
 ---
 

@@ -79,8 +79,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
           <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 shadow-xl shadow-indigo-500/10">
             <ShieldCheck className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Super Control Panel</h2>
-          <p className="text-xs text-slate-400 mt-1">Enterprise Parental Control Administration</p>
+          <h2 className="text-xl font-bold text-white tracking-tight">Admin Portal</h2>
+          <p className="text-xs text-slate-400 mt-1">Parental Control Administration</p>
         </div>
 
         {/* Cooldown Alert Banner */}
@@ -113,7 +113,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
                 autoComplete="username"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="superadmin or admin@enterprise.local"
+                placeholder="Enter username or email"
                 disabled={loading || (cooldownSeconds !== null && cooldownSeconds > 0)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
               />
@@ -122,7 +122,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-medium text-slate-300">Master Password</label>
+              <label className="text-xs font-medium text-slate-300">Password</label>
               <button
                 type="button"
                 onClick={onOpenForgotPassword}
@@ -140,7 +140,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter password"
                 disabled={loading || (cooldownSeconds !== null && cooldownSeconds > 0)}
                 className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
               />
@@ -163,9 +163,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900"
               />
-              <span className="text-xs text-slate-400">Remember session (7 days)</span>
+              <span className="text-xs text-slate-400">Remember me</span>
             </label>
-            <span className="text-[10px] text-slate-500">MFA still mandatory</span>
           </div>
 
           <button
@@ -180,7 +179,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onOpenForgotPassword }) 
 
         <div className="mt-8 pt-4 border-t border-slate-800/80 text-center">
           <p className="text-[11px] text-slate-500">
-            Protected by Argon2id, RFC 6238 TOTP, and Server-Managed HttpOnly Cookies.
+            Authorized administrative access only.
           </p>
         </div>
       </div>

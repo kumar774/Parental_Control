@@ -152,6 +152,19 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
           `[Real PostgreSQL Gate FATAL] Database '${dbName}' does not have required AUTH-001 and hybrid dashboard tables migrated. Run migrations first.`
         );
       }
+
+      const colRes = await client2.query(`
+        SELECT count(*)::int AS count 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'admin_users' 
+          AND column_name = 'is_protected'
+      `);
+      if (Number(colRes.rows[0]?.count) < 1) {
+        throw new Error(
+          `[Real PostgreSQL Gate FATAL] Database '${dbName}' is missing required column 'is_protected' on table 'admin_users'. Migration 0005_protected_superadmin.sql must be applied before running integration tests.`
+        );
+      }
     } finally {
       client2.release();
     }

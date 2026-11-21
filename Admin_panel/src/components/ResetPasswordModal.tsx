@@ -63,7 +63,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3 shadow-xl shadow-indigo-500/10">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Set New Master Password</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">Set New Password</h2>
           <p className="text-xs text-slate-400 mt-1">
             Complete the password reset workflow. All active sessions will be invalidated.
           </p>

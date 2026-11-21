@@ -9,11 +9,13 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /**
  * Table 1: admin_users
- * Stores administrative identities. Only one Super Admin is initially provisioned via CLI.
+ * Stores administrative identities. Only one Super Admin is initially provisioned via CLI and marked protected.
  */
 export const adminUsers = pgTable(
   'admin_users',
@@ -24,6 +26,7 @@ export const adminUsers = pgTable(
     passwordHash: text('password_hash').notNull(),
     role: varchar('role', { length: 30 }).notNull().default('super_admin'),
     status: varchar('status', { length: 30 }).notNull().default('active'),
+    isProtected: boolean('is_protected').notNull().default(false),
     mfaEnabled: boolean('mfa_enabled').notNull().default(false),
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lastFailedAttemptAt: timestamp('last_failed_attempt_at', { withTimezone: true }),
@@ -34,6 +37,7 @@ export const adminUsers = pgTable(
   (table) => [
     index('idx_admin_users_email').on(table.email),
     index('idx_admin_users_username').on(table.username),
+    uniqueIndex('idx_admin_users_single_protected').on(table.isProtected).where(sql`${table.isProtected} = true`),
   ]
 );
 

@@ -86,7 +86,7 @@ export const MfaVerifyModal: React.FC<MfaVerifyModalProps> = ({
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">Two-Factor Authentication</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Enter the 6-digit verification code from your Authenticator app (RFC 6238 TOTP)
+            Enter the 6-digit verification code from your Authenticator app
           </p>
         </div>
 

@@ -47,7 +47,7 @@ describe('Category E: Real PostgreSQL Concurrency & Atomicity Tests (Section 4.4
       email: testAdminEmail,
       username: 'concurrencyadmin',
       passwordHash,
-      role: 'superadmin',
+      role: 'super_admin',
       status: 'active',
     });
 

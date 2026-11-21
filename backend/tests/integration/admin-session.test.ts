@@ -2,7 +2,11 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { newDb } from 'pg-mem';
 import { authenticator } from 'otplib';
 import { pool, db } from '../../src/db/index';
@@ -34,6 +38,7 @@ import { eq, and, sql } from 'drizzle-orm';
 describe('2. Session & API Integration Tests (admin-session.test.ts)', () => {
   let app: any;
   let isPostgresConnected = false;
+  const rateLimitStore = new Map<string, { attempts: number; windowStart: number; cooldownUntil: number | null }>();
 
   // Test admin credentials
   const superAdminId = '11111111-1111-1111-1111-111111111111';
@@ -116,14 +121,16 @@ describe('2. Session & API Integration Tests (admin-session.test.ts)', () => {
       };
 
       // Load DDL schema
-      const ddlPath = path.resolve(process.cwd(), 'drizzle/0000_fast_yellow_claw.sql');
+      const cwdDdl = path.resolve(process.cwd(), 'drizzle/0000_fast_yellow_claw.sql');
+      const ddlPath = fs.existsSync(cwdDdl) ? cwdDdl : path.resolve(__dirname, '../../drizzle/0000_fast_yellow_claw.sql');
       const ddlSql = fs.readFileSync(ddlPath, 'utf8');
       mem.public.none(ddlSql);
+      mem.public.none('ALTER TABLE "admin_users" ADD COLUMN IF NOT EXISTS "is_protected" boolean DEFAULT false NOT NULL;');
 
       const memPool = new MemPg();
 
       // Intercept rate-limit queries for PostgreSQL rate-limit simulation in pg-mem
-      const rateLimitStore = new Map<string, { attempts: number; windowStart: number; cooldownUntil: number | null }>();
+      rateLimitStore.clear();
 
       const origPoolQuery = memPool.query.bind(memPool);
       memPool.query = async function (q: any, ...args: any[]) {
@@ -301,6 +308,7 @@ describe('2. Session & API Integration Tests (admin-session.test.ts)', () => {
   });
 
   beforeEach(async () => {
+    rateLimitStore.clear();
     // Reset lastUsedTimestep so TOTP anti-replay does not block sequential tests
     await db
       .update(adminMfa)

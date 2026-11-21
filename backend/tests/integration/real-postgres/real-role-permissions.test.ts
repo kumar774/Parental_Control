@@ -27,7 +27,7 @@ describe('Category D: Genuine Role-Based Privilege & Least-Privilege Verificatio
       email: testAdminEmail,
       username: 'roletestadmin',
       passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$dummyhashforroletesting1234567890',
-      role: 'superadmin',
+      role: 'super_admin',
       status: 'active',
     });
   });
