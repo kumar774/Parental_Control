@@ -111,14 +111,19 @@ class LocalAuthRepository(
     }
 
     override suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit> {
-        if (otpCode.length != 6) {
+        val trimmedCode = otpCode.trim()
+        if (trimmedCode.length != 6) {
             return Result.failure(IllegalArgumentException("Verification code must be 6 digits"))
         }
-        return Result.success(Unit)
+        return restClient.verifyEmail(trimmedCode, email.trim().lowercase()).map { }
     }
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> {
         return restClient.requestPasswordReset(email).map { }
+    }
+
+    override suspend fun resetPassword(email: String, otpCode: String, newPassword: String): Result<String> {
+        return restClient.resetPassword(email.trim().lowercase(), otpCode.trim(), newPassword)
     }
 
     override suspend fun logout(): Result<Unit> {

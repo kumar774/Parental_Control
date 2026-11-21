@@ -102,33 +102,27 @@ describe('Parent Auth Unit Tests', () => {
   });
 
   describe('Email Provider Detection & Configuration Safe Guard', () => {
-    it('detects no email provider when env variables are unset', () => {
-      const savedSmtp = process.env.SMTP_HOST;
-      const savedSg = process.env.SENDGRID_API_KEY;
-      const savedResend = process.env.RESEND_API_KEY;
-      const savedSes = process.env.AWS_SES_REGION;
-
-      delete process.env.SMTP_HOST;
-      delete process.env.SENDGRID_API_KEY;
-      delete process.env.RESEND_API_KEY;
-      delete process.env.AWS_SES_REGION;
-
+    it('environment variable presence alone does not constitute an operational email provider', () => {
+      process.env.SMTP_HOST = 'smtp.fake-relay.test';
+      process.env.SENDGRID_API_KEY = 'SG.fake_key_12345';
       try {
+        // Without an operational registered transport, email is honestly considered unconfigured
         assert.equal(isEmailConfigured(), false);
       } finally {
-        if (savedSmtp) process.env.SMTP_HOST = savedSmtp;
-        if (savedSg) process.env.SENDGRID_API_KEY = savedSg;
-        if (savedResend) process.env.RESEND_API_KEY = savedResend;
-        if (savedSes) process.env.AWS_SES_REGION = savedSes;
+        delete process.env.SMTP_HOST;
+        delete process.env.SENDGRID_API_KEY;
       }
     });
 
-    it('respects email configured test override', () => {
+    it('respects email configured test override and operational transport registration', () => {
       setEmailConfiguredOverrideForTest(true);
-      // When override is active, test logic behaves as email-configured
+      assert.equal(isEmailConfigured(), true);
+
       setEmailConfiguredOverrideForTest(false);
       assert.equal(isEmailConfigured(), false);
+
       setEmailConfiguredOverrideForTest(null);
+      assert.equal(isEmailConfigured(), false);
     });
   });
 

@@ -198,6 +198,7 @@ class FakeAuthAndSettingsRepository : IAuthRepository, ISettingsRepository {
     override suspend fun register(email: String, passwordHash: String, fullName: String): Result<ParentAccount> = Result.success(account)
     override suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit> = Result.success(Unit)
     override suspend fun sendPasswordReset(email: String): Result<Unit> = Result.success(Unit)
+    override suspend fun resetPassword(email: String, otpCode: String, newPassword: String): Result<String> = Result.success("Password reset successful!")
     override suspend fun logout(): Result<Unit> {
         accountFlow.value = null
         return Result.success(Unit)

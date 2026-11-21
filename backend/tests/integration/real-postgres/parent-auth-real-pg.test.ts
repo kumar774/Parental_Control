@@ -12,12 +12,13 @@ import {
 import { resetParentRateLimitsForTest } from '../../../src/middleware/parent-rate-limiter';
 import {
   setEmailConfiguredOverrideForTest,
+  setEmailTransport,
   resetPendingResetStoreForTest,
   lastDispatchedOtpForTest,
   resetDispatchedOtpForTest,
   hashRefreshToken,
 } from '../../../src/routes/parent/auth.routes';
-import { hashPassword } from '../../../src/utils/crypto-vault';
+import { hashPassword, verifyPassword } from '../../../src/utils/crypto-vault';
 
 describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
   const app = buildApp();
@@ -398,6 +399,13 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(forgotRes.statusCode, 200);
     assert.ok(lastDispatchedOtpForTest, 'OTP must be dispatched in test mode');
 
+    // Capture stored passwordHash in PostgreSQL before reset
+    const [dbUserBefore] = await db
+      .select({ passwordHash: parentUsers.passwordHash })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, user.id));
+    assert.ok(dbUserBefore.passwordHash, 'User must have a password hash in PostgreSQL');
+
     // 4. Perform password reset with valid OTP and new password
     const resetRes = await readyApp!.inject({
       method: 'POST',
@@ -409,6 +417,17 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(resetRes.statusCode, 200, `Reset failed: ${resetRes.body}`);
+
+    // Direct Database Invariant Verification: verify actual PostgreSQL hash was modified
+    const [dbUserAfter] = await db
+      .select({ passwordHash: parentUsers.passwordHash })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, user.id));
+    assert.notEqual(dbUserBefore.passwordHash, dbUserAfter.passwordHash, 'Actual PostgreSQL passwordHash must be changed');
+    const validWithNew = await verifyPassword(dbUserAfter.passwordHash, updatedPassword);
+    assert.equal(validWithNew, true, 'New password must verify against stored hash in PostgreSQL');
+    const validWithOld = await verifyPassword(dbUserAfter.passwordHash, validPassword);
+    assert.equal(validWithOld, false, 'Old password must fail against stored hash in PostgreSQL');
 
     // 5. Verify ALL existing refresh sessions are marked revoked in PostgreSQL
     const activeTokensAfter = await db
@@ -746,5 +765,35 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       payload: { token: rawVerifyToken },
     });
     assert.equal(reuseVerifyRes.statusCode, 400, 'Reused verification token must be rejected');
+  });
+
+  it('15. Email delivery failure returns HTTP 502 and does not claim code was dispatched', async () => {
+    // Register transport that simulates delivery failure
+    setEmailTransport({
+      async sendVerificationEmail() {
+        return { delivered: false, error: 'SMTP connection refused or timed out' };
+      },
+    });
+
+    const testEmail = `parent-failmail-${Date.now()}@example.test`;
+    await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Mail Fail User',
+        password: validPassword,
+      },
+    });
+
+    const forgotRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/forgot-password',
+      payload: { email: testEmail },
+    });
+
+    assert.equal(forgotRes.statusCode, 502);
+    assert.equal(forgotRes.json().error, 'Bad Gateway');
+    assert.ok(forgotRes.json().message.includes('Failed to deliver verification code'));
   });
 });

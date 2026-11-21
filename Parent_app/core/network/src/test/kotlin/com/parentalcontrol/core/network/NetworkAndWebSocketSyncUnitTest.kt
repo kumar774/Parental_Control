@@ -206,6 +206,55 @@ class NetworkAndWebSocketSyncUnitTest {
     }
 
     @Test
+    fun testServerSideLogoutNetworkFailureClearsLocalStateAndReturnsFailure() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/logout") -> {
+                    FastifyRestClient.HttpResponse(500, """{"statusCode":500,"message":"Database connection error"}""")
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val logoutResult = client.logout()
+        // Must fail rather than claiming remote revocation succeeded
+        assertFalse("Must report failure when remote revocation fails", logoutResult.isSuccess)
+        assertTrue(logoutResult.exceptionOrNull()?.message?.contains("remote token revocation failed") == true)
+        // BUT local tokens MUST be purged immediately
+        assertNull("Access token must be cleared locally", client.accessToken)
+        assertNull("Refresh token must be cleared locally", client.refreshToken)
+    }
+
+    @Test
+    fun testVerifyEmailEndpoint() = runBlocking {
+        val client = FastifyRestClient()
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/verify-email") -> {
+                    if (body?.contains("123456") == true) {
+                        FastifyRestClient.HttpResponse(200, """{"statusCode":200,"message":"Email verified successfully"}""")
+                    } else {
+                        FastifyRestClient.HttpResponse(400, """{"statusCode":400,"message":"Invalid or expired verification token"}""")
+                    }
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val validResult = client.verifyEmail("123456", "test@parent.com")
+        assertTrue(validResult.isSuccess)
+        assertEquals("Email verified successfully", validResult.getOrThrow())
+
+        val invalidResult = client.verifyEmail("000000", "test@parent.com")
+        assertFalse(invalidResult.isSuccess)
+    }
+
+    @Test
     fun testAuthExemptEndpointsDoNotTriggerTokenRefresh() = runBlocking {
         var refreshCalled = false
         val client = FastifyRestClient(refreshToken = "valid-refresh-token")

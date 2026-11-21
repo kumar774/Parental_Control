@@ -18,26 +18,47 @@ import {
   parentForgotRateLimiter,
 } from '../../middleware/parent-rate-limiter';
 
-/**
- * Detects whether an active email provider is configured in environment.
- */
-export function isEmailConfigured(): boolean {
-  return Boolean(
-    process.env.SMTP_HOST ||
-    process.env.SENDGRID_API_KEY ||
-    process.env.RESEND_API_KEY ||
-    process.env.AWS_SES_REGION
-  );
+export interface EmailTransport {
+  sendVerificationEmail(
+    to: string,
+    subject: string,
+    bodyText: string,
+    otpCode: string
+  ): Promise<{ delivered: boolean; error?: string }>;
 }
 
-let emailConfiguredOverride: boolean | null = null;
-export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
-  emailConfiguredOverride = val;
+let activeEmailTransport: EmailTransport | null = null;
+
+export function setEmailTransport(transport: EmailTransport | null): void {
+  activeEmailTransport = transport;
+}
+
+/**
+ * Detects whether an active email provider is configured in environment.
+ * Requires an operational, tested EmailTransport to be registered.
+ * Mere environment variable presence is NOT treated as operational delivery.
+ */
+export function isEmailConfigured(): boolean {
+  return activeEmailTransport !== null;
 }
 
 export let lastDispatchedOtpForTest: string | null = null;
 export function resetDispatchedOtpForTest(): void {
   lastDispatchedOtpForTest = null;
+}
+
+export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
+  if (val === true) {
+    activeEmailTransport = {
+      async sendVerificationEmail(_to, _subject, _bodyText, otpCode) {
+        lastDispatchedOtpForTest = otpCode;
+        return { delivered: true };
+      },
+    };
+  } else {
+    activeEmailTransport = null;
+    lastDispatchedOtpForTest = null;
+  }
 }
 
 /**
@@ -530,8 +551,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
-    if (!emailConfigured) {
+    if (!isEmailConfigured() || !activeEmailTransport) {
       return reply.status(501).send({
         statusCode: 501,
         error: 'Not Implemented',
@@ -567,9 +587,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     // Cryptographically secure 6-digit verification code
     const rawCode = crypto.randomInt(100000, 1000000).toString();
     const tokenHash = crypto.createHash('sha256').update(rawCode).digest('hex');
-    if (emailConfiguredOverride !== null || process.env.NODE_ENV === 'test') {
-      lastDispatchedOtpForTest = rawCode;
-    }
 
     // Invalidate any previous unused password_reset tokens for this email to enforce single active code
     await db
@@ -595,6 +612,32 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
 
+    // Actually dispatch email via operational transport. Do not claim success unless delivered.
+    try {
+      const dispatchResult = await activeEmailTransport.sendVerificationEmail(
+        normalizedEmail,
+        'Your Guardian Account Password Reset Code',
+        `Your 6-digit verification code is: ${rawCode}. This code expires in 15 minutes.`,
+        rawCode
+      );
+
+      if (!dispatchResult.delivered) {
+        request.log.error({ err: dispatchResult.error }, 'Email transport delivery failed');
+        return reply.status(502).send({
+          statusCode: 502,
+          error: 'Bad Gateway',
+          message: 'Failed to deliver verification code to your email address. Please try again later.',
+        });
+      }
+    } catch (err: any) {
+      request.log.error({ err }, 'Email transport thrown exception');
+      return reply.status(502).send({
+        statusCode: 502,
+        error: 'Bad Gateway',
+        message: 'Email delivery service encountered an unexpected error. Please try again later.',
+      });
+    }
+
     return reply.send({
       statusCode: 200,
       message: 'A 6-digit verification code has been dispatched to your email address.',
@@ -618,8 +661,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
-    if (!emailConfigured) {
+    if (!isEmailConfigured()) {
       return reply.status(501).send({
         statusCode: 501,
         error: 'Not Implemented',
@@ -768,8 +810,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * Requires a valid, unexpired, single-use token in parent_verification_tokens.
    */
   app.post('/verify-email', async (request, reply) => {
-    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
-    if (!emailConfigured) {
+    if (!isEmailConfigured()) {
       return reply.status(501).send({
         statusCode: 501,
         error: 'Not Implemented',
@@ -858,8 +899,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * Requires a valid, unexpired, single-use token query parameter.
    */
   app.get('/verify-email', async (request, reply) => {
-    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
-    if (!emailConfigured) {
+    if (!isEmailConfigured()) {
       return reply.status(501).send({
         statusCode: 501,
         error: 'Not Implemented',

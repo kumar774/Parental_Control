@@ -175,6 +175,17 @@ class AuthAndSettingsViewModelTest {
     }
 
     @Test
+    fun resetPassword_validCredentials_succeeds() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.ResetPassword("parent@test.com", "123456", "ValidEnterprisePass2026!"))
+        advanceUntilIdle()
+
+        assertTrue(authViewModel.uiState.value.isPasswordResetSuccess)
+        assertFalse(authViewModel.uiState.value.isLoading)
+        assertNull(authViewModel.uiState.value.errorMessage)
+        assertNotNull(authViewModel.uiState.value.statusMessage)
+    }
+
+    @Test
     fun clearError_resetsErrorMessage() = runTest(testDispatcher) {
         authViewModel.handleIntent(AuthUiIntent.Login("", ""))
         advanceUntilIdle()

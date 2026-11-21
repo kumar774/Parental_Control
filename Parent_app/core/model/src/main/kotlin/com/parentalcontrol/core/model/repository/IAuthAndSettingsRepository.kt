@@ -11,6 +11,7 @@ interface IAuthRepository {
     suspend fun register(email: String, passwordHash: String, fullName: String): Result<ParentAccount>
     suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit>
     suspend fun sendPasswordReset(email: String): Result<Unit>
+    suspend fun resetPassword(email: String, otpCode: String, newPassword: String): Result<String>
     suspend fun logout(): Result<Unit>
     suspend fun verifySession(): Result<ParentAccount> = Result.failure(Exception("Not implemented"))
     suspend fun refreshSession(): Result<Unit> = Result.failure(Exception("Not implemented"))

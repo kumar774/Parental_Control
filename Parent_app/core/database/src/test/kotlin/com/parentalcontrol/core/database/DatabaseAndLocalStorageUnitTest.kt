@@ -53,6 +53,18 @@ class DatabaseAndLocalStorageUnitTest {
                         """{"user":{"id":"parent-uuid-001","email":"parent@test.com","fullName":"Alex Smith","familyCardNo":"FAM-1234","isGuest":false}}"""
                     )
                 }
+                fullUrl.endsWith("/api/v1/auth/reset-password") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"statusCode":200,"message":"Your guardian account password has been reset successfully."}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/verify-email") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"statusCode":200,"message":"Email verified successfully"}"""
+                    )
+                }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
             }
         }
@@ -224,6 +236,19 @@ class DatabaseAndLocalStorageUnitTest {
         assertNull(database.mmkv.accessToken)
         val clearedSession = authRepo.observeCurrentAccount().first()
         assertNull(clearedSession)
+    }
+
+    @Test
+    fun testAuthRepositoryResetPasswordAndVerifyEmail() = runBlocking {
+        val resetResult = authRepo.resetPassword("parent@test.com", "123456", "NewSecurePassword2026!")
+        assertTrue("resetPassword must succeed: ${resetResult.exceptionOrNull()?.message}", resetResult.isSuccess)
+        assertTrue(resetResult.getOrThrow().contains("password has been reset"))
+
+        val verifyResult = authRepo.verifyEmailOtp("parent@test.com", "123456")
+        assertTrue("verifyEmailOtp must succeed: ${verifyResult.exceptionOrNull()?.message}", verifyResult.isSuccess)
+
+        val invalidOtpResult = authRepo.verifyEmailOtp("parent@test.com", "12")
+        assertFalse("Invalid OTP length must fail", invalidOtpResult.isSuccess)
     }
 
     @Test

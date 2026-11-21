@@ -166,6 +166,33 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun verifyEmail(tokenOrOtp: String, email: String? = null): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("token", tokenOrOtp.trim())
+                if (!email.isNullOrBlank()) {
+                    put("email", email.trim().lowercase())
+                }
+            }.toString()
+
+            val response = executePost("/api/v1/auth/verify-email", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val msg = json.optString("message", "Email verified successfully")
+                Result.success(msg)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Invalid or expired verification token")
+                } catch (_: Exception) {
+                    "Email verification failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun register(request: RegisterRequestDto): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = JSONObject().apply {
@@ -1491,26 +1518,37 @@ class FastifyRestClient(
 
     /**
      * Server-side logout revoking refresh token via POST /api/v1/auth/logout.
-     * Clears local in-memory session tokens regardless of network outcome.
+     * Always preserves immediate local session cleanup in finally block,
+     * but distinguishes successful remote token revocation from network/server errors.
      */
     suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
         val currentRefToken = refreshToken
         val currentAccToken = accessToken
+        var remoteRevokeError: Throwable? = null
         try {
             if (!currentRefToken.isNullOrBlank()) {
                 val jsonBody = JSONObject().apply {
                     put("refreshToken", currentRefToken)
                 }.toString()
-                executeRequestRaw("POST", "/api/v1/auth/logout", jsonBody, currentAccToken)
+                val response = executeRequestRaw("POST", "/api/v1/auth/logout", jsonBody, currentAccToken)
+                if (response.statusCode !in 200..299) {
+                    remoteRevokeError = Exception("Server returned HTTP ${response.statusCode} during session revocation")
+                }
             }
-        } catch (_: Exception) {
-            // Server error or network failure during logout must not prevent local cleanup
+        } catch (e: Exception) {
+            remoteRevokeError = e
         } finally {
+            // Immediate local cleanup is ALWAYS preserved regardless of network outcome
             accessToken = null
             refreshToken = null
             onLogout?.invoke()
         }
-        Result.success(Unit)
+
+        if (remoteRevokeError != null) {
+            Result.failure(Exception("Local session cleared, but remote token revocation failed: ${remoteRevokeError.message}", remoteRevokeError))
+        } else {
+            Result.success(Unit)
+        }
     }
 
     private fun isAuthExemptPath(path: String): Boolean {
@@ -1518,7 +1556,8 @@ class FastifyRestClient(
                path.contains("/auth/register") ||
                path.contains("/auth/refresh") ||
                path.contains("/auth/forgot-password") ||
-               path.contains("/auth/reset-password")
+               path.contains("/auth/reset-password") ||
+               path.contains("/auth/verify-email")
     }
 
     private fun executeRequest(

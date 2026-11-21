@@ -205,7 +205,7 @@ class AuthViewModel(
         updateState { copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             val result = if (authRepository != null) {
-                authRepository.verifyEmailOtp(email.trim().lowercase(), trimmedCode).map { "Password reset successful!" }
+                authRepository.resetPassword(email.trim().lowercase(), trimmedCode, newPassword)
             } else {
                 FastifyRestClient.shared.resetPassword(
                     email = email.trim().lowercase(),
