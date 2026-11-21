@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.AccentIndigoLight
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
@@ -553,8 +554,13 @@ fun ForgotPasswordScreen(
                                 localErrorMessage = "Please enter the 6-digit verification code"
                                 return@Button
                             }
-                            if (newPassword.length < 8) {
-                                localErrorMessage = "Password must be at least 8 characters long"
+                            val passwordValidation = ParentPasswordPolicy.validate(newPassword)
+                            if (!passwordValidation.isValid) {
+                                localErrorMessage = passwordValidation.errorMessage
+                                return@Button
+                            }
+                            if (confirmNewPassword.isEmpty()) {
+                                localErrorMessage = "Please confirm your new password"
                                 return@Button
                             }
                             if (newPassword != confirmNewPassword) {

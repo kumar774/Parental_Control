@@ -65,6 +65,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
@@ -125,11 +126,11 @@ fun RegisterScreen(
         }
     }
 
-    // 4-stage strength calculation
-    val hasLength = password.length >= 8
+    // 4-stage strength calculation aligned with backend enterprise policy
+    val hasLength = password.length >= 10
     val hasNumber = password.any { it.isDigit() }
     val hasUpperLower = password.any { it.isUpperCase() } && password.any { it.isLowerCase() }
-    val hasSpecial = password.any { !it.isLetterOrDigit() }
+    val hasSpecial = "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]".toRegex().containsMatchIn(password)
     val strengthScore = listOf(hasLength, hasNumber, hasUpperLower, hasSpecial).count { it }
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
@@ -511,8 +512,9 @@ fun RegisterScreen(
                             localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
                             return@Button
                         }
-                        if (password.length < 8) {
-                            localErrorMessage = "Password must be at least 8 characters"
+                        val passwordValidation = ParentPasswordPolicy.validate(password)
+                        if (!passwordValidation.isValid) {
+                            localErrorMessage = passwordValidation.errorMessage
                             return@Button
                         }
                         if (confirmPassword.isEmpty()) {

@@ -29,6 +29,7 @@ export interface EmailTransport {
 }
 
 let activeEmailTransport: EmailTransport | null = null;
+let emailConfiguredOverride: boolean | null = null;
 
 export function setEmailTransport(transport: EmailTransport | null): void {
   activeEmailTransport = transport;
@@ -40,6 +41,9 @@ export function setEmailTransport(transport: EmailTransport | null): void {
  * Mere environment variable presence is NOT treated as operational delivery.
  */
 export function isEmailConfigured(): boolean {
+  if (emailConfiguredOverride !== null) {
+    return emailConfiguredOverride;
+  }
   if (activeEmailTransport !== null) {
     return true;
   }
@@ -52,6 +56,7 @@ export function resetDispatchedOtpForTest(): void {
 }
 
 export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
+  emailConfiguredOverride = val;
   if (val === true) {
     activeEmailTransport = {
       async sendVerificationEmail(_to, _subject, _bodyText, otpCode) {
@@ -237,6 +242,20 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         });
 
+        // Generate email verification OTP token if email service is active
+        let rawVerificationOtp: string | null = null;
+        if (isEmailConfigured()) {
+          rawVerificationOtp = crypto.randomInt(100000, 999999).toString();
+          const verificationHash = crypto.createHash('sha256').update(rawVerificationOtp).digest('hex');
+          await tx.insert(parentVerificationTokens).values({
+            parentId: newUser.id,
+            email: normalizedEmail,
+            tokenHash: verificationHash,
+            type: 'email_verification',
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          });
+        }
+
         return {
           user: {
             id: newUser.id,
@@ -250,10 +269,30 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           accessToken: token,
           refreshToken: rawRefreshToken,
           expiresIn: 900,
+          verificationOtp: rawVerificationOtp,
         };
       });
 
-      return reply.status(201).send(result);
+      // Dispatch verification email outside of transaction
+      if (result.verificationOtp) {
+        try {
+          if (activeEmailTransport) {
+            await activeEmailTransport.sendVerificationEmail(
+              normalizedEmail,
+              'Verify Your Guardian Account Email',
+              `Your 6-digit verification code is: ${result.verificationOtp}.`,
+              result.verificationOtp
+            );
+          } else {
+            await emailService.sendVerificationEmail(normalizedEmail, result.verificationOtp);
+          }
+        } catch (emailErr) {
+          request.log.warn({ err: emailErr }, 'Failed to dispatch verification email on registration');
+        }
+      }
+
+      const { verificationOtp, ...clientResponse } = result;
+      return reply.status(201).send(clientResponse);
     } catch (err: any) {
       request.log.error({ err }, 'Atomic parent registration failed');
       return reply.status(500).send({
@@ -677,7 +716,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
   /**
    * POST /reset-password
    * Resets account password using verified token/otpCode.
-   * If no email provider is configured, returns clean HTTP 501.
+   * Does not require active SMTP transport — valid unexpired single-use OTP is sufficient.
    * Enforces brute-force protection (max 5 attempts), token expiration, single-use invalidation,
    * updates password hash, and atomically revokes all active refresh sessions.
    */
@@ -688,14 +727,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         statusCode: 400,
         error: 'Bad Request',
         message: 'Invalid password reset parameters',
-      });
-    }
-
-    if (!isEmailConfigured()) {
-      return reply.status(501).send({
-        statusCode: 501,
-        error: 'Not Implemented',
-        message: 'Email delivery service is not configured. Password reset is currently unavailable.',
       });
     }
 
@@ -725,7 +756,15 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
       .limit(1);
 
-    if (!user || user.status === 'suspended') {
+    if (!user) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    if (user.status === 'suspended') {
       return reply.status(403).send({
         statusCode: 403,
         error: 'Forbidden',

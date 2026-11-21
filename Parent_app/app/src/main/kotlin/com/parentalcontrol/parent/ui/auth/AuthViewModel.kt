@@ -5,6 +5,7 @@ import com.parentalcontrol.core.database.ParentalDatabase
 import com.parentalcontrol.core.database.repository.LocalAuthRepository
 import com.parentalcontrol.core.database.repository.LocalChildDeviceRepository
 import com.parentalcontrol.core.model.auth.ParentAccount
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
 import com.parentalcontrol.core.model.device.PairingCode
 import com.parentalcontrol.core.model.repository.IAuthRepository
 import com.parentalcontrol.core.model.repository.IChildDeviceRepository
@@ -113,8 +114,9 @@ class AuthViewModel(
             updateState { copy(errorMessage = "Please enter a valid email address (e.g. name@domain.com)") }
             return
         }
-        if (password.length < 8) {
-            updateState { copy(errorMessage = "Password must be at least 8 characters") }
+        val passwordValidation = ParentPasswordPolicy.validate(password)
+        if (!passwordValidation.isValid) {
+            updateState { copy(errorMessage = passwordValidation.errorMessage) }
             return
         }
 
@@ -123,8 +125,8 @@ class AuthViewModel(
             val result = authenticateParentUseCase.register(normalizedEmail, password, trimmedName)
             result.onSuccess { account ->
                 updateState { copy(isLoading = false, currentAccount = account, isOtpSent = true) }
-                sendEffect(AuthUiEffect.ShowToast("Account created successfully!"))
-                sendEffect(AuthUiEffect.NavigateToDashboard)
+                sendEffect(AuthUiEffect.ShowToast("Account created successfully! Please verify your email."))
+                sendEffect(AuthUiEffect.NavigateToEmailVerification)
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Registration failed. Please check details."
                 updateState { copy(isLoading = false, errorMessage = errorMsg) }
@@ -197,8 +199,9 @@ class AuthViewModel(
             updateState { copy(errorMessage = "Please enter the 6-digit verification code") }
             return
         }
-        if (newPassword.length < 8) {
-            updateState { copy(errorMessage = "Password must be at least 8 characters long") }
+        val passwordValidation = ParentPasswordPolicy.validate(newPassword)
+        if (!passwordValidation.isValid) {
+            updateState { copy(errorMessage = passwordValidation.errorMessage) }
             return
         }
 

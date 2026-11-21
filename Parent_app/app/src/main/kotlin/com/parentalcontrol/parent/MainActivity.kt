@@ -673,7 +673,7 @@ fun ParentAppMainContent() {
                 AppScreen.REGISTER -> {
                     RegisterScreen(
                         onRegisterSuccess = {
-                            currentScreen = AppScreen.MAIN_SHELL
+                            currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                         },
                         onLoginClick = {
                             currentScreen = AppScreen.LOGIN

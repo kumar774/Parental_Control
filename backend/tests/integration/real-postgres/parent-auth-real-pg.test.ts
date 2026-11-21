@@ -249,31 +249,33 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     await db.delete(parentUsers).where(eq(parentUsers.id, user.id));
   });
 
-  it('7. Forgot-password & Reset-password return clean HTTP 501 when no email provider is configured', async () => {
+  it('7. Forgot-password returns clean HTTP 501 when no email provider is configured, while Reset-password does not require SMTP', async () => {
     setEmailConfiguredOverrideForTest(false);
+    const unconfiguredEmail = `unconfigured-${Date.now()}@example.test`;
 
     const forgotRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/forgot-password',
       payload: {
-        email: 'parent@example.test',
+        email: unconfiguredEmail,
       },
     });
     assert.equal(forgotRes.statusCode, 501);
     assert.equal(forgotRes.json().error, 'Not Implemented');
     assert.ok(forgotRes.json().message.includes('Email delivery service is not configured'));
 
+    // /reset-password does not require SMTP — evaluates parameters directly, returning 400 for unknown OTP
     const resetRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/reset-password',
       payload: {
-        email: 'parent@example.test',
+        email: unconfiguredEmail,
         otpCode: '123456',
         newPassword: validPassword,
       },
     });
-    assert.equal(resetRes.statusCode, 501);
-    assert.equal(resetRes.json().error, 'Not Implemented');
+    assert.equal(resetRes.statusCode, 400);
+    assert.equal(resetRes.json().error, 'Bad Request');
 
     const verifyPostRes = await readyApp!.inject({
       method: 'POST',

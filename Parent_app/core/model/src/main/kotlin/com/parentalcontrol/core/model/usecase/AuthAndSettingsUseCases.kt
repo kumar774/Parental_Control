@@ -2,6 +2,7 @@ package com.parentalcontrol.core.model.usecase
 
 import com.parentalcontrol.core.model.auth.NetworkPingResult
 import com.parentalcontrol.core.model.auth.ParentAccount
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
 import com.parentalcontrol.core.model.auth.SubscriptionPlan
 import com.parentalcontrol.core.model.repository.IAuthRepository
 import com.parentalcontrol.core.model.repository.ISettingsRepository
@@ -21,7 +22,8 @@ class AuthenticateParentUseCase(
     suspend fun register(email: String, password: String, fullName: String): Result<ParentAccount> {
         if (fullName.isBlank()) return Result.failure(IllegalArgumentException("Full name required"))
         if (!email.contains("@")) return Result.failure(IllegalArgumentException("Invalid email format"))
-        if (password.length < 6) return Result.failure(IllegalArgumentException("Password must be at least 6 characters"))
+        val validation = ParentPasswordPolicy.validate(password)
+        if (!validation.isValid) return Result.failure(IllegalArgumentException(validation.errorMessage ?: "Invalid password"))
         return authRepository.register(email, password, fullName)
     }
 

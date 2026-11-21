@@ -112,7 +112,7 @@ class AuthAndSettingsViewModelTest {
 
     @Test
     fun register_success_setsCurrentAccount() = runTest(testDispatcher) {
-        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "securePassword123", "Rajesh Kumar"))
+        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "SecureMasterPass#2026!", "Rajesh Kumar"))
         advanceUntilIdle()
 
         assertNotNull(authViewModel.uiState.value.currentAccount)
@@ -123,7 +123,7 @@ class AuthAndSettingsViewModelTest {
 
     @Test
     fun register_emptyFullName_setsError() = runTest(testDispatcher) {
-        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "securePassword123", "   "))
+        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "SecureMasterPass#2026!", "   "))
         advanceUntilIdle()
 
         assertNull(authViewModel.uiState.value.currentAccount)
@@ -136,7 +136,7 @@ class AuthAndSettingsViewModelTest {
         advanceUntilIdle()
 
         assertNull(authViewModel.uiState.value.currentAccount)
-        assertEquals("Password must be at least 8 characters", authViewModel.uiState.value.errorMessage)
+        assertEquals("Password must be at least 10 characters long", authViewModel.uiState.value.errorMessage)
     }
 
     @Test
@@ -171,7 +171,7 @@ class AuthAndSettingsViewModelTest {
         authViewModel.handleIntent(AuthUiIntent.ResetPassword("parent@test.com", "123456", "short"))
         advanceUntilIdle()
 
-        assertEquals("Password must be at least 8 characters long", authViewModel.uiState.value.errorMessage)
+        assertEquals("Password must be at least 10 characters long", authViewModel.uiState.value.errorMessage)
     }
 
     @Test
