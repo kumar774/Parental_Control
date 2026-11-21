@@ -25,6 +25,31 @@ export class AdminApiError extends Error {
 
 const BASE_URL = '/api/v1/admin/auth';
 const DASHBOARD_BASE_URL = '/api/v1/admin/dashboard';
+const SETTINGS_BASE_URL = '/api/v1/admin/settings';
+
+export interface SmtpSettingsResponse {
+  configured: boolean;
+  host: string | null;
+  port: number | null;
+  secure: boolean;
+  username: string | null;
+  isPasswordSet: boolean;
+  fromEmail: string | null;
+  fromName: string | null;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  status: 'connected' | 'unconfigured' | 'error';
+}
+
+export interface UpdateSmtpPayload {
+  host: string;
+  port: number;
+  secure: boolean;
+  username?: string;
+  password?: string;
+  fromEmail: string;
+  fromName: string;
+}
 
 export interface DashboardOverview {
   generatedAt: string;
@@ -506,5 +531,47 @@ export const adminApi = {
    */
   async getSystemHealth(): Promise<SystemHealth> {
     return request<SystemHealth>('/health', { method: 'GET' }, DASHBOARD_BASE_URL);
+  },
+
+  /**
+   * Fetches administrative SMTP settings and connection health
+   */
+  async getSmtpSettings(): Promise<SmtpSettingsResponse> {
+    return request<SmtpSettingsResponse>('/smtp', { method: 'GET' }, SETTINGS_BASE_URL);
+  },
+
+  /**
+   * Updates administrative SMTP credentials
+   */
+  async updateSmtpSettings(
+    payload: UpdateSmtpPayload
+  ): Promise<{ statusCode: number; message: string; settings: SmtpSettingsResponse }> {
+    return request<{ statusCode: number; message: string; settings: SmtpSettingsResponse }>(
+      '/smtp',
+      { method: 'PUT', body: JSON.stringify(payload) },
+      SETTINGS_BASE_URL
+    );
+  },
+
+  /**
+   * Verifies connectivity to configured SMTP server
+   */
+  async verifySmtpConnection(): Promise<{ statusCode: number; message: string }> {
+    return request<{ statusCode: number; message: string }>(
+      '/smtp/verify',
+      { method: 'POST' },
+      SETTINGS_BASE_URL
+    );
+  },
+
+  /**
+   * Sends a test email to the specified recipient
+   */
+  async sendTestEmail(toEmail: string): Promise<{ statusCode: number; message: string }> {
+    return request<{ statusCode: number; message: string }>(
+      '/smtp/test',
+      { method: 'POST', body: JSON.stringify({ toEmail }) },
+      SETTINGS_BASE_URL
+    );
   },
 };

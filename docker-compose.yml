@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: parental_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-parental_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-development_only_local_pass_2026!}
+      POSTGRES_DB: ${DB_NAME:-parental_control_admin_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-parental_admin} -d ${DB_NAME:-parental_control_admin_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: parental_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: parental_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP server (port for backend outgoing emails)
+      - "8025:8025" # Mailpit Web UI (inspect emails in browser at http://localhost:8025)
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: "" # In-memory database for ephemeral local development
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8025/api/v1/info"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:

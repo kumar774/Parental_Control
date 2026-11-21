@@ -17,6 +17,7 @@ import {
   parentLoginRateLimiter,
   parentForgotRateLimiter,
 } from '../../middleware/parent-rate-limiter';
+import { emailService } from '../../services/email/index';
 
 export interface EmailTransport {
   sendVerificationEmail(
@@ -39,7 +40,10 @@ export function setEmailTransport(transport: EmailTransport | null): void {
  * Mere environment variable presence is NOT treated as operational delivery.
  */
 export function isEmailConfigured(): boolean {
-  return activeEmailTransport !== null;
+  if (activeEmailTransport !== null) {
+    return true;
+  }
+  return emailService.isConfigured();
 }
 
 export let lastDispatchedOtpForTest: string | null = null;
@@ -391,8 +395,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     const tokenHash = hashRefreshToken(parsed.data.refreshToken);
 
+    type RefreshResult =
+      | { ok: true; accessToken: string; refreshToken: string; expiresIn: number }
+      | { ok: false; status: number; error: string; message: string };
+
     // Atomic token rotation inside a single database transaction with row locking
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction<RefreshResult>(async (tx) => {
       // 1. Lock the token row to eliminate concurrent race conditions
       const [record] = await tx
         .select()
@@ -402,11 +410,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .limit(1);
 
       if (!record) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Invalid refresh token',
-        });
+        };
       }
 
       // 2. Account status check: if account is suspended, immediately reject with HTTP 403
@@ -422,11 +431,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .limit(1);
 
       if (!user || user.status === 'suspended') {
-        return reply.status(403).send({
-          statusCode: 403,
+        return {
+          ok: false,
+          status: 403,
           error: 'Forbidden',
           message: 'Account suspended. Please contact support.',
-        });
+        };
       }
 
       // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
@@ -445,20 +455,22 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
             )
           );
 
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Token reuse detected. All sessions have been revoked for security.',
-        });
+        };
       }
 
       // 4. Expiry check
       if (new Date(record.expiresAt).getTime() < Date.now()) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Refresh token has expired',
-        });
+        };
       }
 
       // 5. Atomic conditional update: revoke current token
@@ -478,11 +490,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .returning();
 
       if (!revokedRecord) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Token reuse detected. All sessions have been revoked for security.',
-        });
+        };
       }
 
       // 6. Generate new token pair and persist new token within transaction
@@ -503,11 +516,26 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       });
 
-      return reply.send({
+      return {
+        ok: true,
         accessToken: newAccessToken,
         refreshToken: newRawRefreshToken,
         expiresIn: 900,
+      };
+    });
+
+    if (!result.ok) {
+      return reply.status(result.status).send({
+        statusCode: result.status,
+        error: result.error,
+        message: result.message,
       });
+    }
+
+    return reply.send({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn,
     });
   });
 
@@ -551,7 +579,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    if (!isEmailConfigured() || !activeEmailTransport) {
+    if (!isEmailConfigured()) {
       return reply.status(501).send({
         statusCode: 501,
         error: 'Not Implemented',
@@ -612,14 +640,16 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
 
-    // Actually dispatch email via operational transport. Do not claim success unless delivered.
+    // Actually dispatch email via operational transport or emailService. Do not claim success unless delivered.
     try {
-      const dispatchResult = await activeEmailTransport.sendVerificationEmail(
-        normalizedEmail,
-        'Your Guardian Account Password Reset Code',
-        `Your 6-digit verification code is: ${rawCode}. This code expires in 15 minutes.`,
-        rawCode
-      );
+      const dispatchResult = activeEmailTransport
+        ? await activeEmailTransport.sendVerificationEmail(
+            normalizedEmail,
+            'Your Guardian Account Password Reset Code',
+            `Your 6-digit verification code is: ${rawCode}. This code expires in 15 minutes.`,
+            rawCode
+          )
+        : await emailService.sendPasswordResetEmail(normalizedEmail, rawCode);
 
       if (!dispatchResult.delivered) {
         request.log.error({ err: dispatchResult.error }, 'Email transport delivery failed');

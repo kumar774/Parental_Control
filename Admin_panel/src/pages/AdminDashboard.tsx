@@ -25,6 +25,7 @@ import {
   UserX,
   AlertTriangle,
   Eye,
+  Mail,
 } from 'lucide-react';
 import { useAdminAuthStore } from '../store/admin-auth.store';
 import {
@@ -37,8 +38,9 @@ import {
   SystemHealth,
 } from '../services/admin-api';
 import { SessionManagementPanel } from '../components/SessionManagementPanel';
+import { SmtpSettingsPanel } from '../components/SmtpSettingsPanel';
 
-type Tab = 'overview' | 'parents' | 'devices' | 'audit' | 'health' | 'sessions';
+type Tab = 'overview' | 'parents' | 'devices' | 'audit' | 'health' | 'sessions' | 'settings';
 
 interface AdminDashboardProps {
   onOpenRegenerateRecovery: () => void;
@@ -354,6 +356,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'audit', label: 'Security & Audit', icon: <ShieldCheck className="w-4 h-4" /> },
     { id: 'health', label: 'System Health', icon: <Server className="w-4 h-4" /> },
     { id: 'sessions', label: 'Active Sessions', icon: <KeyRound className="w-4 h-4" /> },
+    { id: 'settings', label: 'Email & SMTP', icon: <Mail className="w-4 h-4" /> },
   ];
 
   return (
@@ -2327,6 +2330,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'sessions' && (
           <div className="space-y-6">
             <SessionManagementPanel />
+          </div>
+        )}
+
+        {/* TAB 7: EMAIL & SMTP SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <SmtpSettingsPanel />
           </div>
         )}
       </main>
