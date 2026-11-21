@@ -29,7 +29,7 @@ export function isAllowedOrigin(originHeader: string | undefined): boolean {
       return true;
     }
 
-    // In development/test mode, allow standard local dev origins
+    // In development/test mode, allow standard local dev origins and LAN IPs (e.g. mobile testing)
     if (env.NODE_ENV !== 'production') {
       const allowedLocal = [
         'http://localhost:5173',
@@ -38,6 +38,18 @@ export function isAllowedOrigin(originHeader: string | undefined): boolean {
         'http://127.0.0.1:3000',
       ];
       if (allowedLocal.includes(originUrl)) {
+        return true;
+      }
+      const hostname = new URL(originHeader).hostname;
+      if (
+        hostname.startsWith('100.') ||
+        hostname.endsWith('.ts.net') ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1'
+      ) {
         return true;
       }
     }

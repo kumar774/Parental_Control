@@ -28,6 +28,8 @@ export function App() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showRegenerateRecovery, setShowRegenerateRecovery] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Initial session probe and URL query parameter detection
   useEffect(() => {
@@ -105,9 +107,19 @@ export function App() {
       {/* Authenticated Dashboard View */}
       {isAuthenticated ? (
         <div className="min-h-screen flex flex-col">
-          <AdminHeader onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)} />
+          <AdminHeader
+            onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)}
+            onOpenMobileMenu={() => setMobileMenuOpen(true)}
+            onOpenChangePassword={() => setShowChangePassword(true)}
+          />
           <main className="flex-1">
-            <AdminDashboard onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)} />
+            <AdminDashboard
+              onOpenRegenerateRecovery={() => setShowRegenerateRecovery(true)}
+              mobileMenuOpen={mobileMenuOpen}
+              onCloseMobileMenu={() => setMobileMenuOpen(false)}
+              showChangePassword={showChangePassword}
+              setShowChangePassword={setShowChangePassword}
+            />
           </main>
         </div>
       ) : (
