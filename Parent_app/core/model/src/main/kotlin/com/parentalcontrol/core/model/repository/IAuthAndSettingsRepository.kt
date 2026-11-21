@@ -12,6 +12,8 @@ interface IAuthRepository {
     suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit>
     suspend fun sendPasswordReset(email: String): Result<Unit>
     suspend fun logout(): Result<Unit>
+    suspend fun verifySession(): Result<ParentAccount> = Result.failure(Exception("Not implemented"))
+    suspend fun refreshSession(): Result<Unit> = Result.failure(Exception("Not implemented"))
 }
 
 interface ISettingsRepository {

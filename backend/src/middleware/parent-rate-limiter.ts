@@ -72,6 +72,12 @@ export const parentLoginRateLimiter = createParentRateLimiter({
   prefix: 'rl:parent:login',
 });
 
+export const parentForgotRateLimiter = createParentRateLimiter({
+  windowSeconds: 900,
+  maxRequests: 5,
+  prefix: 'rl:parent:forgot',
+});
+
 export function resetParentRateLimitsForTest(): void {
   memoryStore.clear();
 }

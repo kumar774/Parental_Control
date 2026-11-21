@@ -1,10 +1,12 @@
 package com.parentalcontrol.core.database
 
 import com.parentalcontrol.core.database.crypto.KeystorePassphraseProvider
+import com.parentalcontrol.core.database.crypto.KeystoreTokenEncryptor
 import com.parentalcontrol.core.database.entity.*
 import com.parentalcontrol.core.database.mmkv.FastMmkvStorage
 import com.parentalcontrol.core.database.repository.*
 import com.parentalcontrol.core.model.location.GeofenceZone
+import com.parentalcontrol.core.network.rest.FastifyRestClient
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -18,6 +20,7 @@ class DatabaseAndLocalStorageUnitTest {
     private lateinit var rulesRepo: LocalRulesRepository
     private lateinit var locationRepo: LocalLocationRepository
     private lateinit var authRepo: LocalAuthRepository
+    private lateinit var mockRestClient: FastifyRestClient
 
     @Before
     fun setup() {
@@ -25,7 +28,48 @@ class DatabaseAndLocalStorageUnitTest {
         childRepo = LocalChildDeviceRepository(database)
         rulesRepo = LocalRulesRepository(database)
         locationRepo = LocalLocationRepository(database)
-        authRepo = LocalAuthRepository(database)
+
+        mockRestClient = FastifyRestClient()
+        mockRestClient.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/login") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"user":{"id":"parent-uuid-001","email":"parent@test.com","fullName":"Alex Smith","familyCardNo":"FAM-1234","isGuest":false},"accessToken":"mock-access-token-jwt","refreshToken":"mock-refresh-token-jwt","expiresIn":900}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/logout") -> {
+                    FastifyRestClient.HttpResponse(200, """{"statusCode":200,"message":"Logged out successfully"}""")
+                }
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"accessToken":"mock-new-access-token","refreshToken":"mock-new-refresh-token","expiresIn":900}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/me") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"user":{"id":"parent-uuid-001","email":"parent@test.com","fullName":"Alex Smith","familyCardNo":"FAM-1234","isGuest":false}}"""
+                    )
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+        authRepo = LocalAuthRepository(database, mockRestClient)
+    }
+
+    @Test
+    fun testKeystoreTokenEncryptorAesGcmRoundtrip() {
+        val encryptor = KeystoreTokenEncryptor.getInstance()
+        val plain = "super-secret-jwt-token-value-2026"
+        val encrypted = encryptor.encrypt(plain)
+        assertNotNull(encrypted)
+        assertTrue(encrypted!!.startsWith("enc:v1:"))
+        assertNotEquals(plain, encrypted)
+
+        val decrypted = encryptor.decrypt(encrypted)
+        assertEquals(plain, decrypted)
     }
 
     @Test
@@ -121,7 +165,7 @@ class DatabaseAndLocalStorageUnitTest {
     @Test
     fun testAuthRepositorySessionAndLogout() = runBlocking {
         val loginResult = authRepo.login("parent@test.com", "Password@123")
-        assertTrue(loginResult.isSuccess)
+        assertTrue("Login failed: ${loginResult.exceptionOrNull()?.message}", loginResult.isSuccess)
         assertNotNull(database.mmkv.accessToken)
 
         val session = authRepo.observeCurrentAccount().first()

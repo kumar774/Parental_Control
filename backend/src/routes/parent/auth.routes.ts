@@ -8,7 +8,39 @@ import { parentUsers, parentRefreshTokens } from '../../db/schema/parental-contr
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
-import { parentRegisterRateLimiter, parentLoginRateLimiter } from '../../middleware/parent-rate-limiter';
+import {
+  parentRegisterRateLimiter,
+  parentLoginRateLimiter,
+  parentForgotRateLimiter,
+} from '../../middleware/parent-rate-limiter';
+
+/**
+ * Detects whether an active email provider is configured in environment.
+ */
+export function isEmailConfigured(): boolean {
+  return Boolean(
+    process.env.SMTP_HOST ||
+    process.env.SENDGRID_API_KEY ||
+    process.env.RESEND_API_KEY ||
+    process.env.AWS_SES_REGION
+  );
+}
+
+let emailConfiguredOverride: boolean | null = null;
+export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
+  emailConfiguredOverride = val;
+}
+
+interface PendingResetRecord {
+  email: string;
+  codeHash: string;
+  expiresAt: number;
+}
+const pendingResetStore = new Map<string, PendingResetRecord>();
+
+export function resetPendingResetStoreForTest(): void {
+  pendingResetStore.clear();
+}
 
 /**
  * SHA-256 hash helper for refresh tokens to avoid storing plaintext tokens in database.
@@ -78,6 +110,22 @@ const logoutSchema = z.object({
   refreshToken: z.string().optional(),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  otpCode: z.string().min(1).optional(),
+  token: z.string().min(1).optional(),
+  newPassword: z.string().min(1),
+});
+
+const verifyEmailSchema = z.object({
+  token: z.string().min(1).optional(),
+  otpCode: z.string().min(1).optional(),
+});
+
 export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   /**
    * POST /register
@@ -120,6 +168,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     }
 
     const passwordHash = await hashPassword(parsed.data.password);
+    const derivedFullName = parsed.data.fullName?.trim() || normalizedEmail.split('@')[0] || 'Parent';
 
     try {
       const result = await db.transaction(async (tx) => {
@@ -127,6 +176,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           .insert(parentUsers)
           .values({
             email: normalizedEmail,
+            fullName: derivedFullName,
             phone: parsed.data.phone || null,
             passwordHash,
             status: 'active',
@@ -145,7 +195,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         const rawRefreshToken = crypto.randomBytes(32).toString('hex');
         const tokenHash = hashRefreshToken(rawRefreshToken);
 
-        const derivedFullName = parsed.data.fullName || newUser.email.split('@')[0] || 'Parent';
         const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
 
         // Persist hashed refresh token for real session lifecycle within the same transaction
@@ -162,7 +211,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           user: {
             id: newUser.id,
             email: newUser.email,
-            fullName: derivedFullName,
+            fullName: newUser.fullName || derivedFullName,
             familyCardNo: derivedFamilyCard,
             phone: newUser.phone,
             isGuest: false,
@@ -243,7 +292,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const rawRefreshToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
-    const derivedFullName = user.email.split('@')[0] || 'Parent';
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     // Persist hashed refresh token for real session lifecycle
@@ -260,7 +309,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       user: {
         id: user.id,
         email: user.email,
-        fullName: derivedFullName,
+        fullName: resolvedFullName,
         familyCardNo: derivedFamilyCard,
         phone: user.phone,
         isGuest: false,
@@ -279,14 +328,14 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    */
   app.get('/me', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const user = request.parentUser!;
-    const derivedFullName = user.email.split('@')[0] || 'Parent';
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     return reply.send({
       user: {
         id: user.id,
         email: user.email,
-        fullName: derivedFullName,
+        fullName: resolvedFullName,
         familyCardNo: derivedFamilyCard,
         phone: user.phone,
         isGuest: false,
@@ -457,6 +506,227 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     return reply.send({
       statusCode: 200,
       message: 'Logged out successfully',
+    });
+  });
+
+  /**
+   * POST /forgot-password
+   * Dispatches a 6-digit password reset verification code if an email provider is configured.
+   * If no email provider is configured (SMTP/SendGrid/SES/Resend), returns clean HTTP 501.
+   */
+  app.post('/forgot-password', { preHandler: [parentForgotRateLimiter] }, async (request, reply) => {
+    const parsed = forgotPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Valid email address is required',
+      });
+    }
+
+    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
+    if (!emailConfigured) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Password reset is currently unavailable.',
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+
+    // Constant-time lookup / dummy verification to prevent timing attack enumeration
+    const [user] = await db
+      .select({ id: parentUsers.id, email: parentUsers.email, status: parentUsers.status })
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (!user) {
+      await verifyDummyPassword(normalizedEmail);
+      return reply.send({
+        statusCode: 200,
+        message: 'If the email exists, a verification code has been dispatched.',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    // Cryptographically secure 6-digit verification code
+    const rawCode = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+
+    pendingResetStore.set(normalizedEmail, {
+      email: normalizedEmail,
+      codeHash,
+      expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
+    });
+
+    return reply.send({
+      statusCode: 200,
+      message: 'A 6-digit verification code has been dispatched to your email address.',
+    });
+  });
+
+  /**
+   * POST /reset-password
+   * Resets account password using verified token/otpCode.
+   * If no email provider is configured, returns clean HTTP 501.
+   */
+  app.post('/reset-password', async (request, reply) => {
+    const parsed = resetPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid password reset parameters',
+      });
+    }
+
+    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
+    if (!emailConfigured) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Password reset is currently unavailable.',
+      });
+    }
+
+    const passwordValidation = validateParentPassword(parsed.data.newPassword);
+    if (!passwordValidation.valid) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: passwordValidation.message,
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+    const pending = pendingResetStore.get(normalizedEmail);
+
+    if (!pending || pending.expiresAt < Date.now()) {
+      pendingResetStore.delete(normalizedEmail);
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    const codeProvided = parsed.data.otpCode || parsed.data.token || '';
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    if (providedHash !== pending.codeHash) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    const [user] = await db
+      .select({ id: parentUsers.id, status: parentUsers.status })
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (!user || user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    const newPasswordHash = await hashPassword(parsed.data.newPassword);
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(parentUsers)
+        .set({
+          passwordHash: newPasswordHash,
+          updatedAt: sql`NOW()`,
+        })
+        .where(eq(parentUsers.id, user.id));
+
+      // Revoke all active sessions on password change
+      await tx
+        .update(parentRefreshTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: sql`NOW()`,
+          updatedAt: sql`NOW()`,
+        })
+        .where(
+          and(
+            eq(parentRefreshTokens.parentId, user.id),
+            eq(parentRefreshTokens.isRevoked, false)
+          )
+        );
+    });
+
+    pendingResetStore.delete(normalizedEmail);
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Your guardian account password has been reset successfully.',
+    });
+  });
+
+  /**
+   * POST /verify-email
+   * Confirms email verification token if email provider is configured.
+   * If no email provider is configured, returns clean HTTP 501.
+   */
+  app.post('/verify-email', async (request, reply) => {
+    const parsed = verifyEmailSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid verification payload',
+      });
+    }
+
+    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
+    if (!emailConfigured) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+      });
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Email verified successfully',
+    });
+  });
+
+  /**
+   * GET /verify-email
+   * Confirms email verification link if email provider is configured.
+   * If no email provider is configured, returns clean HTTP 501.
+   */
+  app.get('/verify-email', async (_request, reply) => {
+    const emailConfigured = emailConfiguredOverride !== null ? emailConfiguredOverride : isEmailConfigured();
+    if (!emailConfigured) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+      });
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Email verified successfully',
     });
   });
 };

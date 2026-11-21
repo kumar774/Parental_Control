@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
@@ -31,6 +35,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,15 +56,14 @@ import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.RadiusLarge
 import com.parentalcontrol.core.designsystem.theme.RadiusMedium
+import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
-import com.parentalcontrol.core.designsystem.theme.Space20
 import com.parentalcontrol.core.designsystem.theme.Space24
+import com.parentalcontrol.core.designsystem.theme.Space4
 import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
 import com.parentalcontrol.core.designsystem.theme.TextMuted
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
-import com.parentalcontrol.core.designsystem.theme.liquidGlassCard
 import com.parentalcontrol.parent.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,12 +72,28 @@ fun ParentEmailVerificationScreen(
     email: String = "",
     onNavigateBack: () -> Unit,
     onVerificationSuccess: () -> Unit,
+    viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val uiState by viewModel.uiState.collectAsState()
+
     var otpCode by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
     val displayEmail = if (email.isNotBlank()) email else "your registered email"
+
+    // Listen to ViewModel side-effects
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            when (effect) {
+                is AuthUiEffect.NavigateToPairing,
+                is AuthUiEffect.NavigateToDashboard -> onVerificationSuccess()
+                else -> {}
+            }
+        }
+    }
+
+    val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
     Scaffold(
         topBar = {
@@ -143,66 +164,173 @@ fun ParentEmailVerificationScreen(
                 lineHeight = 18.sp
             )
 
-            Spacer(modifier = Modifier.height(Space24))
+            Spacer(modifier = Modifier.height(Space16))
 
-            OutlinedTextField(
-                value = otpCode,
-                onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) otpCode = it },
-                placeholder = {
-                    Text(
-                        text = "123456",
-                        color = TextMuted,
-                        fontSize = 20.sp,
-                        letterSpacing = 8.sp,
-                        textAlign = TextAlign.Center
-                    )
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(0.7f),
-                shape = RadiusMedium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = AccentCyan,
-                    unfocusedBorderColor = Color(0xFF334155),
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                )
-            )
+            // Error Alert Banner
+            if (displayErrorMessage != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF7F1D1D).copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
+                        .padding(horizontal = Space16, vertical = Space12)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFFCA5A5),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Space12))
+                        Text(
+                            text = displayErrorMessage,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(Space16))
+            }
 
-            Spacer(modifier = Modifier.height(Space24))
+            // Honest Guidance Notice if server lacks email infrastructure
+            if (uiState.isEmailServiceUnavailable) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E293B), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
+                        .padding(horizontal = Space16, vertical = Space12)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Space12))
+                        Column {
+                            Text(
+                                text = "Verification Notice",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(Space4))
+                            Text(
+                                text = "Automated email delivery is not configured on this server environment. Your guardian account is already active and ready to pair devices.",
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
 
-            Button(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    isLoading = true
-                    onVerificationSuccess()
-                },
-                enabled = otpCode.length >= 6 && !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RadiusLarge,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
+                Spacer(modifier = Modifier.height(Space24))
+
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onVerificationSuccess()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RadiusLarge,
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Verified,
+                        imageVector = Icons.Default.ArrowForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(Space8))
                     Text(
-                        text = stringResource(R.string.action_verify_email),
+                        text = "Proceed to Device Pairing",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
+                }
+            } else {
+                OutlinedTextField(
+                    value = otpCode,
+                    onValueChange = {
+                        if (it.length <= 6 && it.all { c -> c.isDigit() }) {
+                            otpCode = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        }
+                    },
+                    placeholder = {
+                        Text(
+                            text = "123456",
+                            color = TextMuted,
+                            fontSize = 20.sp,
+                            letterSpacing = 8.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.fillMaxWidth(0.7f),
+                    shape = RadiusMedium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(Space24))
+
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (otpCode.trim().length != 6) {
+                            localErrorMessage = "Please enter the 6-digit verification code"
+                            return@Button
+                        }
+                        localErrorMessage = null
+                        viewModel.handleIntent(AuthUiIntent.VerifyOtp(displayEmail, otpCode.trim()))
+                    },
+                    enabled = otpCode.length == 6 && !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RadiusLarge,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentIndigo,
+                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                        disabledContentColor = Color.White.copy(alpha = 0.7f)
+                    )
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Verified,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Space8))
+                        Text(
+                            text = stringResource(R.string.action_verify_email),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }

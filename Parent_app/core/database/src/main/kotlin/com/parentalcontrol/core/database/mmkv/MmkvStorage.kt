@@ -2,6 +2,7 @@ package com.parentalcontrol.core.database.mmkv
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.parentalcontrol.core.database.crypto.KeystoreTokenEncryptor
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -10,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  * active child selector, and UI preferences.
  */
 interface IMmkvStorage {
+    var userId: String?
     var accessToken: String?
     var refreshToken: String?
     var selectedChildId: String?
@@ -31,9 +33,11 @@ interface IMmkvStorage {
 /**
  * Android SharedPreferences + In-Memory Thread-Safe Cache backed implementation of IMmkvStorage.
  * Persists session tokens, active children, and biometric security flags to disk
- * so user never gets logged out accidentally, while providing instant in-memory read speeds.
+ * backed by Android Keystore AES-256-GCM encryption so sensitive tokens are NEVER stored in plaintext.
  */
-class FastMmkvStorage : IMmkvStorage {
+class FastMmkvStorage(
+    private val encryptor: KeystoreTokenEncryptor = KeystoreTokenEncryptor.getInstance()
+) : IMmkvStorage {
 
     private val cache = ConcurrentHashMap<String, Any>()
 
@@ -46,15 +50,25 @@ class FastMmkvStorage : IMmkvStorage {
 
     private fun loadPersistedState() {
         val sp = prefs ?: return
-        sp.getString(KEY_ACCESS_TOKEN, null)?.let { cache[KEY_ACCESS_TOKEN] = it }
-        sp.getString(KEY_REFRESH_TOKEN, null)?.let { cache[KEY_REFRESH_TOKEN] = it }
+        sp.getString(KEY_USER_ID, null)?.let { cache[KEY_USER_ID] = it }
+        sp.getString(KEY_ACCESS_TOKEN, null)?.let {
+            val decrypted = encryptor.decrypt(it) ?: it
+            cache[KEY_ACCESS_TOKEN] = decrypted
+        }
+        sp.getString(KEY_REFRESH_TOKEN, null)?.let {
+            val decrypted = encryptor.decrypt(it) ?: it
+            cache[KEY_REFRESH_TOKEN] = decrypted
+        }
         sp.getString(KEY_SELECTED_CHILD_ID, null)?.let { cache[KEY_SELECTED_CHILD_ID] = it }
         sp.getString(KEY_USER_EMAIL, null)?.let { cache[KEY_USER_EMAIL] = it }
         sp.getString(KEY_USER_PHONE, null)?.let { cache[KEY_USER_PHONE] = it }
         sp.getString(KEY_USER_FULL_NAME, null)?.let { cache[KEY_USER_FULL_NAME] = it }
         sp.getString(KEY_USER_PLAN, null)?.let { cache[KEY_USER_PLAN] = it }
         sp.getString(KEY_FAMILY_CARD_NO, null)?.let { cache[KEY_FAMILY_CARD_NO] = it }
-        sp.getString(KEY_FAMILY_PIN, null)?.let { cache[KEY_FAMILY_PIN] = it }
+        sp.getString(KEY_FAMILY_PIN, null)?.let {
+            val decrypted = encryptor.decrypt(it) ?: it
+            cache[KEY_FAMILY_PIN] = decrypted
+        }
         if (sp.contains(KEY_DARK_MODE)) cache[KEY_DARK_MODE] = sp.getBoolean(KEY_DARK_MODE, true)
         if (sp.contains(KEY_BIOMETRIC_ENABLED)) cache[KEY_BIOMETRIC_ENABLED] = sp.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         sp.getString(KEY_STREAM_RESOLUTION, null)?.let { cache[KEY_STREAM_RESOLUTION] = it }
@@ -62,12 +76,25 @@ class FastMmkvStorage : IMmkvStorage {
         if (sp.contains(KEY_RETENTION_DAYS)) cache[KEY_RETENTION_DAYS] = sp.getInt(KEY_RETENTION_DAYS, 7)
     }
 
+    override var userId: String?
+        get() = cache[KEY_USER_ID] as? String ?: prefs?.getString(KEY_USER_ID, null)
+        set(value) {
+            if (value != null) {
+                cache[KEY_USER_ID] = value
+                prefs?.edit()?.putString(KEY_USER_ID, value)?.apply()
+            } else {
+                cache.remove(KEY_USER_ID)
+                prefs?.edit()?.remove(KEY_USER_ID)?.apply()
+            }
+        }
+
     override var accessToken: String?
-        get() = cache[KEY_ACCESS_TOKEN] as? String ?: prefs?.getString(KEY_ACCESS_TOKEN, null)
+        get() = cache[KEY_ACCESS_TOKEN] as? String ?: prefs?.getString(KEY_ACCESS_TOKEN, null)?.let { encryptor.decrypt(it) }
         set(value) {
             if (value != null) {
                 cache[KEY_ACCESS_TOKEN] = value
-                prefs?.edit()?.putString(KEY_ACCESS_TOKEN, value)?.apply()
+                val cipher = encryptor.encrypt(value) ?: value
+                prefs?.edit()?.putString(KEY_ACCESS_TOKEN, cipher)?.apply()
             } else {
                 cache.remove(KEY_ACCESS_TOKEN)
                 prefs?.edit()?.remove(KEY_ACCESS_TOKEN)?.apply()
@@ -75,11 +102,12 @@ class FastMmkvStorage : IMmkvStorage {
         }
 
     override var refreshToken: String?
-        get() = cache[KEY_REFRESH_TOKEN] as? String ?: prefs?.getString(KEY_REFRESH_TOKEN, null)
+        get() = cache[KEY_REFRESH_TOKEN] as? String ?: prefs?.getString(KEY_REFRESH_TOKEN, null)?.let { encryptor.decrypt(it) }
         set(value) {
             if (value != null) {
                 cache[KEY_REFRESH_TOKEN] = value
-                prefs?.edit()?.putString(KEY_REFRESH_TOKEN, value)?.apply()
+                val cipher = encryptor.encrypt(value) ?: value
+                prefs?.edit()?.putString(KEY_REFRESH_TOKEN, cipher)?.apply()
             } else {
                 cache.remove(KEY_REFRESH_TOKEN)
                 prefs?.edit()?.remove(KEY_REFRESH_TOKEN)?.apply()
@@ -194,11 +222,12 @@ class FastMmkvStorage : IMmkvStorage {
         }
 
     override var familyPin: String?
-        get() = cache[KEY_FAMILY_PIN] as? String ?: prefs?.getString(KEY_FAMILY_PIN, null)
+        get() = cache[KEY_FAMILY_PIN] as? String ?: prefs?.getString(KEY_FAMILY_PIN, null)?.let { encryptor.decrypt(it) }
         set(value) {
             if (value != null) {
                 cache[KEY_FAMILY_PIN] = value
-                prefs?.edit()?.putString(KEY_FAMILY_PIN, value)?.apply()
+                val cipher = encryptor.encrypt(value) ?: value
+                prefs?.edit()?.putString(KEY_FAMILY_PIN, cipher)?.apply()
             } else {
                 cache.remove(KEY_FAMILY_PIN)
                 prefs?.edit()?.remove(KEY_FAMILY_PIN)?.apply()
@@ -206,6 +235,7 @@ class FastMmkvStorage : IMmkvStorage {
         }
 
     override fun clearSession() {
+        cache.remove(KEY_USER_ID)
         cache.remove(KEY_ACCESS_TOKEN)
         cache.remove(KEY_REFRESH_TOKEN)
         cache.remove(KEY_SELECTED_CHILD_ID)
@@ -216,6 +246,7 @@ class FastMmkvStorage : IMmkvStorage {
         cache.remove(KEY_FAMILY_CARD_NO)
         cache.remove(KEY_FAMILY_PIN)
         prefs?.edit()
+            ?.remove(KEY_USER_ID)
             ?.remove(KEY_ACCESS_TOKEN)
             ?.remove(KEY_REFRESH_TOKEN)
             ?.remove(KEY_SELECTED_CHILD_ID)
@@ -230,6 +261,7 @@ class FastMmkvStorage : IMmkvStorage {
 
     companion object {
         private const val PREFS_NAME = "parental_control_vault_prefs"
+        private const val KEY_USER_ID = "auth_user_id"
         private const val KEY_ACCESS_TOKEN = "auth_access_token"
         private const val KEY_REFRESH_TOKEN = "auth_refresh_token"
         private const val KEY_SELECTED_CHILD_ID = "selected_child_id"

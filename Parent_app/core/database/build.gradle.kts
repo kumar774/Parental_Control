@@ -15,6 +15,10 @@ android {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
   }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
+  }
 }
 
 kotlin {
@@ -28,4 +32,5 @@ dependencies {
 
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation("org.json:json:20240303")
 }

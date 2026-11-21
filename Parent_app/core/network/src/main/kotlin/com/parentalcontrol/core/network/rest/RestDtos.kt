@@ -26,7 +26,18 @@ data class AuthUserDto(
 data class AuthResponseDto(
     val user: AuthUserDto,
     val accessToken: String,
+    val refreshToken: String,
+    val expiresIn: Int? = null
+)
+
+data class TokenRefreshRequestDto(
     val refreshToken: String
+)
+
+data class TokenRefreshResponseDto(
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresIn: Int? = null
 )
 
 data class RemoteCommandRequestDto(

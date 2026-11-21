@@ -15,6 +15,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,47 @@ import com.parentalcontrol.core.designsystem.components.FrostedHudToast
 import com.parentalcontrol.core.designsystem.components.ToastType
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.parentalcontrol.core.designsystem.theme.AccentIndigo
+import com.parentalcontrol.core.designsystem.theme.NeonCyan
+import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
+import com.parentalcontrol.core.designsystem.theme.Space12
+import com.parentalcontrol.core.designsystem.theme.Space16
+import com.parentalcontrol.core.designsystem.theme.Space24
+import com.parentalcontrol.core.designsystem.theme.Space32
+import com.parentalcontrol.core.designsystem.theme.Space8
+import com.parentalcontrol.core.designsystem.theme.TextPrimary
+import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.parent.ui.auth.ForgotPasswordScreen
 import com.parentalcontrol.parent.ui.auth.LoginScreen
 import com.parentalcontrol.parent.ui.auth.RegisterScreen
@@ -162,6 +204,7 @@ enum class AppScreen {
     FORGOT_PASSWORD,
     DEVICE_PAIRING,
     MAIN_SHELL,
+    CONNECTION_ERROR,
     FAMILY_PIN_MANAGEMENT,
     // Phase 4 Routes
     CHILD_DEVICE_PICKER,
@@ -327,6 +370,8 @@ fun ParentAppMainContent() {
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
+    var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isRetryingConnection by remember { mutableStateOf(false) }
 
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
@@ -387,7 +432,8 @@ fun ParentAppMainContent() {
         if (currentScreen != AppScreen.MAIN_SHELL &&
             currentScreen != AppScreen.LOGIN &&
             currentScreen != AppScreen.WELCOME_CAROUSEL &&
-            currentScreen != AppScreen.SPLASH
+            currentScreen != AppScreen.SPLASH &&
+            currentScreen != AppScreen.CONNECTION_ERROR
         ) {
             currentScreen = AppScreen.MAIN_SHELL
             screenBackstack.clear()
@@ -406,7 +452,9 @@ fun ParentAppMainContent() {
 
     // Intercept system Android back button / swipe back gesture
     BackHandler(enabled = true) {
-        if (!navigateBack()) {
+        if (currentScreen == AppScreen.CONNECTION_ERROR) {
+            activity?.finish()
+        } else if (!navigateBack()) {
             if (currentScreen == AppScreen.MAIN_SHELL) {
                 val now = System.currentTimeMillis()
                 if (now - lastBackPressTime < 2000L) {
@@ -419,6 +467,33 @@ fun ParentAppMainContent() {
             } else {
                 activity?.finish()
             }
+        }
+    }
+
+    fun proceedToMainDashboard() {
+        val isBiometric = mmkv.isBiometricEnabled
+        if (isBiometric && activity != null) {
+            val avail = BiometricAuthManager.checkBiometricAvailability(activity)
+            if (avail == BiometricAuthManager.CanAuthResult.READY) {
+                BiometricAuthManager.promptBiometric(
+                    activity = activity,
+                    title = "Unlock Parental Control",
+                    subtitle = "Scan fingerprint to access your dashboard",
+                    negativeButtonText = "Log In Again",
+                    onSuccess = {
+                        currentScreen = AppScreen.MAIN_SHELL
+                    },
+                    onError = { err ->
+                        toastMessage = "Biometric cancelled: $err"
+                        toastType = ToastType.INFO
+                        currentScreen = AppScreen.LOGIN
+                    }
+                )
+            } else {
+                currentScreen = AppScreen.MAIN_SHELL
+            }
+        } else {
+            currentScreen = AppScreen.MAIN_SHELL
         }
     }
 
@@ -443,48 +518,97 @@ fun ParentAppMainContent() {
                                 scope.launch {
                                     val sessionResult = FastifyRestClient.shared.verifySession()
                                     if (sessionResult.isSuccess) {
-                                        val isBiometric = mmkv.isBiometricEnabled
-                                        if (isBiometric && activity != null) {
-                                            val avail = BiometricAuthManager.checkBiometricAvailability(activity)
-                                            if (avail == BiometricAuthManager.CanAuthResult.READY) {
-                                                BiometricAuthManager.promptBiometric(
-                                                    activity = activity,
-                                                    title = "Unlock Parental Control",
-                                                    subtitle = "Scan fingerprint to access your dashboard",
-                                                    negativeButtonText = "Log In Again",
-                                                    onSuccess = {
-                                                        currentScreen = AppScreen.MAIN_SHELL
-                                                    },
-                                                    onError = { err ->
-                                                        toastMessage = "Biometric cancelled: $err"
-                                                        toastType = ToastType.INFO
-                                                        currentScreen = AppScreen.LOGIN
-                                                    }
-                                                )
-                                            } else {
-                                                currentScreen = AppScreen.MAIN_SHELL
-                                            }
-                                        } else {
-                                            currentScreen = AppScreen.MAIN_SHELL
-                                        }
+                                        proceedToMainDashboard()
                                     } else {
                                         val err = sessionResult.exceptionOrNull()
-                                        if (err is SessionExpiredException || (err?.message?.contains("401") == true)) {
-                                            mmkv.clearSession()
-                                            FastifyRestClient.shared.accessToken = null
-                                            FastifyRestClient.shared.refreshToken = null
-                                            toastMessage = "Session expired or user deleted. Please log in again."
-                                            toastType = ToastType.ERROR
-                                            currentScreen = AppScreen.LOGIN
-                                            screenBackstack.clear()
-                                            screenBackstack.add(AppScreen.LOGIN)
+                                        val isExpiredOrInvalid = err is SessionExpiredException ||
+                                            (err?.message?.contains("401") == true) ||
+                                            (err?.message?.contains("USER_NOT_FOUND") == true)
+
+                                        if (isExpiredOrInvalid) {
+                                            // Expired token -> attempt refresh via repository if available
+                                            val savedRefreshToken = mmkv.refreshToken
+                                            var refreshed = false
+                                            if (!savedRefreshToken.isNullOrBlank()) {
+                                                val refreshResult = runCatching {
+                                                    FastifyRestClient.shared.refreshSession()
+                                                }.getOrNull()
+                                                if (refreshResult?.isSuccess == true) {
+                                                    val verifyAfterRefresh = FastifyRestClient.shared.verifySession()
+                                                    if (verifyAfterRefresh.isSuccess) {
+                                                        refreshed = true
+                                                        proceedToMainDashboard()
+                                                    }
+                                                }
+                                            }
+
+                                            if (!refreshed) {
+                                                // Invalid session -> Login
+                                                mmkv.clearSession()
+                                                FastifyRestClient.shared.accessToken = null
+                                                FastifyRestClient.shared.refreshToken = null
+                                                toastMessage = "Session expired or user deleted. Please log in again."
+                                                toastType = ToastType.ERROR
+                                                currentScreen = AppScreen.LOGIN
+                                                screenBackstack.clear()
+                                                screenBackstack.add(AppScreen.LOGIN)
+                                            }
                                         } else {
-                                            // Server unreachable / offline mode fallback
-                                            currentScreen = AppScreen.MAIN_SHELL
+                                            // Server unreachable / network failure -> Show a recoverable retry/connection error screen.
+                                            // NEVER bypass authentication into MAIN_SHELL on network failure!
+                                            connectionErrorMessage = err?.message ?: "Unable to connect to guardian servers"
+                                            currentScreen = AppScreen.CONNECTION_ERROR
+                                            screenBackstack.clear()
+                                            screenBackstack.add(AppScreen.CONNECTION_ERROR)
                                         }
                                     }
                                 }
                             }
+                        }
+                    )
+                }
+
+                AppScreen.CONNECTION_ERROR -> {
+                    ConnectionErrorRecoveryScreen(
+                        errorMessage = connectionErrorMessage,
+                        isRetrying = isRetryingConnection,
+                        onRetryClick = {
+                            isRetryingConnection = true
+                            scope.launch {
+                                val retryResult = FastifyRestClient.shared.verifySession()
+                                isRetryingConnection = false
+                                if (retryResult.isSuccess) {
+                                    toastMessage = "Connected successfully"
+                                    toastType = ToastType.SUCCESS
+                                    proceedToMainDashboard()
+                                } else {
+                                    val retryErr = retryResult.exceptionOrNull()
+                                    val isExpired = retryErr is SessionExpiredException ||
+                                        (retryErr?.message?.contains("401") == true)
+                                    if (isExpired) {
+                                        mmkv.clearSession()
+                                        FastifyRestClient.shared.accessToken = null
+                                        FastifyRestClient.shared.refreshToken = null
+                                        toastMessage = "Session expired. Please log in again."
+                                        toastType = ToastType.ERROR
+                                        currentScreen = AppScreen.LOGIN
+                                        screenBackstack.clear()
+                                        screenBackstack.add(AppScreen.LOGIN)
+                                    } else {
+                                        connectionErrorMessage = retryErr?.message ?: "Server unreachable"
+                                        toastMessage = "Connection failed. Server still unreachable."
+                                        toastType = ToastType.ERROR
+                                    }
+                                }
+                            }
+                        },
+                        onLoginAgainClick = {
+                            mmkv.clearSession()
+                            FastifyRestClient.shared.accessToken = null
+                            FastifyRestClient.shared.refreshToken = null
+                            currentScreen = AppScreen.LOGIN
+                            screenBackstack.clear()
+                            screenBackstack.add(AppScreen.LOGIN)
                         }
                     )
                 }
@@ -1945,6 +2069,154 @@ fun ParentAppMainContent() {
                 message = msg,
                 toastType = toastType,
                 modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+    }
+}
+
+/**
+ * Recoverable Connection Error Screen
+ * Displayed when server handshake fails during session restoration.
+ * Strictly guarantees that network failures never bypass authentication into MAIN_SHELL.
+ */
+@Composable
+fun ConnectionErrorRecoveryScreen(
+    errorMessage: String?,
+    isRetrying: Boolean,
+    onRetryClick: () -> Unit,
+    onLoginAgainClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(BgCanvas)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = Space24),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF7F1D1D), Color(0xFF991B1B))
+                        )
+                    )
+                    .border(1.5.dp, Color(0xFFEF4444), RoundedCornerShape(24.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(42.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Space24))
+
+            Text(
+                text = "Connection Offline",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(Space8))
+
+            Text(
+                text = "Could not establish a secure connection to the Guardian server. Active authentication cannot proceed without a valid server handshake.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(horizontal = Space12)
+            )
+
+            if (!errorMessage.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(Space16))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF0F172A))
+                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
+                        .padding(horizontal = Space16, vertical = Space12)
+                ) {
+                    Text(
+                        text = "Diagnostics: $errorMessage",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Space32))
+
+            Button(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onRetryClick()
+                },
+                enabled = !isRetrying,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .shadow(12.dp, RadiusCapsule, spotColor = AccentIndigo),
+                shape = RadiusCapsule,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AccentIndigo,
+                    contentColor = Color.White,
+                    disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.7f)
+                )
+            ) {
+                if (isRetrying) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(Space8))
+                    Text(
+                        text = "Retry Connection",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Space16))
+
+            Text(
+                text = "Log In with Another Account",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = NeonCyan,
+                modifier = Modifier.clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLoginAgainClick()
+                }
             )
         }
     }

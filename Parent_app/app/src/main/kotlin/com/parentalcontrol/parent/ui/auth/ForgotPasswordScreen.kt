@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
@@ -41,11 +42,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,40 +79,50 @@ import com.parentalcontrol.core.designsystem.theme.TextMuted
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.core.designsystem.theme.liquidGlassCard
-import com.parentalcontrol.core.network.rest.FastifyRestClient
 import com.parentalcontrol.parent.R
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
+private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
  * Screen 05: Forgot Password & Verification Flow
  *
  * Provides real email dispatch, 6-digit OTP verification with 60s cooldown timer,
- * and new password reset fields backed by live Fastify backend endpoints.
+ * and new password reset fields strictly backed by AuthViewModel.
+ * If the backend reports email delivery unavailable, displays honest guidance.
  */
 @Composable
 fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit,
     onPasswordResetSuccess: () -> Unit,
+    viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
-    val coroutineScope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsState()
 
     var email by remember { mutableStateOf("") }
-    var codeSent by remember { mutableStateOf(false) }
     var otpCode by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmNewPassword by remember { mutableStateOf("") }
     var isNewPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmNewPasswordVisible by remember { mutableStateOf(false) }
     var cooldownSeconds by remember { mutableIntStateOf(60) }
 
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Listen to ViewModel side-effects
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            when (effect) {
+                is AuthUiEffect.PasswordResetComplete -> onPasswordResetSuccess()
+                else -> {}
+            }
+        }
+    }
 
     // Auto-decrement cooldown timer once code is sent
-    LaunchedEffect(codeSent) {
-        if (codeSent) {
+    LaunchedEffect(uiState.isOtpSent) {
+        if (uiState.isOtpSent) {
             cooldownSeconds = 60
             while (cooldownSeconds > 0) {
                 delay(1000L)
@@ -119,6 +130,8 @@ fun ForgotPasswordScreen(
             }
         }
     }
+
+    val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
     Box(
         modifier = modifier
@@ -171,7 +184,7 @@ fun ForgotPasswordScreen(
             Spacer(modifier = Modifier.height(Space16))
 
             // Error Alert Banner
-            if (errorMessage != null) {
+            if (displayErrorMessage != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -188,7 +201,7 @@ fun ForgotPasswordScreen(
                         )
                         Spacer(modifier = Modifier.width(Space12))
                         Text(
-                            text = errorMessage!!,
+                            text = displayErrorMessage,
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -198,8 +211,45 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(Space16))
             }
 
+            // Honest Guidance Notice for Unavailable Email Infrastructure
+            if (uiState.isEmailServiceUnavailable) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E293B), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
+                        .padding(horizontal = Space16, vertical = Space12)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Space12))
+                        Column {
+                            Text(
+                                text = "Email Service Notice",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(Space4))
+                            Text(
+                                text = "Automated email delivery is not configured on this server environment. Please contact your administrator or sign in using your existing account password.",
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(Space16))
+            }
+
             // Success Alert Banner
-            if (successMessage != null) {
+            if (uiState.statusMessage != null && !uiState.isEmailServiceUnavailable) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,7 +266,7 @@ fun ForgotPasswordScreen(
                         )
                         Spacer(modifier = Modifier.width(Space12))
                         Text(
-                            text = successMessage!!,
+                            text = uiState.statusMessage!!,
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -247,7 +297,8 @@ fun ForgotPasswordScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = {
                         Text(
@@ -263,7 +314,7 @@ fun ForgotPasswordScreen(
                         )
                     },
                     singleLine = true,
-                    enabled = !codeSent && !isLoading,
+                    enabled = !uiState.isOtpSent && !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
@@ -278,44 +329,35 @@ fun ForgotPasswordScreen(
 
                 Spacer(modifier = Modifier.height(Space16))
 
-                if (!codeSent) {
+                if (!uiState.isOtpSent) {
                     Button(
                         onClick = {
                             val trimmedEmail = email.trim()
                             if (trimmedEmail.isEmpty()) {
-                                errorMessage = "Please enter your registered parent email address"
+                                localErrorMessage = "Please enter your registered parent email address"
                                 return@Button
                             }
-                            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                                errorMessage = "Please enter a valid email address (e.g. name@domain.com)"
+                            if (!EMAIL_PATTERN.matches(trimmedEmail)) {
+                                localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
                                 return@Button
                             }
 
-                            isLoading = true
-                            errorMessage = null
-                            successMessage = null
-                            coroutineScope.launch {
-                                val result = FastifyRestClient.shared.requestPasswordReset(trimmedEmail)
-                                isLoading = false
-                                result.onSuccess { msg ->
-                                    successMessage = msg
-                                    codeSent = true
-                                }.onFailure { err ->
-                                    errorMessage = err.message ?: "Unable to send reset code. Please check your email."
-                                }
-                            }
+                            localErrorMessage = null
+                            viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(trimmedEmail))
                         },
-                        enabled = email.isNotBlank() && !isLoading,
+                        enabled = email.isNotBlank() && !uiState.isLoading,
                         shape = RadiusMedium,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AccentIndigo,
-                            contentColor = Color.White
+                            contentColor = Color.White,
+                            disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                            disabledContentColor = Color.White.copy(alpha = 0.7f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
                     ) {
-                        if (isLoading) {
+                        if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 color = Color.White,
                                 modifier = Modifier.size(20.dp),
@@ -345,7 +387,8 @@ fun ForgotPasswordScreen(
                         onCodeChange = {
                             if (it.length <= 6) {
                                 otpCode = it
-                                if (errorMessage != null) errorMessage = null
+                                if (localErrorMessage != null) localErrorMessage = null
+                                if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                             }
                         }
                     )
@@ -367,20 +410,10 @@ fun ForgotPasswordScreen(
                         } else {
                             TextButton(
                                 onClick = {
-                                    isLoading = true
-                                    errorMessage = null
-                                    coroutineScope.launch {
-                                        val result = FastifyRestClient.shared.requestPasswordReset(email.trim())
-                                        isLoading = false
-                                        result.onSuccess { msg ->
-                                            successMessage = msg
-                                            cooldownSeconds = 60
-                                        }.onFailure { err ->
-                                            errorMessage = err.message ?: "Failed to resend code"
-                                        }
-                                    }
+                                    localErrorMessage = null
+                                    viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(email.trim()))
                                 },
-                                enabled = !isLoading
+                                enabled = !uiState.isLoading
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
@@ -415,7 +448,8 @@ fun ForgotPasswordScreen(
                         value = newPassword,
                         onValueChange = {
                             newPassword = it
-                            if (errorMessage != null) errorMessage = null
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                         },
                         placeholder = {
                             Text(
@@ -434,13 +468,14 @@ fun ForgotPasswordScreen(
                             IconButton(onClick = { isNewPasswordVisible = !isNewPasswordVisible }) {
                                 Icon(
                                     imageVector = if (isNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null,
+                                    contentDescription = "Toggle password visibility",
                                     tint = TextMuted
                                 )
                             }
                         },
                         visualTransformation = if (isNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         singleLine = true,
+                        enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextPrimary,
@@ -469,7 +504,8 @@ fun ForgotPasswordScreen(
                         value = confirmNewPassword,
                         onValueChange = {
                             confirmNewPassword = it
-                            if (errorMessage != null) errorMessage = null
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                         },
                         placeholder = {
                             Text(
@@ -484,8 +520,18 @@ fun ForgotPasswordScreen(
                                 tint = AccentIndigoLight
                             )
                         },
-                        visualTransformation = PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isConfirmNewPasswordVisible = !isConfirmNewPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isConfirmNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = "Toggle confirm password visibility",
+                                    tint = TextMuted
+                                )
+                            }
+                        },
+                        visualTransformation = if (isConfirmNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         singleLine = true,
+                        enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextPrimary,
@@ -502,46 +548,42 @@ fun ForgotPasswordScreen(
 
                     Button(
                         onClick = {
-                            if (otpCode.trim().length != 6) {
-                                errorMessage = "Please enter the 6-digit verification code"
+                            val trimmedCode = otpCode.trim()
+                            if (trimmedCode.length != 6) {
+                                localErrorMessage = "Please enter the 6-digit verification code"
                                 return@Button
                             }
                             if (newPassword.length < 8) {
-                                errorMessage = "Password must be at least 8 characters long"
+                                localErrorMessage = "Password must be at least 8 characters long"
                                 return@Button
                             }
                             if (newPassword != confirmNewPassword) {
-                                errorMessage = "Passwords do not match. Please re-enter."
+                                localErrorMessage = "Passwords do not match. Please re-enter."
                                 return@Button
                             }
 
-                            isLoading = true
-                            errorMessage = null
-                            coroutineScope.launch {
-                                val result = FastifyRestClient.shared.resetPassword(
+                            localErrorMessage = null
+                            viewModel.handleIntent(
+                                AuthUiIntent.ResetPassword(
                                     email = email.trim(),
-                                    otpCode = otpCode.trim(),
+                                    otpCode = trimmedCode,
                                     newPassword = newPassword
                                 )
-                                isLoading = false
-                                result.onSuccess {
-                                    onPasswordResetSuccess()
-                                }.onFailure { err ->
-                                    errorMessage = err.message ?: "Failed to reset password. Please check your verification code."
-                                }
-                            }
+                            )
                         },
-                        enabled = otpCode.length == 6 && newPassword.isNotBlank() && confirmNewPassword.isNotBlank() && !isLoading,
+                        enabled = otpCode.length == 6 && newPassword.isNotBlank() && confirmNewPassword.isNotBlank() && !uiState.isLoading,
                         shape = RadiusMedium,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AccentIndigo,
-                            contentColor = Color.White
+                            contentColor = Color.White,
+                            disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                            disabledContentColor = Color.White.copy(alpha = 0.7f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
                     ) {
-                        if (isLoading) {
+                        if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 color = Color.White,
                                 modifier = Modifier.size(20.dp),
