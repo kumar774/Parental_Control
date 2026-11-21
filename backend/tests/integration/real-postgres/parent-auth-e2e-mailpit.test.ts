@@ -147,6 +147,15 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     assert.ok(verifyMsg?.Otp, 'Verification OTP must be available from Mailpit');
     const validOtp = verifyMsg.Otp;
 
+    // A0. Rejection of login when email is unverified (HTTP 403)
+    const unverifiedLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: initialPassword },
+    });
+    assert.strictEqual(unverifiedLogin.statusCode, 403);
+    assert.strictEqual(unverifiedLogin.json().message, 'Email not verified. Please verify your email before logging in.');
+
     // A. Rejection of incorrect OTP
     const wrongRes = await app.inject({
       method: 'POST',

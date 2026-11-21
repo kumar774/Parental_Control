@@ -353,6 +353,30 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    // Zero-trust email verification enforcement:
+    // Reject unverified parent login with HTTP 403 Forbidden until email is verified.
+    if (isEmailConfigured()) {
+      const [pendingVerification] = await db
+        .select({ id: parentVerificationTokens.id })
+        .from(parentVerificationTokens)
+        .where(
+          and(
+            eq(parentVerificationTokens.parentId, user.id),
+            eq(parentVerificationTokens.type, 'email_verification'),
+            eq(parentVerificationTokens.isUsed, false)
+          )
+        )
+        .limit(1);
+
+      if (pendingVerification) {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Email not verified. Please verify your email before logging in.',
+        });
+      }
+    }
+
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: 'parent' },
       env.JWT_ACCESS_SECRET,

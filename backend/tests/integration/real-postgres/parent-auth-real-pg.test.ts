@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
 import {
@@ -113,6 +113,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201, `Reg failed: ${regRes.body}`);
+
+    // Mark email verified so verified parent login can succeed
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
 
     // Login
     const res = await readyApp!.inject({
@@ -372,6 +378,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201);
     const { user, refreshToken: refreshTokenA } = regRes.json();
+
+    // Mark email verified so login succeeds
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
 
     // 2. Login to get a second active session B
     const loginRes = await readyApp!.inject({
@@ -797,5 +809,53 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(forgotRes.statusCode, 502);
     assert.equal(forgotRes.json().error, 'Bad Gateway');
     assert.ok(forgotRes.json().message.includes('Failed to deliver verification code'));
+  });
+
+  it('16. Unverified parent account is rejected on login with HTTP 403 Forbidden', async () => {
+    const testEmail = `parent-unverified-${Date.now()}@example.test`;
+
+    // 1. Register parent account
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Unverified Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+
+    // 2. Attempt login BEFORE verifying email -> must reject with HTTP 403
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(loginRes.statusCode, 403);
+    assert.equal(loginRes.json().error, 'Forbidden');
+    assert.equal(loginRes.json().message, 'Email not verified. Please verify your email before logging in.');
+
+    // 3. Verify email
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+
+    // 4. Attempt login AFTER verifying email -> must succeed with HTTP 200
+    const verifiedLoginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(verifiedLoginRes.statusCode, 200);
+    assert.ok(verifiedLoginRes.json().accessToken);
+    assert.equal(verifiedLoginRes.json().user.email, testEmail);
   });
 });
