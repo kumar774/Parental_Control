@@ -51,7 +51,9 @@ export interface DashboardOverview {
   system: {
     status: 'healthy' | 'degraded';
     databaseStatus?: string;
+    databaseLatencyMs?: number;
     redisStatus?: string;
+    redisLatencyMs?: number;
     uptimeSeconds?: number;
     memoryUsageMb?: number;
     nodeVersion?: string;
