@@ -1,13 +1,131 @@
 package com.parentalcontrol.parent.navigation
 
 import com.parentalcontrol.core.network.rest.SessionExpiredException
+import com.parentalcontrol.parent.AppScreen
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 
 class SessionRestorationManagerTest {
+
+    @Before
+    fun setUp() {
+        SessionRestorationManager.isProcessSessionVerified = false
+    }
+
+    @Test
+    fun testProcessDeath_ProtectedScreen_RequiresVerification() {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.success(Unit) },
+            refreshSessionCall = { Result.success(Unit) },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        // Process death starts with unverified process state
+        assertFalse(SessionRestorationManager.isProcessSessionVerified)
+
+        val requires = manager.requiresRestorationVerification(
+            screen = AppScreen.DEVICE_PAIRING,
+            isAuthScreen = { it == AppScreen.LOGIN || it == AppScreen.SPLASH }
+        )
+        assertTrue("Protected screen after process death must require backend verification", requires)
+    }
+
+    @Test
+    fun testConfigurationChange_ProtectedScreen_DoesNotRequireReverification() {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.success(Unit) },
+            refreshSessionCall = { Result.success(Unit) },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        // Process already verified in memory (survives rotation / config change)
+        manager.markSessionVerified()
+        assertTrue(SessionRestorationManager.isProcessSessionVerified)
+
+        val requires = manager.requiresRestorationVerification(
+            screen = AppScreen.MAIN_SHELL,
+            isAuthScreen = { it == AppScreen.LOGIN || it == AppScreen.SPLASH }
+        )
+        assertFalse("Screen rotation / config change must not re-trigger verification", requires)
+    }
+
+    @Test
+    fun testAuthScreen_DoesNotRequireRestorationVerification() {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.success(Unit) },
+            refreshSessionCall = { Result.success(Unit) },
+            hasAccessToken = { false },
+            hasRefreshToken = { false }
+        )
+
+        val requiresLogin = manager.requiresRestorationVerification(
+            screen = AppScreen.LOGIN,
+            isAuthScreen = { it == AppScreen.LOGIN || it == AppScreen.SPLASH }
+        )
+        assertFalse(requiresLogin)
+
+        val requiresSplash = manager.requiresRestorationVerification(
+            screen = AppScreen.SPLASH,
+            isAuthScreen = { it == AppScreen.LOGIN || it == AppScreen.SPLASH }
+        )
+        assertFalse(requiresSplash)
+    }
+
+    @Test
+    fun testProcessDeath_ValidSession_RestoresAndMarksProcessVerified() = runTest {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.success(Unit) },
+            refreshSessionCall = { Result.success(Unit) },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        assertFalse(SessionRestorationManager.isProcessSessionVerified)
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.Authenticated, result)
+        assertTrue("Successful evaluation must mark process session as verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testProcessDeath_ExpiredSession_ReturnsExpiredAndMarksProcessInvalidated() = runTest {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.failure(SessionExpiredException("USER_NOT_FOUND")) },
+            refreshSessionCall = { Result.failure(Exception("HTTP 401")) },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        SessionRestorationManager.isProcessSessionVerified = true
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.ExpiredOrInvalid, result)
+        assertFalse("Failed evaluation must clear process session verified flag", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testProcessDeath_NetworkUnavailable_KeepsCredentialsWithoutVerificationFlag() = runTest {
+        val manager = SessionRestorationManager(
+            verifySessionCall = { Result.failure(IOException("Network unreachable")) },
+            refreshSessionCall = { Result.success(Unit) },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue(result is SessionVerificationResult.NetworkUnavailable)
+        assertFalse("Network failure must not set verified flag", SessionRestorationManager.isProcessSessionVerified)
+    }
 
     @Test
     fun testEmptyAccessToken_ReturnsExpiredOrInvalidImmediately() = runTest {

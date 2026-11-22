@@ -304,6 +304,9 @@ fun ParentAppMainContent() {
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
     var isSessionAuthenticated by rememberSaveable { mutableStateOf(false) }
+    var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isRetryingConnection by remember { mutableStateOf(false) }
+    var lastBackPressTime by remember { mutableStateOf(0L) }
 
     val sessionRestorationManager = remember {
         SessionRestorationManager(
@@ -329,12 +332,22 @@ fun ParentAppMainContent() {
         }
     }
 
+    val needsRestorationVerification = remember {
+        sessionRestorationManager.requiresRestorationVerification(
+            screen = currentScreen,
+            isAuthScreen = { navManager.isAuthenticationScreen(it) }
+        )
+    }
+    var isVerifyingRestoration by remember { mutableStateOf(needsRestorationVerification) }
+    var restoredTargetScreen by remember { mutableStateOf(if (needsRestorationVerification) currentScreen else null) }
+
     // Centralized Navigation Boundary Helpers - delegating directly to AppNavigationManager
     fun isAuthenticationScreen(screen: AppScreen): Boolean = navManager.isAuthenticationScreen(screen)
 
     fun navigateToAuthenticatedRoot() {
         isSessionAuthenticated = true
         navManager.hasAuthenticatedSession = true
+        sessionRestorationManager.markSessionVerified()
         navManager.navigateToAuthenticatedRoot()
     }
 
@@ -347,6 +360,7 @@ fun ParentAppMainContent() {
     fun performLogout(message: String = "Logged out successfully") {
         isSessionAuthenticated = false
         navManager.hasAuthenticatedSession = false
+        sessionRestorationManager.markSessionInvalidated()
         mmkv.clearSession()
         FastifyRestClient.shared.accessToken = null
         FastifyRestClient.shared.refreshToken = null
@@ -357,7 +371,42 @@ fun ParentAppMainContent() {
 
     // Process recreation / auth guard: delegates to AppNavigationManager using verified session state
     LaunchedEffect(Unit) {
-        navManager.restoreState(hasValidAuthSession = isSessionAuthenticated)
+        if (needsRestorationVerification) {
+            when (val result = sessionRestorationManager.evaluateSession()) {
+                SessionVerificationResult.Authenticated -> {
+                    isSessionAuthenticated = true
+                    navManager.hasAuthenticatedSession = true
+                    sessionRestorationManager.markSessionVerified()
+                    navManager.restoreState(hasValidAuthSession = true)
+                    isVerifyingRestoration = false
+                }
+                SessionVerificationResult.UnverifiedEmail -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    sessionRestorationManager.markSessionInvalidated()
+                    isVerifyingRestoration = false
+                    toastMessage = "Please verify your email address to access your dashboard"
+                    toastType = ToastType.WARNING
+                    navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                }
+                SessionVerificationResult.ExpiredOrInvalid -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    sessionRestorationManager.markSessionInvalidated()
+                    isVerifyingRestoration = false
+                    performLogout("Session expired. Please log in again.")
+                }
+                is SessionVerificationResult.NetworkUnavailable -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    isVerifyingRestoration = false
+                    connectionErrorMessage = result.message
+                    navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
+                }
+            }
+        } else {
+            navManager.restoreState(hasValidAuthSession = isSessionAuthenticated)
+        }
     }
 
     // Global session expiry listener (reactive kick to Login on 401 or DB deletion)
@@ -418,10 +467,6 @@ fun ParentAppMainContent() {
     var showLogoutConfirmModal by remember { mutableStateOf(false) }
     var showAvatarCropperModal by remember { mutableStateOf(false) }
     var selectedLegalDocType by remember { mutableStateOf("privacy") }
-
-    var lastBackPressTime by remember { mutableStateOf(0L) }
-    var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
-    var isRetryingConnection by remember { mutableStateOf(false) }
 
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
@@ -527,7 +572,18 @@ fun ParentAppMainContent() {
             .fillMaxSize()
             .background(BgCanvas)
     ) {
-        AnimatedContent(
+        if (isVerifyingRestoration) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = AccentIndigo,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        } else {
+            AnimatedContent(
             targetState = currentScreen,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "ScreenTransition"
@@ -584,7 +640,14 @@ fun ParentAppMainContent() {
                                     SessionVerificationResult.Authenticated -> {
                                         toastMessage = "Connected successfully"
                                         toastType = ToastType.SUCCESS
-                                        proceedToMainDashboard()
+                                        if (restoredTargetScreen != null && !navManager.isAuthenticationScreen(restoredTargetScreen!!)) {
+                                            isSessionAuthenticated = true
+                                            navManager.hasAuthenticatedSession = true
+                                            sessionRestorationManager.markSessionVerified()
+                                            navManager.navigateTo(restoredTargetScreen!!)
+                                        } else {
+                                            proceedToMainDashboard()
+                                        }
                                     }
                                     SessionVerificationResult.UnverifiedEmail -> {
                                         toastMessage = "Please verify your email address to access your dashboard"
@@ -2057,6 +2120,7 @@ fun ParentAppMainContent() {
                     toastType = ToastType.SUCCESS
                 }
             )
+        }
         }
 
         // Floating Frosted HUD Toast
