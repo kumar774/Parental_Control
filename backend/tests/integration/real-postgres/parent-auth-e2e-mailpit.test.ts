@@ -196,6 +196,7 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     assert.strictEqual(body.accessToken, undefined, 'Registration must NOT issue accessToken when email verification is required');
     assert.strictEqual(body.refreshToken, undefined, 'Registration must NOT issue refreshToken when email verification is required');
     assert.strictEqual(body.requiresEmailVerification, true);
+    assert.strictEqual(body.verificationEmailSent, true);
     assert.strictEqual(body.user.email, testEmail);
     assert.strictEqual(body.user.fullName, 'E2E Testing Guardian');
 

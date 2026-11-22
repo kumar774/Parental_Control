@@ -832,11 +832,11 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(missingRes.statusCode, 400);
 
-    // 2. Bogus token -> 400
+    // 2. Bogus token with email -> 400 and increments attempts
     const bogusRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/verify-email',
-      payload: { token: 'completely-bogus-token-xyz' },
+      payload: { email: testEmail, token: 'completely-bogus-token-xyz' },
     });
     assert.equal(bogusRes.statusCode, 400);
 
@@ -855,11 +855,11 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     });
 
-    // 4. Verify email with valid token -> 200
+    // 4. Verify email with valid token and email -> 200
     const validVerifyRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/verify-email',
-      payload: { token: rawVerifyToken },
+      payload: { email: testEmail, token: rawVerifyToken },
     });
     assert.equal(validVerifyRes.statusCode, 200);
     assert.equal(validVerifyRes.json().message, 'Email verified successfully');
@@ -876,7 +876,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     const reuseVerifyRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/verify-email',
-      payload: { token: rawVerifyToken },
+      payload: { email: testEmail, token: rawVerifyToken },
     });
     assert.equal(reuseVerifyRes.statusCode, 400, 'Reused verification token must be rejected');
   });
@@ -1090,5 +1090,140 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(protectedSmtpOffRes.statusCode, 200, 'Protected endpoint must succeed immediately when SMTP is disabled');
     assert.equal(protectedSmtpOffRes.json().user.email, smtpOffEmail);
+  });
+
+  it('18. Registration SMTP delivery failure preserves pending account in DB and informs client honestly', async () => {
+    // 1. Simulate SMTP transport failure
+    setEmailTransport({
+      async sendVerificationEmail() {
+        throw new Error('SMTP connection timed out on port 587');
+      },
+    });
+
+    const testEmail = `parent-smtpfail-${Date.now()}@example.test`;
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'SMTP Failure Parent',
+        password: validPassword,
+      },
+    });
+
+    assert.equal(regRes.statusCode, 201);
+    const body = regRes.json();
+    assert.strictEqual(body.requiresEmailVerification, true);
+    assert.strictEqual(body.verificationEmailSent, false);
+    assert.strictEqual(body.accessToken, undefined);
+    assert.strictEqual(body.refreshToken, undefined);
+    assert.strictEqual(body.verificationOtp, undefined, 'OTP must never be exposed in response');
+    assert.match(body.message, /failed to deliver verification email/i);
+
+    // 2. Database verification: user exists as unverified
+    const [userRecord] = await db
+      .select()
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
+    assert.ok(userRecord, 'User record must exist in PostgreSQL');
+    assert.strictEqual(userRecord.emailVerified, false);
+
+    // 3. Database verification: verification token exists with hash
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(eq(parentVerificationTokens.parentId, userRecord.id));
+    assert.ok(tokenRecord, 'Verification token must exist in PostgreSQL');
+    assert.strictEqual(tokenRecord.isUsed, false);
+    assert.strictEqual(tokenRecord.attempts, 0);
+
+    // 4. Retry registration with unverified email returns 409 with recovery message
+    const retryRegRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'SMTP Failure Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(retryRegRes.statusCode, 409);
+    const retryBody = retryRegRes.json();
+    assert.strictEqual(retryBody.requiresEmailVerification, true);
+    assert.match(retryBody.message, /unverified account with this email already exists/i);
+  });
+
+  it('19. Email mandatory in POST /verify-email and atomic wrong attempt lockout', async () => {
+    setEmailTransport(null);
+    const testEmail = `parent-lockout-${Date.now()}@example.test`;
+
+    // 1. Register account
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Lockout Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+
+    // 2. Attempt verification without email -> rejected with HTTP 400
+    const noEmailRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { otpCode: '123456' },
+    });
+    assert.equal(noEmailRes.statusCode, 400);
+    assert.match(noEmailRes.json().message, /Invalid verification payload/i);
+
+    // 3. Attempt verification with wrong OTP -> HTTP 400 and increments attempts in DB
+    const wrong1Res = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: testEmail, otpCode: '000001' },
+    });
+    assert.equal(wrong1Res.statusCode, 400);
+
+    const [tokenAfter1] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${testEmail.toLowerCase()}`,
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false)
+        )
+      );
+    assert.ok(tokenAfter1);
+    assert.strictEqual(tokenAfter1.attempts, 1, 'Database attempt counter must be atomically incremented to 1');
+
+    // 4. Exhaust remaining attempts (attempts 2, 3, 4, 5)
+    for (let i = 2; i <= 4; i++) {
+      const wrongRes = await readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/verify-email',
+        payload: { email: testEmail, otpCode: `00000${i}` },
+      });
+      assert.equal(wrongRes.statusCode, 400);
+    }
+
+    // 5th attempt exhausts maxAttempts (5) -> HTTP 429
+    const lockoutRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: testEmail, otpCode: '000005' },
+    });
+    assert.equal(lockoutRes.statusCode, 429);
+    assert.match(lockoutRes.json().message, /Maximum verification attempts exceeded/i);
+
+    // 5. Subsequent attempts remain locked
+    const subRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: testEmail, otpCode: '000006' },
+    });
+    assert.equal(subRes.statusCode, 429);
   });
 });

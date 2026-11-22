@@ -66,10 +66,22 @@ class DatabaseAndLocalStorageUnitTest {
                     )
                 }
                 fullUrl.endsWith("/api/v1/auth/register") -> {
-                    FastifyRestClient.HttpResponse(
-                        201,
-                        """{"user":{"id":"parent-uuid-002","email":"pending@test.com","fullName":"Jane Doe","familyCardNo":"FAM-5678","isGuest":false},"requiresEmailVerification":true,"message":"Registration successful. Please verify your email."}"""
-                    )
+                    if (body?.contains("failure@test.com") == true) {
+                        FastifyRestClient.HttpResponse(
+                            201,
+                            """{"user":{"id":"parent-uuid-003","email":"failure@test.com","fullName":"Failure User","familyCardNo":"FAM-9999","isGuest":false},"requiresEmailVerification":true,"verificationEmailSent":false,"message":"Registration successful, but failed to deliver verification email. Please use the resend verification option to receive your code."}"""
+                        )
+                    } else if (body?.contains("existing-unverified@test.com") == true) {
+                        FastifyRestClient.HttpResponse(
+                            409,
+                            """{"statusCode":409,"error":"Conflict","message":"An unverified account with this email already exists. Please verify your email or request a new code.","requiresEmailVerification":true,"email":"existing-unverified@test.com"}"""
+                        )
+                    } else {
+                        FastifyRestClient.HttpResponse(
+                            201,
+                            """{"user":{"id":"parent-uuid-002","email":"pending@test.com","fullName":"Jane Doe","familyCardNo":"FAM-5678","isGuest":false},"requiresEmailVerification":true,"verificationEmailSent":true,"message":"Registration successful. Please verify your email."}"""
+                        )
+                    }
                 }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
             }
@@ -284,6 +296,36 @@ class DatabaseAndLocalStorageUnitTest {
         assertEquals("mock-access-token-jwt", database.mmkv.accessToken)
         assertEquals("mock-refresh-token-jwt", database.mmkv.refreshToken)
         assertEquals("parent@test.com", database.mmkv.userEmail)
+    }
+
+    @Test
+    fun testRegistrationWithSmtpFailureStillNavigatesToVerificationAndStoresEmail() = runBlocking {
+        database.mmkv.clearSession()
+        assertNull(database.mmkv.accessToken)
+
+        val regResult = authRepo.register("failure@test.com", "SecurePass#2026!", "Failure User")
+        assertTrue("Registration must succeed even when email dispatch fails: ${regResult.exceptionOrNull()?.message}", regResult.isSuccess)
+
+        // Email is persisted so user reaches verification screen with prefilled email
+        assertEquals("failure@test.com", database.mmkv.userEmail)
+        assertEquals("Failure User", database.mmkv.userFullName)
+
+        // Session tokens must still be null
+        assertNull(database.mmkv.accessToken)
+        assertNull(database.mmkv.refreshToken)
+    }
+
+    @Test
+    fun testRetryRegistrationWith409UnverifiedConflictPreservesEmailForRecovery() = runBlocking {
+        database.mmkv.clearSession()
+
+        val regResult = authRepo.register("existing-unverified@test.com", "SecurePass#2026!", "Existing User")
+        assertFalse("Duplicate registration must fail with conflict", regResult.isSuccess)
+        assertTrue("Error must mention unverified account", regResult.exceptionOrNull()?.message?.contains("unverified", ignoreCase = true) == true)
+
+        // Crucial recovery property: email is stored in MMKV so user can recover via Resend Code
+        assertEquals("existing-unverified@test.com", database.mmkv.userEmail)
+        assertNull(database.mmkv.accessToken)
     }
 
     @Test

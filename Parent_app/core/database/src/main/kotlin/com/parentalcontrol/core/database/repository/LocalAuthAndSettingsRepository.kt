@@ -113,6 +113,12 @@ class LocalAuthRepository(
             )
             accountFlow.value = account
             account
+        }.recoverCatching { err ->
+            if (err.message?.contains("unverified", ignoreCase = true) == true) {
+                database.mmkv.userEmail = email.trim()
+                if (fullName.isNotBlank()) database.mmkv.userFullName = fullName.trim()
+            }
+            throw err
         }
     }
 

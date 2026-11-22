@@ -119,7 +119,7 @@ const resendVerificationSchema = z.object({
 });
 
 const verifyEmailSchema = z.object({
-  email: z.string().email().optional(),
+  email: z.string().email('Valid email address is required'),
   token: z.string().min(1).optional(),
   otpCode: z.string().min(1).optional(),
 });
@@ -152,7 +152,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
 
     const [existing] = await db
-      .select({ id: parentUsers.id })
+      .select({ id: parentUsers.id, emailVerified: parentUsers.emailVerified })
       .from(parentUsers)
       .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
       .limit(1);
@@ -161,7 +161,11 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       return reply.status(409).send({
         statusCode: 409,
         error: 'Conflict',
-        message: 'Account with this email already exists',
+        message: existing.emailVerified
+          ? 'Account with this email already exists'
+          : 'An unverified account with this email already exists. Please verify your email or request a new code.',
+        requiresEmailVerification: !existing.emailVerified,
+        email: normalizedEmail,
       });
     }
 
@@ -263,6 +267,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
 
       // Dispatch verification email outside of transaction
+      let verificationEmailSent = false;
       if (result.verificationOtp) {
         try {
           const transport = getActiveEmailTransport();
@@ -276,8 +281,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           } else {
             await emailService.sendVerificationEmail(normalizedEmail, result.verificationOtp);
           }
+          verificationEmailSent = true;
         } catch (emailErr) {
           request.log.warn({ err: emailErr }, 'Failed to dispatch verification email on registration');
+          verificationEmailSent = false;
         }
       }
 
@@ -285,7 +292,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return reply.status(201).send({
           user: result.user,
           requiresEmailVerification: true,
-          message: 'Registration successful. Please verify your email address with the verification code sent to your inbox.',
+          verificationEmailSent,
+          message: verificationEmailSent
+            ? 'Registration successful. Please verify your email address with the verification code sent to your inbox.'
+            : 'Registration successful, but failed to deliver verification email. Please use the resend verification option to receive your code.',
         });
       }
 
@@ -295,6 +305,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,
         requiresEmailVerification: false,
+        verificationEmailSent: true,
       });
     } catch (err: any) {
       request.log.error({ err }, 'Atomic parent registration failed');
@@ -1090,40 +1101,22 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    const normalizedEmail = parsed.data.email?.toLowerCase().trim();
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
     const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
 
-    // Query active email verification token: prefer lookup by email if provided, otherwise by tokenHash
-    let tokenRecord: typeof parentVerificationTokens.$inferSelect | undefined;
-    if (normalizedEmail) {
-      const [record] = await db
-        .select()
-        .from(parentVerificationTokens)
-        .where(
-          and(
-            sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
-            eq(parentVerificationTokens.type, 'email_verification'),
-            eq(parentVerificationTokens.isUsed, false)
-          )
+    // Query active email verification token strictly for the specified account email
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false)
         )
-        .orderBy(desc(parentVerificationTokens.createdAt))
-        .limit(1);
-      tokenRecord = record;
-    } else {
-      const [record] = await db
-        .select()
-        .from(parentVerificationTokens)
-        .where(
-          and(
-            eq(parentVerificationTokens.tokenHash, providedHash),
-            eq(parentVerificationTokens.type, 'email_verification'),
-            eq(parentVerificationTokens.isUsed, false)
-          )
-        )
-        .orderBy(desc(parentVerificationTokens.createdAt))
-        .limit(1);
-      tokenRecord = record;
-    }
+      )
+      .orderBy(desc(parentVerificationTokens.createdAt))
+      .limit(1);
 
     if (!tokenRecord) {
       return reply.status(400).send({

@@ -1,4 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 
 interface RateRecord {
   timestamps: number[];
@@ -21,8 +23,9 @@ if (cleanupInterval.unref) {
 }
 
 /**
- * Creates an in-memory sliding-window rate limiter for parent endpoints.
- * Fallback-safe and operates without mandatory external Redis dependency in test/CI.
+ * Creates a hybrid rate limiter for parent endpoints:
+ * 1. Primary: PostgreSQL atomic upsert on `parent_rate_limits` for durable, multi-instance production distribution.
+ * 2. Fallback: In-memory sliding-window store when database is unavailable or running under lightweight mock engine.
  */
 export function createParentRateLimiter(options: {
   windowSeconds: number;
@@ -37,6 +40,7 @@ export function createParentRateLimiter(options: {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
 
     const now = Date.now();
+    const expiresAt = now + windowSeconds * 1000;
     const windowStart = now - windowSeconds * 1000;
 
     const keys = [`${prefix}:ip:${ip}`];
@@ -44,35 +48,85 @@ export function createParentRateLimiter(options: {
       keys.push(`${prefix}:account:${email}`);
     }
 
-    for (const key of keys) {
-      let record = memoryStore.get(key);
-      if (!record) {
-        record = { timestamps: [] };
-        memoryStore.set(key, record);
+    let handledByDb = false;
+
+    // 1. Durable PostgreSQL Atomic Upsert (Multi-Instance Production)
+    try {
+      if (db && typeof (db as any).execute === 'function') {
+        for (const key of keys) {
+          const result = await db.execute<{ count: number; expires_at: string | number }>(sql`
+            INSERT INTO parent_rate_limits ("key", "count", "window_started_at", "expires_at")
+            VALUES (${key}, 1, ${now}, ${expiresAt})
+            ON CONFLICT ("key") DO UPDATE
+            SET 
+              "count" = CASE 
+                WHEN parent_rate_limits.expires_at <= ${now} THEN 1 
+                ELSE parent_rate_limits.count + 1 
+              END,
+              "window_started_at" = CASE 
+                WHEN parent_rate_limits.expires_at <= ${now} THEN ${now} 
+                ELSE parent_rate_limits.window_started_at 
+              END,
+              "expires_at" = CASE 
+                WHEN parent_rate_limits.expires_at <= ${now} THEN ${expiresAt} 
+                ELSE parent_rate_limits.expires_at 
+              END
+            RETURNING "count", "expires_at";
+          `);
+
+          const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
+          if (row) {
+            const currentCount = Number(row.count);
+            const keyExpiresAt = Number(row.expires_at);
+            if (currentCount > maxRequests) {
+              const retryAfter = Math.max(1, Math.ceil((keyExpiresAt - now) / 1000));
+              reply.header('Retry-After', String(retryAfter));
+              return reply.status(429).send({
+                statusCode: 429,
+                error: 'Too Many Requests',
+                message: `Rate limit exceeded. Allowed: ${maxRequests} requests per ${windowSeconds}s.`,
+              });
+            }
+          }
+        }
+        handledByDb = true;
+      }
+    } catch {
+      handledByDb = false;
+    }
+
+    // 2. In-Memory Fallback (Local Test / Mock DB / Resilience)
+    if (!handledByDb) {
+      for (const key of keys) {
+        let record = memoryStore.get(key);
+        if (!record) {
+          record = { timestamps: [] };
+          memoryStore.set(key, record);
+        }
+
+        record.timestamps = record.timestamps.filter((t) => t > windowStart);
+
+        if (record.timestamps.length >= maxRequests) {
+          reply.header('Retry-After', String(windowSeconds));
+          return reply.status(429).send({
+            statusCode: 429,
+            error: 'Too Many Requests',
+            message: `Rate limit exceeded. Allowed: ${maxRequests} requests per ${windowSeconds}s.`,
+          });
+        }
       }
 
-      record.timestamps = record.timestamps.filter((t) => t > windowStart);
-
-      if (record.timestamps.length >= maxRequests) {
-        reply.header('Retry-After', String(windowSeconds));
-        return reply.status(429).send({
-          statusCode: 429,
-          error: 'Too Many Requests',
-          message: `Rate limit exceeded. Allowed: ${maxRequests} requests per ${windowSeconds}s.`,
-        });
+      for (const key of keys) {
+        const record = memoryStore.get(key)!;
+        record.timestamps.push(now);
       }
     }
 
-    for (const key of keys) {
-      const record = memoryStore.get(key)!;
-      record.timestamps.push(now);
-    }
-
-    const primaryRecord = memoryStore.get(keys[0] as string);
-    if (primaryRecord) {
-      reply.header('X-RateLimit-Limit', String(maxRequests));
-      reply.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - primaryRecord.timestamps.length)));
-    }
+    const primaryKey = keys[0] as string;
+    const memRecord = memoryStore.get(primaryKey);
+    const used = memRecord ? memRecord.timestamps.length : 1;
+    reply.header('X-RateLimit-Limit', String(maxRequests));
+    reply.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - used)));
   };
 }
 
@@ -108,4 +162,9 @@ export const parentResendVerificationRateLimiter = createParentRateLimiter({
 
 export function resetParentRateLimitsForTest(): void {
   memoryStore.clear();
+  try {
+    if (db && typeof (db as any).execute === 'function') {
+      db.execute(sql`DELETE FROM parent_rate_limits`).catch(() => {});
+    }
+  } catch (_) {}
 }

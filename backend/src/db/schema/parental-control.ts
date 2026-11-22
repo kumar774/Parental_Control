@@ -5,6 +5,7 @@ import {
   text,
   boolean,
   integer,
+  bigint,
   timestamp,
   jsonb,
   index,
@@ -177,3 +178,20 @@ export type NewAdminControlAuditLog = typeof adminControlAuditLogs.$inferInsert;
 
 export type ParentVerificationToken = typeof parentVerificationTokens.$inferSelect;
 export type NewParentVerificationToken = typeof parentVerificationTokens.$inferInsert;
+
+/**
+ * Shared Durable Rate Limiter Storage.
+ * Provides multi-instance distributed sliding/fixed-window rate limiting backed by PostgreSQL.
+ */
+export const parentRateLimits = pgTable(
+  'parent_rate_limits',
+  {
+    key: varchar('key', { length: 255 }).primaryKey(),
+    count: integer('count').notNull().default(1),
+    windowStartedAt: bigint('window_started_at', { mode: 'number' }).notNull(),
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+  }
+);
+
+export type ParentRateLimit = typeof parentRateLimits.$inferSelect;
+export type NewParentRateLimit = typeof parentRateLimits.$inferInsert;

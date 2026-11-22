@@ -132,8 +132,15 @@ class AuthViewModel(
                 sendEffect(AuthUiEffect.NavigateToEmailVerification)
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Registration failed. Please check details."
-                updateState { copy(isLoading = false, errorMessage = errorMsg) }
-                sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                val isUnverifiedConflict = errorMsg.contains("unverified", ignoreCase = true)
+                if (isUnverifiedConflict) {
+                    updateState { copy(isLoading = false, isOtpSent = false) }
+                    sendEffect(AuthUiEffect.ShowToast("Account registered. Please verify your email or request a new code.", isSuccess = false))
+                    sendEffect(AuthUiEffect.NavigateToEmailVerification)
+                } else {
+                    updateState { copy(isLoading = false, errorMessage = errorMsg) }
+                    sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                }
             }
         }
     }

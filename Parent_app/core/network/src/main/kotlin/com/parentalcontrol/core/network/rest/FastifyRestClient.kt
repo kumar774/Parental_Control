@@ -242,6 +242,8 @@ class FastifyRestClient(
                 val token = if (json.has("accessToken")) json.optString("accessToken") else null
                 val refToken = if (json.has("refreshToken")) json.optString("refreshToken") else null
                 val requiresVerification = json.optBoolean("requiresEmailVerification", false)
+                val emailSent = json.optBoolean("verificationEmailSent", true)
+                val respMessage = json.optString("message", "")
 
                 if (!requiresVerification && !token.isNullOrBlank()) {
                     accessToken = token
@@ -255,7 +257,9 @@ class FastifyRestClient(
                         user = user,
                         accessToken = token,
                         refreshToken = refToken,
-                        requiresEmailVerification = requiresVerification
+                        requiresEmailVerification = requiresVerification,
+                        verificationEmailSent = emailSent,
+                        message = respMessage
                     )
                 )
             } else {

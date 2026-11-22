@@ -35,3 +35,18 @@ BEGIN
     GRANT UPDATE (email_verified, full_name, status, updated_at) ON TABLE "users" TO parental_admin;
   END IF;
 END $$;
+
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "parent_rate_limits" (
+  "key" varchar(255) PRIMARY KEY,
+  "count" integer DEFAULT 1 NOT NULL,
+  "window_started_at" bigint NOT NULL,
+  "expires_at" bigint NOT NULL
+);
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parental_admin') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "parent_rate_limits" TO parental_admin;
+  END IF;
+END $$;

@@ -28,7 +28,9 @@ data class AuthResponseDto(
     val accessToken: String? = null,
     val refreshToken: String? = null,
     val expiresIn: Int? = null,
-    val requiresEmailVerification: Boolean = false
+    val requiresEmailVerification: Boolean = false,
+    val verificationEmailSent: Boolean = true,
+    val message: String? = null
 )
 
 data class TokenRefreshRequestDto(
