@@ -187,32 +187,14 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           throw new Error('Failed to create user account');
         }
 
-        const token = jwt.sign(
-          { userId: newUser.id, email: newUser.email, role: 'parent', emailVerified },
-          env.JWT_ACCESS_SECRET,
-          { expiresIn: '15m' }
-        );
-        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = hashRefreshToken(rawRefreshToken);
-
         const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
 
-        // Persist hashed refresh token for real session lifecycle within the same transaction.
-        // Protected API endpoints (/me) and session rotation (/refresh) strictly enforce email
-        // verification and reject unverified tokens with HTTP 403 Forbidden until verified.
-        await tx.insert(parentRefreshTokens).values({
-          parentId: newUser.id,
-          tokenHash,
-          familyCardNo: derivedFamilyCard,
-          deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
-          ipAddress: request.ip,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        });
-
-        // Generate email verification OTP token if email service is active
-        let rawVerificationOtp: string | null = null;
-        if (isEmailConfigured()) {
-          rawVerificationOtp = crypto.randomInt(100000, 999999).toString();
+        if (!emailVerified) {
+          // SMTP / Email verification is enabled:
+          // Strictly DO NOT issue access JWT.
+          // Strictly DO NOT persist refresh token in database for unverified accounts.
+          // Generate 6-digit OTP token in parentVerificationTokens.
+          const rawVerificationOtp = crypto.randomInt(100000, 999999).toString();
           const verificationHash = crypto.createHash('sha256').update(rawVerificationOtp).digest('hex');
           await tx.insert(parentVerificationTokens).values({
             parentId: newUser.id,
@@ -224,24 +206,60 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
             isUsed: false,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
           });
-        }
 
-        return {
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            fullName: newUser.fullName || derivedFullName,
+          return {
+            user: {
+              id: newUser.id,
+              email: newUser.email,
+              fullName: newUser.fullName || derivedFullName,
+              familyCardNo: derivedFamilyCard,
+              phone: newUser.phone,
+              isGuest: false,
+              status: newUser.status,
+            },
+            accessToken: null,
+            refreshToken: null,
+            expiresIn: null,
+            requiresEmailVerification: true,
+            verificationOtp: rawVerificationOtp,
+          };
+        } else {
+          // Email delivery not configured (dev / local test compatibility):
+          // Issue access token and persist refresh token for immediate compatible session.
+          const token = jwt.sign(
+            { userId: newUser.id, email: newUser.email, role: 'parent', emailVerified: true },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+          );
+          const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = hashRefreshToken(rawRefreshToken);
+
+          await tx.insert(parentRefreshTokens).values({
+            parentId: newUser.id,
+            tokenHash,
             familyCardNo: derivedFamilyCard,
-            phone: newUser.phone,
-            isGuest: false,
-            status: newUser.status,
-          },
-          accessToken: token,
-          refreshToken: rawRefreshToken,
-          expiresIn: 900,
-          requiresEmailVerification: !emailVerified,
-          verificationOtp: rawVerificationOtp,
-        };
+            deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+            ipAddress: request.ip,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          });
+
+          return {
+            user: {
+              id: newUser.id,
+              email: newUser.email,
+              fullName: newUser.fullName || derivedFullName,
+              familyCardNo: derivedFamilyCard,
+              phone: newUser.phone,
+              isGuest: false,
+              status: newUser.status,
+            },
+            accessToken: token,
+            refreshToken: rawRefreshToken,
+            expiresIn: 900,
+            requiresEmailVerification: false,
+            verificationOtp: null,
+          };
+        }
       });
 
       // Dispatch verification email outside of transaction
@@ -263,8 +281,21 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         }
       }
 
-      const { verificationOtp, ...clientResponse } = result;
-      return reply.status(201).send(clientResponse);
+      if (result.requiresEmailVerification) {
+        return reply.status(201).send({
+          user: result.user,
+          requiresEmailVerification: true,
+          message: 'Registration successful. Please verify your email address with the verification code sent to your inbox.',
+        });
+      }
+
+      return reply.status(201).send({
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        requiresEmailVerification: false,
+      });
     } catch (err: any) {
       request.log.error({ err }, 'Atomic parent registration failed');
       return reply.status(500).send({
@@ -1204,104 +1235,14 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
   /**
    * GET /verify-email
-   * Confirms email verification link if email provider is configured.
-   * If no email provider is configured, returns clean HTTP 501.
-   * Requires a valid, unexpired, single-use token query parameter.
+   * Email verification requires HTTP POST /verify-email with atomic attempt tracking and dual rate-limiting.
+   * Direct GET requests cannot verify tokens and return HTTP 405 Method Not Allowed to eliminate brute-force attack vectors.
    */
-  app.get('/verify-email', async (request, reply) => {
-    if (!isEmailConfigured()) {
-      return reply.status(501).send({
-        statusCode: 501,
-        error: 'Not Implemented',
-        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
-      });
-    }
-
-    const query = request.query as Record<string, string | undefined>;
-    const codeProvided = query?.token || query?.otpCode;
-    if (!codeProvided) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Verification token is required',
-      });
-    }
-
-    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
-
-    const [tokenRecord] = await db
-      .select()
-      .from(parentVerificationTokens)
-      .where(
-        and(
-          eq(parentVerificationTokens.tokenHash, providedHash),
-          eq(parentVerificationTokens.type, 'email_verification'),
-          eq(parentVerificationTokens.isUsed, false),
-          gt(parentVerificationTokens.expiresAt, new Date())
-        )
-      )
-      .limit(1);
-
-    if (!tokenRecord) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid or expired verification token',
-      });
-    }
-
-    if (tokenRecord.attempts >= tokenRecord.maxAttempts) {
-      return reply.status(429).send({
-        statusCode: 429,
-        error: 'Too Many Requests',
-        message: 'Maximum verification attempts exceeded. Please request a new verification link.',
-      });
-    }
-
-    try {
-      await db.transaction(async (tx) => {
-        const [usedToken] = await tx
-          .update(parentVerificationTokens)
-          .set({
-            isUsed: true,
-            usedAt: sql`NOW()`,
-          })
-          .where(
-            and(
-              eq(parentVerificationTokens.id, tokenRecord.id),
-              eq(parentVerificationTokens.isUsed, false),
-              sql`${parentVerificationTokens.attempts} < ${parentVerificationTokens.maxAttempts}`
-            )
-          )
-          .returning({ id: parentVerificationTokens.id });
-
-        if (!usedToken) {
-          throw new Error('VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED');
-        }
-
-        await tx
-          .update(parentUsers)
-          .set({
-            emailVerified: true,
-            status: 'active',
-            updatedAt: sql`NOW()`,
-          })
-          .where(eq(parentUsers.id, tokenRecord.parentId));
-      });
-    } catch (txErr: any) {
-      if (txErr.message === 'VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED') {
-        return reply.status(429).send({
-          statusCode: 429,
-          error: 'Too Many Requests',
-          message: 'Maximum verification attempts exceeded. Please request a new verification code.',
-        });
-      }
-      throw txErr;
-    }
-
-    return reply.send({
-      statusCode: 200,
-      message: 'Email verified successfully',
+  app.get('/verify-email', async (_request, reply) => {
+    return reply.status(405).send({
+      statusCode: 405,
+      error: 'Method Not Allowed',
+      message: 'Email verification requires HTTP POST /api/v1/auth/verify-email with a valid verification payload.',
     });
   });
 };

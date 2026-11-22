@@ -239,11 +239,25 @@ class FastifyRestClient(
                     familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
-                val token = json.getString("accessToken")
-                val refToken = json.optString("refreshToken", "")
-                accessToken = token
-                refreshToken = refToken
-                Result.success(AuthResponseDto(user, token, refToken))
+                val token = if (json.has("accessToken")) json.optString("accessToken") else null
+                val refToken = if (json.has("refreshToken")) json.optString("refreshToken") else null
+                val requiresVerification = json.optBoolean("requiresEmailVerification", false)
+
+                if (!requiresVerification && !token.isNullOrBlank()) {
+                    accessToken = token
+                    refreshToken = refToken
+                } else {
+                    accessToken = null
+                    refreshToken = null
+                }
+                Result.success(
+                    AuthResponseDto(
+                        user = user,
+                        accessToken = token,
+                        refreshToken = refToken,
+                        requiresEmailVerification = requiresVerification
+                    )
+                )
             } else {
                 val msg = try {
                     JSONObject(response.body).optString("message", "Registration failed")

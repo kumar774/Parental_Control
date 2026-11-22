@@ -95,8 +95,14 @@ class LocalAuthRepository(
             database.mmkv.userEmail = user.email
             database.mmkv.userFullName = user.fullName
             database.mmkv.familyCardNo = user.familyCardNo
-            database.mmkv.accessToken = authDto.accessToken
-            database.mmkv.refreshToken = authDto.refreshToken
+
+            if (!authDto.accessToken.isNullOrBlank() && !authDto.requiresEmailVerification) {
+                database.mmkv.accessToken = authDto.accessToken
+                database.mmkv.refreshToken = authDto.refreshToken
+            } else {
+                database.mmkv.accessToken = null
+                database.mmkv.refreshToken = null
+            }
 
             val account = ParentAccount(
                 id = user.id,

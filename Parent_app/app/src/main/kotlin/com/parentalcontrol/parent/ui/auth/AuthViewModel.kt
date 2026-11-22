@@ -263,8 +263,8 @@ class AuthViewModel(
             val result = verifyEmailOtpUseCase(email.trim().lowercase(), trimmedCode)
             result.onSuccess {
                 updateState { copy(isLoading = false) }
-                sendEffect(AuthUiEffect.ShowToast("Email verified successfully!"))
-                sendEffect(AuthUiEffect.NavigateToPairing)
+                sendEffect(AuthUiEffect.ShowToast("Email verified successfully! Please log in."))
+                sendEffect(AuthUiEffect.NavigateToLogin)
             }.onFailure { err ->
                 val msg = err.message ?: ""
                 val isUnavailable = msg.contains("501") ||

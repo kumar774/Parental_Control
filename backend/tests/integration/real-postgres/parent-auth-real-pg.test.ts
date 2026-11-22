@@ -57,8 +57,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     const body = res.json();
     assert.equal(body.user.email, testEmail);
     assert.equal(body.user.fullName, testFullName);
-    assert.ok(body.accessToken);
-    assert.ok(body.refreshToken);
+    assert.strictEqual(body.accessToken, undefined, 'No accessToken on unverified registration');
+    assert.strictEqual(body.refreshToken, undefined, 'No refreshToken on unverified registration');
+    assert.strictEqual(body.requiresEmailVerification, true);
 
     // Verify row directly in PostgreSQL users table
     const [dbUser] = await db
@@ -70,6 +71,13 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.ok(dbUser, 'User must exist in database');
     assert.equal(dbUser.fullName, testFullName, 'fullName must be persisted in PostgreSQL');
     assert.equal(dbUser.email, testEmail);
+
+    // Verify NO refresh token created in DB
+    const dbRefresh = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.parentId, body.user.id));
+    assert.strictEqual(dbRefresh.length, 0, 'No refresh token created for unverified registration');
   });
 
   it('2. Registration without fullName defaults safely to email prefix', async () => {
@@ -236,7 +244,17 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201, `Reg failed: ${regRes.body}`);
-    const { accessToken, user } = regRes.json();
+    const { user } = regRes.json();
+
+    // Verify account and login to get accessToken
+    await db.update(parentUsers).set({ emailVerified: true }).where(eq(parentUsers.id, user.id));
+    const loginResBefore = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginResBefore.statusCode, 200);
+    const { accessToken } = loginResBefore.json();
 
     // Mark user suspended
     await db
@@ -310,7 +328,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       method: 'GET',
       url: '/api/v1/auth/verify-email',
     });
-    assert.equal(verifyGetRes.statusCode, 501);
+    assert.equal(verifyGetRes.statusCode, 405);
   });
 
   it('8. Secure token generation & validation when email provider is configured', async () => {
@@ -329,13 +347,21 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201, `Reg failed: ${regRes.body}`);
-    const { refreshToken: oldRefreshToken } = regRes.json();
+    const { user } = regRes.json();
 
-    // Mark email verified so user session can refresh
+    // Mark email verified and login to obtain genuine refresh token
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(eq(parentUsers.id, user.id));
+
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { refreshToken: oldRefreshToken } = loginRes.json();
 
     // Request forgot password
     const forgotRes = await readyApp!.inject({
@@ -397,13 +423,25 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201);
-    const { user, refreshToken: refreshTokenA } = regRes.json();
+    const { user } = regRes.json();
 
     // Mark email verified so login succeeds
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(eq(parentUsers.id, user.id));
+
+    // Obtain active session A via login
+    const loginResA = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(loginResA.statusCode, 200);
+    const { refreshToken: refreshTokenA } = loginResA.json();
 
     // 2. Login to get a second active session B
     const loginRes = await readyApp!.inject({
@@ -598,13 +636,21 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201);
-    const { refreshToken: r1 } = regRes.json();
+    const { user } = regRes.json();
 
-    // Mark email verified so user session can refresh
+    // Mark email verified and login to obtain initial session
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(eq(parentUsers.id, user.id));
+
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { refreshToken: r1 } = loginRes.json();
 
     // Rotate R1 -> R2
     const rotate1 = await readyApp!.inject({
@@ -658,13 +704,21 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201);
-    const { user, refreshToken: r1 } = regRes.json();
+    const { user } = regRes.json();
 
-    // Mark email verified so user session can rotate
+    // Mark email verified and login to obtain initial session
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(eq(parentUsers.id, user.id));
+
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { refreshToken: r1 } = loginRes.json();
 
     // Normal rotation: R1 -> R2 (R1 is now legitimately rotated / revoked)
     const rotRes = await readyApp!.inject({
@@ -713,13 +767,21 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201);
-    const { refreshToken } = regRes.json();
+    const { user } = regRes.json();
 
-    // Mark email verified so user session is valid
+    // Mark email verified and login to obtain initial session
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(eq(parentUsers.id, user.id));
+
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { refreshToken } = loginRes.json();
 
     // Logout
     const logoutRes = await readyApp!.inject({
@@ -908,7 +970,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
 
     const testEmail = `parent-lifecycle-${Date.now()}@example.test`;
 
-    // 1. Unverified registration
+    // 1. Unverified registration with SMTP enabled
     const regRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/register',
@@ -920,45 +982,52 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201);
     const regBody = regRes.json();
-    assert.ok(regBody.accessToken, 'Registration returns accessToken');
-    assert.ok(regBody.refreshToken, 'Registration returns refreshToken');
+    assert.strictEqual(regBody.accessToken, undefined, 'Registration must not return accessToken when unverified');
+    assert.strictEqual(regBody.refreshToken, undefined, 'Registration must not return refreshToken when unverified');
+    assert.strictEqual(regBody.requiresEmailVerification, true);
     assert.ok(capturedOtp, 'OTP must be dispatched via transport');
 
-    // 2. Registration-issued token on protected endpoint MUST be rejected with HTTP 403 Forbidden
-    const protectedRes = await readyApp!.inject({
+    // 2. Database verification: NO refresh token row in parent_refresh_tokens
+    const dbRefreshTokens = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.parentId, regBody.user.id));
+    assert.strictEqual(dbRefreshTokens.length, 0, 'No refresh token row must be created for unverified account');
+
+    // 3. Protected endpoint without token rejected with HTTP 401
+    const protectedNoTokenRes = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
-      headers: {
-        authorization: `Bearer ${regBody.accessToken}`,
-      },
     });
-    assert.equal(protectedRes.statusCode, 403, 'Protected endpoint must reject unverified registration token');
-    assert.equal(protectedRes.json().error, 'Forbidden');
-    assert.match(protectedRes.json().message, /Email not verified/);
+    assert.equal(protectedNoTokenRes.statusCode, 401);
 
-    // 3. Registration-issued refresh token on /refresh MUST be rejected with HTTP 403 Forbidden
-    const refreshRes = await readyApp!.inject({
+    // 4. Refresh without token rejected with HTTP 400
+    const refreshNoTokenRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      payload: {
-        refreshToken: regBody.refreshToken,
-      },
+      payload: {},
     });
-    assert.equal(refreshRes.statusCode, 403, 'Refresh endpoint must reject unverified parent refresh token');
-    assert.equal(refreshRes.json().error, 'Forbidden');
-    assert.match(refreshRes.json().message, /Email not verified/);
+    assert.equal(refreshNoTokenRes.statusCode, 400);
 
-    // 4. Verify OTP via /verify-email endpoint
+    // 5. GET /verify-email cannot bypass rate limits or OTP attempts (HTTP 405 Method Not Allowed)
+    const getVerifyRes = await readyApp!.inject({
+      method: 'GET',
+      url: `/api/v1/auth/verify-email?otpCode=${capturedOtp}`,
+    });
+    assert.equal(getVerifyRes.statusCode, 405, 'GET /verify-email must return 405 Method Not Allowed');
+
+    // 6. Verify OTP via POST /verify-email endpoint
     const verifyRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/verify-email',
       payload: {
+        email: testEmail,
         otpCode: capturedOtp,
       },
     });
     assert.equal(verifyRes.statusCode, 200, 'Verify email must succeed with valid OTP');
 
-    // 5. Login succeeds with HTTP 200
+    // 7. Login succeeds with HTTP 200
     const loginRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -972,7 +1041,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.ok(loginBody.accessToken, 'Login must return fresh accessToken');
     assert.ok(loginBody.refreshToken, 'Login must return fresh refreshToken');
 
-    // 6. Protected endpoint succeeds with login accessToken
+    // 8. Protected endpoint succeeds with login accessToken
     const protectedVerifiedRes = await readyApp!.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
@@ -983,7 +1052,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(protectedVerifiedRes.statusCode, 200, 'Protected endpoint must succeed with login token');
     assert.equal(protectedVerifiedRes.json().user.email, testEmail);
 
-    // 7. Refresh endpoint succeeds with login refreshToken
+    // 9. Refresh endpoint succeeds with login refreshToken
     const refreshVerifiedRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
@@ -994,7 +1063,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(refreshVerifiedRes.statusCode, 200, 'Refresh must succeed after verification');
     assert.ok(refreshVerifiedRes.json().accessToken);
 
-    // 8. SMTP Unavailable preservation: when email is not configured, registration allows immediate access
+    // 10. SMTP Unavailable preservation: when email is not configured, registration allows immediate access
     setEmailConfiguredOverrideForTest(false);
     const smtpOffEmail = `parent-smtpoff-${Date.now()}@example.test`;
     const regSmtpOffRes = await readyApp!.inject({
@@ -1008,6 +1077,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regSmtpOffRes.statusCode, 201);
     const smtpOffBody = regSmtpOffRes.json();
+    assert.ok(smtpOffBody.accessToken, 'Immediate access token when SMTP disabled');
+    assert.ok(smtpOffBody.refreshToken, 'Immediate refresh token when SMTP disabled');
+    assert.strictEqual(smtpOffBody.requiresEmailVerification, false);
 
     const protectedSmtpOffRes = await readyApp!.inject({
       method: 'GET',

@@ -121,8 +121,6 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
   const testEmail = `parent_e2e_${Date.now()}@guardian.org`;
   const initialPassword = 'InitialValidPass#2026!';
   const updatedPassword = 'BrandNewMasterPass#2026!';
-  let regAccessToken: string = '';
-  let regRefreshToken: string = '';
 
   before(async () => {
     app = await buildApp();
@@ -195,12 +193,18 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
 
     assert.strictEqual(res.statusCode, 201);
     const body = res.json();
-    assert.ok(body.accessToken);
-    assert.ok(body.refreshToken);
-    regAccessToken = body.accessToken;
-    regRefreshToken = body.refreshToken;
+    assert.strictEqual(body.accessToken, undefined, 'Registration must NOT issue accessToken when email verification is required');
+    assert.strictEqual(body.refreshToken, undefined, 'Registration must NOT issue refreshToken when email verification is required');
+    assert.strictEqual(body.requiresEmailVerification, true);
     assert.strictEqual(body.user.email, testEmail);
     assert.strictEqual(body.user.fullName, 'E2E Testing Guardian');
+
+    // Confirm that no refresh token row is inserted in PostgreSQL for unverified registration
+    const refreshRows = await db
+      .select()
+      .from(parentRefreshTokens)
+      .where(eq(parentRefreshTokens.parentId, body.user.id));
+    assert.strictEqual(refreshRows.length, 0, 'No refresh tokens row may exist for unverified registration');
 
     // Fetch verification email and parse OTP from message detail
     const emailData = await getEmailWithOtp(testEmail, ['verification code', 'Verify Your Email']);
@@ -221,23 +225,28 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     assert.strictEqual(unverifiedLogin.statusCode, 403);
     assert.strictEqual(unverifiedLogin.json().message, 'Email not verified. Please verify your email before logging in.');
 
-    // A0.1 Rejection of unverified registration access token on protected endpoint (HTTP 403)
-    const unverifiedMe = await app.inject({
+    // A0.1 Unauthenticated protected endpoint access returns 401 Unauthorized
+    const unauthMe = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
-      headers: { authorization: `Bearer ${regAccessToken}` },
     });
-    assert.strictEqual(unverifiedMe.statusCode, 403);
-    assert.strictEqual(unverifiedMe.json().message, 'Email not verified. Please verify your email before accessing this resource.');
+    assert.strictEqual(unauthMe.statusCode, 401);
 
-    // A0.2 Rejection of unverified registration refresh token on /refresh (HTTP 403)
-    const unverifiedRefresh = await app.inject({
+    // A0.2 Refresh endpoint without refresh token returns 400 Bad Request
+    const unauthRefresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      payload: { refreshToken: regRefreshToken },
+      payload: {},
     });
-    assert.strictEqual(unverifiedRefresh.statusCode, 403);
-    assert.strictEqual(unverifiedRefresh.json().message, 'Email not verified. Please verify your email before refreshing session.');
+    assert.strictEqual(unauthRefresh.statusCode, 400);
+
+    // A0.3 Rejection of GET /verify-email (HTTP 405 Method Not Allowed - prevents OTP brute-force bypass)
+    const getVerifyRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/auth/verify-email?email=${encodeURIComponent(testEmail)}&otpCode=${validOtp}`,
+    });
+    assert.strictEqual(getVerifyRes.statusCode, 405);
+    assert.match(getVerifyRes.json().message, /HTTP POST/);
 
     // A. Rejection of incorrect OTP
     const wrongRes = await app.inject({

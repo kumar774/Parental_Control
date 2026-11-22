@@ -95,6 +95,7 @@ fun ParentEmailVerificationScreen(
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
+                is AuthUiEffect.NavigateToLogin,
                 is AuthUiEffect.NavigateToPairing,
                 is AuthUiEffect.NavigateToDashboard -> onVerificationSuccess()
                 else -> {}

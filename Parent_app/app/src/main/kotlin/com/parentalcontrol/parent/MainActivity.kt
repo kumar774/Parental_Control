@@ -513,7 +513,14 @@ fun ParentAppMainContent() {
                         onSplashFinished = {
                             val savedToken = mmkv.accessToken
                             if (savedToken.isNullOrBlank()) {
-                                currentScreen = AppScreen.WELCOME_CAROUSEL
+                                val pendingEmail = mmkv.userEmail
+                                if (!pendingEmail.isNullOrBlank()) {
+                                    currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
+                                    screenBackstack.clear()
+                                    screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                } else {
+                                    currentScreen = AppScreen.WELCOME_CAROUSEL
+                                }
                             } else {
                                 scope.launch {
                                     val sessionResult = FastifyRestClient.shared.verifySession()
@@ -1287,9 +1294,11 @@ fun ParentAppMainContent() {
                             currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.REGISTER else AppScreen.LOGIN
                         },
                         onVerificationSuccess = {
-                            toastMessage = "Email verified successfully"
+                            toastMessage = "Email verified successfully! Please log in to continue."
                             toastType = ToastType.SUCCESS
-                            currentScreen = AppScreen.MAIN_SHELL
+                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.LOGIN else AppScreen.MAIN_SHELL
+                            screenBackstack.clear()
+                            screenBackstack.add(currentScreen)
                         }
                     )
                 }

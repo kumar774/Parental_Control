@@ -65,6 +65,12 @@ class DatabaseAndLocalStorageUnitTest {
                         """{"statusCode":200,"message":"Email verified successfully"}"""
                     )
                 }
+                fullUrl.endsWith("/api/v1/auth/register") -> {
+                    FastifyRestClient.HttpResponse(
+                        201,
+                        """{"user":{"id":"parent-uuid-002","email":"pending@test.com","fullName":"Jane Doe","familyCardNo":"FAM-5678","isGuest":false},"requiresEmailVerification":true,"message":"Registration successful. Please verify your email."}"""
+                    )
+                }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
             }
         }
@@ -249,6 +255,35 @@ class DatabaseAndLocalStorageUnitTest {
 
         val invalidOtpResult = authRepo.verifyEmailOtp("parent@test.com", "12")
         assertFalse("Invalid OTP length must fail", invalidOtpResult.isSuccess)
+    }
+
+    @Test
+    fun testPendingRegistrationDoesNotPersistTokens() = runBlocking {
+        database.mmkv.clearSession()
+        assertNull(database.mmkv.accessToken)
+        assertNull(database.mmkv.refreshToken)
+
+        val regResult = authRepo.register("pending@test.com", "SecurePass#2026!", "Jane Doe")
+        assertTrue("Registration must succeed: ${regResult.exceptionOrNull()?.message}", regResult.isSuccess)
+
+        // User profile is saved for pending verification state
+        assertEquals("pending@test.com", database.mmkv.userEmail)
+        assertEquals("Jane Doe", database.mmkv.userFullName)
+
+        // But NO authentication session tokens are persisted
+        assertNull("Pending registration must not persist accessToken", database.mmkv.accessToken)
+        assertNull("Pending registration must not persist refreshToken", database.mmkv.refreshToken)
+    }
+
+    @Test
+    fun testVerifiedLoginPersistsSessionTokens() = runBlocking {
+        database.mmkv.clearSession()
+        val loginResult = authRepo.login("parent@test.com", "SecurePass#2026!")
+        assertTrue("Login must succeed: ${loginResult.exceptionOrNull()?.message}", loginResult.isSuccess)
+
+        assertEquals("mock-access-token-jwt", database.mmkv.accessToken)
+        assertEquals("mock-refresh-token-jwt", database.mmkv.refreshToken)
+        assertEquals("parent@test.com", database.mmkv.userEmail)
     }
 
     @Test
