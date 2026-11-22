@@ -134,6 +134,18 @@ class AppNavigationManagerTest {
     }
 
     @Test
+    fun testBiometricFailure_RedirectsToLoginAndResetsBackstack() {
+        // On biometric cancel/failure, app redirects to LOGIN root
+        navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertFalse("Back on Login after biometric failure should exit", consumed)
+    }
+
+    @Test
     fun testLogout_Back_MustNotReopenDashboard() {
         navManager.navigateToAuthenticatedRoot()
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
@@ -160,6 +172,9 @@ class AppNavigationManagerTest {
         navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
         assertEquals(AppScreen.LOGIN, navManager.currentScreen)
         assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+
+        val backConsumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertFalse("Back after session expiration must exit, never reopen authenticated screens", backConsumed)
     }
 
     @Test
@@ -172,6 +187,21 @@ class AppNavigationManagerTest {
         assertTrue(consumed)
         assertEquals(AppScreen.LOGIN, navManager.currentScreen)
         assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+    }
+
+    @Test
+    fun testRegistration_Back_ReturnsToWelcomeCarousel() {
+        navManager.navigateTo(AppScreen.WELCOME_CAROUSEL)
+        navManager.navigateTo(AppScreen.REGISTER)
+        assertEquals(listOf(AppScreen.WELCOME_CAROUSEL, AppScreen.REGISTER), navManager.screenBackstack)
+
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertTrue("Back from Register should return to Welcome Carousel", consumed)
+        assertEquals(AppScreen.WELCOME_CAROUSEL, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.WELCOME_CAROUSEL), navManager.screenBackstack)
+
+        val nextConsumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertFalse("Back from Carousel should exit app", nextConsumed)
     }
 
     @Test
@@ -240,5 +270,50 @@ class AppNavigationManagerTest {
         // 3rd back: double back exit confirmation
         val back3 = navManager.navigateBack(hasValidAuthSession = true)
         assertFalse(back3)
+    }
+
+    @Test
+    fun testStaleAuthScreen_PushedInBackstack_SanitizedOnSubscreenBack() {
+        // Even if backstack somehow contained LOGIN before MAIN_SHELL and a sub-screen
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.DEVICE_PAIRING,
+            initialBackstack = listOf(AppScreen.LOGIN, AppScreen.DEVICE_PAIRING)
+        )
+
+        // Back when authenticated should safely fall back to MAIN_SHELL rather than popping to LOGIN
+        val consumed = manager.navigateBack(hasValidAuthSession = true)
+        assertTrue(consumed)
+        assertEquals(AppScreen.MAIN_SHELL, manager.currentScreen)
+        assertEquals("home", manager.currentNavRoute)
+        assertEquals(listOf(AppScreen.MAIN_SHELL), manager.screenBackstack)
+    }
+
+    @Test
+    fun testNavigationCallback_InvokedOnAllActions() {
+        var callbackScreen: AppScreen? = null
+        var callbackRoute: String? = null
+
+        val manager = AppNavigationManager(
+            onNavigationChanged = { screen, route ->
+                callbackScreen = screen
+                callbackRoute = route
+            }
+        )
+
+        manager.navigateTo(AppScreen.LOGIN)
+        assertEquals(AppScreen.LOGIN, callbackScreen)
+
+        manager.navigateToAuthenticatedRoot()
+        assertEquals(AppScreen.MAIN_SHELL, callbackScreen)
+        assertEquals("home", callbackRoute)
+
+        manager.selectNavRoute("alerts")
+        assertEquals("alerts", callbackRoute)
+
+        manager.navigateBack(hasValidAuthSession = true)
+        assertEquals("home", callbackRoute)
+
+        manager.navigateToUnauthenticatedRoot(AppScreen.REGISTER)
+        assertEquals(AppScreen.REGISTER, callbackScreen)
     }
 }

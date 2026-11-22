@@ -9,15 +9,15 @@ import com.parentalcontrol.parent.AppScreen
 class AppNavigationManager(
     initialScreen: AppScreen = AppScreen.SPLASH,
     initialRoute: String = "home",
-    initialBackstack: List<AppScreen> = listOf(AppScreen.SPLASH)
+    initialBackstack: List<AppScreen> = listOf(AppScreen.SPLASH),
+    var onNavigationChanged: ((screen: AppScreen, route: String) -> Unit)? = null,
+    val screenBackstack: MutableList<AppScreen> = initialBackstack.toMutableList()
 ) {
     var currentScreen: AppScreen = initialScreen
         private set
 
     var currentNavRoute: String = initialRoute
         private set
-
-    val screenBackstack: MutableList<AppScreen> = initialBackstack.toMutableList()
 
     var isAnyModalOpen: () -> Boolean = { false }
     var dismissAllModals: () -> Unit = {}
@@ -45,6 +45,7 @@ class AppNavigationManager(
         currentScreen = AppScreen.MAIN_SHELL
         screenBackstack.clear()
         screenBackstack.add(AppScreen.MAIN_SHELL)
+        onNavigationChanged?.invoke(currentScreen, currentNavRoute)
     }
 
     /**
@@ -55,6 +56,7 @@ class AppNavigationManager(
         currentScreen = screen
         screenBackstack.clear()
         screenBackstack.add(screen)
+        onNavigationChanged?.invoke(currentScreen, currentNavRoute)
     }
 
     /**
@@ -62,6 +64,7 @@ class AppNavigationManager(
      */
     fun selectNavRoute(route: String) {
         currentNavRoute = route
+        onNavigationChanged?.invoke(currentScreen, currentNavRoute)
     }
 
     /**
@@ -73,6 +76,7 @@ class AppNavigationManager(
         } else {
             currentScreen = screen
             synchronizeBackstack(screen)
+            onNavigationChanged?.invoke(currentScreen, currentNavRoute)
         }
     }
 
@@ -83,6 +87,7 @@ class AppNavigationManager(
      * - Nested screens are correctly tracked and trimmed when returning.
      */
     fun synchronizeBackstack(screen: AppScreen) {
+        currentScreen = screen
         // Splash is an ephemeral startup screen; remove it once navigated away
         if (screen != AppScreen.SPLASH) {
             screenBackstack.remove(AppScreen.SPLASH)
@@ -141,6 +146,7 @@ class AppNavigationManager(
             // Tab navigation: if not on "home" tab, return to "home" tab
             if (currentNavRoute != "home") {
                 currentNavRoute = "home"
+                onNavigationChanged?.invoke(currentScreen, currentNavRoute)
                 return true
             }
             // On "home" tab: ensure clean backstack with only MAIN_SHELL and return false for double-back-to-exit
@@ -160,6 +166,7 @@ class AppNavigationManager(
                 navigateToAuthenticatedRoot()
             } else {
                 currentScreen = targetScreen
+                onNavigationChanged?.invoke(currentScreen, currentNavRoute)
             }
             return true
         }
@@ -184,6 +191,7 @@ class AppNavigationManager(
             if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
                 screenBackstack.add(0, AppScreen.MAIN_SHELL)
             }
+            onNavigationChanged?.invoke(currentScreen, currentNavRoute)
         }
     }
 }

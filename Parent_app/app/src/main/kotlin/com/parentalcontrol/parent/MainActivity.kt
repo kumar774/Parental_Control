@@ -168,6 +168,7 @@ import com.parentalcontrol.parent.ui.modals.VipDiscountPromoBottomSheet
 import com.parentalcontrol.parent.ui.modals.VoucherRedemptionBottomSheet
 import com.parentalcontrol.parent.ui.modals.BindPhoneAuthBottomSheet
 import com.parentalcontrol.parent.ui.modals.StreamQuotaExhaustedSheet
+import com.parentalcontrol.parent.navigation.AppNavigationManager
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.platform.LocalContext
 import com.parentalcontrol.core.database.ParentalDatabase
@@ -301,50 +302,42 @@ fun ParentAppMainContent() {
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
 
-    // Centralized Navigation Boundary Helpers
-    fun isAuthenticationScreen(screen: AppScreen): Boolean {
-        return screen == AppScreen.SPLASH ||
-            screen == AppScreen.WELCOME_CAROUSEL ||
-            screen == AppScreen.LOGIN ||
-            screen == AppScreen.REGISTER ||
-            screen == AppScreen.FORGOT_PASSWORD ||
-            screen == AppScreen.PARENT_EMAIL_VERIFICATION ||
-            screen == AppScreen.CONNECTION_ERROR
+    val navManager = remember {
+        AppNavigationManager(
+            initialScreen = currentScreen,
+            initialRoute = currentNavRoute,
+            screenBackstack = screenBackstack
+        ).apply {
+            onNavigationChanged = { screen, route ->
+                currentScreen = screen
+                currentNavRoute = route
+            }
+        }
     }
 
+    // Centralized Navigation Boundary Helpers - delegating directly to AppNavigationManager
+    fun isAuthenticationScreen(screen: AppScreen): Boolean = navManager.isAuthenticationScreen(screen)
+
     fun navigateToAuthenticatedRoot() {
-        currentNavRoute = "home"
-        currentScreen = AppScreen.MAIN_SHELL
-        screenBackstack.clear()
-        screenBackstack.add(AppScreen.MAIN_SHELL)
+        navManager.navigateToAuthenticatedRoot()
     }
 
     fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
-        currentScreen = screen
-        screenBackstack.clear()
-        screenBackstack.add(screen)
+        navManager.navigateToUnauthenticatedRoot(screen)
     }
 
     fun performLogout(message: String = "Logged out successfully") {
         mmkv.clearSession()
         FastifyRestClient.shared.accessToken = null
         FastifyRestClient.shared.refreshToken = null
-        currentNavRoute = "home"
         navigateToUnauthenticatedRoot(AppScreen.LOGIN)
         toastMessage = message
         toastType = ToastType.INFO
     }
 
-    // Process recreation / auth guard: if restored on authenticated screen without token, redirect to login
+    // Process recreation / auth guard: delegates to AppNavigationManager
     LaunchedEffect(Unit) {
-        if (!isAuthenticationScreen(currentScreen) && mmkv.accessToken.isNullOrBlank()) {
-            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
-        } else if (!isAuthenticationScreen(currentScreen)) {
-            screenBackstack.removeAll { isAuthenticationScreen(it) }
-            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
-                screenBackstack.add(0, AppScreen.MAIN_SHELL)
-            }
-        }
+        navManager.restoreState(hasValidAuthSession = !mmkv.accessToken.isNullOrBlank())
     }
 
     // Global session expiry listener (reactive kick to Login on 401 or DB deletion)
@@ -354,45 +347,9 @@ fun ParentAppMainContent() {
         }
     }
 
-    // Keep screenBackstack in sync with currentScreen
+    // Keep screenBackstack in sync with currentScreen via AppNavigationManager
     LaunchedEffect(currentScreen) {
-        if (currentScreen != AppScreen.SPLASH) {
-            screenBackstack.remove(AppScreen.SPLASH)
-        }
-        if (currentScreen == AppScreen.MAIN_SHELL) {
-            // MAIN_SHELL is the authenticated root: purge any unauthenticated history
-            screenBackstack.removeAll { isAuthenticationScreen(it) }
-            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
-                screenBackstack.add(0, AppScreen.MAIN_SHELL)
-            }
-            val idx = screenBackstack.lastIndexOf(AppScreen.MAIN_SHELL)
-            while (screenBackstack.size > idx + 1) {
-                screenBackstack.removeAt(screenBackstack.lastIndex)
-            }
-        } else if (isAuthenticationScreen(currentScreen)) {
-            screenBackstack.removeAll { !isAuthenticationScreen(it) }
-            if (screenBackstack.contains(currentScreen)) {
-                val idx = screenBackstack.lastIndexOf(currentScreen)
-                while (screenBackstack.size > idx + 1) {
-                    screenBackstack.removeAt(screenBackstack.lastIndex)
-                }
-            } else {
-                screenBackstack.add(currentScreen)
-            }
-        } else {
-            // Sub-screen of authenticated shell
-            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
-                screenBackstack.add(0, AppScreen.MAIN_SHELL)
-            }
-            if (screenBackstack.contains(currentScreen)) {
-                val idx = screenBackstack.lastIndexOf(currentScreen)
-                while (screenBackstack.size > idx + 1) {
-                    screenBackstack.removeAt(screenBackstack.lastIndex)
-                }
-            } else {
-                screenBackstack.add(currentScreen)
-            }
-        }
+        navManager.synchronizeBackstack(currentScreen)
     }
 
     // Phase 3 & 4 Modal visibility states
@@ -451,9 +408,9 @@ fun ParentAppMainContent() {
         }
     }
 
-    fun navigateBack(): Boolean {
-        // 1. Dismiss any open bottom sheet or modal first
-        if (showInstantLockModal || showBonusTimeModal || showEmergencyQrModal ||
+    // Bind open modals and modal dismissal to navigation manager
+    navManager.isAnyModalOpen = {
+        showInstantLockModal || showBonusTimeModal || showEmergencyQrModal ||
             showGeofenceEditorModal || showLocateRingModal || showGpsDriftModal ||
             showAppRuleModal || showFocusModeModal || showChildApprovalModal ||
             showAddCustomUrlModal || showChildWebApprovalModal || showVpnDisclosureModal ||
@@ -462,71 +419,38 @@ fun ParentAppMainContent() {
             showUrgentBroadcastModal || showUpgradePremiumModal || showVipDiscountModal ||
             showVoucherRedemptionModal || showBindPhoneModal || showStreamQuotaExhaustedModal ||
             showLogoutConfirmModal || showAvatarCropperModal
-        ) {
-            showInstantLockModal = false
-            showBonusTimeModal = false
-            showEmergencyQrModal = false
-            showGeofenceEditorModal = false
-            showLocateRingModal = false
-            showGpsDriftModal = false
-            showAppRuleModal = false
-            showFocusModeModal = false
-            showChildApprovalModal = false
-            showAddCustomUrlModal = false
-            showChildWebApprovalModal = false
-            showVpnDisclosureModal = false
-            showLivePaintModal = false
-            showTemporaryAccessModal = false
-            showStreamTroubleshooterModal = false
-            showKeywordConfigModal = false
-            showInviteCoParentModal = false
-            showSosAlertOverlay = false
-            showUrgentBroadcastModal = false
-            showUpgradePremiumModal = false
-            showVipDiscountModal = false
-            showVoucherRedemptionModal = false
-            showBindPhoneModal = false
-            showStreamQuotaExhaustedModal = false
-            showLogoutConfirmModal = false
-            showAvatarCropperModal = false
-            return true
-        }
+    }
+    navManager.dismissAllModals = {
+        showInstantLockModal = false
+        showBonusTimeModal = false
+        showEmergencyQrModal = false
+        showGeofenceEditorModal = false
+        showLocateRingModal = false
+        showGpsDriftModal = false
+        showAppRuleModal = false
+        showFocusModeModal = false
+        showChildApprovalModal = false
+        showAddCustomUrlModal = false
+        showChildWebApprovalModal = false
+        showVpnDisclosureModal = false
+        showLivePaintModal = false
+        showTemporaryAccessModal = false
+        showStreamTroubleshooterModal = false
+        showKeywordConfigModal = false
+        showInviteCoParentModal = false
+        showSosAlertOverlay = false
+        showUrgentBroadcastModal = false
+        showUpgradePremiumModal = false
+        showVipDiscountModal = false
+        showVoucherRedemptionModal = false
+        showBindPhoneModal = false
+        showStreamQuotaExhaustedModal = false
+        showLogoutConfirmModal = false
+        showAvatarCropperModal = false
+    }
 
-        // 2. When at the authenticated root (MAIN_SHELL):
-        if (currentScreen == AppScreen.MAIN_SHELL) {
-            // Tab navigation: if not on "home" tab, return to "home" tab
-            if (currentNavRoute != "home") {
-                currentNavRoute = "home"
-                return true
-            }
-            // On "home" tab: ensure clean backstack with only MAIN_SHELL and return false for double-back-to-exit
-            if (screenBackstack.size != 1 || screenBackstack.firstOrNull() != AppScreen.MAIN_SHELL) {
-                screenBackstack.clear()
-                screenBackstack.add(AppScreen.MAIN_SHELL)
-            }
-            return false
-        }
-
-        // 3. For all other screens: if screenBackstack has previous screen, pop to it
-        if (screenBackstack.size > 1) {
-            screenBackstack.removeAt(screenBackstack.lastIndex)
-            val targetScreen = screenBackstack.last()
-            // If target is an auth screen but user is currently authenticated, route safely to authenticated root
-            if (isAuthenticationScreen(targetScreen) && !mmkv.accessToken.isNullOrBlank()) {
-                navigateToAuthenticatedRoot()
-            } else {
-                currentScreen = targetScreen
-            }
-            return true
-        }
-
-        // 4. Fallback for authenticated sub-screens if backstack was ever desynchronized
-        if (!isAuthenticationScreen(currentScreen)) {
-            navigateToAuthenticatedRoot()
-            return true
-        }
-
-        return false
+    fun navigateBack(): Boolean {
+        return navManager.navigateBack(hasValidAuthSession = !mmkv.accessToken.isNullOrBlank())
     }
 
     // Intercept system Android back button / swipe back gesture
@@ -1521,7 +1445,7 @@ fun ParentAppMainContent() {
                                     if (route == "instant_lock") {
                                         showInstantLockModal = true
                                     } else {
-                                        currentNavRoute = route
+                                        navManager.selectNavRoute(route)
                                     }
                                 },
                                 unreadAlertsCount = 0
