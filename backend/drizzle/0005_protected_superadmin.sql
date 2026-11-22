@@ -133,44 +133,5 @@ WHERE "full_name" IS NULL AND "email" IS NOT NULL;
 GRANT SELECT, INSERT ON TABLE "users" TO parental_admin;
 GRANT UPDATE (full_name, status, updated_at) ON TABLE "users" TO parental_admin;
 
--- Migration 0007: Persistent, hashed, expiring, single-use OTP and verification token storage
-CREATE TABLE IF NOT EXISTS "parent_verification_tokens" (
-  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "parent_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-  "email" varchar(255) NOT NULL,
-  "token_hash" varchar(64) NOT NULL,
-  "type" varchar(32) NOT NULL,
-  "attempts" integer DEFAULT 0 NOT NULL,
-  "max_attempts" integer DEFAULT 5 NOT NULL,
-  "is_used" boolean DEFAULT false NOT NULL,
-  "used_at" timestamp with time zone,
-  "expires_at" timestamp with time zone NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  CONSTRAINT "parent_verification_tokens_type_check" CHECK ("type" IN ('password_reset', 'email_verification'))
-);
 
-CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_lookup" ON "parent_verification_tokens" ("email", "type", "is_used");
-CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_parent" ON "parent_verification_tokens" ("parent_id");
-CREATE INDEX IF NOT EXISTS "idx_parent_verification_tokens_expires" ON "parent_verification_tokens" ("expires_at");
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "parent_verification_tokens" TO parental_admin;
-
--- Migration 0008: Administrative System SMTP Settings
-CREATE TABLE IF NOT EXISTS "system_smtp_settings" (
-  "id" varchar(32) PRIMARY KEY DEFAULT 'default',
-  "host" varchar(255) NOT NULL,
-  "port" integer DEFAULT 587 NOT NULL,
-  "secure" boolean DEFAULT false NOT NULL,
-  "username" varchar(255),
-  "password_encrypted" text,
-  "from_email" varchar(255) NOT NULL,
-  "from_name" varchar(255) DEFAULT 'Parental Control Security' NOT NULL,
-  "last_verified_at" timestamp with time zone,
-  "last_error" text,
-  "updated_by" uuid REFERENCES "admin_users"("id") ON DELETE SET NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "system_smtp_settings" TO parental_admin;
 

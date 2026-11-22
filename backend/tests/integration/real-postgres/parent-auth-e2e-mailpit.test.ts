@@ -9,11 +9,24 @@ import http from 'http';
 
 interface MailpitMessage {
   ID: string;
-  From: { Address: string };
-  To: Array<{ Address: string }>;
+  From: { Address: string; Name?: string };
+  To: Array<{ Address: string; Name?: string }>;
   Subject: string;
   Otp?: string;
   RawBody?: string;
+}
+
+interface MailpitMessageDetail {
+  ID: string;
+  From?: { Address: string; Name?: string };
+  To?: Array<{ Address: string; Name?: string }>;
+  Subject?: string;
+  Text?: string;
+  HTML?: string;
+  Snippet?: string;
+  RawBody?: string;
+  Body?: string;
+  Otp?: string;
 }
 
 interface MailpitListResponse {
@@ -35,6 +48,56 @@ function queryMailpitMessages(): Promise<MailpitListResponse> {
       });
     }).on('error', reject);
   });
+}
+
+function getMailpitMessageDetail(id: string): Promise<MailpitMessageDetail> {
+  return new Promise((resolve, reject) => {
+    http.get(`http://127.0.0.1:8025/api/v1/message/${id}`, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function getEmailWithOtp(
+  email: string,
+  subjectKeywords: string[],
+  maxRetries = 15,
+  delayMs = 250
+): Promise<{ id: string; subject: string; otp: string; detail: MailpitMessageDetail }> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const listRes = await queryMailpitMessages().catch(() => ({ total: 0, messages: [] }));
+    const candidate = (listRes.messages || []).find((m) =>
+      subjectKeywords.some((kw) => m.Subject?.toLowerCase().includes(kw.toLowerCase())) &&
+      (m.To?.some((t) => t.Address?.toLowerCase().includes(email.toLowerCase())) ||
+       m.RawBody?.includes(email))
+    );
+
+    if (candidate) {
+      const detail = await getMailpitMessageDetail(candidate.ID).catch(() => null);
+      if (detail) {
+        const textToScan = `${detail.Text || ''} ${detail.HTML || ''} ${detail.Snippet || ''} ${detail.RawBody || ''} ${detail.Body || ''}`;
+        const match = textToScan.match(/\b\d{6}\b/) || (detail.Otp ? [detail.Otp] : null);
+        if (match) {
+          return {
+            id: candidate.ID,
+            subject: candidate.Subject,
+            otp: match[0],
+            detail,
+          };
+        }
+      }
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  throw new Error(`Email with OTP for ${email} (${subjectKeywords.join('/')}) was not found in Mailpit after ${maxRetries} attempts`);
 }
 
 function clearMailpitMessages(): Promise<void> {
@@ -134,30 +197,15 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     assert.strictEqual(body.user.email, testEmail);
     assert.strictEqual(body.user.fullName, 'E2E Testing Guardian');
 
-    // Wait 500ms for Mailpit async SMTP delivery
-    await new Promise((r) => setTimeout(r, 600));
-
-    const mailpitRes = await queryMailpitMessages();
-    assert.ok(mailpitRes.messages.length >= 1, 'Expected at least 1 email in Mailpit');
-    const verifyMsg = mailpitRes.messages.find(
-      (m) =>
-        (m.Subject.includes('verification code') || m.Subject.includes('Verify Your Email')) &&
-        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
-    );
-    assert.ok(verifyMsg, 'Expected verification email in Mailpit');
-    assert.ok(verifyMsg.Otp, 'Expected 6-digit OTP in email content');
-    assert.strictEqual(verifyMsg.Otp.length, 6);
+    // Fetch verification email and parse OTP from message detail
+    const emailData = await getEmailWithOtp(testEmail, ['verification code', 'Verify Your Email']);
+    assert.ok(emailData.otp, 'Expected 6-digit OTP in email content');
+    assert.strictEqual(emailData.otp.length, 6);
   });
 
   it('3. Email Verification with wrong OTP, valid OTP, and OTP replay prevention', async () => {
-    const mailpitRes = await queryMailpitMessages();
-    const verifyMsg = mailpitRes.messages.find(
-      (m) =>
-        (m.Subject.includes('verification code') || m.Subject.includes('Verify Your Email')) &&
-        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
-    );
-    assert.ok(verifyMsg?.Otp, 'Verification OTP must be available from Mailpit');
-    const validOtp = verifyMsg.Otp;
+    const { otp: validOtp } = await getEmailWithOtp(testEmail, ['verification code', 'Verify Your Email']);
+    assert.ok(validOtp, 'Verification OTP must be available from Mailpit');
 
     // A0. Rejection of login when email is unverified (HTTP 403)
     const unverifiedLogin = await app.inject({
@@ -244,19 +292,9 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     });
     assert.strictEqual(res.statusCode, 200);
 
-    // Wait for SMTP delivery to Mailpit
-    await new Promise((r) => setTimeout(r, 600));
-
-    const mailpitRes = await queryMailpitMessages();
-    assert.ok(mailpitRes.messages.length >= 1);
-    const resetMsg = mailpitRes.messages.find(
-      (m) =>
-        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
-        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
-    );
-    assert.ok(resetMsg, 'Password reset email must arrive in Mailpit');
-    assert.ok(resetMsg.Otp, 'Must contain 6-digit reset code');
-    assert.strictEqual(resetMsg.Otp.length, 6);
+    const emailData = await getEmailWithOtp(testEmail, ['password reset code', 'Reset Account Password']);
+    assert.ok(emailData.otp, 'Must contain 6-digit reset code');
+    assert.strictEqual(emailData.otp.length, 6);
   });
 
   it('6. Brute force attempt limits on password reset (max 5 attempts -> HTTP 429)', async () => {
@@ -291,17 +329,8 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       payload: { email: testEmail },
     });
     
-    let mailpitRes = await queryMailpitMessages();
-    for (let retry = 0; retry < 10 && mailpitRes.messages.length === 0; retry++) {
-      await new Promise((r) => setTimeout(r, 200));
-      mailpitRes = await queryMailpitMessages();
-    }
-    const latestMsg = mailpitRes.messages.find(
-      (m) =>
-        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
-        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
-    );
-    assert.ok(latestMsg?.Otp);
+    const emailData = await getEmailWithOtp(testEmail, ['password reset code', 'Reset Account Password']);
+    assert.ok(emailData.otp);
 
     // Force expiration in PostgreSQL
     await db
@@ -314,7 +343,7 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       url: '/api/v1/auth/reset-password',
       payload: {
         email: testEmail,
-        otpCode: latestMsg.Otp,
+        otpCode: emailData.otp,
         newPassword: updatedPassword,
       },
     });
@@ -332,18 +361,9 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       payload: { email: testEmail },
     });
 
-    let mailpitRes = await queryMailpitMessages();
-    for (let retry = 0; retry < 10 && mailpitRes.messages.length === 0; retry++) {
-      await new Promise((r) => setTimeout(r, 200));
-      mailpitRes = await queryMailpitMessages();
-    }
-    const latestMsg = mailpitRes.messages.find(
-      (m) =>
-        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
-        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
-    );
-    assert.ok(latestMsg?.Otp);
-    const validResetOtp = latestMsg.Otp;
+    const emailData = await getEmailWithOtp(testEmail, ['password reset code', 'Reset Account Password']);
+    assert.ok(emailData.otp);
+    const validResetOtp = emailData.otp;
 
     // Reset password
     const res = await app.inject({

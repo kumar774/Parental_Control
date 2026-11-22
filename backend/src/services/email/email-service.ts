@@ -238,18 +238,20 @@ export class EmailService {
 
     const result = await provider.verifyConnection();
 
-    // Persist verification status in database
-    try {
-      await db
-        .update(systemSmtpSettings)
-        .set({
-          lastVerifiedAt: result.ok ? new Date() : null,
-          lastError: result.ok ? null : (result.error || 'Connection verification failed'),
-          updatedAt: new Date(),
-        })
-        .where(eq(systemSmtpSettings.id, 'default'));
-    } catch {
-      // Ignore database write failures during ephemeral testing
+    // Persist verification status in database (only for real providers, not unit test mocks)
+    if (!this.testCustomProvider) {
+      try {
+        await db
+          .update(systemSmtpSettings)
+          .set({
+            lastVerifiedAt: result.ok ? new Date() : null,
+            lastError: result.ok ? null : (result.error || 'Connection verification failed'),
+            updatedAt: new Date(),
+          })
+          .where(eq(systemSmtpSettings.id, 'default'));
+      } catch {
+        // Ignore database write failures during ephemeral testing
+      }
     }
 
     return result;
