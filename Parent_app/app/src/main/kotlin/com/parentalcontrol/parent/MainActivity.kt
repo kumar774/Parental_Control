@@ -169,6 +169,8 @@ import com.parentalcontrol.parent.ui.modals.VoucherRedemptionBottomSheet
 import com.parentalcontrol.parent.ui.modals.BindPhoneAuthBottomSheet
 import com.parentalcontrol.parent.ui.modals.StreamQuotaExhaustedSheet
 import com.parentalcontrol.parent.navigation.AppNavigationManager
+import com.parentalcontrol.parent.navigation.SessionRestorationManager
+import com.parentalcontrol.parent.navigation.SessionVerificationResult
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.platform.LocalContext
 import com.parentalcontrol.core.database.ParentalDatabase
@@ -301,11 +303,23 @@ fun ParentAppMainContent() {
 
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
+    var isSessionAuthenticated by rememberSaveable { mutableStateOf(false) }
+
+    val sessionRestorationManager = remember {
+        SessionRestorationManager(
+            verifySessionCall = { FastifyRestClient.shared.verifySession().map { } },
+            refreshSessionCall = { FastifyRestClient.shared.refreshSession().map { } },
+            hasAccessToken = { !mmkv.accessToken.isNullOrBlank() },
+            hasRefreshToken = { !mmkv.refreshToken.isNullOrBlank() }
+        )
+    }
 
     val navManager = remember {
         AppNavigationManager(
             initialScreen = currentScreen,
             initialRoute = currentNavRoute,
+            initialBackstack = screenBackstack,
+            hasAuthenticatedSession = isSessionAuthenticated,
             screenBackstack = screenBackstack
         ).apply {
             onNavigationChanged = { screen, route ->
@@ -319,14 +333,20 @@ fun ParentAppMainContent() {
     fun isAuthenticationScreen(screen: AppScreen): Boolean = navManager.isAuthenticationScreen(screen)
 
     fun navigateToAuthenticatedRoot() {
+        isSessionAuthenticated = true
+        navManager.hasAuthenticatedSession = true
         navManager.navigateToAuthenticatedRoot()
     }
 
     fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
+        isSessionAuthenticated = false
+        navManager.hasAuthenticatedSession = false
         navManager.navigateToUnauthenticatedRoot(screen)
     }
 
     fun performLogout(message: String = "Logged out successfully") {
+        isSessionAuthenticated = false
+        navManager.hasAuthenticatedSession = false
         mmkv.clearSession()
         FastifyRestClient.shared.accessToken = null
         FastifyRestClient.shared.refreshToken = null
@@ -335,14 +355,16 @@ fun ParentAppMainContent() {
         toastType = ToastType.INFO
     }
 
-    // Process recreation / auth guard: delegates to AppNavigationManager
+    // Process recreation / auth guard: delegates to AppNavigationManager using verified session state
     LaunchedEffect(Unit) {
-        navManager.restoreState(hasValidAuthSession = !mmkv.accessToken.isNullOrBlank())
+        navManager.restoreState(hasValidAuthSession = isSessionAuthenticated)
     }
 
     // Global session expiry listener (reactive kick to Login on 401 or DB deletion)
     LaunchedEffect(Unit) {
         SessionEventBus.sessionExpiredFlow.collect {
+            isSessionAuthenticated = false
+            navManager.hasAuthenticatedSession = false
             performLogout("Session expired. Please log in again.")
         }
     }
@@ -450,7 +472,7 @@ fun ParentAppMainContent() {
     }
 
     fun navigateBack(): Boolean {
-        return navManager.navigateBack(hasValidAuthSession = !mmkv.accessToken.isNullOrBlank())
+        return navManager.navigateBack(hasValidAuthSession = isSessionAuthenticated)
     }
 
     // Intercept system Android back button / swipe back gesture
@@ -526,46 +548,20 @@ fun ParentAppMainContent() {
                                 }
                             } else {
                                 scope.launch {
-                                    val sessionResult = FastifyRestClient.shared.verifySession()
-                                    if (sessionResult.isSuccess) {
-                                        proceedToMainDashboard()
-                                    } else {
-                                        val err = sessionResult.exceptionOrNull()
-                                        val isUnverifiedEmail = (err?.message?.contains("403") == true) ||
-                                            (err?.message?.contains("not verified", ignoreCase = true) == true)
-                                        val isExpiredOrInvalid = err is SessionExpiredException ||
-                                            (err?.message?.contains("401") == true) ||
-                                            (err?.message?.contains("USER_NOT_FOUND") == true)
-
-                                        if (isUnverifiedEmail) {
+                                    when (val result = sessionRestorationManager.evaluateSession()) {
+                                        SessionVerificationResult.Authenticated -> {
+                                            proceedToMainDashboard()
+                                        }
+                                        SessionVerificationResult.UnverifiedEmail -> {
                                             toastMessage = "Please verify your email address to access your dashboard"
                                             toastType = ToastType.WARNING
                                             navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                        } else if (isExpiredOrInvalid) {
-                                            // Expired token -> attempt refresh via repository if available
-                                            val savedRefreshToken = mmkv.refreshToken
-                                            var refreshed = false
-                                            if (!savedRefreshToken.isNullOrBlank()) {
-                                                val refreshResult = runCatching {
-                                                    FastifyRestClient.shared.refreshSession()
-                                                }.getOrNull()
-                                                if (refreshResult?.isSuccess == true) {
-                                                    val verifyAfterRefresh = FastifyRestClient.shared.verifySession()
-                                                    if (verifyAfterRefresh.isSuccess) {
-                                                        refreshed = true
-                                                        proceedToMainDashboard()
-                                                    }
-                                                }
-                                            }
-
-                                            if (!refreshed) {
-                                                // Invalid session -> Login
-                                                performLogout("Session expired or user deleted. Please log in again.")
-                                            }
-                                        } else {
-                                            // Server unreachable / network failure -> Show a recoverable retry/connection error screen.
-                                            // NEVER bypass authentication into MAIN_SHELL on network failure!
-                                            connectionErrorMessage = err?.message ?: "Unable to connect to guardian servers"
+                                        }
+                                        SessionVerificationResult.ExpiredOrInvalid -> {
+                                            performLogout("Session expired or user deleted. Please log in again.")
+                                        }
+                                        is SessionVerificationResult.NetworkUnavailable -> {
+                                            connectionErrorMessage = result.message
                                             navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
                                         }
                                     }
@@ -582,26 +578,24 @@ fun ParentAppMainContent() {
                         onRetryClick = {
                             isRetryingConnection = true
                             scope.launch {
-                                val retryResult = FastifyRestClient.shared.verifySession()
+                                val result = sessionRestorationManager.evaluateSession()
                                 isRetryingConnection = false
-                                if (retryResult.isSuccess) {
-                                    toastMessage = "Connected successfully"
-                                    toastType = ToastType.SUCCESS
-                                    proceedToMainDashboard()
-                                } else {
-                                    val retryErr = retryResult.exceptionOrNull()
-                                    val isUnverified = (retryErr?.message?.contains("403") == true) ||
-                                        (retryErr?.message?.contains("not verified", ignoreCase = true) == true)
-                                    val isExpired = retryErr is SessionExpiredException ||
-                                        (retryErr?.message?.contains("401") == true)
-                                    if (isUnverified) {
+                                when (result) {
+                                    SessionVerificationResult.Authenticated -> {
+                                        toastMessage = "Connected successfully"
+                                        toastType = ToastType.SUCCESS
+                                        proceedToMainDashboard()
+                                    }
+                                    SessionVerificationResult.UnverifiedEmail -> {
                                         toastMessage = "Please verify your email address to access your dashboard"
                                         toastType = ToastType.WARNING
                                         navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                    } else if (isExpired) {
+                                    }
+                                    SessionVerificationResult.ExpiredOrInvalid -> {
                                         performLogout("Session expired. Please log in again.")
-                                    } else {
-                                        connectionErrorMessage = retryErr?.message ?: "Server unreachable"
+                                    }
+                                    is SessionVerificationResult.NetworkUnavailable -> {
+                                        connectionErrorMessage = result.message
                                         toastMessage = "Connection failed. Server still unreachable."
                                         toastType = ToastType.ERROR
                                     }

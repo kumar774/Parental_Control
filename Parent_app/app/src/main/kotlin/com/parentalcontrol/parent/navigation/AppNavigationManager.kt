@@ -10,6 +10,7 @@ class AppNavigationManager(
     initialScreen: AppScreen = AppScreen.SPLASH,
     initialRoute: String = "home",
     initialBackstack: List<AppScreen> = listOf(AppScreen.SPLASH),
+    var hasAuthenticatedSession: Boolean = false,
     var onNavigationChanged: ((screen: AppScreen, route: String) -> Unit)? = null,
     val screenBackstack: MutableList<AppScreen> = initialBackstack.toMutableList()
 ) {
@@ -37,10 +38,11 @@ class AppNavigationManager(
 
     /**
      * Transition into the authenticated root screen (MAIN_SHELL).
-     * Clears all unauthenticated navigation history, resets backstack to [MAIN_SHELL],
-     * and sets currentNavRoute to "home".
+     * Clears all unauthenticated navigation history, marks session as authenticated,
+     * resets backstack to [MAIN_SHELL], and sets currentNavRoute to "home".
      */
     fun navigateToAuthenticatedRoot() {
+        hasAuthenticatedSession = true
         currentNavRoute = "home"
         currentScreen = AppScreen.MAIN_SHELL
         screenBackstack.clear()
@@ -50,10 +52,11 @@ class AppNavigationManager(
 
     /**
      * Transition into an unauthenticated root screen (defaults to LOGIN).
-     * Clears all authenticated navigation history, dismisses any active modals,
-     * and resets backstack to [screen].
+     * Clears all authenticated navigation history, marks session as unauthenticated,
+     * dismisses any active modals, and resets backstack to [screen].
      */
     fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
+        hasAuthenticatedSession = false
         if (isAnyModalOpen()) {
             dismissAllModals()
         }
@@ -61,6 +64,21 @@ class AppNavigationManager(
         screenBackstack.clear()
         screenBackstack.add(screen)
         onNavigationChanged?.invoke(currentScreen, currentNavRoute)
+    }
+
+    /**
+     * Invalidate the current authentication session immediately.
+     * Clears authenticated session flag, dismisses any open modals,
+     * and redirects to LOGIN if currently on an authenticated screen.
+     */
+    fun invalidateSession() {
+        hasAuthenticatedSession = false
+        if (isAnyModalOpen()) {
+            dismissAllModals()
+        }
+        if (!isAuthenticationScreen(currentScreen)) {
+            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        }
     }
 
     /**
@@ -138,7 +156,7 @@ class AppNavigationManager(
      * Returns false if at the root (Home on MAIN_SHELL, or root unauthenticated screen),
      * allowing the caller to handle double-back-to-exit or finish the activity.
      */
-    fun navigateBack(hasValidAuthSession: Boolean = true): Boolean {
+    fun navigateBack(hasValidAuthSession: Boolean = hasAuthenticatedSession): Boolean {
         // 1. Authentication boundary enforcement:
         // If the session is invalid and currentScreen is not an authentication screen:
         // Immediately dismiss modals, clear history, redirect to LOGIN root, and consume the event.
@@ -202,7 +220,7 @@ class AppNavigationManager(
     /**
      * Restore state after process death or configuration change.
      */
-    fun restoreState(hasValidAuthSession: Boolean) {
+    fun restoreState(hasValidAuthSession: Boolean = hasAuthenticatedSession) {
         if (!isAuthenticationScreen(currentScreen) && !hasValidAuthSession) {
             navigateToUnauthenticatedRoot(AppScreen.LOGIN)
         } else if (!isAuthenticationScreen(currentScreen)) {

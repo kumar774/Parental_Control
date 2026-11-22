@@ -138,6 +138,44 @@ class AppNavigationManagerTest {
         assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
     }
 
+    @Test
+    fun testSessionExpiry_WhileOnMainShell_RedirectsToLoginImmediately() {
+        navManager.navigateToAuthenticatedRoot()
+        assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
+        assertTrue(navManager.hasAuthenticatedSession)
+
+        // Trigger session expiry invalidation
+        navManager.invalidateSession()
+
+        assertFalse(navManager.hasAuthenticatedSession)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+
+        // Subsequent Back press from Login must not navigate anywhere
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertFalse(consumed)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+    }
+
+    @Test
+    fun testSessionExpiry_WhileOnNestedScreenWithModalOpen_DismissesModalAndClearsStack() {
+        navManager.navigateToAuthenticatedRoot()
+        navManager.navigateTo(AppScreen.DEVICE_PAIRING)
+        assertEquals(listOf(AppScreen.MAIN_SHELL, AppScreen.DEVICE_PAIRING), navManager.screenBackstack)
+
+        var modalOpen = true
+        navManager.isAnyModalOpen = { modalOpen }
+        navManager.dismissAllModals = { modalOpen = false }
+
+        // Session invalidates while user is on nested screen with active modal
+        navManager.invalidateSession()
+
+        assertFalse("Modal must be dismissed when session is invalidated", modalOpen)
+        assertFalse(navManager.hasAuthenticatedSession)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+    }
+
     // =========================================================================
     // GENERAL NAVIGATION & TAB ROUTING TESTS
     // =========================================================================
