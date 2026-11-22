@@ -998,7 +998,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
   });
 
   it('15. Enforces parent registration security, enterprise password policy, and rate limiting', async () => {
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15a. Password policy: rejects password < 10 characters
     const resShort = await readyApp!.inject({
@@ -1061,7 +1061,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(resWeak.json().message.includes('easily guessable'));
 
     // Reset rate limits before rate limit test so preceding policy tests do not pollute sliding window
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15f. Registration rate limiting: allows 5 registrations, 6th returns HTTP 429
     for (let i = 0; i < 5; i++) {
@@ -1088,7 +1088,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(regExceeded.headers['retry-after']);
     assert.ok(regExceeded.json().message.includes('Rate limit exceeded'));
 
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15g. Atomic registration rollback: verifies that if token persistence fails, parent user creation is completely rolled back
     const atomicTestEmail = `atomic-rollback-${Date.now()}@example.test`;
