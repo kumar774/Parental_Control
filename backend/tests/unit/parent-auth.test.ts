@@ -134,7 +134,15 @@ describe('Parent Auth Unit Tests', () => {
         prefix: 'test:parent:limit',
       });
 
-      const mockRequest = { ip: '192.168.1.100' } as any;
+      const mockRequest = {
+        ip: '192.168.1.100',
+        log: {
+          error: () => {},
+          warn: () => {},
+          info: () => {},
+          debug: () => {},
+        },
+      } as any;
       let sendCalled = false;
       let statusCode = 200;
       const mockReply = {

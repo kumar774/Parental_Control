@@ -106,7 +106,7 @@ export function createParentRateLimiter(options: {
         handledByDb = true;
       } else {
         if (isProductionRateLimiting()) {
-          request.log.error('PostgreSQL database instance unavailable for production rate limiting');
+          request.log?.error?.('PostgreSQL database instance unavailable for production rate limiting');
           reply.header('Retry-After', '60');
           return reply.status(503).send({
             statusCode: 503,
@@ -116,7 +116,7 @@ export function createParentRateLimiter(options: {
         }
       }
     } catch (err: any) {
-      request.log.error({ err }, 'PostgreSQL rate limiter query failed');
+      request.log?.error?.({ err }, 'PostgreSQL rate limiter query failed');
       if (isProductionRateLimiting()) {
         // Fail closed in production: Never silently bypass distributed rate limiting
         reply.header('Retry-After', '60');
