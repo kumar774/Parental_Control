@@ -41,10 +41,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +55,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -73,21 +73,17 @@ import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space20
 import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space32
 import com.parentalcontrol.core.designsystem.theme.Space8
 import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
-import com.parentalcontrol.core.designsystem.theme.TextMuted
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
-import com.parentalcontrol.core.network.rest.FastifyRestClient
-import com.parentalcontrol.core.network.rest.LoginRequestDto
-import com.parentalcontrol.parent.R
-import kotlinx.coroutines.launch
+
+private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
  * Screen 03: LoginScreen
  * High-contrast, executive authentication card with real input validation,
- * live Fastify backend authentication, error feedback, and biometric shortcut.
+ * ViewModel-driven authentication flow, loading states, and biometric shortcut.
  */
 @Composable
 fun LoginScreen(
@@ -96,21 +92,33 @@ fun LoginScreen(
     onRegisterClick: () -> Unit,
     onBiometricClick: () -> Unit,
     onBackClick: () -> Unit = {},
+    viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
     val mmkv = ParentalDatabase.getInstance().mmkv
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
+
+    val uiState by viewModel.uiState.collectAsState()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
-
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
+
+    // Listen to ViewModel side-effects
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            when (effect) {
+                is AuthUiEffect.NavigateToDashboard -> onLoginSuccess()
+                else -> {}
+            }
+        }
+    }
+
+    val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
     Box(
         modifier = modifier
@@ -198,7 +206,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(Space20))
 
             // Error Alert Banner (if validation or backend error occurred)
-            if (errorMessage != null) {
+            if (displayErrorMessage != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,7 +224,7 @@ fun LoginScreen(
                         )
                         Spacer(modifier = Modifier.width(Space12))
                         Text(
-                            text = errorMessage!!,
+                            text = displayErrorMessage,
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -247,7 +255,8 @@ fun LoginScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = { Text("parent@example.com", color = Color(0xFF64748B)) },
                     leadingIcon = {
@@ -256,6 +265,7 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonCyan,
@@ -282,7 +292,8 @@ fun LoginScreen(
                     value = password,
                     onValueChange = {
                         password = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = { Text("Enter your password", color = Color(0xFF64748B)) },
                     leadingIcon = {
@@ -301,6 +312,7 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonCyan,
@@ -334,46 +346,29 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(Space20))
 
-                // Sign In Button (With real validation & Fastify API communication)
+                // Sign In Button (Strictly ViewModel-driven)
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        errorMessage = null
+                        localErrorMessage = null
                         val trimmedEmail = email.trim()
 
                         if (trimmedEmail.isEmpty()) {
-                            errorMessage = "Please enter your parent email address"
+                            localErrorMessage = "Please enter your parent email address"
                             return@Button
                         }
-                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                            errorMessage = "Please enter a valid email address (e.g. name@domain.com)"
+                        if (!EMAIL_PATTERN.matches(trimmedEmail)) {
+                            localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
                             return@Button
                         }
                         if (password.isEmpty()) {
-                            errorMessage = "Please enter your password"
+                            localErrorMessage = "Please enter your password"
                             return@Button
                         }
 
-                        isLoading = true
-                        coroutineScope.launch {
-                            val result = FastifyRestClient.shared.login(
-                                LoginRequestDto(email = trimmedEmail, password = password)
-                            )
-                            isLoading = false
-                            result.onSuccess { auth ->
-                                val mmkv = ParentalDatabase.getInstance().mmkv
-                                mmkv.accessToken = auth.accessToken
-                                mmkv.refreshToken = auth.refreshToken
-                                mmkv.userEmail = auth.user.email
-                                mmkv.userFullName = auth.user.fullName
-                                mmkv.familyCardNo = auth.user.familyCardNo
-                                onLoginSuccess()
-                            }.onFailure { err ->
-                                errorMessage = err.message ?: "Authentication failed. Please check credentials."
-                            }
-                        }
+                        viewModel.handleIntent(AuthUiIntent.Login(trimmedEmail, password))
                     },
-                    enabled = !isLoading,
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -381,10 +376,12 @@ fun LoginScreen(
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AccentIndigo,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                        disabledContentColor = Color.White.copy(alpha = 0.7f)
                     )
                 ) {
-                    if (isLoading) {
+                    if (uiState.isLoading) {
                         CircularProgressIndicator(
                             color = Color.White,
                             modifier = Modifier.size(22.dp),

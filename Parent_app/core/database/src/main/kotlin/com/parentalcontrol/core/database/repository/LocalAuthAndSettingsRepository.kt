@@ -6,88 +6,175 @@ import com.parentalcontrol.core.model.auth.ParentAccount
 import com.parentalcontrol.core.model.auth.SubscriptionPlan
 import com.parentalcontrol.core.model.repository.IAuthRepository
 import com.parentalcontrol.core.model.repository.ISettingsRepository
+import com.parentalcontrol.core.network.rest.FastifyRestClient
+import com.parentalcontrol.core.network.rest.LoginRequestDto
+import com.parentalcontrol.core.network.rest.RegisterRequestDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * Concrete Offline-First Local Repository for Auth & Settings.
- * Backed by persistent disk storage and MMKV fast-path key-value caching.
+ * Concrete Authoritative Repository for Auth & Settings.
+ * Backed by FastifyRestClient network services and Keystore-encrypted MMKV local storage.
  */
 class LocalAuthRepository(
-    private val database: ParentalDatabase = ParentalDatabase.getInstance()
+    private val database: ParentalDatabase = ParentalDatabase.getInstance(),
+    private val restClient: FastifyRestClient = FastifyRestClient.shared
 ) : IAuthRepository {
 
     private val accountFlow = MutableStateFlow<ParentAccount?>(
         if (database.mmkv.accessToken != null) {
             ParentAccount(
-                id = "parent-me",
+                id = database.mmkv.userId ?: "parent-me",
                 email = database.mmkv.userEmail ?: "user@parentalcontrol.app",
                 fullName = database.mmkv.userFullName ?: "Parent Administrator",
+                familyCardId = database.mmkv.familyCardNo ?: "FAM-9821-X4",
                 isBiometricsRequired = database.mmkv.isBiometricEnabled
             )
         } else null
     )
 
+    init {
+        // Synchronize in-memory restClient tokens with persistent encrypted MMKV
+        if (restClient.accessToken == null && database.mmkv.accessToken != null) {
+            restClient.accessToken = database.mmkv.accessToken
+            restClient.refreshToken = database.mmkv.refreshToken
+        }
+
+        restClient.onTokenRefreshed = { newAccess, newRefresh ->
+            database.mmkv.accessToken = newAccess
+            database.mmkv.refreshToken = newRefresh
+        }
+
+        restClient.onSessionExpired = {
+            database.mmkv.clearSession()
+            accountFlow.value = null
+        }
+
+        restClient.onLogout = {
+            database.mmkv.clearSession()
+            accountFlow.value = null
+        }
+    }
+
     override fun observeCurrentAccount(): Flow<ParentAccount?> = accountFlow
 
     override suspend fun login(email: String, passwordHash: String): Result<ParentAccount> {
-        val derivedName = if (database.mmkv.userFullName.isNullOrBlank()) {
-            email.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
-        } else {
-            database.mmkv.userFullName!!
-        }
+        val result = restClient.login(LoginRequestDto(email = email.trim(), password = passwordHash))
+        return result.map { authDto ->
+            val user = authDto.user
+            database.mmkv.userId = user.id
+            database.mmkv.userEmail = user.email
+            database.mmkv.userFullName = user.fullName
+            database.mmkv.familyCardNo = user.familyCardNo
+            database.mmkv.accessToken = authDto.accessToken
+            database.mmkv.refreshToken = authDto.refreshToken
 
-        database.mmkv.userEmail = email
-        database.mmkv.userFullName = derivedName
-
-        val account = ParentAccount(
-            id = "parent-me",
-            email = email,
-            fullName = derivedName,
-            isBiometricsRequired = database.mmkv.isBiometricEnabled
-        )
-        if (database.mmkv.accessToken == null) {
-            database.mmkv.accessToken = "session-access-${System.currentTimeMillis()}"
+            val account = ParentAccount(
+                id = user.id,
+                email = user.email,
+                fullName = user.fullName,
+                familyCardId = user.familyCardNo,
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = false
+            )
+            accountFlow.value = account
+            account
         }
-        if (database.mmkv.refreshToken == null) {
-            database.mmkv.refreshToken = "session-refresh-${System.currentTimeMillis()}"
-        }
-        accountFlow.value = account
-        return Result.success(account)
     }
 
     override suspend fun register(email: String, passwordHash: String, fullName: String): Result<ParentAccount> {
-        database.mmkv.userEmail = email
-        database.mmkv.userFullName = fullName
-
-        val account = ParentAccount(
-            id = "parent-me",
-            email = email,
-            fullName = fullName,
-            isBiometricsRequired = database.mmkv.isBiometricEnabled
+        val result = restClient.register(
+            RegisterRequestDto(
+                fullName = fullName.trim(),
+                email = email.trim(),
+                password = passwordHash
+            )
         )
-        if (database.mmkv.accessToken == null) {
-            database.mmkv.accessToken = "session-access-${System.currentTimeMillis()}"
+        return result.map { authDto ->
+            val user = authDto.user
+            database.mmkv.userId = user.id
+            database.mmkv.userEmail = user.email
+            database.mmkv.userFullName = user.fullName
+            database.mmkv.familyCardNo = user.familyCardNo
+
+            if (!authDto.accessToken.isNullOrBlank() && !authDto.requiresEmailVerification) {
+                database.mmkv.accessToken = authDto.accessToken
+                database.mmkv.refreshToken = authDto.refreshToken
+            } else {
+                database.mmkv.accessToken = null
+                database.mmkv.refreshToken = null
+            }
+
+            val account = ParentAccount(
+                id = user.id,
+                email = user.email,
+                fullName = user.fullName,
+                familyCardId = user.familyCardNo,
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = !authDto.verificationEmailSent
+            )
+            accountFlow.value = account
+            account
+        }.recoverCatching { err ->
+            if (err.message?.contains("unverified", ignoreCase = true) == true) {
+                database.mmkv.userEmail = email.trim()
+                if (fullName.isNotBlank()) database.mmkv.userFullName = fullName.trim()
+            }
+            throw err
         }
-        if (database.mmkv.refreshToken == null) {
-            database.mmkv.refreshToken = "session-refresh-${System.currentTimeMillis()}"
-        }
-        accountFlow.value = account
-        return Result.success(account)
     }
 
     override suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit> {
-        return if (otpCode.length == 6) Result.success(Unit) else Result.failure(IllegalArgumentException("Invalid OTP"))
+        val trimmedCode = otpCode.trim()
+        if (trimmedCode.length != 6) {
+            return Result.failure(IllegalArgumentException("Verification code must be 6 digits"))
+        }
+        return restClient.verifyEmail(trimmedCode, email.trim().lowercase()).map { }
+    }
+
+    override suspend fun resendVerificationOtp(email: String): Result<String> {
+        return restClient.resendVerification(email.trim().lowercase())
     }
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> {
-        return Result.success(Unit)
+        return restClient.requestPasswordReset(email).map { }
+    }
+
+    override suspend fun resetPassword(email: String, otpCode: String, newPassword: String): Result<String> {
+        return restClient.resetPassword(email.trim().lowercase(), otpCode.trim(), newPassword)
     }
 
     override suspend fun logout(): Result<Unit> {
+        val result = restClient.logout()
         database.mmkv.clearSession()
         accountFlow.value = null
-        return Result.success(Unit)
+        return result
+    }
+
+    override suspend fun verifySession(): Result<ParentAccount> {
+        val result = restClient.verifySession()
+        return result.map { user ->
+            database.mmkv.userId = user.id
+            database.mmkv.userEmail = user.email
+            database.mmkv.userFullName = user.fullName
+            database.mmkv.familyCardNo = user.familyCardNo
+
+            val account = ParentAccount(
+                id = user.id,
+                email = user.email,
+                fullName = user.fullName,
+                familyCardId = user.familyCardNo,
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = false
+            )
+            accountFlow.value = account
+            account
+        }
+    }
+
+    override suspend fun refreshSession(): Result<Unit> {
+        val result = restClient.refreshSession()
+        return result.map { }
     }
 }
 
@@ -97,9 +184,10 @@ class LocalSettingsRepository(
 
     private val accountFlow = MutableStateFlow(
         ParentAccount(
-            id = "parent-me",
+            id = database.mmkv.userId ?: "parent-me",
             email = database.mmkv.userEmail ?: "user@parentalcontrol.app",
             fullName = database.mmkv.userFullName ?: "Parent Administrator",
+            familyCardId = database.mmkv.familyCardNo ?: "FAM-9821-X4",
             isBiometricsRequired = database.mmkv.isBiometricEnabled
         )
     )

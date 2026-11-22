@@ -44,10 +44,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +58,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,7 +65,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.database.ParentalDatabase
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
@@ -82,46 +82,58 @@ import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
 import com.parentalcontrol.core.designsystem.theme.StatusWarningAmber
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
-import com.parentalcontrol.core.network.rest.FastifyRestClient
-import com.parentalcontrol.core.network.rest.RegisterRequestDto
-import com.parentalcontrol.parent.R
-import kotlinx.coroutines.launch
 
 private val Space4 = 4.dp
 private val Space6 = 6.dp
+private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
  * Screen 04: RegisterScreen
  * Family account registration with real-time 4-segment password strength meter,
- * strict input validation, live Fastify backend integration, and terms confirmation.
+ * strict input validation, confirm password validation, ViewModel UDF integration,
+ * loading states, and terms confirmation.
  */
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit = {},
+    viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsState()
 
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
     var isTermsAccepted by remember { mutableStateOf(false) }
-
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
-    // 4-stage strength calculation
-    val hasLength = password.length >= 8
+    // Listen to ViewModel side-effects
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            when (effect) {
+                is AuthUiEffect.NavigateToDashboard,
+                is AuthUiEffect.NavigateToEmailVerification -> onRegisterSuccess()
+                else -> {}
+            }
+        }
+    }
+
+    // 4-stage strength calculation aligned with backend enterprise policy
+    val hasLength = password.length >= 10
     val hasNumber = password.any { it.isDigit() }
     val hasUpperLower = password.any { it.isUpperCase() } && password.any { it.isLowerCase() }
-    val hasSpecial = password.any { !it.isLetterOrDigit() }
+    val hasSpecial = "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]".toRegex().containsMatchIn(password)
     val strengthScore = listOf(hasLength, hasNumber, hasUpperLower, hasSpecial).count { it }
+
+    val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
     Box(
         modifier = modifier
@@ -209,7 +221,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(Space16))
 
             // Error Alert Banner
-            if (errorMessage != null) {
+            if (displayErrorMessage != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -227,7 +239,7 @@ fun RegisterScreen(
                         )
                         Spacer(modifier = Modifier.width(Space12))
                         Text(
-                            text = errorMessage!!,
+                            text = displayErrorMessage,
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -258,7 +270,8 @@ fun RegisterScreen(
                     value = fullName,
                     onValueChange = {
                         fullName = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = { Text("e.g. Rajesh Kumar", color = Color(0xFF64748B)) },
                     leadingIcon = {
@@ -267,6 +280,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    enabled = !uiState.isLoading,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonCyan,
                         unfocusedBorderColor = Color(0xFF334155),
@@ -292,7 +306,8 @@ fun RegisterScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = { Text("parent@example.com", color = Color(0xFF64748B)) },
                     leadingIcon = {
@@ -301,6 +316,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonCyan,
@@ -315,7 +331,7 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(Space16))
 
-                // Password
+                // Master Password
                 Text(
                     text = "Master Password (min 8 characters)",
                     style = MaterialTheme.typography.labelMedium,
@@ -327,7 +343,8 @@ fun RegisterScreen(
                     value = password,
                     onValueChange = {
                         password = it
-                        if (errorMessage != null) errorMessage = null
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     placeholder = { Text("At least 8 characters", color = Color(0xFF64748B)) },
                     leadingIcon = {
@@ -337,7 +354,7 @@ fun RegisterScreen(
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                             Icon(
                                 imageVector = if (isPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = null,
+                                contentDescription = "Toggle password visibility",
                                 tint = Color(0xFF94A3B8)
                             )
                         }
@@ -346,6 +363,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    enabled = !uiState.isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonCyan,
@@ -403,16 +421,64 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(Space16))
 
+                // Confirm Password Field
+                Text(
+                    text = "Confirm Master Password",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFE2E8F0)
+                )
+                Spacer(modifier = Modifier.height(Space8))
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = {
+                        confirmPassword = it
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                    },
+                    placeholder = { Text("Re-enter master password", color = Color(0xFF64748B)) },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = NeonCyan)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
+                            Icon(
+                                imageVector = if (isConfirmPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                contentDescription = "Toggle confirm password visibility",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    },
+                    visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonCyan,
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF070B16),
+                        unfocusedContainerColor = Color(0xFF070B16),
+                        cursorColor = NeonCyan
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(Space16))
+
                 // Terms of Service Checkbox
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isTermsAccepted = !isTermsAccepted },
+                        .clickable(enabled = !uiState.isLoading) { isTermsAccepted = !isTermsAccepted },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
                         checked = isTermsAccepted,
                         onCheckedChange = { isTermsAccepted = it },
+                        enabled = !uiState.isLoading,
                         colors = CheckboxDefaults.colors(
                             checkedColor = NeonCyan,
                             uncheckedColor = Color(0xFF64748B),
@@ -430,51 +496,49 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(Space20))
 
-                // Register Button (With real validation & Fastify API communication)
+                // Register Button (Strictly ViewModel-driven)
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        errorMessage = null
+                        localErrorMessage = null
                         val trimmedName = fullName.trim()
                         val trimmedEmail = email.trim()
 
                         if (trimmedName.isEmpty()) {
-                            errorMessage = "Please enter your full name"
+                            localErrorMessage = "Please enter your full name"
                             return@Button
                         }
-                        if (trimmedEmail.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                            errorMessage = "Please enter a valid email address (e.g. name@domain.com)"
+                        if (trimmedEmail.isEmpty() || !EMAIL_PATTERN.matches(trimmedEmail)) {
+                            localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
                             return@Button
                         }
-                        if (password.length < 8) {
-                            errorMessage = "Password must be at least 8 characters"
+                        val passwordValidation = ParentPasswordPolicy.validate(password)
+                        if (!passwordValidation.isValid) {
+                            localErrorMessage = passwordValidation.errorMessage
+                            return@Button
+                        }
+                        if (confirmPassword.isEmpty()) {
+                            localErrorMessage = "Please confirm your password"
+                            return@Button
+                        }
+                        if (password != confirmPassword) {
+                            localErrorMessage = "Passwords do not match. Please verify."
                             return@Button
                         }
                         if (!isTermsAccepted) {
-                            errorMessage = "Please accept the parental terms and conditions to proceed"
+                            localErrorMessage = "Please accept the parental terms and conditions to proceed"
                             return@Button
                         }
 
-                        isLoading = true
-                        coroutineScope.launch {
-                            val result = FastifyRestClient.shared.register(
-                                RegisterRequestDto(fullName = trimmedName, email = trimmedEmail, password = password)
+                        viewModel.handleIntent(
+                            AuthUiIntent.Register(
+                                email = trimmedEmail,
+                                password = password,
+                                fullName = trimmedName
                             )
-                            isLoading = false
-                            result.onSuccess { auth ->
-                                val mmkv = ParentalDatabase.getInstance().mmkv
-                                mmkv.accessToken = auth.accessToken
-                                mmkv.refreshToken = auth.refreshToken
-                                mmkv.userEmail = auth.user.email
-                                mmkv.userFullName = auth.user.fullName
-                                mmkv.familyCardNo = auth.user.familyCardNo
-                                onRegisterSuccess()
-                            }.onFailure { err ->
-                                errorMessage = err.message ?: "Registration failed. Please check details."
-                            }
-                        }
+                        )
                     },
-                    enabled = !isLoading,
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -482,10 +546,12 @@ fun RegisterScreen(
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AccentIndigo,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                        disabledContentColor = Color.White.copy(alpha = 0.7f)
                     )
                 ) {
-                    if (isLoading) {
+                    if (uiState.isLoading) {
                         CircularProgressIndicator(
                             color = Color.White,
                             modifier = Modifier.size(22.dp),

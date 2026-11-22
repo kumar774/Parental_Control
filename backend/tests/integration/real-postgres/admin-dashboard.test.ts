@@ -1,7 +1,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
@@ -26,6 +26,11 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
   before(async () => {
     readyApp = await app;
+
+    // Clean up any previous test artifact
+    await db.delete(childDevices);
+    await db.delete(adminUsers).where(sql`email IN (${adminEmail}, 'support-only-admin@example.test') OR username IN ('hybriddashboardsuperadmin', 'supportadmin')`);
+    await db.delete(parentUsers).where(sql`email = ${parentEmail} OR status = 'suspended'`);
 
     // 1. Create a Super Admin user
     await db.insert(adminUsers).values({
@@ -158,6 +163,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     const body = res.json();
     assert.equal(body.error, 'Forbidden');
     assert.ok(body.message.includes('Super administrator privileges required'));
+    await db.delete(adminUsers).where(eq(adminUsers.id, supportAdminId));
   });
 
   // --- Module B: Operational Overview Metrics ---
@@ -992,7 +998,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
   });
 
   it('15. Enforces parent registration security, enterprise password policy, and rate limiting', async () => {
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15a. Password policy: rejects password < 10 characters
     const resShort = await readyApp!.inject({
@@ -1055,7 +1061,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(resWeak.json().message.includes('easily guessable'));
 
     // Reset rate limits before rate limit test so preceding policy tests do not pollute sliding window
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15f. Registration rate limiting: allows 5 registrations, 6th returns HTTP 429
     for (let i = 0; i < 5; i++) {
@@ -1082,7 +1088,7 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
     assert.ok(regExceeded.headers['retry-after']);
     assert.ok(regExceeded.json().message.includes('Rate limit exceeded'));
 
-    resetParentRateLimitsForTest();
+    await resetParentRateLimitsForTest();
 
     // 15g. Atomic registration rollback: verifies that if token persistence fails, parent user creation is completely rolled back
     const atomicTestEmail = `atomic-rollback-${Date.now()}@example.test`;

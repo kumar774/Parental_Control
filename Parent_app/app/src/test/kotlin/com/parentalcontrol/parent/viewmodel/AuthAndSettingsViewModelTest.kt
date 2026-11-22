@@ -31,7 +31,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthAndSettingsViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private var testDispatcher = StandardTestDispatcher()
     private lateinit var authAndSettingsRepo: FakeAuthAndSettingsRepository
     private lateinit var deviceRepo: FakeChildDeviceRepository
     private lateinit var authViewModel: AuthViewModel
@@ -39,6 +39,7 @@ class AuthAndSettingsViewModelTest {
 
     @Before
     fun setUp() {
+        testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
         authAndSettingsRepo = FakeAuthAndSettingsRepository()
         deviceRepo = FakeChildDeviceRepository()
@@ -46,7 +47,8 @@ class AuthAndSettingsViewModelTest {
         authViewModel = AuthViewModel(
             authenticateParentUseCase = AuthenticateParentUseCase(authAndSettingsRepo),
             verifyEmailOtpUseCase = VerifyEmailOtpUseCase(authAndSettingsRepo),
-            generatePairingCodeUseCase = GeneratePairingCodeUseCase(deviceRepo)
+            generatePairingCodeUseCase = GeneratePairingCodeUseCase(deviceRepo),
+            authRepository = authAndSettingsRepo
         )
 
         settingsViewModel = SettingsViewModel(
@@ -106,5 +108,91 @@ class AuthAndSettingsViewModelTest {
         advanceUntilIdle()
 
         assertNull(settingsViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun register_success_setsCurrentAccount() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "SecureMasterPass#2026!", "Rajesh Kumar"))
+        advanceUntilIdle()
+
+        assertNotNull(authViewModel.uiState.value.currentAccount)
+        assertFalse(authViewModel.uiState.value.isLoading)
+        assertTrue(authViewModel.uiState.value.isOtpSent)
+        assertNull(authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun register_emptyFullName_setsError() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "SecureMasterPass#2026!", "   "))
+        advanceUntilIdle()
+
+        assertNull(authViewModel.uiState.value.currentAccount)
+        assertEquals("Please enter your full name", authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun register_shortPassword_setsError() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.Register("parent@test.com", "short", "Rajesh Kumar"))
+        advanceUntilIdle()
+
+        assertNull(authViewModel.uiState.value.currentAccount)
+        assertEquals("Password must be at least 10 characters long", authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun verifyOtp_invalidLength_setsError() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.VerifyOtp("parent@test.com", "123"))
+        advanceUntilIdle()
+
+        assertEquals("Please enter the 6-digit verification code", authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun verifyOtp_validLength_succeeds() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.VerifyOtp("parent@test.com", "123456"))
+        advanceUntilIdle()
+
+        assertNull(authViewModel.uiState.value.errorMessage)
+        assertFalse(authViewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun requestPasswordReset_dispatchesOtp() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.RequestPasswordReset("parent@test.com"))
+        advanceUntilIdle()
+
+        assertTrue(authViewModel.uiState.value.isOtpSent)
+        assertFalse(authViewModel.uiState.value.isLoading)
+        assertNotNull(authViewModel.uiState.value.statusMessage)
+    }
+
+    @Test
+    fun resetPassword_shortPassword_setsError() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.ResetPassword("parent@test.com", "123456", "short"))
+        advanceUntilIdle()
+
+        assertEquals("Password must be at least 10 characters long", authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun resetPassword_validCredentials_succeeds() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.ResetPassword("parent@test.com", "123456", "ValidEnterprisePass2026!"))
+        advanceUntilIdle()
+
+        assertTrue(authViewModel.uiState.value.isPasswordResetSuccess)
+        assertFalse(authViewModel.uiState.value.isLoading)
+        assertNull(authViewModel.uiState.value.errorMessage)
+        assertNotNull(authViewModel.uiState.value.statusMessage)
+    }
+
+    @Test
+    fun clearError_resetsErrorMessage() = runTest(testDispatcher) {
+        authViewModel.handleIntent(AuthUiIntent.Login("", ""))
+        advanceUntilIdle()
+        assertNotNull(authViewModel.uiState.value.errorMessage)
+
+        authViewModel.handleIntent(AuthUiIntent.ClearError)
+        advanceUntilIdle()
+        assertNull(authViewModel.uiState.value.errorMessage)
     }
 }

@@ -2,13 +2,38 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, gt, desc } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { parentUsers, parentRefreshTokens } from '../../db/schema/parental-control';
+import {
+  parentUsers,
+  parentRefreshTokens,
+  parentVerificationTokens,
+} from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
-import { parentRegisterRateLimiter, parentLoginRateLimiter } from '../../middleware/parent-rate-limiter';
+import {
+  parentRegisterRateLimiter,
+  parentLoginRateLimiter,
+  parentForgotRateLimiter,
+  parentVerifyEmailRateLimiter,
+  parentResendVerificationRateLimiter,
+} from '../../middleware/parent-rate-limiter';
+import { emailService } from '../../services/email/index';
+import {
+  isEmailConfigured,
+  isParentEmailVerified,
+  getActiveEmailTransport,
+} from './email-status';
+
+export * from './email-status';
+
+/**
+ * Backwards-compatible test helper (deprecated in favor of persistent parent_verification_tokens table).
+ */
+export function resetPendingResetStoreForTest(): void {
+  // no-op: tokens now live in PostgreSQL parent_verification_tokens table
+}
 
 /**
  * SHA-256 hash helper for refresh tokens to avoid storing plaintext tokens in database.
@@ -78,6 +103,27 @@ const logoutSchema = z.object({
   refreshToken: z.string().optional(),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  otpCode: z.string().min(1).optional(),
+  token: z.string().min(1).optional(),
+  newPassword: z.string().min(1),
+});
+
+const resendVerificationSchema = z.object({
+  email: z.string().email(),
+});
+
+const verifyEmailSchema = z.object({
+  email: z.string().email('Valid email address is required'),
+  token: z.string().min(1).optional(),
+  otpCode: z.string().min(1).optional(),
+});
+
 export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   /**
    * POST /register
@@ -106,7 +152,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
 
     const [existing] = await db
-      .select({ id: parentUsers.id })
+      .select({ id: parentUsers.id, emailVerified: parentUsers.emailVerified })
       .from(parentUsers)
       .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
       .limit(1);
@@ -115,21 +161,29 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       return reply.status(409).send({
         statusCode: 409,
         error: 'Conflict',
-        message: 'Account with this email already exists',
+        message: existing.emailVerified
+          ? 'Account with this email already exists'
+          : 'An unverified account with this email already exists. Please verify your email or request a new code.',
+        requiresEmailVerification: !existing.emailVerified,
+        email: normalizedEmail,
       });
     }
 
     const passwordHash = await hashPassword(parsed.data.password);
+    const derivedFullName = parsed.data.fullName?.trim() || normalizedEmail.split('@')[0] || 'Parent';
 
     try {
       const result = await db.transaction(async (tx) => {
+        const emailVerified = !isEmailConfigured();
         const [newUser] = await tx
           .insert(parentUsers)
           .values({
             email: normalizedEmail,
+            fullName: derivedFullName,
             phone: parsed.data.phone || null,
             passwordHash,
             status: 'active',
+            emailVerified,
           })
           .returning();
 
@@ -137,44 +191,128 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           throw new Error('Failed to create user account');
         }
 
-        const token = jwt.sign(
-          { userId: newUser.id, email: newUser.email, role: 'parent' },
-          env.JWT_ACCESS_SECRET,
-          { expiresIn: '15m' }
-        );
-        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = hashRefreshToken(rawRefreshToken);
-
-        const derivedFullName = parsed.data.fullName || newUser.email.split('@')[0] || 'Parent';
         const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
 
-        // Persist hashed refresh token for real session lifecycle within the same transaction
-        await tx.insert(parentRefreshTokens).values({
-          parentId: newUser.id,
-          tokenHash,
-          familyCardNo: derivedFamilyCard,
-          deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
-          ipAddress: request.ip,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        });
+        if (!emailVerified) {
+          // SMTP / Email verification is enabled:
+          // Strictly DO NOT issue access JWT.
+          // Strictly DO NOT persist refresh token in database for unverified accounts.
+          // Generate 6-digit OTP token in parentVerificationTokens.
+          const rawVerificationOtp = crypto.randomInt(100000, 999999).toString();
+          const verificationHash = crypto.createHash('sha256').update(rawVerificationOtp).digest('hex');
+          await tx.insert(parentVerificationTokens).values({
+            parentId: newUser.id,
+            email: normalizedEmail,
+            tokenHash: verificationHash,
+            type: 'email_verification',
+            status: 'pending',
+            attempts: 0,
+            maxAttempts: 5,
+            isUsed: false,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          });
 
-        return {
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            fullName: derivedFullName,
+          return {
+            user: {
+              id: newUser.id,
+              email: newUser.email,
+              fullName: newUser.fullName || derivedFullName,
+              familyCardNo: derivedFamilyCard,
+              phone: newUser.phone,
+              isGuest: false,
+              status: newUser.status,
+            },
+            accessToken: null,
+            refreshToken: null,
+            expiresIn: null,
+            requiresEmailVerification: true,
+            verificationOtp: rawVerificationOtp,
+          };
+        } else {
+          // Email delivery not configured (dev / local test compatibility):
+          // Issue access token and persist refresh token for immediate compatible session.
+          const token = jwt.sign(
+            { userId: newUser.id, email: newUser.email, role: 'parent', emailVerified: true },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+          );
+          const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = hashRefreshToken(rawRefreshToken);
+
+          await tx.insert(parentRefreshTokens).values({
+            parentId: newUser.id,
+            tokenHash,
             familyCardNo: derivedFamilyCard,
-            phone: newUser.phone,
-            isGuest: false,
-            status: newUser.status,
-          },
-          accessToken: token,
-          refreshToken: rawRefreshToken,
-          expiresIn: 900,
-        };
+            deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+            ipAddress: request.ip,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          });
+
+          return {
+            user: {
+              id: newUser.id,
+              email: newUser.email,
+              fullName: newUser.fullName || derivedFullName,
+              familyCardNo: derivedFamilyCard,
+              phone: newUser.phone,
+              isGuest: false,
+              status: newUser.status,
+            },
+            accessToken: token,
+            refreshToken: rawRefreshToken,
+            expiresIn: 900,
+            requiresEmailVerification: false,
+            verificationOtp: null,
+          };
+        }
       });
 
-      return reply.status(201).send(result);
+      // Dispatch verification email outside of transaction
+      let verificationEmailSent = false;
+      if (result.verificationOtp) {
+        try {
+          const transport = getActiveEmailTransport();
+          const sendResult = transport
+            ? await transport.sendVerificationEmail(
+                normalizedEmail,
+                'Verify Your Guardian Account Email',
+                `Your 6-digit verification code is: ${result.verificationOtp}.`,
+                result.verificationOtp
+              )
+            : await emailService.sendVerificationEmail(normalizedEmail, result.verificationOtp);
+
+          verificationEmailSent = Boolean(sendResult && sendResult.delivered);
+          if (!verificationEmailSent) {
+            request.log.warn(
+              { error: sendResult?.error },
+              'Email transport reported non-delivered status during registration'
+            );
+          }
+        } catch (emailErr) {
+          request.log.warn({ err: emailErr }, 'Failed to dispatch verification email on registration');
+          verificationEmailSent = false;
+        }
+      }
+
+      if (result.requiresEmailVerification) {
+        return reply.status(201).send({
+          user: result.user,
+          requiresEmailVerification: true,
+          verificationEmailSent,
+          message: verificationEmailSent
+            ? 'Registration successful. Please verify your email address with the verification code sent to your inbox.'
+            : 'Registration successful, but failed to deliver verification email. Please use the resend verification option to receive your code.',
+        });
+      }
+
+      return reply.status(201).send({
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        requiresEmailVerification: false,
+        verificationEmailSent: true,
+      });
     } catch (err: any) {
       request.log.error({ err }, 'Atomic parent registration failed');
       return reply.status(500).send({
@@ -235,15 +373,26 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    // Zero-trust email verification enforcement:
+    // Reject unverified parent login with HTTP 403 Forbidden until email is verified.
+    const isVerified = await isParentEmailVerified(user.id);
+    if (!isVerified) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Email not verified. Please verify your email before logging in.',
+      });
+    }
+
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent' },
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
     const rawRefreshToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
-    const derivedFullName = user.email.split('@')[0] || 'Parent';
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     // Persist hashed refresh token for real session lifecycle
@@ -260,7 +409,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       user: {
         id: user.id,
         email: user.email,
-        fullName: derivedFullName,
+        fullName: resolvedFullName,
         familyCardNo: derivedFamilyCard,
         phone: user.phone,
         isGuest: false,
@@ -279,14 +428,14 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    */
   app.get('/me', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const user = request.parentUser!;
-    const derivedFullName = user.email.split('@')[0] || 'Parent';
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
     const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     return reply.send({
       user: {
         id: user.id,
         email: user.email,
-        fullName: derivedFullName,
+        fullName: resolvedFullName,
         familyCardNo: derivedFamilyCard,
         phone: user.phone,
         isGuest: false,
@@ -316,8 +465,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     const tokenHash = hashRefreshToken(parsed.data.refreshToken);
 
+    type RefreshResult =
+      | { ok: true; accessToken: string; refreshToken: string; expiresIn: number }
+      | { ok: false; status: number; error: string; message: string };
+
     // Atomic token rotation inside a single database transaction with row locking
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction<RefreshResult>(async (tx) => {
       // 1. Lock the token row to eliminate concurrent race conditions
       const [record] = await tx
         .select()
@@ -327,11 +480,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .limit(1);
 
       if (!record) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Invalid refresh token',
-        });
+        };
       }
 
       // 2. Account status check: if account is suspended, immediately reject with HTTP 403
@@ -347,11 +501,23 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .limit(1);
 
       if (!user || user.status === 'suspended') {
-        return reply.status(403).send({
-          statusCode: 403,
+        return {
+          ok: false,
+          status: 403,
           error: 'Forbidden',
           message: 'Account suspended. Please contact support.',
-        });
+        };
+      }
+
+      // 2b. Zero-trust email verification check: reject refresh if email is not verified
+      const isVerified = await isParentEmailVerified(user.id);
+      if (!isVerified) {
+        return {
+          ok: false,
+          status: 403,
+          error: 'Forbidden',
+          message: 'Email not verified. Please verify your email before refreshing session.',
+        };
       }
 
       // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
@@ -370,20 +536,22 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
             )
           );
 
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Token reuse detected. All sessions have been revoked for security.',
-        });
+        };
       }
 
       // 4. Expiry check
       if (new Date(record.expiresAt).getTime() < Date.now()) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Refresh token has expired',
-        });
+        };
       }
 
       // 5. Atomic conditional update: revoke current token
@@ -403,16 +571,17 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .returning();
 
       if (!revokedRecord) {
-        return reply.status(401).send({
-          statusCode: 401,
+        return {
+          ok: false,
+          status: 401,
           error: 'Unauthorized',
           message: 'Token reuse detected. All sessions have been revoked for security.',
-        });
+        };
       }
 
       // 6. Generate new token pair and persist new token within transaction
       const newAccessToken = jwt.sign(
-        { userId: user.id, email: user.email, role: 'parent' },
+        { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
         env.JWT_ACCESS_SECRET,
         { expiresIn: '15m' }
       );
@@ -428,11 +597,26 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       });
 
-      return reply.send({
+      return {
+        ok: true,
         accessToken: newAccessToken,
         refreshToken: newRawRefreshToken,
         expiresIn: 900,
+      };
+    });
+
+    if (!result.ok) {
+      return reply.status(result.status).send({
+        statusCode: result.status,
+        error: result.error,
+        message: result.message,
       });
+    }
+
+    return reply.send({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn,
     });
   });
 
@@ -457,6 +641,635 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     return reply.send({
       statusCode: 200,
       message: 'Logged out successfully',
+    });
+  });
+
+  /**
+   * POST /forgot-password
+   * Dispatches a 6-digit password reset verification code if an email provider is configured.
+   * If no email provider is configured (SMTP/SendGrid/SES/Resend), returns clean HTTP 501.
+   * Persists cryptographically hashed OTP in parent_verification_tokens table with 15-minute expiry.
+   */
+  app.post('/forgot-password', { preHandler: [parentForgotRateLimiter] }, async (request, reply) => {
+    const parsed = forgotPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Valid email address is required',
+      });
+    }
+
+    if (!isEmailConfigured()) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Password reset is currently unavailable.',
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+
+    // Constant-time lookup / dummy verification to prevent timing attack enumeration
+    const [user] = await db
+      .select({ id: parentUsers.id, email: parentUsers.email, status: parentUsers.status })
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (!user) {
+      await verifyDummyPassword(normalizedEmail);
+      return reply.send({
+        statusCode: 200,
+        message: 'If the email exists, a verification code has been dispatched.',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    // Cryptographically secure 6-digit verification code
+    const rawCode = crypto.randomInt(100000, 1000000).toString();
+    const tokenHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+
+    // Invalidate any previous unused password_reset tokens for this email to enforce single active code
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, status: 'invalidated', usedAt: sql`NOW()` })
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'password_reset'),
+          eq(parentVerificationTokens.isUsed, false)
+        )
+      );
+
+    // Persist hashed OTP in PostgreSQL table
+    await db.insert(parentVerificationTokens).values({
+      parentId: user.id,
+      email: normalizedEmail,
+      tokenHash,
+      type: 'password_reset',
+      status: 'pending',
+      attempts: 0,
+      maxAttempts: 5,
+      isUsed: false,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    });
+
+    // Actually dispatch email via operational transport or emailService. Do not claim success unless delivered.
+    try {
+      const transport = getActiveEmailTransport();
+      const dispatchResult = transport
+        ? await transport.sendVerificationEmail(
+            normalizedEmail,
+            'Your Guardian Account Password Reset Code',
+            `Your 6-digit verification code is: ${rawCode}. This code expires in 15 minutes.`,
+            rawCode
+          )
+        : await emailService.sendPasswordResetEmail(normalizedEmail, rawCode);
+
+      if (!dispatchResult.delivered) {
+        request.log.error({ err: dispatchResult.error }, 'Email transport delivery failed');
+        return reply.status(502).send({
+          statusCode: 502,
+          error: 'Bad Gateway',
+          message: 'Failed to deliver verification code to your email address. Please try again later.',
+        });
+      }
+    } catch (err: any) {
+      request.log.error({ err }, 'Email transport thrown exception');
+      return reply.status(502).send({
+        statusCode: 502,
+        error: 'Bad Gateway',
+        message: 'Email delivery service encountered an unexpected error. Please try again later.',
+      });
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'A 6-digit verification code has been dispatched to your email address.',
+    });
+  });
+
+  /**
+   * POST /reset-password
+   * Resets account password using verified token/otpCode.
+   * Does not require active SMTP transport — valid unexpired single-use OTP is sufficient.
+   * Enforces brute-force protection (max 5 attempts), token expiration, single-use invalidation,
+   * updates password hash, and atomically revokes all active refresh sessions.
+   */
+  app.post('/reset-password', async (request, reply) => {
+    const parsed = resetPasswordSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid password reset parameters',
+      });
+    }
+
+    const codeProvided = parsed.data.otpCode || parsed.data.token;
+    if (!codeProvided) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification code or token is required',
+      });
+    }
+
+    const passwordValidation = validateParentPassword(parsed.data.newPassword);
+    if (!passwordValidation.valid) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: passwordValidation.message,
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+
+    const [user] = await db
+      .select({ id: parentUsers.id, status: parentUsers.status })
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (!user) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    // Query latest active password_reset token from PostgreSQL
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'password_reset'),
+          gt(parentVerificationTokens.expiresAt, new Date())
+        )
+      )
+      .orderBy(desc(parentVerificationTokens.createdAt))
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    // Brute-force protection: check attempt count or invalidated status
+    if (tokenRecord.status === 'invalidated' || tokenRecord.attempts >= tokenRecord.maxAttempts) {
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Maximum verification attempts exceeded. Please request a new code.',
+      });
+    }
+
+    if (tokenRecord.isUsed) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    if (providedHash !== tokenRecord.tokenHash) {
+      // Atomic increment in database with condition attempts < maxAttempts to prevent concurrent race condition bypass
+      const [updatedRecord] = await db
+        .update(parentVerificationTokens)
+        .set({
+          attempts: sql`${parentVerificationTokens.attempts} + 1`,
+        })
+        .where(
+          and(
+            eq(parentVerificationTokens.id, tokenRecord.id),
+            sql`${parentVerificationTokens.attempts} < ${parentVerificationTokens.maxAttempts}`
+          )
+        )
+        .returning({
+          attempts: parentVerificationTokens.attempts,
+          maxAttempts: parentVerificationTokens.maxAttempts,
+        });
+
+      if (!updatedRecord || updatedRecord.attempts >= updatedRecord.maxAttempts) {
+        await db
+          .update(parentVerificationTokens)
+          .set({ isUsed: true, status: 'invalidated', usedAt: sql`NOW()` })
+          .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Maximum verification attempts exceeded. Please request a new code.',
+        });
+      }
+
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid or expired verification code',
+      });
+    }
+
+    const newPasswordHash = await hashPassword(parsed.data.newPassword);
+
+    try {
+      await db.transaction(async (tx) => {
+        // 1. Mark verification token as consumed atomically with attempt limit guard
+        const [usedToken] = await tx
+          .update(parentVerificationTokens)
+          .set({
+            isUsed: true,
+            status: 'consumed',
+            usedAt: sql`NOW()`,
+          })
+          .where(
+            and(
+              eq(parentVerificationTokens.id, tokenRecord.id),
+              eq(parentVerificationTokens.isUsed, false),
+              sql`${parentVerificationTokens.attempts} < ${parentVerificationTokens.maxAttempts}`
+            )
+          )
+          .returning({ id: parentVerificationTokens.id });
+
+        if (!usedToken) {
+          throw new Error('VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED');
+        }
+
+        // 2. Update user password
+        await tx
+          .update(parentUsers)
+          .set({
+            passwordHash: newPasswordHash,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id));
+
+        // 3. Atomically revoke all active refresh tokens for this user
+        await tx
+          .update(parentRefreshTokens)
+          .set({
+            isRevoked: true,
+            revokedAt: sql`NOW()`,
+            updatedAt: sql`NOW()`,
+          })
+          .where(
+            and(
+              eq(parentRefreshTokens.parentId, user.id),
+              eq(parentRefreshTokens.isRevoked, false)
+            )
+          );
+      });
+    } catch (txErr: any) {
+      if (txErr.message === 'VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED') {
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Maximum verification attempts exceeded. Please request a new code.',
+        });
+      }
+      throw txErr;
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Your guardian account password has been reset successfully.',
+    });
+  });
+
+  /**
+   * POST /resend-verification
+   * Dispatches a fresh 6-digit email verification code.
+   * - Requires active email provider (returns 501 if unavailable).
+   * - Invalidates any previous active email_verification OTP tokens for the account.
+   * - Generates and persists a fresh expiring, hashed OTP token.
+   * - Rate-limited per IP and per account.
+   * - Properly handles SMTP delivery failures (502).
+   */
+  app.post('/resend-verification', { preHandler: [parentResendVerificationRateLimiter] }, async (request, reply) => {
+    if (!isEmailConfigured()) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+      });
+    }
+
+    const parsed = resendVerificationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Valid email address is required',
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+
+    const [user] = await db
+      .select({
+        id: parentUsers.id,
+        email: parentUsers.email,
+        status: parentUsers.status,
+        emailVerified: parentUsers.emailVerified,
+      })
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (!user) {
+      await verifyDummyPassword(normalizedEmail);
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Account not found with this email address.',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Account suspended. Please contact support.',
+      });
+    }
+
+    if (user.emailVerified) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Email is already verified. Please log in.',
+      });
+    }
+
+    // Invalidate any previous unused email_verification tokens for this email to enforce single active code
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, status: 'invalidated', usedAt: sql`NOW()` })
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false)
+        )
+      );
+
+    // Cryptographically secure fresh 6-digit verification code
+    const rawCode = crypto.randomInt(100000, 1000000).toString();
+    const tokenHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+
+    await db.insert(parentVerificationTokens).values({
+      parentId: user.id,
+      email: normalizedEmail,
+      tokenHash,
+      type: 'email_verification',
+      status: 'pending',
+      attempts: 0,
+      maxAttempts: 5,
+      isUsed: false,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    });
+
+    try {
+      const transport = getActiveEmailTransport();
+      const dispatchResult = transport
+        ? await transport.sendVerificationEmail(
+            normalizedEmail,
+            'Verify Your Guardian Account Email',
+            `Your 6-digit verification code is: ${rawCode}.`,
+            rawCode
+          )
+        : await emailService.sendVerificationEmail(normalizedEmail, rawCode);
+
+      if (!dispatchResult.delivered) {
+        request.log.error({ err: dispatchResult.error }, 'Email transport delivery failed on resend');
+        return reply.status(502).send({
+          statusCode: 502,
+          error: 'Bad Gateway',
+          message: 'Failed to deliver verification code to your email address. Please try again later.',
+        });
+      }
+    } catch (err: any) {
+      request.log.error({ err }, 'Email transport thrown exception on resend');
+      return reply.status(502).send({
+        statusCode: 502,
+        error: 'Bad Gateway',
+        message: 'Email delivery service encountered an unexpected error. Please try again later.',
+      });
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'A fresh verification code has been dispatched to your email address.',
+    });
+  });
+
+  /**
+   * POST /verify-email
+   * Confirms email verification token if email provider is configured.
+   * If no email provider is configured, returns clean HTTP 501.
+   * Requires a valid, unexpired, single-use token in parent_verification_tokens.
+   * Atomically increments wrong attempts; locks after maxAttempts (brute force protection).
+   */
+  app.post('/verify-email', { preHandler: [parentVerifyEmailRateLimiter] }, async (request, reply) => {
+    if (!isEmailConfigured()) {
+      return reply.status(501).send({
+        statusCode: 501,
+        error: 'Not Implemented',
+        message: 'Email delivery service is not configured. Email verification is currently unavailable.',
+      });
+    }
+
+    const parsed = verifyEmailSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid verification payload',
+      });
+    }
+
+    const codeProvided = parsed.data.token || parsed.data.otpCode;
+    if (!codeProvided) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification token or OTP code is required',
+      });
+    }
+
+    const normalizedEmail = parsed.data.email.toLowerCase().trim();
+    const providedHash = crypto.createHash('sha256').update(codeProvided).digest('hex');
+
+    // Query latest email verification token strictly for the specified account email
+    const [tokenRecord] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${normalizedEmail}`,
+          eq(parentVerificationTokens.type, 'email_verification')
+        )
+      )
+      .orderBy(desc(parentVerificationTokens.createdAt))
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification token',
+      });
+    }
+
+    // Check brute-force attempt limits or invalidated status
+    if (tokenRecord.status === 'invalidated' || tokenRecord.attempts >= tokenRecord.maxAttempts) {
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Maximum verification attempts exceeded. Please request a new verification code.',
+      });
+    }
+
+    // Check expiry
+    if (new Date(tokenRecord.expiresAt).getTime() <= Date.now()) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Verification token has expired. Please request a new verification code.',
+      });
+    }
+
+    if (tokenRecord.isUsed) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid or expired verification token',
+      });
+    }
+
+    // Compare hash
+    if (providedHash !== tokenRecord.tokenHash) {
+      // Atomic increment in database to eliminate concurrent race conditions
+      const [updatedRecord] = await db
+        .update(parentVerificationTokens)
+        .set({
+          attempts: sql`${parentVerificationTokens.attempts} + 1`,
+        })
+        .where(
+          and(
+            eq(parentVerificationTokens.id, tokenRecord.id),
+            sql`${parentVerificationTokens.attempts} < ${parentVerificationTokens.maxAttempts}`
+          )
+        )
+        .returning({
+          attempts: parentVerificationTokens.attempts,
+          maxAttempts: parentVerificationTokens.maxAttempts,
+        });
+
+      if (!updatedRecord || updatedRecord.attempts >= updatedRecord.maxAttempts) {
+        await db
+          .update(parentVerificationTokens)
+          .set({ isUsed: true, status: 'invalidated', usedAt: sql`NOW()` })
+          .where(eq(parentVerificationTokens.id, tokenRecord.id));
+
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Maximum verification attempts exceeded. Please request a new verification code.',
+        });
+      }
+
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid verification token',
+      });
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        // Atomic single-use marking guarded against concurrent attempt exhaustion
+        const [usedToken] = await tx
+          .update(parentVerificationTokens)
+          .set({
+            isUsed: true,
+            status: 'consumed',
+            usedAt: sql`NOW()`,
+          })
+          .where(
+            and(
+              eq(parentVerificationTokens.id, tokenRecord.id),
+              eq(parentVerificationTokens.isUsed, false),
+              sql`${parentVerificationTokens.attempts} < ${parentVerificationTokens.maxAttempts}`
+            )
+          )
+          .returning({ id: parentVerificationTokens.id });
+
+        if (!usedToken) {
+          throw new Error('VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED');
+        }
+
+        await tx
+          .update(parentUsers)
+          .set({
+            emailVerified: true,
+            status: 'active',
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, tokenRecord.parentId));
+      });
+    } catch (txErr: any) {
+      if (txErr.message === 'VERIFICATION_ATTEMPTS_EXCEEDED_OR_USED') {
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Maximum verification attempts exceeded. Please request a new verification code.',
+        });
+      }
+      throw txErr;
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Email verified successfully',
+    });
+  });
+
+  /**
+   * GET /verify-email
+   * Email verification requires HTTP POST /verify-email with atomic attempt tracking and dual rate-limiting.
+   * Direct GET requests cannot verify tokens and return HTTP 405 Method Not Allowed to eliminate brute-force attack vectors.
+   */
+  app.get('/verify-email', async (_request, reply) => {
+    return reply.status(405).send({
+      statusCode: 405,
+      error: 'Method Not Allowed',
+      message: 'Email verification requires HTTP POST /api/v1/auth/verify-email with a valid verification payload.',
     });
   });
 };

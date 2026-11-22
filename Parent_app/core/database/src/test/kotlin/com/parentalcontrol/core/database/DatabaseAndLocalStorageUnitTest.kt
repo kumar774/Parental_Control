@@ -1,10 +1,12 @@
 package com.parentalcontrol.core.database
 
 import com.parentalcontrol.core.database.crypto.KeystorePassphraseProvider
+import com.parentalcontrol.core.database.crypto.KeystoreTokenEncryptor
 import com.parentalcontrol.core.database.entity.*
 import com.parentalcontrol.core.database.mmkv.FastMmkvStorage
 import com.parentalcontrol.core.database.repository.*
 import com.parentalcontrol.core.model.location.GeofenceZone
+import com.parentalcontrol.core.network.rest.FastifyRestClient
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -18,6 +20,7 @@ class DatabaseAndLocalStorageUnitTest {
     private lateinit var rulesRepo: LocalRulesRepository
     private lateinit var locationRepo: LocalLocationRepository
     private lateinit var authRepo: LocalAuthRepository
+    private lateinit var mockRestClient: FastifyRestClient
 
     @Before
     fun setup() {
@@ -25,7 +28,126 @@ class DatabaseAndLocalStorageUnitTest {
         childRepo = LocalChildDeviceRepository(database)
         rulesRepo = LocalRulesRepository(database)
         locationRepo = LocalLocationRepository(database)
-        authRepo = LocalAuthRepository(database)
+
+        mockRestClient = FastifyRestClient()
+        mockRestClient.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/login") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"user":{"id":"parent-uuid-001","email":"parent@test.com","fullName":"Alex Smith","familyCardNo":"FAM-1234","isGuest":false},"accessToken":"mock-access-token-jwt","refreshToken":"mock-refresh-token-jwt","expiresIn":900}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/logout") -> {
+                    FastifyRestClient.HttpResponse(200, """{"statusCode":200,"message":"Logged out successfully"}""")
+                }
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"accessToken":"mock-new-access-token","refreshToken":"mock-new-refresh-token","expiresIn":900}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/me") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"user":{"id":"parent-uuid-001","email":"parent@test.com","fullName":"Alex Smith","familyCardNo":"FAM-1234","isGuest":false}}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/reset-password") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"statusCode":200,"message":"Your guardian account password has been reset successfully."}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/verify-email") -> {
+                    FastifyRestClient.HttpResponse(
+                        200,
+                        """{"statusCode":200,"message":"Email verified successfully"}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/auth/register") -> {
+                    if (body?.contains("failure@test.com") == true) {
+                        FastifyRestClient.HttpResponse(
+                            201,
+                            """{"user":{"id":"parent-uuid-003","email":"failure@test.com","fullName":"Failure User","familyCardNo":"FAM-9999","isGuest":false},"requiresEmailVerification":true,"verificationEmailSent":false,"message":"Registration successful, but failed to deliver verification email. Please use the resend verification option to receive your code."}"""
+                        )
+                    } else if (body?.contains("existing-unverified@test.com") == true) {
+                        FastifyRestClient.HttpResponse(
+                            409,
+                            """{"statusCode":409,"error":"Conflict","message":"An unverified account with this email already exists. Please verify your email or request a new code.","requiresEmailVerification":true,"email":"existing-unverified@test.com"}"""
+                        )
+                    } else {
+                        FastifyRestClient.HttpResponse(
+                            201,
+                            """{"user":{"id":"parent-uuid-002","email":"pending@test.com","fullName":"Jane Doe","familyCardNo":"FAM-5678","isGuest":false},"requiresEmailVerification":true,"verificationEmailSent":true,"message":"Registration successful. Please verify your email."}"""
+                        )
+                    }
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+        authRepo = LocalAuthRepository(database, mockRestClient)
+    }
+
+    @Test
+    fun testKeystoreTokenEncryptorAesGcmRoundtrip() {
+        val encryptor = KeystoreTokenEncryptor.getInstance()
+        val plain = "super-secret-jwt-token-value-2026"
+        val encrypted = encryptor.encrypt(plain)
+        assertNotNull(encrypted)
+        assertTrue(encrypted!!.startsWith("enc:v1:"))
+        assertNotEquals(plain, encrypted)
+
+        val decrypted = encryptor.decrypt(encrypted)
+        assertEquals(plain, decrypted)
+    }
+
+    @Test
+    fun testKeystoreTokenEncryptorCorruptedCiphertextReturnsNull() {
+        val encryptor = KeystoreTokenEncryptor.getInstance()
+
+        // 1. Corrupted base64 payload
+        val corruptedPayload = "enc:v1:not-valid-base64-content!@#$%"
+        val result1 = encryptor.decrypt(corruptedPayload)
+        assertNull("Corrupted base64 must safely decrypt to null", result1)
+
+        // 2. Truncated payload shorter than GCM IV length (12 bytes)
+        val truncatedPayload = "enc:v1:" + java.util.Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3))
+        val result2 = encryptor.decrypt(truncatedPayload)
+        assertNull("Truncated payload shorter than IV must return null", result2)
+
+        // 3. Tampered ciphertext (modified auth tag)
+        val validEncrypted = encryptor.encrypt("secret-token-payload")!!
+        val validBytes = java.util.Base64.getDecoder().decode(validEncrypted.removePrefix("enc:v1:"))
+        validBytes[validBytes.size - 1] = (validBytes[validBytes.size - 1].toInt() xor 0xFF).toByte()
+        val tamperedEncrypted = "enc:v1:" + java.util.Base64.getEncoder().encodeToString(validBytes)
+        val result3 = encryptor.decrypt(tamperedEncrypted)
+        assertNull("Tampered GCM ciphertext must fail authentication and return null", result3)
+    }
+
+    @Test
+    fun testAppRestartTokenRecoveryAndCleanLogout() = runBlocking {
+        // Step 1: Simulate user login and token persistence
+        val initialMmkv = FastMmkvStorage()
+        initialMmkv.userId = "parent-uuid-restart"
+        initialMmkv.userEmail = "parent@restart.test"
+        initialMmkv.userFullName = "Restart Tester"
+        initialMmkv.accessToken = "access-token-pre-restart"
+        initialMmkv.refreshToken = "refresh-token-pre-restart"
+        initialMmkv.familyCardNo = "FAM-RESTART"
+
+        assertEquals("access-token-pre-restart", initialMmkv.accessToken)
+        assertEquals("refresh-token-pre-restart", initialMmkv.refreshToken)
+
+        // Step 2: Clear session on logout
+        initialMmkv.clearSession()
+
+        assertNull("Access token must be null after session clear", initialMmkv.accessToken)
+        assertNull("Refresh token must be null after session clear", initialMmkv.refreshToken)
+        assertNull("User ID must be null after session clear", initialMmkv.userId)
+        assertNull("User email must be null after session clear", initialMmkv.userEmail)
+        assertNull("User full name must be null after session clear", initialMmkv.userFullName)
+        assertNull("Family card must be null after session clear", initialMmkv.familyCardNo)
     }
 
     @Test
@@ -121,7 +243,7 @@ class DatabaseAndLocalStorageUnitTest {
     @Test
     fun testAuthRepositorySessionAndLogout() = runBlocking {
         val loginResult = authRepo.login("parent@test.com", "Password@123")
-        assertTrue(loginResult.isSuccess)
+        assertTrue("Login failed: ${loginResult.exceptionOrNull()?.message}", loginResult.isSuccess)
         assertNotNull(database.mmkv.accessToken)
 
         val session = authRepo.observeCurrentAccount().first()
@@ -132,6 +254,78 @@ class DatabaseAndLocalStorageUnitTest {
         assertNull(database.mmkv.accessToken)
         val clearedSession = authRepo.observeCurrentAccount().first()
         assertNull(clearedSession)
+    }
+
+    @Test
+    fun testAuthRepositoryResetPasswordAndVerifyEmail() = runBlocking {
+        val resetResult = authRepo.resetPassword("parent@test.com", "123456", "NewSecurePassword2026!")
+        assertTrue("resetPassword must succeed: ${resetResult.exceptionOrNull()?.message}", resetResult.isSuccess)
+        assertTrue(resetResult.getOrThrow().contains("password has been reset"))
+
+        val verifyResult = authRepo.verifyEmailOtp("parent@test.com", "123456")
+        assertTrue("verifyEmailOtp must succeed: ${verifyResult.exceptionOrNull()?.message}", verifyResult.isSuccess)
+
+        val invalidOtpResult = authRepo.verifyEmailOtp("parent@test.com", "12")
+        assertFalse("Invalid OTP length must fail", invalidOtpResult.isSuccess)
+    }
+
+    @Test
+    fun testPendingRegistrationDoesNotPersistTokens() = runBlocking {
+        database.mmkv.clearSession()
+        assertNull(database.mmkv.accessToken)
+        assertNull(database.mmkv.refreshToken)
+
+        val regResult = authRepo.register("pending@test.com", "SecurePass#2026!", "Jane Doe")
+        assertTrue("Registration must succeed: ${regResult.exceptionOrNull()?.message}", regResult.isSuccess)
+
+        // User profile is saved for pending verification state
+        assertEquals("pending@test.com", database.mmkv.userEmail)
+        assertEquals("Jane Doe", database.mmkv.userFullName)
+
+        // But NO authentication session tokens are persisted
+        assertNull("Pending registration must not persist accessToken", database.mmkv.accessToken)
+        assertNull("Pending registration must not persist refreshToken", database.mmkv.refreshToken)
+    }
+
+    @Test
+    fun testVerifiedLoginPersistsSessionTokens() = runBlocking {
+        database.mmkv.clearSession()
+        val loginResult = authRepo.login("parent@test.com", "SecurePass#2026!")
+        assertTrue("Login must succeed: ${loginResult.exceptionOrNull()?.message}", loginResult.isSuccess)
+
+        assertEquals("mock-access-token-jwt", database.mmkv.accessToken)
+        assertEquals("mock-refresh-token-jwt", database.mmkv.refreshToken)
+        assertEquals("parent@test.com", database.mmkv.userEmail)
+    }
+
+    @Test
+    fun testRegistrationWithSmtpFailureStillNavigatesToVerificationAndStoresEmail() = runBlocking {
+        database.mmkv.clearSession()
+        assertNull(database.mmkv.accessToken)
+
+        val regResult = authRepo.register("failure@test.com", "SecurePass#2026!", "Failure User")
+        assertTrue("Registration must succeed even when email dispatch fails: ${regResult.exceptionOrNull()?.message}", regResult.isSuccess)
+
+        // Email is persisted so user reaches verification screen with prefilled email
+        assertEquals("failure@test.com", database.mmkv.userEmail)
+        assertEquals("Failure User", database.mmkv.userFullName)
+
+        // Session tokens must still be null
+        assertNull(database.mmkv.accessToken)
+        assertNull(database.mmkv.refreshToken)
+    }
+
+    @Test
+    fun testRetryRegistrationWith409UnverifiedConflictPreservesEmailForRecovery() = runBlocking {
+        database.mmkv.clearSession()
+
+        val regResult = authRepo.register("existing-unverified@test.com", "SecurePass#2026!", "Existing User")
+        assertFalse("Duplicate registration must fail with conflict", regResult.isSuccess)
+        assertTrue("Error must mention unverified account", regResult.exceptionOrNull()?.message?.contains("unverified", ignoreCase = true) == true)
+
+        // Crucial recovery property: email is stored in MMKV so user can recover via Resend Code
+        assertEquals("existing-unverified@test.com", database.mmkv.userEmail)
+        assertNull(database.mmkv.accessToken)
     }
 
     @Test

@@ -5,6 +5,7 @@ import {
   text,
   boolean,
   integer,
+  bigint,
   timestamp,
   jsonb,
   index,
@@ -23,6 +24,8 @@ export const parentUsers = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
+    fullName: text('full_name'),
+    emailVerified: boolean('email_verified').notNull().default(false),
     phone: varchar('phone', { length: 32 }),
     passwordHash: text('password_hash').notNull(),
     familyPinHash: text('family_pin_hash'),
@@ -133,6 +136,37 @@ export const parentRefreshTokens = pgTable(
   ]
 );
 
+/**
+ * Parent Verification Tokens.
+ * Stores cryptographically hashed, single-use, expiring OTP tokens for password reset and email verification.
+ * Includes brute-force protection tracking via attempt counters.
+ */
+export const parentVerificationTokens = pgTable(
+  'parent_verification_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    email: varchar('email', { length: 255 }).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    type: varchar('type', { length: 32 }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(5),
+    isUsed: boolean('is_used').notNull().default(false),
+    status: varchar('status', { length: 32 }).notNull().default('pending'),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_parent_verification_tokens_lookup').on(table.email, table.type, table.isUsed),
+    index('idx_parent_verification_tokens_parent').on(table.parentId),
+    index('idx_parent_verification_tokens_expires').on(table.expiresAt),
+    check('parent_verification_tokens_type_check', sql`${table.type} IN ('password_reset', 'email_verification')`),
+  ]
+);
+
 // Type Exports
 export type ParentUser = typeof parentUsers.$inferSelect;
 export type NewParentUser = typeof parentUsers.$inferInsert;
@@ -142,3 +176,23 @@ export type NewChildDevice = typeof childDevices.$inferInsert;
 
 export type AdminControlAuditLog = typeof adminControlAuditLogs.$inferSelect;
 export type NewAdminControlAuditLog = typeof adminControlAuditLogs.$inferInsert;
+
+export type ParentVerificationToken = typeof parentVerificationTokens.$inferSelect;
+export type NewParentVerificationToken = typeof parentVerificationTokens.$inferInsert;
+
+/**
+ * Shared Durable Rate Limiter Storage.
+ * Provides multi-instance distributed sliding/fixed-window rate limiting backed by PostgreSQL.
+ */
+export const parentRateLimits = pgTable(
+  'parent_rate_limits',
+  {
+    key: varchar('key', { length: 255 }).primaryKey(),
+    count: integer('count').notNull().default(1),
+    windowStartedAt: bigint('window_started_at', { mode: 'number' }).notNull(),
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+  }
+);
+
+export type ParentRateLimit = typeof parentRateLimits.$inferSelect;
+export type NewParentRateLimit = typeof parentRateLimits.$inferInsert;

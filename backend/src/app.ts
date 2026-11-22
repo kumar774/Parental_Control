@@ -6,9 +6,11 @@ import { env } from './config/env';
 import { probePostgres } from './services/health-probe.service';
 import { adminAuthRoutes } from './routes/admin/auth.routes';
 import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
+import { adminSettingsRoutes } from './routes/admin/settings.routes';
 import { parentAuthRoutes } from './routes/parent/auth.routes';
 import { parentDeviceRoutes } from './routes/parent/device.routes';
 import { isAllowedOrigin } from './middleware/admin-session.guard';
+import { emailService } from './services/email/index';
 
 export async function buildApp() {
   const app = Fastify({
@@ -50,6 +52,12 @@ export async function buildApp() {
   // Administrative Authentication Routes
   await app.register(adminAuthRoutes, { prefix: '/api/v1/admin/auth' });
   await app.register(adminDashboardRoutes, { prefix: '/api/v1/admin/dashboard' });
+  await app.register(adminSettingsRoutes, { prefix: '/api/v1/admin/settings' });
+
+  // Initialize modular email delivery service (loads stored database SMTP config or environment fallback)
+  await emailService.init().catch((err) => {
+    app.log.warn({ err }, 'Failed to initialize email delivery service on startup');
+  });
 
   // Parent Mobile Authentication Routes
   await app.register(parentAuthRoutes, { prefix: '/api/v1/auth' });

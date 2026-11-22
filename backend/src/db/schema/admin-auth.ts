@@ -229,6 +229,34 @@ export const adminAuditArchiveVerifications = pgTable(
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type NewAdminUser = typeof adminUsers.$inferInsert;
 
+/**
+ * Table 11: system_smtp_settings
+ * Stores administrative SMTP configuration.
+ * Passwords are encrypted at rest with AES-256-GCM via crypto-vault using ENCRYPTION_MASTER_KEY.
+ * Only non-secret values and health indicators are ever returned to clients.
+ */
+export const systemSmtpSettings = pgTable(
+  'system_smtp_settings',
+  {
+    id: varchar('id', { length: 32 }).primaryKey().default('default'),
+    host: varchar('host', { length: 255 }).notNull(),
+    port: integer('port').notNull().default(587),
+    secure: boolean('secure').notNull().default(false),
+    username: varchar('username', { length: 255 }),
+    passwordEncrypted: text('password_encrypted'),
+    fromEmail: varchar('from_email', { length: 255 }).notNull(),
+    fromName: varchar('from_name', { length: 255 }).notNull().default('Parental Control Security'),
+    lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    updatedBy: uuid('updated_by').references(() => adminUsers.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  }
+);
+
+export type SystemSmtpSettings = typeof systemSmtpSettings.$inferSelect;
+export type NewSystemSmtpSettings = typeof systemSmtpSettings.$inferInsert;
+
 export type AdminMfa = typeof adminMfa.$inferSelect;
 export type NewAdminMfa = typeof adminMfa.$inferInsert;
 

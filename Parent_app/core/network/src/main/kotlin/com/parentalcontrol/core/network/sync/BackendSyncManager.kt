@@ -47,10 +47,12 @@ class BackendSyncManager(
     }
 
     fun startRealtimeSession(token: String) {
+        restClient.accessToken = token
         wsClient.connect(token)
     }
 
     fun stopRealtimeSession() {
+        restClient.accessToken = null
         wsClient.disconnect()
     }
 }

@@ -4,6 +4,9 @@ import com.parentalcontrol.core.network.config.AppNetworkConfig
 import com.parentalcontrol.core.network.security.HmacHeaderGenerator
 import com.parentalcontrol.core.network.session.SessionEventBus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,6 +28,11 @@ class FastifyRestClient(
     }
 
     var onSessionExpired: (() -> Unit)? = null
+    var onTokenRefreshed: ((accessToken: String, refreshToken: String) -> Unit)? = null
+    var onLogout: (() -> Unit)? = null
+
+    var customTransport: HttpTransport? = null
+    private val refreshMutex = Mutex()
 
     private val candidateHosts: List<String>
         get() = AppNetworkConfig.getCandidateHosts()
@@ -158,6 +166,57 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun verifyEmail(tokenOrOtp: String, email: String? = null): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("token", tokenOrOtp.trim())
+                if (!email.isNullOrBlank()) {
+                    put("email", email.trim().lowercase())
+                }
+            }.toString()
+
+            val response = executePost("/api/v1/auth/verify-email", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val msg = json.optString("message", "Email verified successfully")
+                Result.success(msg)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Invalid or expired verification token")
+                } catch (_: Exception) {
+                    "Email verification failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun resendVerification(email: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("email", email.trim().lowercase())
+            }.toString()
+
+            val response = executePost("/api/v1/auth/resend-verification", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val msg = json.optString("message", "A fresh verification code has been dispatched to your email address.")
+                Result.success(msg)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Failed to resend verification code")
+                } catch (_: Exception) {
+                    "Resend verification failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun register(request: RegisterRequestDto): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = JSONObject().apply {
@@ -180,11 +239,29 @@ class FastifyRestClient(
                     familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
-                val token = json.getString("accessToken")
-                val refToken = json.optString("refreshToken", "")
-                accessToken = token
-                refreshToken = refToken
-                Result.success(AuthResponseDto(user, token, refToken))
+                val token = if (json.has("accessToken")) json.optString("accessToken") else null
+                val refToken = if (json.has("refreshToken")) json.optString("refreshToken") else null
+                val requiresVerification = json.optBoolean("requiresEmailVerification", false)
+                val emailSent = json.optBoolean("verificationEmailSent", true)
+                val respMessage = json.optString("message", "")
+
+                if (!requiresVerification && !token.isNullOrBlank()) {
+                    accessToken = token
+                    refreshToken = refToken
+                } else {
+                    accessToken = null
+                    refreshToken = null
+                }
+                Result.success(
+                    AuthResponseDto(
+                        user = user,
+                        accessToken = token,
+                        refreshToken = refToken,
+                        requiresEmailVerification = requiresVerification,
+                        verificationEmailSent = emailSent,
+                        message = respMessage
+                    )
+                )
             } else {
                 val msg = try {
                     JSONObject(response.body).optString("message", "Registration failed")
@@ -206,13 +283,7 @@ class FastifyRestClient(
 
         val token = accessToken
         if (token.isNullOrBlank()) {
-            // Unauthenticated / offline test fallback
-            val fallback = RemoteCommandResponseDto(
-                commandId = "cmd-${System.currentTimeMillis()}",
-                status = "ACKNOWLEDGED",
-                dispatchedAtEpochMs = System.currentTimeMillis()
-            )
-            return@withContext Result.success(fallback)
+            return@withContext Result.failure(Exception("Authentication required to dispatch remote command"))
         }
 
         try {
@@ -261,15 +332,7 @@ class FastifyRestClient(
     suspend fun generatePairingCode(): Result<PairingCodeResponseDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
-            val code = (100000..999999).random().toString()
-            val expires = System.currentTimeMillis() + 300000L
-            return@withContext Result.success(
-                PairingCodeResponseDto(
-                    pairingCode = code,
-                    qrPayload = "pc-pair:$code:$expires",
-                    expiresAtEpochMs = expires
-                )
-            )
+            return@withContext Result.failure(Exception("Authentication required to generate pairing code"))
         }
         try {
             val response = executePost("/api/v1/devices/pair-code", "{}", token)
@@ -1275,43 +1338,6 @@ class FastifyRestClient(
         }
     }
 
-    private data class HttpResponse(val statusCode: Int, val body: String)
-
-    private fun executeDelete(path: String, bearerToken: String?): HttpResponse {
-        var lastException: Exception? = null
-        val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
-
-        for (host in hosts) {
-            try {
-                val fullUrl = if (path.startsWith("http")) path else "$host$path"
-                val url = URL(fullUrl)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "DELETE"
-                conn.connectTimeout = 3000
-                conn.readTimeout = 4000
-                conn.setRequestProperty("Accept", "application/json")
-                if (!bearerToken.isNullOrBlank()) {
-                    conn.setRequestProperty("Authorization", "Bearer $bearerToken")
-                }
-
-                val code = conn.responseCode
-                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-                val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-                baseUrl = host
-                if (code == 401 && !path.contains("/auth/login") && !path.contains("/auth/register")) {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("HTTP_401")
-                }
-                return HttpResponse(code, responseBody)
-            } catch (e: Exception) {
-                lastException = e
-            }
-        }
-        throw lastException ?: Exception("Network connection failed")
-    }
-
     suspend fun getDevicePolicy(deviceId: String): Result<DevicePolicyDto> = withContext(Dispatchers.IO) {
         try {
             val response = executeGet("/api/v1/devices/$deviceId/policy", accessToken)
@@ -1477,7 +1503,167 @@ class FastifyRestClient(
         }
     }
 
-    private fun executePut(path: String, jsonBody: String, bearerToken: String?): HttpResponse {
+    data class HttpResponse(val statusCode: Int, val body: String)
+
+    fun interface HttpTransport {
+        fun execute(method: String, fullUrl: String, headers: Map<String, String>, body: String?): HttpResponse
+    }
+
+    /**
+     * Refreshes active user tokens using POST /api/v1/auth/refresh.
+     * Guarded by thread-safe Mutex to prevent race conditions with rotating refresh tokens.
+     */
+    suspend fun refreshSession(): Result<TokenRefreshResponseDto> = withContext(Dispatchers.IO) {
+        refreshMutex.withLock {
+            refreshSessionInternal()
+        }
+    }
+
+    private fun refreshSessionInternal(): Result<TokenRefreshResponseDto> {
+        val currentRefToken = refreshToken
+        if (currentRefToken.isNullOrBlank()) {
+            accessToken = null
+            refreshToken = null
+            onSessionExpired?.invoke()
+            SessionEventBus.emitSessionExpired("NO_REFRESH_TOKEN")
+            return Result.failure(Exception("No refresh token available"))
+        }
+
+        return try {
+            val jsonBody = JSONObject().apply {
+                put("refreshToken", currentRefToken)
+            }.toString()
+
+            val response = executeRequestRaw("POST", "/api/v1/auth/refresh", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val newAccess = json.getString("accessToken")
+                val newRefresh = json.getString("refreshToken")
+                val expiresIn = json.optInt("expiresIn", 900)
+
+                accessToken = newAccess
+                refreshToken = newRefresh
+                onTokenRefreshed?.invoke(newAccess, newRefresh)
+
+                Result.success(TokenRefreshResponseDto(newAccess, newRefresh, expiresIn))
+            } else {
+                accessToken = null
+                refreshToken = null
+                onSessionExpired?.invoke()
+                SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
+                Result.failure(Exception("Session expired or refresh token revoked (HTTP ${response.statusCode})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    /**
+     * Server-side logout revoking refresh token via POST /api/v1/auth/logout.
+     * Always preserves immediate local session cleanup in finally block,
+     * but distinguishes successful remote token revocation from network/server errors.
+     */
+    suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentRefToken = refreshToken
+        val currentAccToken = accessToken
+        var remoteRevokeError: Throwable? = null
+        try {
+            if (!currentRefToken.isNullOrBlank()) {
+                val jsonBody = JSONObject().apply {
+                    put("refreshToken", currentRefToken)
+                }.toString()
+                val response = executeRequestRaw("POST", "/api/v1/auth/logout", jsonBody, currentAccToken)
+                if (response.statusCode !in 200..299) {
+                    remoteRevokeError = Exception("Server returned HTTP ${response.statusCode} during session revocation")
+                }
+            }
+        } catch (e: Exception) {
+            remoteRevokeError = e
+        } finally {
+            // Immediate local cleanup is ALWAYS preserved regardless of network outcome
+            accessToken = null
+            refreshToken = null
+            onLogout?.invoke()
+        }
+
+        if (remoteRevokeError != null) {
+            Result.failure(Exception("Local session cleared, but remote token revocation failed: ${remoteRevokeError.message}", remoteRevokeError))
+        } else {
+            Result.success(Unit)
+        }
+    }
+
+    private fun isAuthExemptPath(path: String): Boolean {
+        return path.contains("/auth/login") ||
+               path.contains("/auth/register") ||
+               path.contains("/auth/refresh") ||
+               path.contains("/auth/forgot-password") ||
+               path.contains("/auth/reset-password") ||
+               path.contains("/auth/verify-email")
+    }
+
+    private fun executeRequest(
+        method: String,
+        path: String,
+        jsonBody: String?,
+        bearerToken: String?,
+        allowRefreshRetry: Boolean = true
+    ): HttpResponse {
+        val initialResponse = executeRequestRaw(method, path, jsonBody, bearerToken)
+
+        if (initialResponse.statusCode == 401 && allowRefreshRetry && !isAuthExemptPath(path)) {
+            // Mutex-guarded refresh to eliminate concurrent refresh races
+            val refreshedAccessToken: String? = runBlocking {
+                refreshMutex.withLock {
+                    if (!accessToken.isNullOrBlank() && accessToken != bearerToken) {
+                        // Already refreshed by concurrent coroutine
+                        accessToken
+                    } else {
+                        val refResult = refreshSessionInternal()
+                        if (refResult.isSuccess) {
+                            refResult.getOrNull()?.accessToken
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+
+            if (!refreshedAccessToken.isNullOrBlank()) {
+                // Retry original request exactly once with new token
+                return executeRequestRaw(method, path, jsonBody, refreshedAccessToken)
+            } else {
+                accessToken = null
+                refreshToken = null
+                onSessionExpired?.invoke()
+                SessionEventBus.emitSessionExpired("HTTP_401")
+            }
+        } else if (initialResponse.statusCode == 401 && !isAuthExemptPath(path)) {
+            accessToken = null
+            refreshToken = null
+            onSessionExpired?.invoke()
+            SessionEventBus.emitSessionExpired("HTTP_401")
+        }
+
+        return initialResponse
+    }
+
+    private fun executeRequestRaw(
+        method: String,
+        path: String,
+        jsonBody: String?,
+        bearerToken: String?
+    ): HttpResponse {
+        customTransport?.let { transport ->
+            val fullUrl = if (path.startsWith("http")) path else "$baseUrl$path"
+            val headers = mutableMapOf<String, String>().apply {
+                put("Accept", "application/json")
+                if (jsonBody != null) put("Content-Type", "application/json; charset=utf-8")
+                if (!bearerToken.isNullOrBlank()) put("Authorization", "Bearer $bearerToken")
+            }
+            return transport.execute(method, fullUrl, headers, jsonBody)
+        }
+
         var lastException: Exception? = null
         val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
 
@@ -1486,31 +1672,27 @@ class FastifyRestClient(
                 val fullUrl = if (path.startsWith("http")) path else "$host$path"
                 val url = URL(fullUrl)
                 val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "PUT"
+                conn.requestMethod = method
                 conn.connectTimeout = 3000
                 conn.readTimeout = 4000
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
                 if (!bearerToken.isNullOrBlank()) {
                     conn.setRequestProperty("Authorization", "Bearer $bearerToken")
                 }
 
-                OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
-                    writer.write(jsonBody)
-                    writer.flush()
+                if (jsonBody != null && (method == "POST" || method == "PUT")) {
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
+                        writer.write(jsonBody)
+                        writer.flush()
+                    }
                 }
 
                 val code = conn.responseCode
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
                 baseUrl = host // Pin working host
-                if (code == 401 && !path.contains("/auth/login") && !path.contains("/auth/register")) {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("HTTP_401")
-                }
                 return HttpResponse(code, responseBody)
             } catch (e: Exception) {
                 lastException = e
@@ -1519,80 +1701,15 @@ class FastifyRestClient(
         throw lastException ?: Exception("Network connection failed")
     }
 
-    private fun executeGet(path: String, bearerToken: String?): HttpResponse {
-        var lastException: Exception? = null
-        val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
+    private fun executeGet(path: String, bearerToken: String?): HttpResponse =
+        executeRequest("GET", path, null, bearerToken)
 
-        for (host in hosts) {
-            try {
-                val fullUrl = if (path.startsWith("http")) path else "$host$path"
-                val url = URL(fullUrl)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.connectTimeout = 3000
-                conn.readTimeout = 4000
-                conn.setRequestProperty("Accept", "application/json")
-                if (!bearerToken.isNullOrBlank()) {
-                    conn.setRequestProperty("Authorization", "Bearer $bearerToken")
-                }
+    private fun executePost(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+        executeRequest("POST", path, jsonBody, bearerToken)
 
-                val code = conn.responseCode
-                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-                val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-                baseUrl = host
-                if (code == 401 && !path.contains("/auth/login") && !path.contains("/auth/register")) {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("HTTP_401")
-                }
-                return HttpResponse(code, responseBody)
-            } catch (e: Exception) {
-                lastException = e
-            }
-        }
-        throw lastException ?: Exception("Network connection failed")
-    }
+    private fun executePut(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+        executeRequest("PUT", path, jsonBody, bearerToken)
 
-    private fun executePost(path: String, jsonBody: String, bearerToken: String?): HttpResponse {
-        var lastException: Exception? = null
-        val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
-
-        for (host in hosts) {
-            try {
-                val fullUrl = if (path.startsWith("http")) path else "$host$path"
-                val url = URL(fullUrl)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.connectTimeout = 3000
-                conn.readTimeout = 4000
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
-                if (!bearerToken.isNullOrBlank()) {
-                    conn.setRequestProperty("Authorization", "Bearer $bearerToken")
-                }
-
-                OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
-                    writer.write(jsonBody)
-                    writer.flush()
-                }
-
-                val code = conn.responseCode
-                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-                val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-                baseUrl = host // Pin working host
-                if (code == 401 && !path.contains("/auth/login") && !path.contains("/auth/register")) {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("HTTP_401")
-                }
-                return HttpResponse(code, responseBody)
-            } catch (e: Exception) {
-                lastException = e
-            }
-        }
-        throw lastException ?: Exception("Network connection failed")
-    }
+    private fun executeDelete(path: String, bearerToken: String?): HttpResponse =
+        executeRequest("DELETE", path, null, bearerToken)
 }
