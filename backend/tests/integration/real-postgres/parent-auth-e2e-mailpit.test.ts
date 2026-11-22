@@ -1,10 +1,11 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../../src/app';
 import { db } from '../../../src/db';
 import { parentUsers, parentRefreshTokens, parentVerificationTokens } from '../../../src/db/schema/parental-control';
 import { eq, sql } from 'drizzle-orm';
+import { resetParentRateLimitsForTest } from '../../../src/middleware/parent-rate-limiter';
 import http from 'http';
 
 interface MailpitMessage {
@@ -136,6 +137,10 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
   after(async () => {
     await db.delete(parentUsers).where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
     await app.close();
+  });
+
+  beforeEach(() => {
+    resetParentRateLimitsForTest();
   });
 
   it('1. Invalid Password Handling on Registration rejects non-compliant passwords', async () => {
@@ -436,5 +441,191 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       payload: { refreshToken },
     });
     assert.strictEqual(refreshRes.statusCode, 401);
+  });
+
+  it('11. Email OTP brute-force protection (max 5 attempts -> HTTP 429 lockout)', async () => {
+    const bruteEmail = `brute-otp-${Date.now()}@example.test`;
+    const regRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: bruteEmail,
+        password: initialPassword,
+        fullName: 'Brute Force Tester',
+      },
+    });
+    assert.strictEqual(regRes.statusCode, 201);
+
+    // Send 5 invalid OTP verification attempts
+    for (let i = 0; i < 5; i++) {
+      const wrongOtpRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/verify-email',
+        payload: {
+          email: bruteEmail,
+          otpCode: '000000',
+        },
+      });
+
+      if (i < 4) {
+        assert.strictEqual(wrongOtpRes.statusCode, 400);
+      } else {
+        // 5th attempt triggers lockout
+        assert.strictEqual(wrongOtpRes.statusCode, 429);
+        assert.match(wrongOtpRes.json().message, /Maximum verification attempts exceeded/);
+      }
+    }
+  });
+
+  it('12. Concurrent OTP guessing protection prevents attempt bypass via atomic database counter', async () => {
+    const concurEmail = `concur-otp-${Date.now()}@example.test`;
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: concurEmail,
+        password: initialPassword,
+        fullName: 'Concurrency Tester',
+      },
+    });
+
+    // Execute 10 simultaneous incorrect OTP verification requests
+    const promises = Array.from({ length: 10 }).map(() =>
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/verify-email',
+        payload: {
+          email: concurEmail,
+          otpCode: '111111',
+        },
+      })
+    );
+
+    const responses = await Promise.all(promises);
+    const status400s = responses.filter((r) => r.statusCode === 400);
+    const status429s = responses.filter((r) => r.statusCode === 429);
+
+    // Maximum attempts is 5; exactly 4 or 5 attempts can be 400, all remaining MUST be 429
+    assert.ok(status400s.length <= 5, `Expected <= 5 status 400, got ${status400s.length}`);
+    assert.ok(status429s.length >= 5, `Expected >= 5 status 429 lockouts, got ${status429s.length}`);
+    assert.strictEqual(status400s.length + status429s.length, 10);
+  });
+
+  it('13. Resend email verification invalidates previous OTP, dispatches fresh OTP, and rate limits excess requests', async () => {
+    const resendEmail = `resend-test-${Date.now()}@example.test`;
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: resendEmail,
+        password: initialPassword,
+        fullName: 'Resend Tester',
+      },
+    });
+
+    const initialEmail = await getEmailWithOtp(resendEmail, ['verification code', 'Verify Your Email']);
+    const firstOtp = initialEmail.otp;
+    assert.ok(firstOtp);
+
+    await clearMailpitMessages().catch(() => {});
+
+    // Request fresh verification code via resend-verification
+    const resendRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/resend-verification',
+      payload: { email: resendEmail },
+    });
+    assert.strictEqual(resendRes.statusCode, 200);
+    assert.match(resendRes.json().message, /fresh verification code has been dispatched/);
+
+    // Verify fresh OTP arrives in Mailpit
+    const secondEmail = await getEmailWithOtp(resendEmail, ['verification code', 'Verify Your Email']);
+    const secondOtp = secondEmail.otp;
+    assert.ok(secondOtp);
+    assert.notStrictEqual(secondOtp, firstOtp);
+
+    // Old OTP must be rejected (single-use active enforcement)
+    const oldVerify = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: resendEmail, otpCode: firstOtp },
+    });
+    assert.strictEqual(oldVerify.statusCode, 400);
+
+    // Fresh OTP must succeed
+    const freshVerify = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: resendEmail, otpCode: secondOtp },
+    });
+    assert.strictEqual(freshVerify.statusCode, 200);
+
+    // Resend on already-verified email must be rejected with 400
+    const verifiedResend = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/resend-verification',
+      payload: { email: resendEmail },
+    });
+    assert.strictEqual(verifiedResend.statusCode, 400);
+    assert.match(verifiedResend.json().message, /already verified/);
+  });
+
+  it('14. Expired verification OTP rejection and recovery via resend', async () => {
+    const expiredEmail = `expired-otp-${Date.now()}@example.test`;
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: expiredEmail,
+        password: initialPassword,
+        fullName: 'Expiry Tester',
+      },
+    });
+
+    const emailData = await getEmailWithOtp(expiredEmail, ['verification code', 'Verify Your Email']);
+    const otp = emailData.otp;
+
+    // Simulate OTP expiration in PostgreSQL
+    await db
+      .update(parentVerificationTokens)
+      .set({ expiresAt: new Date(Date.now() - 3600000) }) // 1 hour ago
+      .where(sql`LOWER(${parentVerificationTokens.email}) = ${expiredEmail.toLowerCase()}`);
+
+    // Verification attempt with expired OTP must be rejected
+    const expiredVerify = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: expiredEmail, otpCode: otp },
+    });
+    assert.strictEqual(expiredVerify.statusCode, 400);
+    assert.match(expiredVerify.json().message, /expired/);
+
+    // Recovery: call resend-verification to receive fresh unexpired OTP
+    await clearMailpitMessages().catch(() => {});
+    const resendRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/resend-verification',
+      payload: { email: expiredEmail },
+    });
+    assert.strictEqual(resendRes.statusCode, 200);
+
+    const freshEmail = await getEmailWithOtp(expiredEmail, ['verification code', 'Verify Your Email']);
+    const freshOtp = freshEmail.otp;
+
+    // Verify with fresh OTP
+    const freshVerify = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: expiredEmail, otpCode: freshOtp },
+    });
+    assert.strictEqual(freshVerify.statusCode, 200);
+
+    // Now login succeeds
+    const loginRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: expiredEmail, password: initialPassword },
+    });
+    assert.strictEqual(loginRes.statusCode, 200);
   });
 });

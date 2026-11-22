@@ -33,30 +33,46 @@ export function createParentRateLimiter(options: {
 
   return async function parentRateLimitHook(request: FastifyRequest, reply: FastifyReply) {
     const ip = request.ip || '127.0.0.1';
-    const key = `${prefix}:${ip}`;
+    const body = (request.body as Record<string, any>) || {};
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+
     const now = Date.now();
     const windowStart = now - windowSeconds * 1000;
 
-    let record = memoryStore.get(key);
-    if (!record) {
-      record = { timestamps: [] };
-      memoryStore.set(key, record);
+    const keys = [`${prefix}:ip:${ip}`];
+    if (email) {
+      keys.push(`${prefix}:account:${email}`);
     }
 
-    record.timestamps = record.timestamps.filter((t) => t > windowStart);
+    for (const key of keys) {
+      let record = memoryStore.get(key);
+      if (!record) {
+        record = { timestamps: [] };
+        memoryStore.set(key, record);
+      }
 
-    if (record.timestamps.length >= maxRequests) {
-      reply.header('Retry-After', String(windowSeconds));
-      return reply.status(429).send({
-        statusCode: 429,
-        error: 'Too Many Requests',
-        message: `Rate limit exceeded. Allowed: ${maxRequests} requests per ${windowSeconds}s.`,
-      });
+      record.timestamps = record.timestamps.filter((t) => t > windowStart);
+
+      if (record.timestamps.length >= maxRequests) {
+        reply.header('Retry-After', String(windowSeconds));
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: `Rate limit exceeded. Allowed: ${maxRequests} requests per ${windowSeconds}s.`,
+        });
+      }
     }
 
-    record.timestamps.push(now);
-    reply.header('X-RateLimit-Limit', String(maxRequests));
-    reply.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - record.timestamps.length)));
+    for (const key of keys) {
+      const record = memoryStore.get(key)!;
+      record.timestamps.push(now);
+    }
+
+    const primaryRecord = memoryStore.get(keys[0] as string);
+    if (primaryRecord) {
+      reply.header('X-RateLimit-Limit', String(maxRequests));
+      reply.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - primaryRecord.timestamps.length)));
+    }
   };
 }
 
@@ -76,6 +92,18 @@ export const parentForgotRateLimiter = createParentRateLimiter({
   windowSeconds: 900,
   maxRequests: 5,
   prefix: 'rl:parent:forgot',
+});
+
+export const parentVerifyEmailRateLimiter = createParentRateLimiter({
+  windowSeconds: 900,
+  maxRequests: 15,
+  prefix: 'rl:parent:verify-email',
+});
+
+export const parentResendVerificationRateLimiter = createParentRateLimiter({
+  windowSeconds: 900,
+  maxRequests: 5,
+  prefix: 'rl:parent:resend-verification',
 });
 
 export function resetParentRateLimitsForTest(): void {

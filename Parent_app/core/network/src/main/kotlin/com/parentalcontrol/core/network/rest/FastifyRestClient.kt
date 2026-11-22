@@ -193,6 +193,30 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun resendVerification(email: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("email", email.trim().lowercase())
+            }.toString()
+
+            val response = executePost("/api/v1/auth/resend-verification", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val msg = json.optString("message", "A fresh verification code has been dispatched to your email address.")
+                Result.success(msg)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Failed to resend verification code")
+                } catch (_: Exception) {
+                    "Resend verification failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun register(request: RegisterRequestDto): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = JSONObject().apply {

@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -80,7 +81,15 @@ fun ParentEmailVerificationScreen(
 
     var otpCode by remember { mutableStateOf("") }
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
+    var resendCooldown by remember { mutableStateOf(0) }
     val displayEmail = if (email.isNotBlank()) email else "your registered email"
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            kotlinx.coroutines.delay(1000L)
+            resendCooldown -= 1
+        }
+    }
 
     // Listen to ViewModel side-effects
     LaunchedEffect(viewModel) {
@@ -165,6 +174,34 @@ fun ParentEmailVerificationScreen(
             )
 
             Spacer(modifier = Modifier.height(Space16))
+
+            // Success Status Banner
+            if (uiState.statusMessage != null && displayErrorMessage == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF065F46).copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF10B981), RoundedCornerShape(12.dp))
+                        .padding(horizontal = Space16, vertical = Space12)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Verified,
+                            contentDescription = null,
+                            tint = Color(0xFF6EE7B7),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Space12))
+                        Text(
+                            text = uiState.statusMessage ?: "",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(Space16))
+            }
 
             // Error Alert Banner
             if (displayErrorMessage != null) {
@@ -330,6 +367,45 @@ fun ParentEmailVerificationScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(Space16))
+
+                // Resend OTP Section
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Didn't receive the code? ",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    TextButton(
+                        onClick = {
+                            if (resendCooldown <= 0 && !uiState.isResendingOtp && !uiState.isLoading) {
+                                resendCooldown = 60
+                                viewModel.handleIntent(AuthUiIntent.ResendVerification(displayEmail))
+                            }
+                        },
+                        enabled = resendCooldown <= 0 && !uiState.isResendingOtp && !uiState.isLoading
+                    ) {
+                        if (uiState.isResendingOtp) {
+                            CircularProgressIndicator(
+                                color = AccentCyan,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = if (resendCooldown > 0) "Resend (${resendCooldown}s)" else "Resend Code",
+                                color = if (resendCooldown <= 0) AccentCyan else TextMuted,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

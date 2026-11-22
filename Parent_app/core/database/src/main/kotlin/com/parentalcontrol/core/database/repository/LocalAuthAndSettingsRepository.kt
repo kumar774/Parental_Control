@@ -118,6 +118,10 @@ class LocalAuthRepository(
         return restClient.verifyEmail(trimmedCode, email.trim().lowercase()).map { }
     }
 
+    override suspend fun resendVerificationOtp(email: String): Result<String> {
+        return restClient.resendVerification(email.trim().lowercase())
+    }
+
     override suspend fun sendPasswordReset(email: String): Result<Unit> {
         return restClient.requestPasswordReset(email).map { }
     }

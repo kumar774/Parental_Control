@@ -521,11 +521,19 @@ fun ParentAppMainContent() {
                                         proceedToMainDashboard()
                                     } else {
                                         val err = sessionResult.exceptionOrNull()
+                                        val isUnverifiedEmail = (err?.message?.contains("403") == true) ||
+                                            (err?.message?.contains("not verified", ignoreCase = true) == true)
                                         val isExpiredOrInvalid = err is SessionExpiredException ||
                                             (err?.message?.contains("401") == true) ||
                                             (err?.message?.contains("USER_NOT_FOUND") == true)
 
-                                        if (isExpiredOrInvalid) {
+                                        if (isUnverifiedEmail) {
+                                            toastMessage = "Please verify your email address to access your dashboard"
+                                            toastType = ToastType.WARNING
+                                            currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
+                                            screenBackstack.clear()
+                                            screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                        } else if (isExpiredOrInvalid) {
                                             // Expired token -> attempt refresh via repository if available
                                             val savedRefreshToken = mmkv.refreshToken
                                             var refreshed = false
@@ -583,9 +591,17 @@ fun ParentAppMainContent() {
                                     proceedToMainDashboard()
                                 } else {
                                     val retryErr = retryResult.exceptionOrNull()
+                                    val isUnverified = (retryErr?.message?.contains("403") == true) ||
+                                        (retryErr?.message?.contains("not verified", ignoreCase = true) == true)
                                     val isExpired = retryErr is SessionExpiredException ||
                                         (retryErr?.message?.contains("401") == true)
-                                    if (isExpired) {
+                                    if (isUnverified) {
+                                        toastMessage = "Please verify your email address to access your dashboard"
+                                        toastType = ToastType.WARNING
+                                        currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
+                                        screenBackstack.clear()
+                                        screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                    } else if (isExpired) {
                                         mmkv.clearSession()
                                         FastifyRestClient.shared.accessToken = null
                                         FastifyRestClient.shared.refreshToken = null
@@ -1267,7 +1283,9 @@ fun ParentAppMainContent() {
                 AppScreen.PARENT_EMAIL_VERIFICATION -> {
                     ParentEmailVerificationScreen(
                         email = mmkv.userEmail ?: "your registered email",
-                        onNavigateBack = { currentScreen = AppScreen.REGISTER },
+                        onNavigateBack = {
+                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.REGISTER else AppScreen.LOGIN
+                        },
                         onVerificationSuccess = {
                             toastMessage = "Email verified successfully"
                             toastType = ToastType.SUCCESS

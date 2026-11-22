@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 
 data class AuthUiState(
     val isLoading: Boolean = false,
+    val isResendingOtp: Boolean = false,
     val currentAccount: ParentAccount? = null,
     val pairingCode: PairingCode? = null,
     val isOtpSent: Boolean = false,
@@ -31,6 +32,7 @@ sealed interface AuthUiIntent {
     data class Login(val email: String, val password: String) : AuthUiIntent
     data class Register(val email: String, val password: String, val fullName: String) : AuthUiIntent
     data class VerifyOtp(val email: String, val otpCode: String) : AuthUiIntent
+    data class ResendVerification(val email: String) : AuthUiIntent
     data class RequestPasswordReset(val email: String) : AuthUiIntent
     data class ResetPassword(val email: String, val otpCode: String, val newPassword: String) : AuthUiIntent
     data object GenerateQrPairing : AuthUiIntent
@@ -61,6 +63,7 @@ class AuthViewModel(
             is AuthUiIntent.Login -> login(intent.email, intent.password)
             is AuthUiIntent.Register -> register(intent.email, intent.password, intent.fullName)
             is AuthUiIntent.VerifyOtp -> verifyOtp(intent.email, intent.otpCode)
+            is AuthUiIntent.ResendVerification -> resendVerification(intent.email)
             is AuthUiIntent.RequestPasswordReset -> requestPasswordReset(intent.email)
             is AuthUiIntent.ResetPassword -> resetPassword(intent.email, intent.otpCode, intent.newPassword)
             is AuthUiIntent.GenerateQrPairing -> generatePairing()
@@ -280,6 +283,59 @@ class AuthViewModel(
                     )
                 }
                 sendEffect(AuthUiEffect.ShowToast(err.message ?: "Invalid OTP code", isSuccess = false))
+            }
+        }
+    }
+
+    private fun resendVerification(email: String) {
+        val trimmedEmail = email.trim()
+        val normalizedEmail = trimmedEmail.lowercase()
+
+        if (trimmedEmail.isEmpty() || !EMAIL_PATTERN.matches(trimmedEmail)) {
+            updateState { copy(errorMessage = "Please enter a valid email address (e.g. name@domain.com)") }
+            return
+        }
+
+        updateState { copy(isResendingOtp = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result = if (authRepository != null) {
+                authRepository.resendVerificationOtp(normalizedEmail)
+            } else {
+                FastifyRestClient.shared.resendVerification(normalizedEmail)
+            }
+
+            result.onSuccess { msg ->
+                updateState {
+                    copy(
+                        isResendingOtp = false,
+                        statusMessage = msg
+                    )
+                }
+                sendEffect(AuthUiEffect.ShowToast(msg))
+            }.onFailure { err ->
+                val msg = err.message ?: ""
+                val isUnavailable = msg.contains("501") ||
+                    msg.contains("not implemented", ignoreCase = true) ||
+                    msg.contains("not configured", ignoreCase = true) ||
+                    msg.contains("unavailable", ignoreCase = true) ||
+                    msg.contains("SMTP", ignoreCase = true)
+                updateState {
+                    copy(
+                        isResendingOtp = false,
+                        errorMessage = if (isUnavailable) {
+                            "Email delivery service is currently unavailable on this server."
+                        } else {
+                            err.message ?: "Failed to resend verification code."
+                        },
+                        isEmailServiceUnavailable = isUnavailable
+                    )
+                }
+                sendEffect(
+                    AuthUiEffect.ShowToast(
+                        if (isUnavailable) "Email delivery service unavailable" else (err.message ?: "Failed to resend verification code"),
+                        isSuccess = false
+                    )
+                )
             }
         }
     }

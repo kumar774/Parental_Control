@@ -1,6 +1,6 @@
 import { db } from '../../db/index';
-import { parentVerificationTokens } from '../../db/schema/parental-control';
-import { eq, and } from 'drizzle-orm';
+import { parentUsers, parentVerificationTokens } from '../../db/schema/parental-control';
+import { eq, and, desc } from 'drizzle-orm';
 import { emailService } from '../../services/email/index';
 
 export interface EmailTransport {
@@ -57,26 +57,54 @@ export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
  * Checks if a parent account has verified their email address.
  * Zero-trust enforcement:
  * - If email delivery is not configured, returns true (preserving SMTP unavailable behavior).
- * - If email delivery is configured, queries parent_verification_tokens:
- *   If any active unverified token (type = 'email_verification', is_used = false) exists,
- *   the account is considered UNVERIFIED and returns false.
+ * - If email delivery is configured:
+ *   1. Returns true if user.emailVerified is true.
+ *   2. For accounts with verification tokens:
+ *      - Returns true if any token was successfully used (isUsed = true).
+ *      - Returns false if tokens exist but none was used (unverified accounts cannot access protected APIs).
+ *   3. For legacy accounts with no verification tokens in database, returns true for backward compatibility.
  */
 export async function isParentEmailVerified(userId: string): Promise<boolean> {
   if (!isEmailConfigured()) {
     return true;
   }
 
-  const [pending] = await db
-    .select({ id: parentVerificationTokens.id })
+  const [user] = await db
+    .select({ emailVerified: parentUsers.emailVerified })
+    .from(parentUsers)
+    .where(eq(parentUsers.id, userId))
+    .limit(1);
+
+  if (user?.emailVerified) {
+    return true;
+  }
+
+  // Check all email_verification tokens for this parent
+  const tokens = await db
+    .select({
+      id: parentVerificationTokens.id,
+      isUsed: parentVerificationTokens.isUsed,
+      expiresAt: parentVerificationTokens.expiresAt,
+    })
     .from(parentVerificationTokens)
     .where(
       and(
         eq(parentVerificationTokens.parentId, userId),
-        eq(parentVerificationTokens.type, 'email_verification'),
-        eq(parentVerificationTokens.isUsed, false)
+        eq(parentVerificationTokens.type, 'email_verification')
       )
     )
-    .limit(1);
+    .orderBy(desc(parentVerificationTokens.createdAt));
 
-  return !pending;
+  if (tokens.length === 0) {
+    // Legacy accounts or direct inserts with no verification tokens are considered verified
+    return true;
+  }
+
+  // If any token was successfully used, account is verified
+  if (tokens.some((t) => t.isUsed)) {
+    return true;
+  }
+
+  // Account has verification token(s), but none was used -> unverified.
+  return false;
 }

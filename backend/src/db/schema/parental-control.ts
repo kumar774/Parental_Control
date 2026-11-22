@@ -24,6 +24,7 @@ export const parentUsers = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
     fullName: text('full_name'),
+    emailVerified: boolean('email_verified').notNull().default(false),
     phone: varchar('phone', { length: 32 }),
     passwordHash: text('password_hash').notNull(),
     familyPinHash: text('family_pin_hash'),

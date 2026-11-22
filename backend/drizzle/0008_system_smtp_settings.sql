@@ -15,3 +15,23 @@ CREATE TABLE IF NOT EXISTS "system_smtp_settings" (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "system_smtp_settings" TO parental_admin;
+
+--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email_verified" boolean NOT NULL DEFAULT false;
+
+--> statement-breakpoint
+UPDATE "users"
+SET "email_verified" = true
+WHERE id NOT IN (
+  SELECT parent_id FROM parent_verification_tokens
+  WHERE type = 'email_verification' AND is_used = false
+);
+
+--> statement-breakpoint
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parental_admin') THEN
+    GRANT SELECT, INSERT ON TABLE "users" TO parental_admin;
+    GRANT UPDATE (email_verified, full_name, status, updated_at) ON TABLE "users" TO parental_admin;
+  END IF;
+END $$;
