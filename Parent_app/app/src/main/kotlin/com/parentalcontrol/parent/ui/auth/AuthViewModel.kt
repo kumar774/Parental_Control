@@ -127,8 +127,20 @@ class AuthViewModel(
         viewModelScope.launch {
             val result = authenticateParentUseCase.register(normalizedEmail, password, trimmedName)
             result.onSuccess { account ->
-                updateState { copy(isLoading = false, currentAccount = account, isOtpSent = true) }
-                sendEffect(AuthUiEffect.ShowToast("Account created successfully! Please verify your email."))
+                val emailFailed = account.isEmailDeliveryFailed
+                updateState {
+                    copy(
+                        isLoading = false,
+                        currentAccount = account,
+                        isOtpSent = !emailFailed,
+                        errorMessage = if (emailFailed) "Registration successful, but verification email failed to deliver. Please use Resend Code." else null
+                    )
+                }
+                if (emailFailed) {
+                    sendEffect(AuthUiEffect.ShowToast("Verification email delivery failed. Please request a new code.", isSuccess = false))
+                } else {
+                    sendEffect(AuthUiEffect.ShowToast("Account created successfully! Please verify your email."))
+                }
                 sendEffect(AuthUiEffect.NavigateToEmailVerification)
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Registration failed. Please check details."

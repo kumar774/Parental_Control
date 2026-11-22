@@ -16,7 +16,8 @@ data class ParentAccount(
     val tier: AccountTier = AccountTier.FREE,
     val maxDevicesQuota: Int = 1,
     val boundDevicesCount: Int = 1,
-    val isBiometricsRequired: Boolean = true
+    val isBiometricsRequired: Boolean = true,
+    val isEmailDeliveryFailed: Boolean = false
 )
 
 data class SubscriptionPlan(

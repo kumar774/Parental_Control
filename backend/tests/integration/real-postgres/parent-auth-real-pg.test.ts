@@ -9,7 +9,10 @@ import {
   parentRefreshTokens,
   parentVerificationTokens,
 } from '../../../src/db/schema/parental-control';
-import { resetParentRateLimitsForTest } from '../../../src/middleware/parent-rate-limiter';
+import {
+  resetParentRateLimitsForTest,
+  setForceProductionModeForTest,
+} from '../../../src/middleware/parent-rate-limiter';
 import {
   setEmailConfiguredOverrideForTest,
   setEmailTransport,
@@ -31,8 +34,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     readyApp = await app;
   });
 
-  beforeEach(() => {
-    resetParentRateLimitsForTest();
+  beforeEach(async () => {
+    await resetParentRateLimitsForTest();
+    setForceProductionModeForTest(null);
     setEmailConfiguredOverrideForTest(null);
     resetPendingResetStoreForTest();
     resetDispatchedOtpForTest();
@@ -124,9 +128,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
 
     // Mark email verified so verified parent login can succeed
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
 
     // Login
     const res = await readyApp!.inject({
@@ -160,9 +164,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
 
     // Mark email verified so user can access protected endpoints
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
 
     // Log in to obtain verified access token
     const loginRes = await readyApp!.inject({
@@ -941,9 +945,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
 
     // 3. Verify email
     await db
-      .update(parentVerificationTokens)
-      .set({ isUsed: true, usedAt: sql`NOW()` })
-      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+      .update(parentUsers)
+      .set({ emailVerified: true })
+      .where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
 
     // 4. Attempt login AFTER verifying email -> must succeed with HTTP 200
     const verifiedLoginRes = await readyApp!.inject({
@@ -1225,5 +1229,276 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       payload: { email: testEmail, otpCode: '000006' },
     });
     assert.equal(subRes.statusCode, 429);
+  });
+
+  it('20. Mandatory PostgreSQL Regression: Resend verification marks old OTP as invalidated, denies unverified access, and allows login only after verifying fresh OTP', async () => {
+    let capturedOtp: string | null = null;
+    setEmailTransport({
+      async sendVerificationEmail(_to, _subject, _body, otpCode) {
+        capturedOtp = otpCode;
+        return { delivered: true };
+      },
+    });
+
+    const testEmail = `parent-resend-bypass-${Date.now()}@example.test`;
+
+    // 1. Register account
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Resend Lifecycle Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const initialOtp = capturedOtp;
+    assert.ok(initialOtp, 'Initial OTP must be captured');
+
+    // Verify initial token state in DB: status = pending, isUsed = false
+    const [initialToken] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${testEmail.toLowerCase()}`,
+          eq(parentVerificationTokens.type, 'email_verification')
+        )
+      )
+      .orderBy(desc(parentVerificationTokens.createdAt))
+      .limit(1);
+    assert.ok(initialToken);
+    assert.equal(initialToken.status, 'pending');
+    assert.equal(initialToken.isUsed, false);
+
+    // 2. Resend verification OTP (generates new OTP and invalidates previous token)
+    capturedOtp = null;
+    const resendRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/resend-verification',
+      payload: { email: testEmail },
+    });
+    assert.equal(resendRes.statusCode, 200);
+    const freshOtp = capturedOtp;
+    assert.ok(freshOtp, 'Fresh OTP must be captured');
+    assert.notEqual(freshOtp, initialOtp, 'Fresh OTP must differ from initial OTP');
+
+    // Verify initial token in DB is now marked status = invalidated, isUsed = true
+    const [invalidatedToken] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(eq(parentVerificationTokens.id, initialToken.id));
+    assert.ok(invalidatedToken);
+    assert.equal(invalidatedToken.status, 'invalidated', 'Prior token must be explicitly invalidated');
+    assert.equal(invalidatedToken.isUsed, true);
+
+    // Verify fresh token in DB is marked status = pending, isUsed = false
+    const [freshToken] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(
+        and(
+          sql`LOWER(${parentVerificationTokens.email}) = ${testEmail.toLowerCase()}`,
+          eq(parentVerificationTokens.type, 'email_verification'),
+          eq(parentVerificationTokens.isUsed, false)
+        )
+      );
+    assert.ok(freshToken);
+    assert.equal(freshToken.status, 'pending');
+    assert.equal(freshToken.isUsed, false);
+
+    // 3. CRITICAL REGRESSION CHECK: Attempt login WITHOUT verifying the new OTP
+    // Even though the old token is is_used = true, the account must NOT be verified!
+    const unverifiedLoginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(unverifiedLoginRes.statusCode, 403, 'Unverified parent account MUST be denied login (HTTP 403)');
+    assert.match(unverifiedLoginRes.json().message, /Email not verified/i);
+
+    // 4. Submit fresh OTP to POST /verify-email
+    const verifyRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: {
+        email: testEmail,
+        otpCode: freshOtp,
+      },
+    });
+    assert.equal(verifyRes.statusCode, 200, 'Fresh OTP must verify successfully');
+
+    // Verify DB states: fresh token is consumed, user email_verified is true
+    const [consumedToken] = await db
+      .select()
+      .from(parentVerificationTokens)
+      .where(eq(parentVerificationTokens.id, freshToken.id));
+    assert.ok(consumedToken);
+    assert.equal(consumedToken.status, 'consumed', 'Fresh token must be marked consumed');
+    assert.equal(consumedToken.isUsed, true);
+
+    const [userRecord] = await db
+      .select()
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${testEmail.toLowerCase()}`);
+    assert.ok(userRecord);
+    assert.strictEqual(userRecord.emailVerified, true, 'User email_verified must be canonical true');
+
+    // 5. Login now succeeds
+    const verifiedLoginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(verifiedLoginRes.statusCode, 200, 'Login must succeed once email is verified');
+    const loginData = verifiedLoginRes.json();
+    assert.ok(loginData.accessToken);
+
+    // 6. Protected endpoint access succeeds
+    const meRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${loginData.accessToken}`,
+      },
+    });
+    assert.equal(meRes.statusCode, 200, 'Protected endpoint access must succeed');
+  });
+
+  it('21. SMTP delivery false-positive regression: handles throw, delivered: false, and delivered: true honestly', async () => {
+    // 21a. Transport throws exception
+    setEmailTransport({
+      async sendVerificationEmail() {
+        throw new Error('SMTP socket timeout at port 587');
+      },
+    });
+
+    const emailEx = `smtp-throw-${Date.now()}@example.test`;
+    const resThrow = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: emailEx,
+        fullName: 'Throw Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(resThrow.statusCode, 201);
+    const bodyThrow = resThrow.json();
+    assert.strictEqual(bodyThrow.requiresEmailVerification, true);
+    assert.strictEqual(bodyThrow.verificationEmailSent, false, 'verificationEmailSent must be false when SMTP throws');
+    assert.match(bodyThrow.message, /failed to deliver verification email/i);
+    assert.equal(bodyThrow.verificationOtp, undefined, 'Raw OTP must NEVER be exposed in response');
+
+    // 21b. Transport resolves with { delivered: false }
+    setEmailTransport({
+      async sendVerificationEmail() {
+        return { delivered: false, error: 'SMTP connection refused at 127.0.0.1:1025' };
+      },
+    });
+
+    const emailFail = `smtp-fail-${Date.now()}@example.test`;
+    const resFail = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: emailFail,
+        fullName: 'Fail Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(resFail.statusCode, 201);
+    const bodyFail = resFail.json();
+    assert.strictEqual(bodyFail.requiresEmailVerification, true);
+    assert.strictEqual(bodyFail.verificationEmailSent, false, 'verificationEmailSent must be false when delivered: false');
+    assert.match(bodyFail.message, /failed to deliver verification email/i);
+    assert.equal(bodyFail.verificationOtp, undefined, 'Raw OTP must NEVER be exposed in response');
+
+    // 21c. Transport resolves with { delivered: true }
+    setEmailTransport({
+      async sendVerificationEmail() {
+        return { delivered: true };
+      },
+    });
+
+    const emailSuccess = `smtp-success-${Date.now()}@example.test`;
+    const resSuccess = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: emailSuccess,
+        fullName: 'Success Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(resSuccess.statusCode, 201);
+    const bodySuccess = resSuccess.json();
+    assert.strictEqual(bodySuccess.requiresEmailVerification, true);
+    assert.strictEqual(bodySuccess.verificationEmailSent, true, 'verificationEmailSent must be true when delivered: true');
+    assert.match(bodySuccess.message, /verification code sent to your inbox/i);
+    assert.equal(bodySuccess.verificationOtp, undefined, 'Raw OTP must NEVER be exposed in response');
+  });
+
+  it('22. Production Rate Limiter: fails closed with HTTP 503 on database query failure and avoids silent in-memory bypass', async () => {
+    // 22a. In production mode, simulating DB failure triggers controlled HTTP 503 fail-closed
+    setForceProductionModeForTest(true);
+
+    const origExecute = (db as any).execute;
+    try {
+      // Mock db.execute to simulate PostgreSQL error (e.g. permission error, missing table, connection failure)
+      (db as any).execute = async () => {
+        const err: any = new Error('permission denied for table parent_rate_limits');
+        err.code = '42501';
+        throw err;
+      };
+
+      const failClosedRes = await readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: {
+          email: `prod-failclosed-${Date.now()}@example.test`,
+          fullName: 'Fail Closed Parent',
+          password: validPassword,
+        },
+      });
+
+      assert.equal(failClosedRes.statusCode, 503, 'Must return HTTP 503 Service Unavailable when DB fails in production');
+      assert.ok(failClosedRes.headers['retry-after'], 'Must provide Retry-After header');
+      assert.match(failClosedRes.json().message, /Rate limiting service temporarily unavailable/i);
+    } finally {
+      (db as any).execute = origExecute;
+      setForceProductionModeForTest(null);
+    }
+
+    // 22b. In non-production mode, fallback to in-memory store allows graceful test continuation
+    setForceProductionModeForTest(false);
+    try {
+      (db as any).execute = async () => {
+        throw new Error('Local mock DB query failure');
+      };
+
+      const fallbackRes = await readyApp!.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: {
+          email: `nonprod-fallback-${Date.now()}@example.test`,
+          fullName: 'Fallback Parent',
+          password: validPassword,
+        },
+      });
+
+      // In non-prod fallback, request proceeds through in-memory store without 503
+      assert.notEqual(fallbackRes.statusCode, 503, 'Non-production environment must allow in-memory fallback');
+    } finally {
+      (db as any).execute = origExecute;
+      setForceProductionModeForTest(null);
+    }
   });
 });

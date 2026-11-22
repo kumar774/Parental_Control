@@ -22,10 +22,24 @@ if (cleanupInterval.unref) {
   cleanupInterval.unref();
 }
 
+let forceProductionModeForTest: boolean | null = null;
+
+export function setForceProductionModeForTest(val: boolean | null): void {
+  forceProductionModeForTest = val;
+}
+
+export function isProductionRateLimiting(): boolean {
+  if (forceProductionModeForTest !== null) {
+    return forceProductionModeForTest;
+  }
+  return process.env.NODE_ENV === 'production';
+}
+
 /**
  * Creates a hybrid rate limiter for parent endpoints:
  * 1. Primary: PostgreSQL atomic upsert on `parent_rate_limits` for durable, multi-instance production distribution.
- * 2. Fallback: In-memory sliding-window store when database is unavailable or running under lightweight mock engine.
+ * 2. Production Fail-Safe: Fails closed with HTTP 503 if PostgreSQL is unavailable or errors (no silent process-local bypass).
+ * 3. Fallback: In-memory sliding-window store ONLY in explicitly non-production / local test environments.
  */
 export function createParentRateLimiter(options: {
   windowSeconds: number;
@@ -90,8 +104,28 @@ export function createParentRateLimiter(options: {
           }
         }
         handledByDb = true;
+      } else {
+        if (isProductionRateLimiting()) {
+          request.log.error('PostgreSQL database instance unavailable for production rate limiting');
+          reply.header('Retry-After', '60');
+          return reply.status(503).send({
+            statusCode: 503,
+            error: 'Service Unavailable',
+            message: 'Rate limiting service temporarily unavailable. Please retry shortly.',
+          });
+        }
       }
-    } catch {
+    } catch (err: any) {
+      request.log.error({ err }, 'PostgreSQL rate limiter query failed');
+      if (isProductionRateLimiting()) {
+        // Fail closed in production: Never silently bypass distributed rate limiting
+        reply.header('Retry-After', '60');
+        return reply.status(503).send({
+          statusCode: 503,
+          error: 'Service Unavailable',
+          message: 'Rate limiting service temporarily unavailable. Please retry shortly.',
+        });
+      }
       handledByDb = false;
     }
 
@@ -160,11 +194,11 @@ export const parentResendVerificationRateLimiter = createParentRateLimiter({
   prefix: 'rl:parent:resend-verification',
 });
 
-export function resetParentRateLimitsForTest(): void {
+export async function resetParentRateLimitsForTest(): Promise<void> {
   memoryStore.clear();
   try {
     if (db && typeof (db as any).execute === 'function') {
-      db.execute(sql`DELETE FROM parent_rate_limits`).catch(() => {});
+      await db.execute(sql`DELETE FROM parent_rate_limits`);
     }
   } catch (_) {}
 }

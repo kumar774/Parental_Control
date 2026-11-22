@@ -154,6 +154,7 @@ export const parentVerificationTokens = pgTable(
     attempts: integer('attempts').notNull().default(0),
     maxAttempts: integer('max_attempts').notNull().default(5),
     isUsed: boolean('is_used').notNull().default(false),
+    status: varchar('status', { length: 32 }).notNull().default('pending'),
     usedAt: timestamp('used_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

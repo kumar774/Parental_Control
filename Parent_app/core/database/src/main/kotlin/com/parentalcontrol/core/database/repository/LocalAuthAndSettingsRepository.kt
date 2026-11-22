@@ -74,7 +74,8 @@ class LocalAuthRepository(
                 email = user.email,
                 fullName = user.fullName,
                 familyCardId = user.familyCardNo,
-                isBiometricsRequired = database.mmkv.isBiometricEnabled
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = false
             )
             accountFlow.value = account
             account
@@ -109,7 +110,8 @@ class LocalAuthRepository(
                 email = user.email,
                 fullName = user.fullName,
                 familyCardId = user.familyCardNo,
-                isBiometricsRequired = database.mmkv.isBiometricEnabled
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = !authDto.verificationEmailSent
             )
             accountFlow.value = account
             account
@@ -162,7 +164,8 @@ class LocalAuthRepository(
                 email = user.email,
                 fullName = user.fullName,
                 familyCardId = user.familyCardNo,
-                isBiometricsRequired = database.mmkv.isBiometricEnabled
+                isBiometricsRequired = database.mmkv.isBiometricEnabled,
+                isEmailDeliveryFailed = false
             )
             accountFlow.value = account
             account

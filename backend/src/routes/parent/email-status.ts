@@ -1,6 +1,6 @@
 import { db } from '../../db/index';
 import { parentUsers, parentVerificationTokens } from '../../db/schema/parental-control';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { emailService } from '../../services/email/index';
 
 export interface EmailTransport {
@@ -55,14 +55,14 @@ export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
 
 /**
  * Checks if a parent account has verified their email address.
+ * Canonical source of truth: parentUsers.emailVerified.
  * Zero-trust enforcement:
  * - If email delivery is not configured, returns true (preserving SMTP unavailable behavior).
  * - If email delivery is configured:
  *   1. Returns true if user.emailVerified is true.
- *   2. For accounts with verification tokens:
- *      - Returns true if any token was successfully used (isUsed = true).
- *      - Returns false if tokens exist but none was used (unverified accounts cannot access protected APIs).
- *   3. For legacy accounts with no verification tokens in database, returns true for backward compatibility.
+ *   2. For legacy accounts with no verification tokens in database, returns true for backward compatibility.
+ *   3. If user has verification tokens and user.emailVerified is false, returns false.
+ *      Invalidated, revoked, pending, or expired tokens NEVER grant verified status.
  */
 export async function isParentEmailVerified(userId: string): Promise<boolean> {
   if (!isEmailConfigured()) {
@@ -75,7 +75,11 @@ export async function isParentEmailVerified(userId: string): Promise<boolean> {
     .where(eq(parentUsers.id, userId))
     .limit(1);
 
-  if (user?.emailVerified) {
+  if (!user) {
+    return false;
+  }
+
+  if (user.emailVerified) {
     return true;
   }
 
@@ -84,6 +88,7 @@ export async function isParentEmailVerified(userId: string): Promise<boolean> {
     .select({
       id: parentVerificationTokens.id,
       isUsed: parentVerificationTokens.isUsed,
+      status: parentVerificationTokens.status,
       expiresAt: parentVerificationTokens.expiresAt,
     })
     .from(parentVerificationTokens)
@@ -93,18 +98,13 @@ export async function isParentEmailVerified(userId: string): Promise<boolean> {
         eq(parentVerificationTokens.type, 'email_verification')
       )
     )
-    .orderBy(desc(parentVerificationTokens.createdAt));
+    .limit(1);
 
   if (tokens.length === 0) {
     // Legacy accounts or direct inserts with no verification tokens are considered verified
     return true;
   }
 
-  // If any token was successfully used, account is verified
-  if (tokens.some((t) => t.isUsed)) {
-    return true;
-  }
-
-  // Account has verification token(s), but none was used -> unverified.
+  // Account has verification token(s) but user.emailVerified is false -> unverified.
   return false;
 }
