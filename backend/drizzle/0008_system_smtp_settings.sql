@@ -50,3 +50,7 @@ BEGIN
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "parent_rate_limits" TO parental_admin;
   END IF;
 END $$;
+
+--> statement-breakpoint
+ALTER TABLE "parent_verification_tokens" ADD COLUMN IF NOT EXISTS "status" varchar(32) DEFAULT 'pending' NOT NULL;
+

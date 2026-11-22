@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS "parent_verification_tokens" (
   "attempts" integer DEFAULT 0 NOT NULL,
   "max_attempts" integer DEFAULT 5 NOT NULL,
   "is_used" boolean DEFAULT false NOT NULL,
+  "status" varchar(32) DEFAULT 'pending' NOT NULL,
   "used_at" timestamp with time zone,
   "expires_at" timestamp with time zone NOT NULL,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
