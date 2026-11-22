@@ -298,27 +298,100 @@ fun ParentAppMainContent() {
         mutableStateListOf(AppScreen.SPLASH)
     }
 
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
+
+    // Centralized Navigation Boundary Helpers
+    fun isAuthenticationScreen(screen: AppScreen): Boolean {
+        return screen == AppScreen.SPLASH ||
+            screen == AppScreen.WELCOME_CAROUSEL ||
+            screen == AppScreen.LOGIN ||
+            screen == AppScreen.REGISTER ||
+            screen == AppScreen.FORGOT_PASSWORD ||
+            screen == AppScreen.PARENT_EMAIL_VERIFICATION ||
+            screen == AppScreen.CONNECTION_ERROR
+    }
+
+    fun navigateToAuthenticatedRoot() {
+        currentNavRoute = "home"
+        currentScreen = AppScreen.MAIN_SHELL
+        screenBackstack.clear()
+        screenBackstack.add(AppScreen.MAIN_SHELL)
+    }
+
+    fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
+        currentScreen = screen
+        screenBackstack.clear()
+        screenBackstack.add(screen)
+    }
+
+    fun performLogout(message: String = "Logged out successfully") {
+        mmkv.clearSession()
+        FastifyRestClient.shared.accessToken = null
+        FastifyRestClient.shared.refreshToken = null
+        currentNavRoute = "home"
+        navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        toastMessage = message
+        toastType = ToastType.INFO
+    }
+
+    // Process recreation / auth guard: if restored on authenticated screen without token, redirect to login
+    LaunchedEffect(Unit) {
+        if (!isAuthenticationScreen(currentScreen) && mmkv.accessToken.isNullOrBlank()) {
+            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        } else if (!isAuthenticationScreen(currentScreen)) {
+            screenBackstack.removeAll { isAuthenticationScreen(it) }
+            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
+                screenBackstack.add(0, AppScreen.MAIN_SHELL)
+            }
+        }
+    }
+
     // Global session expiry listener (reactive kick to Login on 401 or DB deletion)
     LaunchedEffect(Unit) {
         SessionEventBus.sessionExpiredFlow.collect {
-            mmkv.clearSession()
-            FastifyRestClient.shared.accessToken = null
-            FastifyRestClient.shared.refreshToken = null
-            currentScreen = AppScreen.LOGIN
-            screenBackstack.clear()
-            screenBackstack.add(AppScreen.LOGIN)
+            performLogout("Session expired. Please log in again.")
         }
     }
 
     // Keep screenBackstack in sync with currentScreen
     LaunchedEffect(currentScreen) {
-        if (screenBackstack.contains(currentScreen)) {
-            val idx = screenBackstack.lastIndexOf(currentScreen)
+        if (currentScreen != AppScreen.SPLASH) {
+            screenBackstack.remove(AppScreen.SPLASH)
+        }
+        if (currentScreen == AppScreen.MAIN_SHELL) {
+            // MAIN_SHELL is the authenticated root: purge any unauthenticated history
+            screenBackstack.removeAll { isAuthenticationScreen(it) }
+            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
+                screenBackstack.add(0, AppScreen.MAIN_SHELL)
+            }
+            val idx = screenBackstack.lastIndexOf(AppScreen.MAIN_SHELL)
             while (screenBackstack.size > idx + 1) {
                 screenBackstack.removeAt(screenBackstack.lastIndex)
             }
+        } else if (isAuthenticationScreen(currentScreen)) {
+            screenBackstack.removeAll { !isAuthenticationScreen(it) }
+            if (screenBackstack.contains(currentScreen)) {
+                val idx = screenBackstack.lastIndexOf(currentScreen)
+                while (screenBackstack.size > idx + 1) {
+                    screenBackstack.removeAt(screenBackstack.lastIndex)
+                }
+            } else {
+                screenBackstack.add(currentScreen)
+            }
         } else {
-            screenBackstack.add(currentScreen)
+            // Sub-screen of authenticated shell
+            if (!screenBackstack.contains(AppScreen.MAIN_SHELL)) {
+                screenBackstack.add(0, AppScreen.MAIN_SHELL)
+            }
+            if (screenBackstack.contains(currentScreen)) {
+                val idx = screenBackstack.lastIndexOf(currentScreen)
+                while (screenBackstack.size > idx + 1) {
+                    screenBackstack.removeAt(screenBackstack.lastIndex)
+                }
+            } else {
+                screenBackstack.add(currentScreen)
+            }
         }
     }
 
@@ -367,8 +440,6 @@ fun ParentAppMainContent() {
     var showAvatarCropperModal by remember { mutableStateOf(false) }
     var selectedLegalDocType by remember { mutableStateOf("privacy") }
 
-    var toastMessage by remember { mutableStateOf<String?>(null) }
-    var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
     var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
     var isRetryingConnection by remember { mutableStateOf(false) }
@@ -421,29 +492,37 @@ fun ParentAppMainContent() {
             return true
         }
 
-        // 2. If screenBackstack has more than 1 screen, pop back to previous screen
+        // 2. When at the authenticated root (MAIN_SHELL):
+        if (currentScreen == AppScreen.MAIN_SHELL) {
+            // Tab navigation: if not on "home" tab, return to "home" tab
+            if (currentNavRoute != "home") {
+                currentNavRoute = "home"
+                return true
+            }
+            // On "home" tab: ensure clean backstack with only MAIN_SHELL and return false for double-back-to-exit
+            if (screenBackstack.size != 1 || screenBackstack.firstOrNull() != AppScreen.MAIN_SHELL) {
+                screenBackstack.clear()
+                screenBackstack.add(AppScreen.MAIN_SHELL)
+            }
+            return false
+        }
+
+        // 3. For all other screens: if screenBackstack has previous screen, pop to it
         if (screenBackstack.size > 1) {
             screenBackstack.removeAt(screenBackstack.lastIndex)
-            currentScreen = screenBackstack.last()
+            val targetScreen = screenBackstack.last()
+            // If target is an auth screen but user is currently authenticated, route safely to authenticated root
+            if (isAuthenticationScreen(targetScreen) && !mmkv.accessToken.isNullOrBlank()) {
+                navigateToAuthenticatedRoot()
+            } else {
+                currentScreen = targetScreen
+            }
             return true
         }
 
-        // 3. Fallback for sub-screens if backstack was ever desynchronized
-        if (currentScreen != AppScreen.MAIN_SHELL &&
-            currentScreen != AppScreen.LOGIN &&
-            currentScreen != AppScreen.WELCOME_CAROUSEL &&
-            currentScreen != AppScreen.SPLASH &&
-            currentScreen != AppScreen.CONNECTION_ERROR
-        ) {
-            currentScreen = AppScreen.MAIN_SHELL
-            screenBackstack.clear()
-            screenBackstack.add(AppScreen.MAIN_SHELL)
-            return true
-        }
-
-        // 4. Inside MAIN_SHELL: If user switched to another tab ("me", "map", "lock", "limits"), back returns to "home"
-        if (currentScreen == AppScreen.MAIN_SHELL && currentNavRoute != "home") {
-            currentNavRoute = "home"
+        // 4. Fallback for authenticated sub-screens if backstack was ever desynchronized
+        if (!isAuthenticationScreen(currentScreen)) {
+            navigateToAuthenticatedRoot()
             return true
         }
 
@@ -481,19 +560,19 @@ fun ParentAppMainContent() {
                     subtitle = "Scan fingerprint to access your dashboard",
                     negativeButtonText = "Log In Again",
                     onSuccess = {
-                        currentScreen = AppScreen.MAIN_SHELL
+                        navigateToAuthenticatedRoot()
                     },
                     onError = { err ->
                         toastMessage = "Biometric cancelled: $err"
                         toastType = ToastType.INFO
-                        currentScreen = AppScreen.LOGIN
+                        navigateToUnauthenticatedRoot(AppScreen.LOGIN)
                     }
                 )
             } else {
-                currentScreen = AppScreen.MAIN_SHELL
+                navigateToAuthenticatedRoot()
             }
         } else {
-            currentScreen = AppScreen.MAIN_SHELL
+            navigateToAuthenticatedRoot()
         }
     }
 
@@ -537,9 +616,7 @@ fun ParentAppMainContent() {
                                         if (isUnverifiedEmail) {
                                             toastMessage = "Please verify your email address to access your dashboard"
                                             toastType = ToastType.WARNING
-                                            currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
-                                            screenBackstack.clear()
-                                            screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                         } else if (isExpiredOrInvalid) {
                                             // Expired token -> attempt refresh via repository if available
                                             val savedRefreshToken = mmkv.refreshToken
@@ -559,22 +636,13 @@ fun ParentAppMainContent() {
 
                                             if (!refreshed) {
                                                 // Invalid session -> Login
-                                                mmkv.clearSession()
-                                                FastifyRestClient.shared.accessToken = null
-                                                FastifyRestClient.shared.refreshToken = null
-                                                toastMessage = "Session expired or user deleted. Please log in again."
-                                                toastType = ToastType.ERROR
-                                                currentScreen = AppScreen.LOGIN
-                                                screenBackstack.clear()
-                                                screenBackstack.add(AppScreen.LOGIN)
+                                                performLogout("Session expired or user deleted. Please log in again.")
                                             }
                                         } else {
                                             // Server unreachable / network failure -> Show a recoverable retry/connection error screen.
                                             // NEVER bypass authentication into MAIN_SHELL on network failure!
                                             connectionErrorMessage = err?.message ?: "Unable to connect to guardian servers"
-                                            currentScreen = AppScreen.CONNECTION_ERROR
-                                            screenBackstack.clear()
-                                            screenBackstack.add(AppScreen.CONNECTION_ERROR)
+                                            navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
                                         }
                                     }
                                 }
@@ -605,18 +673,9 @@ fun ParentAppMainContent() {
                                     if (isUnverified) {
                                         toastMessage = "Please verify your email address to access your dashboard"
                                         toastType = ToastType.WARNING
-                                        currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
-                                        screenBackstack.clear()
-                                        screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                        navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                     } else if (isExpired) {
-                                        mmkv.clearSession()
-                                        FastifyRestClient.shared.accessToken = null
-                                        FastifyRestClient.shared.refreshToken = null
-                                        toastMessage = "Session expired. Please log in again."
-                                        toastType = ToastType.ERROR
-                                        currentScreen = AppScreen.LOGIN
-                                        screenBackstack.clear()
-                                        screenBackstack.add(AppScreen.LOGIN)
+                                        performLogout("Session expired. Please log in again.")
                                     } else {
                                         connectionErrorMessage = retryErr?.message ?: "Server unreachable"
                                         toastMessage = "Connection failed. Server still unreachable."
@@ -626,12 +685,7 @@ fun ParentAppMainContent() {
                             }
                         },
                         onLoginAgainClick = {
-                            mmkv.clearSession()
-                            FastifyRestClient.shared.accessToken = null
-                            FastifyRestClient.shared.refreshToken = null
-                            currentScreen = AppScreen.LOGIN
-                            screenBackstack.clear()
-                            screenBackstack.add(AppScreen.LOGIN)
+                            performLogout("Please log in again.")
                         }
                     )
                 }
@@ -652,7 +706,7 @@ fun ParentAppMainContent() {
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
                             toastType = ToastType.SUCCESS
-                            currentScreen = AppScreen.MAIN_SHELL
+                            navigateToAuthenticatedRoot()
                         },
                         onRegisterClick = {
                             currentScreen = AppScreen.REGISTER
@@ -678,7 +732,7 @@ fun ParentAppMainContent() {
                                     onSuccess = {
                                         toastMessage = "Biometric authenticated"
                                         toastType = ToastType.SUCCESS
-                                        currentScreen = AppScreen.MAIN_SHELL
+                                        navigateToAuthenticatedRoot()
                                     },
                                     onError = { err ->
                                         toastMessage = "Biometric cancelled: $err"
@@ -1296,9 +1350,11 @@ fun ParentAppMainContent() {
                         onVerificationSuccess = {
                             toastMessage = "Email verified successfully! Please log in to continue."
                             toastType = ToastType.SUCCESS
-                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.LOGIN else AppScreen.MAIN_SHELL
-                            screenBackstack.clear()
-                            screenBackstack.add(currentScreen)
+                            if (mmkv.accessToken.isNullOrBlank()) {
+                                navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+                            } else {
+                                navigateToAuthenticatedRoot()
+                            }
                         }
                     )
                 }
@@ -2068,12 +2124,7 @@ fun ParentAppMainContent() {
                 onDismissRequest = { showLogoutConfirmModal = false },
                 onConfirmLogout = {
                     showLogoutConfirmModal = false
-                    mmkv.clearSession()
-                    FastifyRestClient.shared.accessToken = null
-                    FastifyRestClient.shared.refreshToken = null
-                    currentScreen = AppScreen.LOGIN
-                    toastMessage = "Logged out successfully"
-                    toastType = ToastType.INFO
+                    performLogout()
                 }
             )
         }
