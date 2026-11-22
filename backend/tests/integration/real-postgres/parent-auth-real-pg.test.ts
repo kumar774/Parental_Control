@@ -149,7 +149,21 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
       },
     });
     assert.equal(regRes.statusCode, 201, `Reg failed: ${regRes.body}`);
-    const { accessToken } = regRes.json();
+
+    // Mark email verified so user can access protected endpoints
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+
+    // Log in to obtain verified access token
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: validPassword },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const { accessToken } = loginRes.json();
 
     const meRes = await readyApp!.inject({
       method: 'GET',
@@ -316,6 +330,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201, `Reg failed: ${regRes.body}`);
     const { refreshToken: oldRefreshToken } = regRes.json();
+
+    // Mark email verified so user session can refresh
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
 
     // Request forgot password
     const forgotRes = await readyApp!.inject({
@@ -580,6 +600,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(regRes.statusCode, 201);
     const { refreshToken: r1 } = regRes.json();
 
+    // Mark email verified so user session can refresh
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+
     // Rotate R1 -> R2
     const rotate1 = await readyApp!.inject({
       method: 'POST',
@@ -634,6 +660,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(regRes.statusCode, 201);
     const { user, refreshToken: r1 } = regRes.json();
 
+    // Mark email verified so user session can rotate
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
+
     // Normal rotation: R1 -> R2 (R1 is now legitimately rotated / revoked)
     const rotRes = await readyApp!.inject({
       method: 'POST',
@@ -682,6 +714,12 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201);
     const { refreshToken } = regRes.json();
+
+    // Mark email verified so user session is valid
+    await db
+      .update(parentVerificationTokens)
+      .set({ isUsed: true, usedAt: sql`NOW()` })
+      .where(eq(parentVerificationTokens.email, testEmail.toLowerCase()));
 
     // Logout
     const logoutRes = await readyApp!.inject({
@@ -857,5 +895,128 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(verifiedLoginRes.statusCode, 200);
     assert.ok(verifiedLoginRes.json().accessToken);
     assert.equal(verifiedLoginRes.json().user.email, testEmail);
+  });
+
+  it('17. Security Lifecycle: unverified registration -> protected endpoint rejected -> refresh rejected -> OTP verify -> login succeeds -> protected endpoint succeeds, and SMTP unavailable preserved', async () => {
+    let capturedOtp: string | null = null;
+    setEmailTransport({
+      async sendVerificationEmail(_to, _subject, _bodyText, otpCode) {
+        capturedOtp = otpCode;
+        return { delivered: true };
+      },
+    });
+
+    const testEmail = `parent-lifecycle-${Date.now()}@example.test`;
+
+    // 1. Unverified registration
+    const regRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: testEmail,
+        fullName: 'Lifecycle Guardian',
+        password: validPassword,
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const regBody = regRes.json();
+    assert.ok(regBody.accessToken, 'Registration returns accessToken');
+    assert.ok(regBody.refreshToken, 'Registration returns refreshToken');
+    assert.ok(capturedOtp, 'OTP must be dispatched via transport');
+
+    // 2. Registration-issued token on protected endpoint MUST be rejected with HTTP 403 Forbidden
+    const protectedRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${regBody.accessToken}`,
+      },
+    });
+    assert.equal(protectedRes.statusCode, 403, 'Protected endpoint must reject unverified registration token');
+    assert.equal(protectedRes.json().error, 'Forbidden');
+    assert.match(protectedRes.json().message, /Email not verified/);
+
+    // 3. Registration-issued refresh token on /refresh MUST be rejected with HTTP 403 Forbidden
+    const refreshRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: regBody.refreshToken,
+      },
+    });
+    assert.equal(refreshRes.statusCode, 403, 'Refresh endpoint must reject unverified parent refresh token');
+    assert.equal(refreshRes.json().error, 'Forbidden');
+    assert.match(refreshRes.json().message, /Email not verified/);
+
+    // 4. Verify OTP via /verify-email endpoint
+    const verifyRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: {
+        otpCode: capturedOtp,
+      },
+    });
+    assert.equal(verifyRes.statusCode, 200, 'Verify email must succeed with valid OTP');
+
+    // 5. Login succeeds with HTTP 200
+    const loginRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: testEmail,
+        password: validPassword,
+      },
+    });
+    assert.equal(loginRes.statusCode, 200, 'Login must succeed after email verification');
+    const loginBody = loginRes.json();
+    assert.ok(loginBody.accessToken, 'Login must return fresh accessToken');
+    assert.ok(loginBody.refreshToken, 'Login must return fresh refreshToken');
+
+    // 6. Protected endpoint succeeds with login accessToken
+    const protectedVerifiedRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${loginBody.accessToken}`,
+      },
+    });
+    assert.equal(protectedVerifiedRes.statusCode, 200, 'Protected endpoint must succeed with login token');
+    assert.equal(protectedVerifiedRes.json().user.email, testEmail);
+
+    // 7. Refresh endpoint succeeds with login refreshToken
+    const refreshVerifiedRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: {
+        refreshToken: loginBody.refreshToken,
+      },
+    });
+    assert.equal(refreshVerifiedRes.statusCode, 200, 'Refresh must succeed after verification');
+    assert.ok(refreshVerifiedRes.json().accessToken);
+
+    // 8. SMTP Unavailable preservation: when email is not configured, registration allows immediate access
+    setEmailConfiguredOverrideForTest(false);
+    const smtpOffEmail = `parent-smtpoff-${Date.now()}@example.test`;
+    const regSmtpOffRes = await readyApp!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: smtpOffEmail,
+        fullName: 'SMTP Off Parent',
+        password: validPassword,
+      },
+    });
+    assert.equal(regSmtpOffRes.statusCode, 201);
+    const smtpOffBody = regSmtpOffRes.json();
+
+    const protectedSmtpOffRes = await readyApp!.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${smtpOffBody.accessToken}`,
+      },
+    });
+    assert.equal(protectedSmtpOffRes.statusCode, 200, 'Protected endpoint must succeed immediately when SMTP is disabled');
+    assert.equal(protectedSmtpOffRes.json().user.email, smtpOffEmail);
   });
 });

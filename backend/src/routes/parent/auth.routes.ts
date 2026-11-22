@@ -18,57 +18,13 @@ import {
   parentForgotRateLimiter,
 } from '../../middleware/parent-rate-limiter';
 import { emailService } from '../../services/email/index';
+import {
+  isEmailConfigured,
+  isParentEmailVerified,
+  getActiveEmailTransport,
+} from './email-status';
 
-export interface EmailTransport {
-  sendVerificationEmail(
-    to: string,
-    subject: string,
-    bodyText: string,
-    otpCode: string
-  ): Promise<{ delivered: boolean; error?: string }>;
-}
-
-let activeEmailTransport: EmailTransport | null = null;
-let emailConfiguredOverride: boolean | null = null;
-
-export function setEmailTransport(transport: EmailTransport | null): void {
-  activeEmailTransport = transport;
-}
-
-/**
- * Detects whether an active email provider is configured in environment.
- * Requires an operational, tested EmailTransport to be registered.
- * Mere environment variable presence is NOT treated as operational delivery.
- */
-export function isEmailConfigured(): boolean {
-  if (emailConfiguredOverride !== null) {
-    return emailConfiguredOverride;
-  }
-  if (activeEmailTransport !== null) {
-    return true;
-  }
-  return emailService.isConfigured();
-}
-
-export let lastDispatchedOtpForTest: string | null = null;
-export function resetDispatchedOtpForTest(): void {
-  lastDispatchedOtpForTest = null;
-}
-
-export function setEmailConfiguredOverrideForTest(val: boolean | null): void {
-  emailConfiguredOverride = val;
-  if (val === true) {
-    activeEmailTransport = {
-      async sendVerificationEmail(_to, _subject, _bodyText, otpCode) {
-        lastDispatchedOtpForTest = otpCode;
-        return { delivered: true };
-      },
-    };
-  } else {
-    activeEmailTransport = null;
-    lastDispatchedOtpForTest = null;
-  }
-}
+export * from './email-status';
 
 /**
  * Backwards-compatible test helper (deprecated in favor of persistent parent_verification_tokens table).
@@ -222,8 +178,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           throw new Error('Failed to create user account');
         }
 
+        const emailVerified = !isEmailConfigured();
         const token = jwt.sign(
-          { userId: newUser.id, email: newUser.email, role: 'parent' },
+          { userId: newUser.id, email: newUser.email, role: 'parent', emailVerified },
           env.JWT_ACCESS_SECRET,
           { expiresIn: '15m' }
         );
@@ -276,8 +233,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       // Dispatch verification email outside of transaction
       if (result.verificationOtp) {
         try {
-          if (activeEmailTransport) {
-            await activeEmailTransport.sendVerificationEmail(
+          const transport = getActiveEmailTransport();
+          if (transport) {
+            await transport.sendVerificationEmail(
               normalizedEmail,
               'Verify Your Guardian Account Email',
               `Your 6-digit verification code is: ${result.verificationOtp}.`,
@@ -355,30 +313,17 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     // Zero-trust email verification enforcement:
     // Reject unverified parent login with HTTP 403 Forbidden until email is verified.
-    if (isEmailConfigured()) {
-      const [pendingVerification] = await db
-        .select({ id: parentVerificationTokens.id })
-        .from(parentVerificationTokens)
-        .where(
-          and(
-            eq(parentVerificationTokens.parentId, user.id),
-            eq(parentVerificationTokens.type, 'email_verification'),
-            eq(parentVerificationTokens.isUsed, false)
-          )
-        )
-        .limit(1);
-
-      if (pendingVerification) {
-        return reply.status(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Email not verified. Please verify your email before logging in.',
-        });
-      }
+    const isVerified = await isParentEmailVerified(user.id);
+    if (!isVerified) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Email not verified. Please verify your email before logging in.',
+      });
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent' },
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
@@ -502,6 +447,17 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         };
       }
 
+      // 2b. Zero-trust email verification check: reject refresh if email is not verified
+      const isVerified = await isParentEmailVerified(user.id);
+      if (!isVerified) {
+        return {
+          ok: false,
+          status: 403,
+          error: 'Forbidden',
+          message: 'Email not verified. Please verify your email before refreshing session.',
+        };
+      }
+
       // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
       if (record.isRevoked) {
         await tx
@@ -563,7 +519,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
       // 6. Generate new token pair and persist new token within transaction
       const newAccessToken = jwt.sign(
-        { userId: user.id, email: user.email, role: 'parent' },
+        { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
         env.JWT_ACCESS_SECRET,
         { expiresIn: '15m' }
       );
@@ -705,8 +661,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     // Actually dispatch email via operational transport or emailService. Do not claim success unless delivered.
     try {
-      const dispatchResult = activeEmailTransport
-        ? await activeEmailTransport.sendVerificationEmail(
+      const transport = getActiveEmailTransport();
+      const dispatchResult = transport
+        ? await transport.sendVerificationEmail(
             normalizedEmail,
             'Your Guardian Account Password Reset Code',
             `Your 6-digit verification code is: ${rawCode}. This code expires in 15 minutes.`,

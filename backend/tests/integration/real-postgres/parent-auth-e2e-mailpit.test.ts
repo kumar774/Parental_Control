@@ -54,9 +54,11 @@ function clearMailpitMessages(): Promise<void> {
 
 describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
   let app: FastifyInstance;
-  const testEmail = 'parent_e2e_verify@guardian.org';
+  const testEmail = `parent_e2e_${Date.now()}@guardian.org`;
   const initialPassword = 'InitialValidPass#2026!';
   const updatedPassword = 'BrandNewMasterPass#2026!';
+  let regAccessToken: string = '';
+  let regRefreshToken: string = '';
 
   before(async () => {
     app = await buildApp();
@@ -127,6 +129,8 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     const body = res.json();
     assert.ok(body.accessToken);
     assert.ok(body.refreshToken);
+    regAccessToken = body.accessToken;
+    regRefreshToken = body.refreshToken;
     assert.strictEqual(body.user.email, testEmail);
     assert.strictEqual(body.user.fullName, 'E2E Testing Guardian');
 
@@ -135,7 +139,11 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
 
     const mailpitRes = await queryMailpitMessages();
     assert.ok(mailpitRes.messages.length >= 1, 'Expected at least 1 email in Mailpit');
-    const verifyMsg = mailpitRes.messages.find((m) => m.Subject.includes('verification code'));
+    const verifyMsg = mailpitRes.messages.find(
+      (m) =>
+        (m.Subject.includes('verification code') || m.Subject.includes('Verify Your Email')) &&
+        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
+    );
     assert.ok(verifyMsg, 'Expected verification email in Mailpit');
     assert.ok(verifyMsg.Otp, 'Expected 6-digit OTP in email content');
     assert.strictEqual(verifyMsg.Otp.length, 6);
@@ -143,7 +151,11 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
 
   it('3. Email Verification with wrong OTP, valid OTP, and OTP replay prevention', async () => {
     const mailpitRes = await queryMailpitMessages();
-    const verifyMsg = mailpitRes.messages.find((m) => m.Subject.includes('verification code'));
+    const verifyMsg = mailpitRes.messages.find(
+      (m) =>
+        (m.Subject.includes('verification code') || m.Subject.includes('Verify Your Email')) &&
+        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
+    );
     assert.ok(verifyMsg?.Otp, 'Verification OTP must be available from Mailpit');
     const validOtp = verifyMsg.Otp;
 
@@ -155,6 +167,24 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     });
     assert.strictEqual(unverifiedLogin.statusCode, 403);
     assert.strictEqual(unverifiedLogin.json().message, 'Email not verified. Please verify your email before logging in.');
+
+    // A0.1 Rejection of unverified registration access token on protected endpoint (HTTP 403)
+    const unverifiedMe = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { authorization: `Bearer ${regAccessToken}` },
+    });
+    assert.strictEqual(unverifiedMe.statusCode, 403);
+    assert.strictEqual(unverifiedMe.json().message, 'Email not verified. Please verify your email before accessing this resource.');
+
+    // A0.2 Rejection of unverified registration refresh token on /refresh (HTTP 403)
+    const unverifiedRefresh = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: regRefreshToken },
+    });
+    assert.strictEqual(unverifiedRefresh.statusCode, 403);
+    assert.strictEqual(unverifiedRefresh.json().message, 'Email not verified. Please verify your email before refreshing session.');
 
     // A. Rejection of incorrect OTP
     const wrongRes = await app.inject({
@@ -219,7 +249,11 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
 
     const mailpitRes = await queryMailpitMessages();
     assert.ok(mailpitRes.messages.length >= 1);
-    const resetMsg = mailpitRes.messages.find((m) => m.Subject.includes('password reset code'));
+    const resetMsg = mailpitRes.messages.find(
+      (m) =>
+        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
+        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
+    );
     assert.ok(resetMsg, 'Password reset email must arrive in Mailpit');
     assert.ok(resetMsg.Otp, 'Must contain 6-digit reset code');
     assert.strictEqual(resetMsg.Otp.length, 6);
@@ -262,7 +296,11 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       await new Promise((r) => setTimeout(r, 200));
       mailpitRes = await queryMailpitMessages();
     }
-    const latestMsg = mailpitRes.messages[0];
+    const latestMsg = mailpitRes.messages.find(
+      (m) =>
+        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
+        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
+    );
     assert.ok(latestMsg?.Otp);
 
     // Force expiration in PostgreSQL
@@ -299,7 +337,11 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
       await new Promise((r) => setTimeout(r, 200));
       mailpitRes = await queryMailpitMessages();
     }
-    const latestMsg = mailpitRes.messages[0];
+    const latestMsg = mailpitRes.messages.find(
+      (m) =>
+        (m.Subject.includes('password reset code') || m.Subject.includes('Reset Account Password')) &&
+        (m.RawBody?.includes(testEmail) || m.To?.some((t: any) => t.Address?.toLowerCase().includes(testEmail.toLowerCase())))
+    );
     assert.ok(latestMsg?.Otp);
     const validResetOtp = latestMsg.Otp;
 
