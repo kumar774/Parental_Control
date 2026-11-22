@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'feat/**'
       - 'fix/**'
   pull_request:
     branches:
@@ -28,6 +29,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
 
     steps:
       - name: Checkout repository
@@ -107,6 +113,9 @@ jobs:
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0003_admin_control_audit_severity.sql
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0004_parental_admin_user_status_update.sql
           psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0005_protected_superadmin.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0006_parent_full_name.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0007_parent_verification_tokens.sql
+          psql -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0008_system_smtp_settings.sql
 
       - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
         working-directory: backend
@@ -123,6 +132,10 @@ jobs:
           AUTH001_ADMIN_ROLE_PASSWORD: ${{ env.CI_ADMIN_PASS }}
           AUTH001_ARCHIVE_ROLE_PASSWORD: ${{ env.CI_ARCHIVE_PASS }}
           AUTH001_ATTESTATION_ROLE_PASSWORD: ${{ env.CI_ATTESTATION_PASS }}
+          SMTP_HOST: 127.0.0.1
+          SMTP_PORT: "1025"
+          SMTP_SECURE: "false"
+          SMTP_FROM: "noreply@parentalcontrol.local"
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
         run: npm run test:real-pg
