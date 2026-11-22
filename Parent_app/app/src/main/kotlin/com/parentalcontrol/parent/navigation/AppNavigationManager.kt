@@ -50,9 +50,13 @@ class AppNavigationManager(
 
     /**
      * Transition into an unauthenticated root screen (defaults to LOGIN).
-     * Clears all authenticated navigation history and resets backstack to [screen].
+     * Clears all authenticated navigation history, dismisses any active modals,
+     * and resets backstack to [screen].
      */
     fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
+        if (isAnyModalOpen()) {
+            dismissAllModals()
+        }
         currentScreen = screen
         screenBackstack.clear()
         screenBackstack.add(screen)
@@ -130,18 +134,26 @@ class AppNavigationManager(
 
     /**
      * Handles the Back action.
-     * Returns true if the back event was consumed (modal dismissed, tab switched to home, or subscreen popped).
+     * Returns true if the back event was consumed (modal dismissed, tab switched to home, subscreen popped, or redirected to login on invalid session).
      * Returns false if at the root (Home on MAIN_SHELL, or root unauthenticated screen),
      * allowing the caller to handle double-back-to-exit or finish the activity.
      */
     fun navigateBack(hasValidAuthSession: Boolean = true): Boolean {
-        // 1. Dismiss any open bottom sheet or modal first
+        // 1. Authentication boundary enforcement:
+        // If the session is invalid and currentScreen is not an authentication screen:
+        // Immediately dismiss modals, clear history, redirect to LOGIN root, and consume the event.
+        if (!isAuthenticationScreen(currentScreen) && !hasValidAuthSession) {
+            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+            return true
+        }
+
+        // 2. Dismiss any open bottom sheet or modal first
         if (isAnyModalOpen()) {
             dismissAllModals()
             return true
         }
 
-        // 2. When at the authenticated root (MAIN_SHELL):
+        // 3. When at the authenticated root (MAIN_SHELL):
         if (currentScreen == AppScreen.MAIN_SHELL) {
             // Tab navigation: if not on "home" tab, return to "home" tab
             if (currentNavRoute != "home") {
@@ -157,13 +169,16 @@ class AppNavigationManager(
             return false
         }
 
-        // 3. For all other screens: if screenBackstack has previous screen, pop to it
+        // 4. For all other screens: if screenBackstack has previous screen, pop to it
         if (screenBackstack.size > 1) {
             screenBackstack.removeAt(screenBackstack.lastIndex)
             val targetScreen = screenBackstack.last()
             // If target is an auth screen but user is authenticated, route safely to authenticated root
             if (isAuthenticationScreen(targetScreen) && hasValidAuthSession) {
                 navigateToAuthenticatedRoot()
+            } else if (!isAuthenticationScreen(targetScreen) && !hasValidAuthSession) {
+                // Target is an authenticated screen but session is invalid -> redirect to LOGIN
+                navigateToUnauthenticatedRoot(AppScreen.LOGIN)
             } else {
                 currentScreen = targetScreen
                 onNavigationChanged?.invoke(currentScreen, currentNavRoute)
@@ -171,9 +186,13 @@ class AppNavigationManager(
             return true
         }
 
-        // 4. Fallback for authenticated sub-screens if backstack was desynchronized
+        // 5. Fallback for authenticated sub-screens if backstack was desynchronized
         if (!isAuthenticationScreen(currentScreen)) {
-            navigateToAuthenticatedRoot()
+            if (hasValidAuthSession) {
+                navigateToAuthenticatedRoot()
+            } else {
+                navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+            }
             return true
         }
 

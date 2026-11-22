@@ -16,53 +16,149 @@ class AppNavigationManagerTest {
         navManager = AppNavigationManager()
     }
 
+    // =========================================================================
+    // MANDATORY SECURITY & AUTHENTICATION BOUNDARY REGRESSION TESTS
+    // =========================================================================
+
     @Test
-    fun testLogin_Home_Back_TriggersExitConfirmation_NotLogin() {
-        // Given user is at splash -> carousel -> login
-        navManager.navigateTo(AppScreen.WELCOME_CAROUSEL)
-        navManager.navigateTo(AppScreen.LOGIN)
-        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+    fun testMandatory1_InvalidSession_DevicePairing_Back_RedirectsToLogin() {
+        // Scenario 1: Invalid session + DEVICE_PAIRING + [MAIN_SHELL, DEVICE_PAIRING] -> Back -> LOGIN
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.DEVICE_PAIRING,
+            initialBackstack = listOf(AppScreen.MAIN_SHELL, AppScreen.DEVICE_PAIRING)
+        )
+        assertEquals(AppScreen.DEVICE_PAIRING, manager.currentScreen)
+        assertEquals(listOf(AppScreen.MAIN_SHELL, AppScreen.DEVICE_PAIRING), manager.screenBackstack)
 
-        // When user logs in successfully
+        val consumed = manager.navigateBack(hasValidAuthSession = false)
+
+        assertTrue("Invalid session back navigation should be consumed by login redirect", consumed)
+        assertEquals(AppScreen.LOGIN, manager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), manager.screenBackstack)
+    }
+
+    @Test
+    fun testMandatory2_InvalidSession_MainShell_Back_RedirectsToLogin() {
+        // Scenario 2: Invalid session + MAIN_SHELL -> Back -> LOGIN
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.MAIN_SHELL,
+            initialBackstack = listOf(AppScreen.MAIN_SHELL)
+        )
+        assertEquals(AppScreen.MAIN_SHELL, manager.currentScreen)
+
+        val consumed = manager.navigateBack(hasValidAuthSession = false)
+
+        assertTrue("Invalid session back from MAIN_SHELL should redirect to LOGIN", consumed)
+        assertEquals(AppScreen.LOGIN, manager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), manager.screenBackstack)
+    }
+
+    @Test
+    fun testMandatory3_ValidSession_DevicePairing_Back_ReturnsToMainShell() {
+        // Scenario 3: Valid session + DEVICE_PAIRING -> Back -> MAIN_SHELL
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.DEVICE_PAIRING,
+            initialBackstack = listOf(AppScreen.MAIN_SHELL, AppScreen.DEVICE_PAIRING)
+        )
+
+        val consumed = manager.navigateBack(hasValidAuthSession = true)
+
+        assertTrue("Valid session back from sub-screen should pop to root", consumed)
+        assertEquals(AppScreen.MAIN_SHELL, manager.currentScreen)
+        assertEquals("home", manager.currentNavRoute)
+        assertEquals(listOf(AppScreen.MAIN_SHELL), manager.screenBackstack)
+    }
+
+    @Test
+    fun testMandatory4_ValidSession_Profile_Back_ReturnsToHome() {
+        // Scenario 4: Valid session + Profile -> Back -> Home
         navManager.navigateToAuthenticatedRoot()
+        navManager.selectNavRoute("me")
+        assertEquals("me", navManager.currentNavRoute)
 
-        // Then currentScreen is MAIN_SHELL, route is "home", and backstack contains ONLY MAIN_SHELL
-        assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
-        assertEquals("home", navManager.currentNavRoute)
-        assertEquals(listOf(AppScreen.MAIN_SHELL), navManager.screenBackstack)
-
-        // When user presses Back from Home
         val consumed = navManager.navigateBack(hasValidAuthSession = true)
 
-        // Then back is NOT consumed by navigation (lets caller handle double-back-to-exit)
-        assertFalse("Back from Home must not be consumed by screen popping", consumed)
+        assertTrue("Back from Profile should return to Home tab", consumed)
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
+        assertEquals("home", navManager.currentNavRoute)
         assertEquals(listOf(AppScreen.MAIN_SHELL), navManager.screenBackstack)
     }
 
     @Test
-    fun testLogin_Profile_Back_ReturnsToHome() {
-        // Given user logs in
+    fun testMandatory5_Logout_Back_MustNeverReopenDashboard() {
+        // Scenario 5: Logout -> Back must never reopen Dashboard
         navManager.navigateToAuthenticatedRoot()
-        assertEquals("home", navManager.currentNavRoute)
+        assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
 
-        // When user navigates to Profile (Me tab)
-        navManager.selectNavRoute("me")
-        assertEquals("me", navManager.currentNavRoute)
+        // User logs out
+        navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
 
-        // When user presses Back
-        val consumed = navManager.navigateBack(hasValidAuthSession = true)
+        // Press Back from LOGIN screen with invalid session
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
 
-        // Then Back is consumed and returns to "home" tab
-        assertTrue("Back from Profile tab should be consumed", consumed)
+        assertFalse("Back from Login must exit the app, never reopening dashboard", consumed)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+    }
+
+    @Test
+    fun testMandatory6_SessionExpiry_WithModalOpen_DismissesModalAndRedirectsToLogin() {
+        // Scenario 6: Session expiry while a modal is open must not leave the modal displayed over Login
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.MAIN_SHELL,
+            initialBackstack = listOf(AppScreen.MAIN_SHELL)
+        )
+        var modalOpen = true
+        manager.isAnyModalOpen = { modalOpen }
+        manager.dismissAllModals = { modalOpen = false }
+
+        // Back pressed when session became invalid while modal is open
+        val consumed = manager.navigateBack(hasValidAuthSession = false)
+
+        assertTrue(consumed)
+        assertFalse("Modal must be dismissed on session expiration", modalOpen)
+        assertEquals(AppScreen.LOGIN, manager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), manager.screenBackstack)
+    }
+
+    @Test
+    fun testSessionExpiry_DirectRedirect_DismissesActiveModal() {
+        var modalOpen = true
+        navManager.navigateToAuthenticatedRoot()
+        navManager.isAnyModalOpen = { modalOpen }
+        navManager.dismissAllModals = { modalOpen = false }
+
+        // Proactive session expiry redirect (e.g. 401 SessionExpiredEvent)
+        navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+
+        assertFalse("Proactive logout/expiry must dismiss any open modal", modalOpen)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+    }
+
+    // =========================================================================
+    // GENERAL NAVIGATION & TAB ROUTING TESTS
+    // =========================================================================
+
+    @Test
+    fun testLogin_Home_Back_TriggersExitConfirmation_NotLogin() {
+        navManager.navigateTo(AppScreen.WELCOME_CAROUSEL)
+        navManager.navigateTo(AppScreen.LOGIN)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+
+        navManager.navigateToAuthenticatedRoot()
+
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
         assertEquals("home", navManager.currentNavRoute)
         assertEquals(listOf(AppScreen.MAIN_SHELL), navManager.screenBackstack)
 
-        // Subsequent back triggers exit, NOT login
-        val nextConsumed = navManager.navigateBack(hasValidAuthSession = true)
-        assertFalse("Second back on Home should trigger exit confirmation", nextConsumed)
+        val consumed = navManager.navigateBack(hasValidAuthSession = true)
+
+        assertFalse("Back from Home must not be consumed by screen popping", consumed)
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.MAIN_SHELL), navManager.screenBackstack)
     }
 
     @Test
@@ -115,7 +211,6 @@ class AppNavigationManagerTest {
 
     @Test
     fun testAppRestart_WithValidSession_EstablishesAuthenticatedRoot() {
-        // App starts from SPLASH with an existing valid session
         navManager.navigateToAuthenticatedRoot()
 
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
@@ -135,7 +230,6 @@ class AppNavigationManagerTest {
 
     @Test
     fun testBiometricFailure_RedirectsToLoginAndResetsBackstack() {
-        // On biometric cancel/failure, app redirects to LOGIN root
         navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
 
         assertEquals(AppScreen.LOGIN, navManager.currentScreen)
@@ -146,29 +240,11 @@ class AppNavigationManagerTest {
     }
 
     @Test
-    fun testLogout_Back_MustNotReopenDashboard() {
-        navManager.navigateToAuthenticatedRoot()
-        assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
-
-        // Perform explicit logout
-        navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
-        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
-        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
-
-        // Press back from Login screen
-        val consumed = navManager.navigateBack(hasValidAuthSession = false)
-        assertFalse("Back from Login screen should not be consumed (exits app)", consumed)
-        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
-        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
-    }
-
-    @Test
     fun testSessionExpiration_RedirectsToLoginAndResetsBackstack() {
         navManager.navigateToAuthenticatedRoot()
         navManager.navigateTo(AppScreen.SCREEN_MIRROR_VIEWER)
         assertEquals(listOf(AppScreen.MAIN_SHELL, AppScreen.SCREEN_MIRROR_VIEWER), navManager.screenBackstack)
 
-        // Session expiration event fires
         navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
         assertEquals(AppScreen.LOGIN, navManager.currentScreen)
         assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
@@ -214,7 +290,6 @@ class AppNavigationManagerTest {
             navManager.screenBackstack
         )
 
-        // Verification success leads to Login
         navManager.navigateToUnauthenticatedRoot(AppScreen.LOGIN)
         assertEquals(AppScreen.LOGIN, navManager.currentScreen)
         assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
@@ -222,7 +297,6 @@ class AppNavigationManagerTest {
 
     @Test
     fun testProcessRecreation_WithoutToken_RedirectsToLogin() {
-        // Simulated process death while on MAIN_SHELL but session cleared
         val restoredManager = AppNavigationManager(
             initialScreen = AppScreen.MAIN_SHELL,
             initialBackstack = listOf(AppScreen.LOGIN, AppScreen.MAIN_SHELL)
@@ -250,37 +324,31 @@ class AppNavigationManagerTest {
         navManager.navigateToAuthenticatedRoot()
         navManager.selectNavRoute("me")
 
-        // User opens Subscription Plans from Profile tab
         navManager.navigateTo(AppScreen.SUBSCRIPTION_PLANS)
         assertEquals(listOf(AppScreen.MAIN_SHELL, AppScreen.SUBSCRIPTION_PLANS), navManager.screenBackstack)
 
-        // 1st back: pops Subscription Plans, returns to Profile tab on MAIN_SHELL
         val back1 = navManager.navigateBack(hasValidAuthSession = true)
         assertTrue(back1)
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
         assertEquals("me", navManager.currentNavRoute)
         assertEquals(listOf(AppScreen.MAIN_SHELL), navManager.screenBackstack)
 
-        // 2nd back: switches tab from "me" to "home"
         val back2 = navManager.navigateBack(hasValidAuthSession = true)
         assertTrue(back2)
         assertEquals(AppScreen.MAIN_SHELL, navManager.currentScreen)
         assertEquals("home", navManager.currentNavRoute)
 
-        // 3rd back: double back exit confirmation
         val back3 = navManager.navigateBack(hasValidAuthSession = true)
         assertFalse(back3)
     }
 
     @Test
     fun testStaleAuthScreen_PushedInBackstack_SanitizedOnSubscreenBack() {
-        // Even if backstack somehow contained LOGIN before MAIN_SHELL and a sub-screen
         val manager = AppNavigationManager(
             initialScreen = AppScreen.DEVICE_PAIRING,
             initialBackstack = listOf(AppScreen.LOGIN, AppScreen.DEVICE_PAIRING)
         )
 
-        // Back when authenticated should safely fall back to MAIN_SHELL rather than popping to LOGIN
         val consumed = manager.navigateBack(hasValidAuthSession = true)
         assertTrue(consumed)
         assertEquals(AppScreen.MAIN_SHELL, manager.currentScreen)
