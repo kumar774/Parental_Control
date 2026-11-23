@@ -67,7 +67,74 @@ class SessionRestorationManager(
                         isProcessSessionVerified = true
                         return SessionVerificationResult.Authenticated
                     }
+
+                    val verifyErr = verifyAfterRefresh.exceptionOrNull()
+                    val verifyErrMsg = verifyErr?.message ?: ""
+                    val isSecondVerifyUnverified = verifyErrMsg.contains("403") ||
+                        verifyErrMsg.contains("not verified", ignoreCase = true)
+                    if (isSecondVerifyUnverified) {
+                        isProcessSessionVerified = false
+                        return SessionVerificationResult.UnverifiedEmail
+                    }
+
+                    val isSecondVerifyExpiredOrInvalid = verifyErr is SessionExpiredException ||
+                        verifyErrMsg.contains("401") ||
+                        verifyErrMsg.contains("USER_NOT_FOUND", ignoreCase = true) ||
+                        verifyErrMsg.contains("jwt expired", ignoreCase = true) ||
+                        verifyErrMsg.contains("invalid token", ignoreCase = true)
+                    if (isSecondVerifyExpiredOrInvalid) {
+                        isProcessSessionVerified = false
+                        return SessionVerificationResult.ExpiredOrInvalid
+                    }
+
+                    // Network/timeout/server failure during second verification call
+                    return SessionVerificationResult.NetworkUnavailable(
+                        if (verifyErrMsg.isNotBlank()) verifyErrMsg else "Unable to connect to guardian servers"
+                    )
                 }
+
+                val refreshErr = refreshResult.exceptionOrNull()
+                val refreshErrMsg = refreshErr?.message ?: ""
+
+                val isRefreshDefinitivelyRejected = refreshErr is SessionExpiredException ||
+                    refreshErrMsg.contains("401") ||
+                    refreshErrMsg.contains("403") ||
+                    refreshErrMsg.contains("invalid refresh token", ignoreCase = true) ||
+                    refreshErrMsg.contains("refresh token revoked", ignoreCase = true) ||
+                    refreshErrMsg.contains("refresh token expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("token expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("jwt expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("REFRESH_REJECTED", ignoreCase = true) ||
+                    refreshErrMsg.contains("unauthorized", ignoreCase = true) ||
+                    refreshErrMsg.contains("user_not_found", ignoreCase = true)
+
+                val isNetworkOrServerFailure = refreshErr is java.io.IOException ||
+                    refreshErrMsg.contains("timeout", ignoreCase = true) ||
+                    refreshErrMsg.contains("connect", ignoreCase = true) ||
+                    refreshErrMsg.contains("network", ignoreCase = true) ||
+                    refreshErrMsg.contains("unreachable", ignoreCase = true) ||
+                    refreshErrMsg.contains("unable to connect", ignoreCase = true) ||
+                    refreshErrMsg.contains("500") ||
+                    refreshErrMsg.contains("502") ||
+                    refreshErrMsg.contains("503") ||
+                    refreshErrMsg.contains("504") ||
+                    refreshErrMsg.contains("5xx", ignoreCase = true)
+
+                if (isNetworkOrServerFailure && !isRefreshDefinitivelyRejected) {
+                    return SessionVerificationResult.NetworkUnavailable(
+                        if (refreshErrMsg.isNotBlank()) refreshErrMsg else "Connection failed during session refresh"
+                    )
+                }
+
+                if (isRefreshDefinitivelyRejected) {
+                    isProcessSessionVerified = false
+                    return SessionVerificationResult.ExpiredOrInvalid
+                }
+
+                // If not explicitly rejected, treat as network/server failure rather than logging out
+                return SessionVerificationResult.NetworkUnavailable(
+                    if (refreshErrMsg.isNotBlank()) refreshErrMsg else "Server temporarily unavailable during refresh"
+                )
             }
             isProcessSessionVerified = false
             return SessionVerificationResult.ExpiredOrInvalid

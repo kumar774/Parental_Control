@@ -180,6 +180,39 @@ class NetworkAndWebSocketSyncUnitTest {
     }
 
     @Test
+    fun testTokenRefresh5xxOrNetworkFailurePreservesTokens() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "expired-token",
+            refreshToken = "valid-refresh-token"
+        )
+        var sessionExpiredTriggered = false
+        client.onSessionExpired = {
+            sessionExpiredTriggered = true
+        }
+
+        // Simulating server returning 502 Bad Gateway during token refresh
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        502,
+                        """{"statusCode":502,"error":"Bad Gateway","message":"Bad Gateway"}"""
+                    )
+                }
+                fullUrl.endsWith("/api/v1/devices") -> {
+                    FastifyRestClient.HttpResponse(401, """{"statusCode":401,"message":"Token expired"}""")
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val result = client.getDevices()
+        assertFalse("Request must fail on 502 refresh failure", result.isSuccess)
+        assertFalse("Session expired callback must NOT be invoked on 502 gateway error", sessionExpiredTriggered)
+        assertEquals("Refresh token must be preserved on 502 gateway error", "valid-refresh-token", client.refreshToken)
+    }
+
+    @Test
     fun testServerSideLogoutRevokesTokenAndClearsLocalState() = runBlocking {
         var serverRevokeCalled = false
         val client = FastifyRestClient(

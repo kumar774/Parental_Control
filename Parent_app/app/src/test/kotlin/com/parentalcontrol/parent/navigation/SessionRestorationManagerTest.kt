@@ -319,4 +319,99 @@ class SessionRestorationManagerTest {
 
         assertEquals(SessionVerificationResult.UnverifiedEmail, result)
     }
+
+    // =========================================================================
+    // MANDATORY REFRESH NETWORK FAILURE & CREDENTIAL PRESERVATION REGRESSIONS
+    // =========================================================================
+
+    @Test
+    fun testInitialVerify401_RefreshRequestIOException_ReturnsNetworkUnavailableWithoutLogout() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+        var hasAccess = true
+        var hasRefresh = true
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(SessionExpiredException("HTTP 401 access token expired"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.failure(IOException("Failed to connect to backend: connection reset"))
+            },
+            hasAccessToken = { hasAccess },
+            hasRefreshToken = { hasRefresh }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue("Initial 401 + refresh IOException must return NetworkUnavailable", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(1, verifyCount)
+        assertEquals(1, refreshCount)
+        assertTrue("Credentials must remain preserved on refresh network failure", hasAccess && hasRefresh)
+        assertFalse("Session must not be marked verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testInitialVerify401_RefreshRequestTimeoutOr5xx_ReturnsNetworkUnavailableWithoutLogout() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+        var hasAccess = true
+        var hasRefresh = true
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(Exception("HTTP 401 Unauthorized"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.failure(Exception("HTTP 502 Bad Gateway: Backend temporary outage"))
+            },
+            hasAccessToken = { hasAccess },
+            hasRefreshToken = { hasRefresh }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue("Initial 401 + refresh 5xx must return NetworkUnavailable", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(1, verifyCount)
+        assertEquals(1, refreshCount)
+        assertTrue("Credentials must remain preserved on refresh 5xx error", hasAccess && hasRefresh)
+        assertFalse("Session must not be marked verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testRefreshSuccessful_SecondVerificationNetworkFailure_ReturnsNetworkUnavailableWithoutLogout() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+        var hasAccess = true
+        var hasRefresh = true
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                if (verifyCount == 1) {
+                    Result.failure(Exception("HTTP 401 access token expired"))
+                } else {
+                    Result.failure(IOException("SocketTimeoutException: Read timed out during second verification"))
+                }
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.success(Unit)
+            },
+            hasAccessToken = { hasAccess },
+            hasRefreshToken = { hasRefresh }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue("Refresh success + second verify network failure must return NetworkUnavailable", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(2, verifyCount)
+        assertEquals(1, refreshCount)
+        assertTrue("Credentials must remain preserved", hasAccess && hasRefresh)
+        assertFalse("Session must not be marked verified until second verify passes", SessionRestorationManager.isProcessSessionVerified)
+    }
 }

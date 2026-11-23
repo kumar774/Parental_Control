@@ -551,7 +551,29 @@ fun ParentAppMainContent() {
                     subtitle = "Scan fingerprint to access your dashboard",
                     negativeButtonText = "Log In Again",
                     onSuccess = {
-                        navigateToAuthenticatedRoot()
+                        if (SessionRestorationManager.isProcessSessionVerified) {
+                            navigateToAuthenticatedRoot()
+                        } else {
+                            scope.launch {
+                                when (val result = sessionRestorationManager.evaluateSession()) {
+                                    SessionVerificationResult.Authenticated -> {
+                                        navigateToAuthenticatedRoot()
+                                    }
+                                    SessionVerificationResult.UnverifiedEmail -> {
+                                        toastMessage = "Please verify your email address to access your dashboard"
+                                        toastType = ToastType.WARNING
+                                        navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                    }
+                                    SessionVerificationResult.ExpiredOrInvalid -> {
+                                        performLogout("Session expired. Please log in again.")
+                                    }
+                                    is SessionVerificationResult.NetworkUnavailable -> {
+                                        connectionErrorMessage = result.message
+                                        navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
+                                    }
+                                }
+                            }
+                        }
                     },
                     onError = { err ->
                         toastMessage = "Biometric cancelled: $err"
@@ -711,9 +733,27 @@ fun ParentAppMainContent() {
                                     subtitle = "Scan fingerprint to unlock your session",
                                     negativeButtonText = "Cancel",
                                     onSuccess = {
-                                        toastMessage = "Biometric authenticated"
-                                        toastType = ToastType.SUCCESS
-                                        navigateToAuthenticatedRoot()
+                                        scope.launch {
+                                            when (val result = sessionRestorationManager.evaluateSession()) {
+                                                SessionVerificationResult.Authenticated -> {
+                                                    toastMessage = "Biometric authenticated"
+                                                    toastType = ToastType.SUCCESS
+                                                    navigateToAuthenticatedRoot()
+                                                }
+                                                SessionVerificationResult.UnverifiedEmail -> {
+                                                    toastMessage = "Please verify your email address to access your dashboard"
+                                                    toastType = ToastType.WARNING
+                                                    navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                                }
+                                                SessionVerificationResult.ExpiredOrInvalid -> {
+                                                    performLogout("Session expired. Please log in with password.")
+                                                }
+                                                is SessionVerificationResult.NetworkUnavailable -> {
+                                                    toastMessage = "Unable to verify session with server. Please check your internet connection."
+                                                    toastType = ToastType.ERROR
+                                                }
+                                            }
+                                        }
                                     },
                                     onError = { err ->
                                         toastMessage = "Biometric cancelled: $err"

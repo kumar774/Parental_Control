@@ -60,9 +60,10 @@ class FastifyRestClient(
                 )
                 Result.success(user)
             } else if (response.statusCode == 401) {
-                accessToken = null
-                refreshToken = null
-                onSessionExpired?.invoke()
+                if (refreshToken.isNullOrBlank()) {
+                    accessToken = null
+                    onSessionExpired?.invoke()
+                }
                 Result.failure(SessionExpiredException("USER_NOT_FOUND"))
             } else {
                 Result.failure(Exception("Session check failed: HTTP ${response.statusCode}"))
@@ -1546,15 +1547,18 @@ class FastifyRestClient(
                 onTokenRefreshed?.invoke(newAccess, newRefresh)
 
                 Result.success(TokenRefreshResponseDto(newAccess, newRefresh, expiresIn))
-            } else {
+            } else if (response.statusCode in 400..499) {
                 accessToken = null
                 refreshToken = null
                 onSessionExpired?.invoke()
                 SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
                 Result.failure(Exception("Session expired or refresh token revoked (HTTP ${response.statusCode})"))
+            } else {
+                // 5xx Server Error: DO NOT wipe tokens or emit SessionExpired!
+                Result.failure(java.io.IOException("Server temporarily unavailable during refresh (HTTP ${response.statusCode})"))
             }
         } catch (e: Exception) {
-            Result.failure(Exception(toUserFriendlyError(e)))
+            Result.failure(e)
         }
     }
 
@@ -1632,9 +1636,9 @@ class FastifyRestClient(
             if (!refreshedAccessToken.isNullOrBlank()) {
                 // Retry original request exactly once with new token
                 return executeRequestRaw(method, path, jsonBody, refreshedAccessToken)
-            } else {
+            } else if (refreshToken.isNullOrBlank()) {
+                // Only clear session and trigger expiry if the refresh token was definitively invalidated/cleared
                 accessToken = null
-                refreshToken = null
                 onSessionExpired?.invoke()
                 SessionEventBus.emitSessionExpired("HTTP_401")
             }
