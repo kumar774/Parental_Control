@@ -10,7 +10,7 @@ class ChildRestClientTest {
     @Test
     fun testDefaultBaseUrl() {
         val client = ChildRestClient()
-        assertEquals("http://10.0.2.2:3001", client.baseUrl)
+        assertEquals("http://100.86.72.5:3000", client.baseUrl)
     }
 
     @Test

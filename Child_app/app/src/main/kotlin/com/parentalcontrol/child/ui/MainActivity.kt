@@ -4,20 +4,18 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import com.parentalcontrol.child.service.ChildMonitoringService
 import com.parentalcontrol.child.storage.DeviceSession
 import com.parentalcontrol.child.storage.DeviceStorage
 import com.parentalcontrol.child.ui.home.ChildHomeScreen
 import com.parentalcontrol.child.ui.pairing.ConnectToParentScreen
+import com.parentalcontrol.child.ui.pairing.KidConsentScreen
+import com.parentalcontrol.child.ui.pairing.KidDeviceSelectScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -30,6 +28,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             var currentSession by remember { mutableStateOf<DeviceSession>(storage.getSession()) }
             var isPaired by remember { mutableStateOf(storage.isPaired()) }
+            // Unpaired Onboarding Steps:
+            // 0: Device Selection ("Whose device is this?")
+            // 1: Legal / Consent ("Welcome to Guardian Kids")
+            // 2: Pairing ("ConnectToParentScreen" with 9-digit code box & QR code)
+            var onboardingStep by remember { mutableIntStateOf(0) }
 
             if (isPaired) {
                 // Ensure monitoring service is running when paired
@@ -44,15 +47,25 @@ class MainActivity : ComponentActivity() {
                         storage.clearPairingSession()
                         currentSession = storage.getSession()
                         isPaired = false
+                        onboardingStep = 0
                     }
                 )
             } else {
-                ConnectToParentScreen(
-                    onPairingSuccess = { _, _ ->
-                        currentSession = storage.getSession()
-                        isPaired = true
-                    }
-                )
+                when (onboardingStep) {
+                    0 -> KidDeviceSelectScreen(
+                        onSelectKidDevice = { onboardingStep = 1 }
+                    )
+                    1 -> KidConsentScreen(
+                        onAgreeClick = { onboardingStep = 2 }
+                    )
+                    else -> ConnectToParentScreen(
+                        onNavigateBack = { onboardingStep = 1 },
+                        onPairingSuccess = { _, _ ->
+                            currentSession = storage.getSession()
+                            isPaired = true
+                        }
+                    )
+                }
             }
         }
     }

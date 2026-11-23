@@ -33,8 +33,14 @@ class ChildRestClient(
 ) {
     companion object {
         const val TAG = "ChildRestClient"
-        // 10.0.2.2 is Android emulator's loopback alias for host machine localhost
-        const val DEFAULT_BASE_URL = "http://10.0.2.2:3001"
+        const val DEFAULT_BASE_URL = "http://100.86.72.5:3000"
+
+        val candidateHosts = listOf(
+            "http://100.86.72.5:3000",
+            "http://192.168.31.178:3000",
+            "http://127.0.0.1:3000",
+            "http://10.0.2.2:3000"
+        )
 
         val instance: ChildRestClient by lazy { ChildRestClient() }
     }
@@ -51,7 +57,7 @@ class ChildRestClient(
         appVersion: String = "1.0.0-PROD"
     ): PairResult = withContext(Dispatchers.IO) {
         val cleanCode = normalizeCode(pairingCode)
-        val endpoint = "$baseUrl/api/v1/child/pair"
+        val path = "/api/v1/child/pair"
         
         try {
             val jsonBody = JSONObject().apply {
@@ -63,7 +69,7 @@ class ChildRestClient(
                 put("appVersion", appVersion)
             }.toString()
 
-            val response = executeHttpRequest(endpoint, "POST", jsonBody)
+            val response = executeRequestWithFailover(path, "POST", jsonBody)
             if (response.code in 200..299) {
                 val json = JSONObject(response.body)
                 val deviceId = json.optString("deviceId", json.optString("id", ""))
@@ -88,7 +94,7 @@ class ChildRestClient(
                 PairResult(success = false, message = errMsg)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to connect to backend at $endpoint", e)
+            Log.e(TAG, "Failed to connect to backend", e)
             PairResult(success = false, message = "Network error: ${e.localizedMessage ?: "Could not connect to server"}")
         }
     }
@@ -99,10 +105,10 @@ class ChildRestClient(
      */
     suspend fun checkPairStatus(pairingCode: String): PairStatusResult = withContext(Dispatchers.IO) {
         val cleanCode = normalizeCode(pairingCode)
-        val endpoint = "$baseUrl/api/v1/devices/pair-status/$cleanCode"
+        val path = "/api/v1/devices/pair-status/$cleanCode"
 
         try {
-            val response = executeHttpRequest(endpoint, "GET", null)
+            val response = executeRequestWithFailover(path, "GET", null)
             if (response.code in 200..299) {
                 val json = JSONObject(response.body)
                 val status = json.optString("status", "pending")
@@ -125,6 +131,28 @@ class ChildRestClient(
     }
 
     private data class HttpResponse(val code: Int, val body: String)
+
+    private fun executeRequestWithFailover(
+        path: String,
+        method: String,
+        jsonBody: String?,
+        bearerToken: String? = null
+    ): HttpResponse {
+        val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
+        var lastException: Exception? = null
+
+        for (host in hosts) {
+            try {
+                val fullUrl = if (host.endsWith("/")) "$host${path.removePrefix("/")}" else "$host$path"
+                val response = executeHttpRequest(fullUrl, method, jsonBody, bearerToken)
+                baseUrl = host // Pin working host
+                return response
+            } catch (e: Exception) {
+                lastException = e
+            }
+        }
+        throw lastException ?: java.io.IOException("No responsive backend host found for $path")
+    }
 
     private fun executeHttpRequest(
         urlString: String,
