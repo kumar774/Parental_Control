@@ -209,7 +209,168 @@ class NetworkAndWebSocketSyncUnitTest {
         val result = client.getDevices()
         assertFalse("Request must fail on 502 refresh failure", result.isSuccess)
         assertFalse("Session expired callback must NOT be invoked on 502 gateway error", sessionExpiredTriggered)
+        assertEquals("Access token must be preserved on 502 gateway error", "expired-token", client.accessToken)
         assertEquals("Refresh token must be preserved on 502 gateway error", "valid-refresh-token", client.refreshToken)
+    }
+
+    @Test
+    fun testTokenRefreshHttp408_PreservesAccessAndRefreshTokens() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "access-token-408",
+            refreshToken = "refresh-token-408"
+        )
+        var sessionExpiredTriggered = false
+        client.onSessionExpired = {
+            sessionExpiredTriggered = true
+        }
+
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        408,
+                        """{"statusCode":408,"error":"Request Timeout","message":"Client connection timed out"}"""
+                    )
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val refreshResult = client.refreshSession()
+        assertFalse("Refresh must return failure on HTTP 408", refreshResult.isSuccess)
+        assertTrue("HTTP 408 should be treated as IOException", refreshResult.exceptionOrNull() is java.io.IOException)
+        assertFalse("Session expired must NOT be triggered on HTTP 408", sessionExpiredTriggered)
+        assertEquals("Access token must be preserved on HTTP 408", "access-token-408", client.accessToken)
+        assertEquals("Refresh token must be preserved on HTTP 408", "refresh-token-408", client.refreshToken)
+    }
+
+    @Test
+    fun testTokenRefreshHttp429_PreservesAccessAndRefreshTokens() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "access-token-429",
+            refreshToken = "refresh-token-429"
+        )
+        var sessionExpiredTriggered = false
+        client.onSessionExpired = {
+            sessionExpiredTriggered = true
+        }
+
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        429,
+                        """{"statusCode":429,"error":"Too Many Requests","message":"Rate limit exceeded. Try again in 60s."}"""
+                    )
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val refreshResult = client.refreshSession()
+        assertFalse("Refresh must return failure on HTTP 429", refreshResult.isSuccess)
+        assertTrue("HTTP 429 should be treated as IOException", refreshResult.exceptionOrNull() is java.io.IOException)
+        assertFalse("Session expired must NOT be triggered on HTTP 429", sessionExpiredTriggered)
+        assertEquals("Access token must be preserved on HTTP 429", "access-token-429", client.accessToken)
+        assertEquals("Refresh token must be preserved on HTTP 429", "refresh-token-429", client.refreshToken)
+    }
+
+    @Test
+    fun testTokenRefreshHttp502And503_PreservesAccessAndRefreshTokens() = runBlocking {
+        for (code in listOf(502, 503)) {
+            val client = FastifyRestClient(
+                accessToken = "access-token-$code",
+                refreshToken = "refresh-token-$code"
+            )
+            var sessionExpiredTriggered = false
+            client.onSessionExpired = {
+                sessionExpiredTriggered = true
+            }
+
+            client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+                when {
+                    fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                        FastifyRestClient.HttpResponse(
+                            code,
+                            """{"statusCode":$code,"error":"Server Error","message":"Service temporarily unavailable"}"""
+                        )
+                    }
+                    else -> FastifyRestClient.HttpResponse(404, "{}")
+                }
+            }
+
+            val refreshResult = client.refreshSession()
+            assertFalse("Refresh must return failure on HTTP $code", refreshResult.isSuccess)
+            assertTrue("HTTP $code should be treated as IOException", refreshResult.exceptionOrNull() is java.io.IOException)
+            assertFalse("Session expired must NOT be triggered on HTTP $code", sessionExpiredTriggered)
+            assertEquals("Access token must be preserved on HTTP $code", "access-token-$code", client.accessToken)
+            assertEquals("Refresh token must be preserved on HTTP $code", "refresh-token-$code", client.refreshToken)
+        }
+    }
+
+    @Test
+    fun testTokenRefreshNetworkIOException_PreservesAccessAndRefreshTokens() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "access-token-ioe",
+            refreshToken = "refresh-token-ioe"
+        )
+        var sessionExpiredTriggered = false
+        client.onSessionExpired = {
+            sessionExpiredTriggered = true
+        }
+
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    throw java.net.SocketTimeoutException("Read timed out to auth server")
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val refreshResult = client.refreshSession()
+        assertFalse("Refresh must fail on network timeout", refreshResult.isSuccess)
+        assertTrue("Exception must be SocketTimeoutException / IOException", refreshResult.exceptionOrNull() is java.io.IOException)
+        assertFalse("Session expired must NOT be triggered on network IOException", sessionExpiredTriggered)
+        assertEquals("Access token must be preserved on IOException", "access-token-ioe", client.accessToken)
+        assertEquals("Refresh token must be preserved on IOException", "refresh-token-ioe", client.refreshToken)
+    }
+
+    @Test
+    fun testConfirmedInvalidRefreshToken_ClearsAccessAndRefreshTokens() = runBlocking {
+        val testCases = listOf(
+            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Invalid refresh token"}"""),
+            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Token reuse detected. All sessions have been revoked for security."}"""),
+            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Refresh token has expired"}"""),
+            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Account suspended. Please contact support."}"""),
+            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Email not verified. Please verify your email before refreshing session."}""")
+        )
+
+        for ((statusCode, bodyJson) in testCases) {
+            val client = FastifyRestClient(
+                accessToken = "active-access-token",
+                refreshToken = "rejected-refresh-token"
+            )
+            var sessionExpiredTriggered = false
+            client.onSessionExpired = {
+                sessionExpiredTriggered = true
+            }
+
+            client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+                when {
+                    fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                        FastifyRestClient.HttpResponse(statusCode, bodyJson)
+                    }
+                    else -> FastifyRestClient.HttpResponse(404, "{}")
+                }
+            }
+
+            val refreshResult = client.refreshSession()
+            assertFalse("Refresh must fail on confirmed auth rejection ($statusCode)", refreshResult.isSuccess)
+            assertTrue("Session expired callback must be triggered for confirmed rejection ($statusCode)", sessionExpiredTriggered)
+            assertNull("Access token must be cleared on confirmed rejection ($statusCode)", client.accessToken)
+            assertNull("Refresh token must be cleared on confirmed rejection ($statusCode)", client.refreshToken)
+        }
     }
 
     @Test

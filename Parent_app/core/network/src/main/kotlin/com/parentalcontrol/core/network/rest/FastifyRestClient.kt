@@ -1547,15 +1547,45 @@ class FastifyRestClient(
                 onTokenRefreshed?.invoke(newAccess, newRefresh)
 
                 Result.success(TokenRefreshResponseDto(newAccess, newRefresh, expiresIn))
-            } else if (response.statusCode in 400..499) {
-                accessToken = null
-                refreshToken = null
-                onSessionExpired?.invoke()
-                SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
-                Result.failure(Exception("Session expired or refresh token revoked (HTTP ${response.statusCode})"))
+            } else if (response.statusCode == 408 || response.statusCode == 429 || response.statusCode in 500..599) {
+                // HTTP 408 (Request Timeout), HTTP 429 (Too Many Requests / Rate Limited),
+                // and HTTP 5xx (500, 502, 503, 504) are transient failures.
+                // Strictly preserve tokens and DO NOT emit SessionExpired.
+                Result.failure(java.io.IOException("Transient error during token refresh (HTTP ${response.statusCode})"))
             } else {
-                // 5xx Server Error: DO NOT wipe tokens or emit SessionExpired!
-                Result.failure(java.io.IOException("Server temporarily unavailable during refresh (HTTP ${response.statusCode})"))
+                val responseMessage = try {
+                    JSONObject(response.body).optString("message", "")
+                } catch (_: Exception) {
+                    ""
+                }
+
+                // Backend refresh contract (/api/v1/auth/refresh):
+                // - 401 Unauthorized: 'Invalid refresh token', 'Token reuse detected...', 'Refresh token has expired'
+                // - 403 Forbidden: 'Account suspended...', 'Email not verified...'
+                // - 400 Bad Request: 'Invalid refresh token payload'
+                val isConfirmedInvalidRefreshToken = response.statusCode == 401 ||
+                    response.statusCode == 403 ||
+                    (response.statusCode == 400 && (
+                        responseMessage.contains("refresh", ignoreCase = true) ||
+                        responseMessage.contains("token", ignoreCase = true) ||
+                        responseMessage.contains("payload", ignoreCase = true)
+                    )) ||
+                    responseMessage.contains("invalid refresh token", ignoreCase = true) ||
+                    responseMessage.contains("token reuse detected", ignoreCase = true) ||
+                    responseMessage.contains("refresh token has expired", ignoreCase = true) ||
+                    responseMessage.contains("account suspended", ignoreCase = true) ||
+                    responseMessage.contains("email not verified", ignoreCase = true)
+
+                if (isConfirmedInvalidRefreshToken) {
+                    accessToken = null
+                    refreshToken = null
+                    onSessionExpired?.invoke()
+                    SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
+                    Result.failure(Exception("Session expired or refresh token revoked (HTTP ${response.statusCode}): ${if (responseMessage.isNotBlank()) responseMessage else "Invalid refresh token"}"))
+                } else {
+                    // Non-auth error code (e.g. unexpected 4xx): treat as transient failure without wiping tokens
+                    Result.failure(java.io.IOException("Unexpected response during token refresh (HTTP ${response.statusCode})"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)

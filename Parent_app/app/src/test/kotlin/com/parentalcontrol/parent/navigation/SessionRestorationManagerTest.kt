@@ -383,6 +383,37 @@ class SessionRestorationManagerTest {
     }
 
     @Test
+    fun testInitialVerify401_RefreshRequest408Or429_ReturnsNetworkUnavailableWithoutLogout() = runTest {
+        for (code in listOf(408, 429)) {
+            var verifyCount = 0
+            var refreshCount = 0
+            var hasAccess = true
+            var hasRefresh = true
+
+            val manager = SessionRestorationManager(
+                verifySessionCall = {
+                    verifyCount++
+                    Result.failure(Exception("HTTP 401 Unauthorized"))
+                },
+                refreshSessionCall = {
+                    refreshCount++
+                    Result.failure(java.io.IOException("Transient error during token refresh (HTTP $code)"))
+                },
+                hasAccessToken = { hasAccess },
+                hasRefreshToken = { hasRefresh }
+            )
+
+            val result = manager.evaluateSession()
+
+            assertTrue("Initial 401 + refresh HTTP $code must return NetworkUnavailable", result is SessionVerificationResult.NetworkUnavailable)
+            assertEquals(1, verifyCount)
+            assertEquals(1, refreshCount)
+            assertTrue("Credentials must remain preserved on HTTP $code", hasAccess && hasRefresh)
+            assertFalse("Session must not be marked verified", SessionRestorationManager.isProcessSessionVerified)
+        }
+    }
+
+    @Test
     fun testRefreshSuccessful_SecondVerificationNetworkFailure_ReturnsNetworkUnavailableWithoutLogout() = runTest {
         var verifyCount = 0
         var refreshCount = 0

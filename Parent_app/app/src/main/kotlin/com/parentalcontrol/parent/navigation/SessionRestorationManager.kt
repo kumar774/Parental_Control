@@ -114,6 +114,10 @@ class SessionRestorationManager(
                     refreshErrMsg.contains("network", ignoreCase = true) ||
                     refreshErrMsg.contains("unreachable", ignoreCase = true) ||
                     refreshErrMsg.contains("unable to connect", ignoreCase = true) ||
+                    refreshErrMsg.contains("408") ||
+                    refreshErrMsg.contains("429") ||
+                    refreshErrMsg.contains("too many requests", ignoreCase = true) ||
+                    refreshErrMsg.contains("rate limit", ignoreCase = true) ||
                     refreshErrMsg.contains("500") ||
                     refreshErrMsg.contains("502") ||
                     refreshErrMsg.contains("503") ||
