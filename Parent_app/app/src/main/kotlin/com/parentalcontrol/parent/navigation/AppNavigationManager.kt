@@ -11,6 +11,7 @@ class AppNavigationManager(
     initialRoute: String = "home",
     initialBackstack: List<AppScreen> = listOf(AppScreen.SPLASH),
     var hasAuthenticatedSession: Boolean = false,
+    var emailVerificationOrigin: AppScreen = AppScreen.LOGIN,
     var onNavigationChanged: ((screen: AppScreen, route: String) -> Unit)? = null,
     val screenBackstack: MutableList<AppScreen> = initialBackstack.toMutableList()
 ) {
@@ -187,7 +188,16 @@ class AppNavigationManager(
             return false
         }
 
-        // 4. For all other screens: if screenBackstack has previous screen, pop to it
+        // 4. Special handling for PARENT_EMAIL_VERIFICATION:
+        // Always respect the origin route (REGISTER vs LOGIN) to prevent unverified email users
+        // from being incorrectly routed to the registration screen.
+        if (currentScreen == AppScreen.PARENT_EMAIL_VERIFICATION) {
+            val target = if (emailVerificationOrigin == AppScreen.REGISTER) AppScreen.REGISTER else AppScreen.LOGIN
+            navigateToUnauthenticatedRoot(target)
+            return true
+        }
+
+        // 5. For all other screens: if screenBackstack has previous screen, pop to it
         if (screenBackstack.size > 1) {
             screenBackstack.removeAt(screenBackstack.lastIndex)
             val targetScreen = screenBackstack.last()
@@ -204,7 +214,7 @@ class AppNavigationManager(
             return true
         }
 
-        // 5. Fallback for authenticated sub-screens if backstack was desynchronized
+        // 6. Fallback for authenticated sub-screens if backstack was desynchronized
         if (!isAuthenticationScreen(currentScreen)) {
             if (hasValidAuthSession) {
                 navigateToAuthenticatedRoot()

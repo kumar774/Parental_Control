@@ -304,6 +304,7 @@ fun ParentAppMainContent() {
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
     var isSessionAuthenticated by rememberSaveable { mutableStateOf(false) }
+    var emailVerificationOrigin by rememberSaveable { mutableStateOf(AppScreen.LOGIN) }
     var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
     var isRetryingConnection by remember { mutableStateOf(false) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
@@ -323,6 +324,7 @@ fun ParentAppMainContent() {
             initialRoute = currentNavRoute,
             initialBackstack = screenBackstack,
             hasAuthenticatedSession = isSessionAuthenticated,
+            emailVerificationOrigin = emailVerificationOrigin,
             screenBackstack = screenBackstack
         ).apply {
             onNavigationChanged = { screen, route ->
@@ -330,6 +332,10 @@ fun ParentAppMainContent() {
                 currentNavRoute = route
             }
         }
+    }
+
+    LaunchedEffect(emailVerificationOrigin) {
+        navManager.emailVerificationOrigin = emailVerificationOrigin
     }
 
     val needsRestorationVerification = remember {
@@ -391,6 +397,8 @@ fun ParentAppMainContent() {
                     FastifyRestClient.shared.refreshToken = null
                     toastMessage = "Please verify your email address to access your dashboard"
                     toastType = ToastType.WARNING
+                    emailVerificationOrigin = AppScreen.LOGIN
+                    navManager.emailVerificationOrigin = AppScreen.LOGIN
                     navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                 }
                 SessionVerificationResult.ExpiredOrInvalid -> {
@@ -436,6 +444,8 @@ fun ParentAppMainContent() {
             FastifyRestClient.shared.refreshToken = null
             toastMessage = "Please verify your email address to access your dashboard"
             toastType = ToastType.WARNING
+            emailVerificationOrigin = AppScreen.LOGIN
+            navManager.emailVerificationOrigin = AppScreen.LOGIN
             navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
         }
     }
@@ -584,6 +594,8 @@ fun ParentAppMainContent() {
                                     SessionVerificationResult.UnverifiedEmail -> {
                                         toastMessage = "Please verify your email address to access your dashboard"
                                         toastType = ToastType.WARNING
+                                        emailVerificationOrigin = AppScreen.LOGIN
+                                        navManager.emailVerificationOrigin = AppScreen.LOGIN
                                         navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                     }
                                     SessionVerificationResult.ExpiredOrInvalid -> {
@@ -640,6 +652,8 @@ fun ParentAppMainContent() {
                             if (savedToken.isNullOrBlank()) {
                                 val pendingEmail = mmkv.userEmail
                                 if (!pendingEmail.isNullOrBlank()) {
+                                    emailVerificationOrigin = AppScreen.LOGIN
+                                    navManager.emailVerificationOrigin = AppScreen.LOGIN
                                     currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                                     screenBackstack.clear()
                                     screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
@@ -655,6 +669,8 @@ fun ParentAppMainContent() {
                                         SessionVerificationResult.UnverifiedEmail -> {
                                             toastMessage = "Please verify your email address to access your dashboard"
                                             toastType = ToastType.WARNING
+                                            emailVerificationOrigin = AppScreen.LOGIN
+                                            navManager.emailVerificationOrigin = AppScreen.LOGIN
                                             navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                         }
                                         SessionVerificationResult.ExpiredOrInvalid -> {
@@ -696,6 +712,8 @@ fun ParentAppMainContent() {
                                     SessionVerificationResult.UnverifiedEmail -> {
                                         toastMessage = "Please verify your email address to access your dashboard"
                                         toastType = ToastType.WARNING
+                                        emailVerificationOrigin = AppScreen.LOGIN
+                                        navManager.emailVerificationOrigin = AppScreen.LOGIN
                                         navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                     }
                                     SessionVerificationResult.ExpiredOrInvalid -> {
@@ -765,6 +783,8 @@ fun ParentAppMainContent() {
                                                 SessionVerificationResult.UnverifiedEmail -> {
                                                     toastMessage = "Please verify your email address to access your dashboard"
                                                     toastType = ToastType.WARNING
+                                                    emailVerificationOrigin = AppScreen.LOGIN
+                                                    navManager.emailVerificationOrigin = AppScreen.LOGIN
                                                     navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                                                 }
                                                 SessionVerificationResult.ExpiredOrInvalid -> {
@@ -793,6 +813,8 @@ fun ParentAppMainContent() {
                 AppScreen.REGISTER -> {
                     RegisterScreen(
                         onRegisterSuccess = {
+                            emailVerificationOrigin = AppScreen.REGISTER
+                            navManager.emailVerificationOrigin = AppScreen.REGISTER
                             currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                         },
                         onLoginClick = {
@@ -1388,7 +1410,10 @@ fun ParentAppMainContent() {
                     ParentEmailVerificationScreen(
                         email = mmkv.userEmail ?: "your registered email",
                         onNavigateBack = {
-                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.REGISTER else AppScreen.LOGIN
+                            if (!navManager.navigateBack(hasValidAuthSession = isSessionAuthenticated)) {
+                                val target = if (emailVerificationOrigin == AppScreen.REGISTER) AppScreen.REGISTER else AppScreen.LOGIN
+                                navigateToUnauthenticatedRoot(target)
+                            }
                         },
                         onVerificationSuccess = {
                             toastMessage = "Email verified successfully! Please log in to continue."

@@ -549,4 +549,56 @@ class SessionRestorationManagerTest {
         assertEquals(0, refreshCount)
         assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
     }
+
+    @Test
+    fun testInitialVerify_Http403Unknown_ReturnsNetworkUnavailable_DoesNotTreatAsSuspended() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(Exception("Access forbidden (HTTP 403)"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.success(Unit)
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue("Unknown 403 must NOT be classified as ExpiredOrInvalid or UnverifiedEmail", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(1, verifyCount)
+        assertEquals(0, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testRefresh_Http403Unknown_ReturnsNetworkUnavailable_PreservesSession() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(com.parentalcontrol.core.network.rest.SessionExpiredException("USER_NOT_FOUND"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.failure(java.io.IOException("Unexpected response during token refresh (HTTP 403)"))
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertTrue("Unknown 403 during refresh must be treated as NetworkUnavailable, not logout", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(1, verifyCount)
+        assertEquals(1, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
 }

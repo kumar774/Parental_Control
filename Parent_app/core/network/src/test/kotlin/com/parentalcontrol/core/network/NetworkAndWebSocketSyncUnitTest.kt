@@ -538,4 +538,109 @@ class NetworkAndWebSocketSyncUnitTest {
         syncManager.stopRealtimeSession()
         assertEquals(ConnectionState.DISCONNECTED, syncManager.wsClient.connectionState.value)
     }
+
+    @Test
+    fun testClassifyAuthError_StructuredCodesAndUnknown403() {
+        val client = FastifyRestClient()
+
+        // Structured machine-readable codes
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNVERIFIED_EMAIL,
+            client.classifyAuthError(403, """{"code":"EMAIL_NOT_VERIFIED","message":"Verification needed"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.ACCOUNT_SUSPENDED,
+            client.classifyAuthError(403, """{"code":"ACCOUNT_SUSPENDED","message":"Account blocked"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.INVALID_REFRESH_TOKEN,
+            client.classifyAuthError(401, """{"code":"INVALID_REFRESH_TOKEN","message":"Token expired"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.INVALID_PAYLOAD,
+            client.classifyAuthError(400, """{"code":"INVALID_PAYLOAD","message":"Bad request"}""")
+        )
+
+        // Text heuristics for 403
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNVERIFIED_EMAIL,
+            client.classifyAuthError(403, """{"message":"Please verify your email before proceeding"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.ACCOUNT_SUSPENDED,
+            client.classifyAuthError(403, """{"message":"Account is suspended. Contact support."}""")
+        )
+
+        // Unknown / generic 403 MUST NOT be classified as ACCOUNT_SUSPENDED
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
+            client.classifyAuthError(403, """{"message":"Access forbidden: insufficient role permissions"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
+            client.classifyAuthError(403, """{"error":"Forbidden"}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
+            client.classifyAuthError(403, null)
+        )
+    }
+
+    @Test
+    fun testVerifySession_UnknownHttp403_PreservesTokensAndFailsSafely() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(403, """{"statusCode":403,"message":"Access forbidden: role denied"}""")
+        }
+
+        val result = client.verifySession()
+        assertFalse("Verify must fail for 403", result.isSuccess)
+        assertTrue("Error message preserved", result.exceptionOrNull()?.message?.contains("Access forbidden") == true)
+        assertFalse("Must NOT trigger session expired on unknown 403", sessionExpiredCalled)
+        assertEquals("Access token must NOT be cleared on unknown 403", "active-access-token", client.accessToken)
+        assertEquals("Refresh token must NOT be cleared on unknown 403", "active-refresh-token", client.refreshToken)
+    }
+
+    @Test
+    fun testVerifySession_ExplicitAccountSuspended_ClearsTokensAndEmitsSessionExpired() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(403, """{"statusCode":403,"code":"ACCOUNT_SUSPENDED","message":"Account suspended. Contact support."}""")
+        }
+
+        val result = client.verifySession()
+        assertFalse(result.isSuccess)
+        assertTrue("Must throw AccountSuspendedException", result.exceptionOrNull() is com.parentalcontrol.core.network.rest.AccountSuspendedException)
+        assertTrue("Must trigger session expired on confirmed suspended account", sessionExpiredCalled)
+        assertNull("Access token must be cleared on account suspended", client.accessToken)
+        assertNull("Refresh token must be cleared on account suspended", client.refreshToken)
+    }
+
+    @Test
+    fun testRefreshSession_UnknownHttp403_PreservesTokensAndDoesNotExpire() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(403, """{"statusCode":403,"message":"Custom gateway rule"}""")
+        }
+
+        val result = client.refreshSession()
+        assertFalse(result.isSuccess)
+        assertFalse("Must NOT trigger session expired on unknown 403 during refresh", sessionExpiredCalled)
+        assertEquals("Refresh token must NOT be cleared on unknown 403", "active-refresh-token", client.refreshToken)
+    }
 }

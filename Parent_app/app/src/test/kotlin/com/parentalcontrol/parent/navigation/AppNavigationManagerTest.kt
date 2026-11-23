@@ -422,4 +422,69 @@ class AppNavigationManagerTest {
         manager.navigateToUnauthenticatedRoot(AppScreen.REGISTER)
         assertEquals(AppScreen.REGISTER, callbackScreen)
     }
+
+    @Test
+    fun testEmailVerificationBack_FromRegistrationOrigin_ReturnsToRegister() {
+        navManager.emailVerificationOrigin = AppScreen.REGISTER
+        navManager.navigateTo(AppScreen.PARENT_EMAIL_VERIFICATION)
+        assertEquals(AppScreen.PARENT_EMAIL_VERIFICATION, navManager.currentScreen)
+
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertTrue(consumed)
+        assertEquals(AppScreen.REGISTER, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.REGISTER), navManager.screenBackstack)
+    }
+
+    @Test
+    fun testEmailVerificationBack_FromLoginOrigin_ReturnsToLogin() {
+        navManager.emailVerificationOrigin = AppScreen.LOGIN
+        navManager.navigateTo(AppScreen.PARENT_EMAIL_VERIFICATION)
+        assertEquals(AppScreen.PARENT_EMAIL_VERIFICATION, navManager.currentScreen)
+
+        val consumed = navManager.navigateBack(hasValidAuthSession = false)
+        assertTrue(consumed)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
+    }
+
+    @Test
+    fun testEmailVerificationBack_ProcessRecreation_PreservesOrigin() {
+        // Restored after process death with origin = REGISTER
+        val restoredRegisterManager = AppNavigationManager(
+            initialScreen = AppScreen.PARENT_EMAIL_VERIFICATION,
+            initialBackstack = listOf(AppScreen.PARENT_EMAIL_VERIFICATION),
+            emailVerificationOrigin = AppScreen.REGISTER
+        )
+        val consumedRegister = restoredRegisterManager.navigateBack(hasValidAuthSession = false)
+        assertTrue(consumedRegister)
+        assertEquals(AppScreen.REGISTER, restoredRegisterManager.currentScreen)
+        assertEquals(listOf(AppScreen.REGISTER), restoredRegisterManager.screenBackstack)
+
+        // Restored after process death with origin = LOGIN
+        val restoredLoginManager = AppNavigationManager(
+            initialScreen = AppScreen.PARENT_EMAIL_VERIFICATION,
+            initialBackstack = listOf(AppScreen.PARENT_EMAIL_VERIFICATION),
+            emailVerificationOrigin = AppScreen.LOGIN
+        )
+        val consumedLogin = restoredLoginManager.navigateBack(hasValidAuthSession = false)
+        assertTrue(consumedLogin)
+        assertEquals(AppScreen.LOGIN, restoredLoginManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), restoredLoginManager.screenBackstack)
+    }
+
+    @Test
+    fun testEmailVerificationBack_NeverExposesMainShellOrIncorrectScreenToLoginUser() {
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.PARENT_EMAIL_VERIFICATION,
+            initialBackstack = listOf(AppScreen.PARENT_EMAIL_VERIFICATION),
+            hasAuthenticatedSession = false,
+            emailVerificationOrigin = AppScreen.LOGIN
+        )
+
+        val consumed = manager.navigateBack(hasValidAuthSession = false)
+        assertTrue(consumed)
+        assertEquals(AppScreen.LOGIN, manager.currentScreen)
+        assertFalse(manager.screenBackstack.contains(AppScreen.MAIN_SHELL))
+        assertFalse(manager.screenBackstack.contains(AppScreen.REGISTER))
+    }
 }

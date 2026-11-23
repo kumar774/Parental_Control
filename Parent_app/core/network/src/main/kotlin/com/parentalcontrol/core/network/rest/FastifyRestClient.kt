@@ -66,16 +66,23 @@ class FastifyRestClient(
                 } catch (_: Exception) {
                     ""
                 }
-                if (kind == AuthErrorKind.UNVERIFIED_EMAIL) {
-                    accessToken = null
-                    SessionEventBus.emitEmailVerificationRequired()
-                    Result.failure(UnverifiedEmailException(403, if (message.isNotBlank()) message else "Email not verified"))
-                } else {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("ACCOUNT_SUSPENDED")
-                    Result.failure(AccountSuspendedException(403, if (message.isNotBlank()) message else "Account suspended"))
+                when (kind) {
+                    AuthErrorKind.UNVERIFIED_EMAIL -> {
+                        accessToken = null
+                        SessionEventBus.emitEmailVerificationRequired()
+                        Result.failure(UnverifiedEmailException(403, if (message.isNotBlank()) message else "Email not verified"))
+                    }
+                    AuthErrorKind.ACCOUNT_SUSPENDED -> {
+                        accessToken = null
+                        refreshToken = null
+                        onSessionExpired?.invoke()
+                        SessionEventBus.emitSessionExpired("ACCOUNT_SUSPENDED")
+                        Result.failure(AccountSuspendedException(403, if (message.isNotBlank()) message else "Account suspended"))
+                    }
+                    else -> {
+                        // Unknown 403: deny access safely WITHOUT clearing tokens or assuming account suspension
+                        Result.failure(Exception(if (message.isNotBlank()) message else "Access forbidden (HTTP 403)"))
+                    }
                 }
             } else if (response.statusCode == 401) {
                 if (refreshToken.isNullOrBlank()) {
@@ -1552,32 +1559,45 @@ class FastifyRestClient(
             return AuthErrorKind.TRANSIENT_FAILURE
         }
 
-        val message = try {
+        val json = try {
             if (!responseBody.isNullOrBlank()) {
-                JSONObject(responseBody).optString("message", "")
-            } else ""
+                JSONObject(responseBody)
+            } else null
         } catch (_: Exception) {
-            ""
+            null
         }
 
-        // Email verification check (HTTP 403)
-        if (statusCode == 403 && (
-            message.contains("email not verified", ignoreCase = true) ||
-            message.contains("verify your email", ignoreCase = true) ||
-            message.contains("unverified", ignoreCase = true)
-        )) {
-            return AuthErrorKind.UNVERIFIED_EMAIL
+        val code = json?.optString("code", "")?.trim()?.uppercase() ?: ""
+        val message = json?.optString("message", "") ?: ""
+
+        // 1. Structured machine-readable error codes (preferred)
+        when (code) {
+            "EMAIL_NOT_VERIFIED", "UNVERIFIED_EMAIL" -> return AuthErrorKind.UNVERIFIED_EMAIL
+            "ACCOUNT_SUSPENDED", "USER_SUSPENDED" -> return AuthErrorKind.ACCOUNT_SUSPENDED
+            "INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_EXPIRED", "TOKEN_REUSE_DETECTED" -> return AuthErrorKind.INVALID_REFRESH_TOKEN
+            "INVALID_REFRESH_PAYLOAD", "INVALID_PAYLOAD" -> return AuthErrorKind.INVALID_PAYLOAD
         }
 
-        // Account suspension check (HTTP 403)
-        if (statusCode == 403 && (
-            message.contains("suspended", ignoreCase = true) ||
-            message.contains("contact support", ignoreCase = true)
-        )) {
-            return AuthErrorKind.ACCOUNT_SUSPENDED
+        // 2. HTTP 403 specific checks
+        if (statusCode == 403) {
+            if (message.contains("email not verified", ignoreCase = true) ||
+                message.contains("verify your email", ignoreCase = true) ||
+                message.contains("unverified", ignoreCase = true)
+            ) {
+                return AuthErrorKind.UNVERIFIED_EMAIL
+            }
+
+            if (message.contains("suspended", ignoreCase = true) ||
+                message.contains("contact support", ignoreCase = true)
+            ) {
+                return AuthErrorKind.ACCOUNT_SUSPENDED
+            }
+
+            // Generic / unknown HTTP 403 (e.g. proxy, WAF, role permission) must NOT be assumed as account suspension
+            return AuthErrorKind.UNKNOWN
         }
 
-        // Invalid refresh payload check (HTTP 400)
+        // 3. Invalid refresh payload check (HTTP 400)
         if (statusCode == 400 && (
             message.contains("refresh token payload", ignoreCase = true) ||
             message.contains("invalid refresh token", ignoreCase = true) ||
@@ -1586,14 +1606,9 @@ class FastifyRestClient(
             return AuthErrorKind.INVALID_PAYLOAD
         }
 
-        // Confirmed invalid / revoked / expired refresh token (HTTP 401)
+        // 4. Confirmed invalid / revoked / expired refresh token (HTTP 401)
         if (statusCode == 401) {
             return AuthErrorKind.INVALID_REFRESH_TOKEN
-        }
-
-        // Fallback for 403 where message does not specify unverified email
-        if (statusCode == 403) {
-            return AuthErrorKind.ACCOUNT_SUSPENDED
         }
 
         return AuthErrorKind.UNKNOWN
