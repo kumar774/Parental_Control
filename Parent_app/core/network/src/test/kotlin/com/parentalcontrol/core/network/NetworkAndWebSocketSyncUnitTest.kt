@@ -667,4 +667,74 @@ class NetworkAndWebSocketSyncUnitTest {
         assertFalse("Must NOT trigger session expired on unknown 403 during refresh", sessionExpiredCalled)
         assertEquals("Refresh token must NOT be cleared on unknown 403", "active-refresh-token", client.refreshToken)
     }
+
+    @Test
+    fun testLogin_UnverifiedEmail_ReturnsUnverifiedEmailExceptionAndDoesNotExpireSession() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "prev-token",
+            refreshToken = "prev-ref-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(
+                403,
+                """{"statusCode":403,"code":"EMAIL_NOT_VERIFIED","error":"Forbidden","message":"Email not verified. Please verify your email before logging in."}"""
+            )
+        }
+
+        val result = client.login(LoginRequestDto("parent@example.com", "password123"))
+        assertFalse(result.isSuccess)
+        val err = result.exceptionOrNull()
+        assertTrue("Error must be UnverifiedEmailException, but got $err", err is com.parentalcontrol.core.network.rest.UnverifiedEmailException)
+        assertFalse("Login failure must NOT trigger onSessionExpired", sessionExpiredCalled)
+        assertEquals("Login failure must NOT alter existing tokens", "prev-token", client.accessToken)
+    }
+
+    @Test
+    fun testLogin_AccountSuspended_ReturnsAccountSuspendedExceptionAndDoesNotExpireSession() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "prev-token",
+            refreshToken = "prev-ref-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(
+                403,
+                """{"statusCode":403,"code":"ACCOUNT_SUSPENDED","error":"Forbidden","message":"Account suspended. Please contact support."}"""
+            )
+        }
+
+        val result = client.login(LoginRequestDto("parent@example.com", "password123"))
+        assertFalse(result.isSuccess)
+        val err = result.exceptionOrNull()
+        assertTrue("Error must be AccountSuspendedException, but got $err", err is com.parentalcontrol.core.network.rest.AccountSuspendedException)
+        assertFalse("Login failure must NOT trigger onSessionExpired", sessionExpiredCalled)
+        assertEquals("Login failure must NOT alter existing tokens", "prev-token", client.accessToken)
+    }
+
+    @Test
+    fun testLogin_InvalidCredentials_ReturnsStandardExceptionAndDoesNotExpireSession() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "prev-token",
+            refreshToken = "prev-ref-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(
+                401,
+                """{"statusCode":401,"error":"Unauthorized","message":"Invalid email or password"}"""
+            )
+        }
+
+        val result = client.login(LoginRequestDto("parent@example.com", "wrongpass"))
+        assertFalse(result.isSuccess)
+        val err = result.exceptionOrNull()
+        assertFalse("Generic 401 must not be UnverifiedEmailException", err is com.parentalcontrol.core.network.rest.UnverifiedEmailException)
+        assertFalse("Generic 401 must not be AccountSuspendedException", err is com.parentalcontrol.core.network.rest.AccountSuspendedException)
+        assertEquals("Invalid email or password", err?.message)
+        assertFalse("Login failure must NOT trigger onSessionExpired", sessionExpiredCalled)
+    }
 }

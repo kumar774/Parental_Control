@@ -14,6 +14,7 @@ import com.parentalcontrol.parent.ui.settings.SettingsUiIntent
 import com.parentalcontrol.parent.ui.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -80,6 +81,52 @@ class AuthAndSettingsViewModelTest {
 
         assertNull(authViewModel.uiState.value.currentAccount)
         assertNotNull(authViewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun login_unverifiedEmail_triggersNavigateToEmailVerification() = runTest(testDispatcher) {
+        val effects = mutableListOf<com.parentalcontrol.parent.ui.auth.AuthUiEffect>()
+        val job = launch {
+            authViewModel.uiEffect.collect { effects.add(it) }
+        }
+
+        authAndSettingsRepo.loginResult = Result.failure(
+            com.parentalcontrol.core.network.rest.UnverifiedEmailException(
+                403,
+                "Email not verified. Please verify your email before logging in."
+            )
+        )
+
+        authViewModel.handleIntent(AuthUiIntent.Login("unverified@test.com", "password123"))
+        advanceUntilIdle()
+
+        assertNull(authViewModel.uiState.value.currentAccount)
+        assertNull("Error message in state should be cleared since screen transitions to email verification", authViewModel.uiState.value.errorMessage)
+        assertTrue(
+            "Must emit NavigateToEmailVerification effect",
+            effects.any { it is com.parentalcontrol.parent.ui.auth.AuthUiEffect.NavigateToEmailVerification }
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun login_accountSuspended_setsAccountSuspendedErrorMessage() = runTest(testDispatcher) {
+        authAndSettingsRepo.loginResult = Result.failure(
+            com.parentalcontrol.core.network.rest.AccountSuspendedException(
+                403,
+                "Account suspended. Please contact support."
+            )
+        )
+
+        authViewModel.handleIntent(AuthUiIntent.Login("suspended@test.com", "password123"))
+        advanceUntilIdle()
+
+        assertNull(authViewModel.uiState.value.currentAccount)
+        assertNotNull(authViewModel.uiState.value.errorMessage)
+        assertTrue(
+            "State error must indicate suspension",
+            authViewModel.uiState.value.errorMessage?.contains("suspended", ignoreCase = true) == true
+        )
     }
 
     @Test

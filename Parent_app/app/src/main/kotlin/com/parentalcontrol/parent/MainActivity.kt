@@ -188,9 +188,27 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        } ?: AppScreen.SPLASH
+        val startAuth = intent?.getBooleanExtra("EXTRA_IS_AUTHENTICATED", false) ?: false
+        val startOrigin = intent?.getStringExtra("EXTRA_EMAIL_ORIGIN")?.let {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        } ?: AppScreen.LOGIN
+        val startRoute = intent?.getStringExtra("EXTRA_START_ROUTE") ?: "home"
+        val startBackstack = intent?.getStringArrayListExtra("EXTRA_BACKSTACK")?.mapNotNull {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        }
+
         setContent {
             LiquidGlassTheme(darkTheme = true) {
-                ParentAppMainContent()
+                ParentAppMainContent(
+                    initialScreen = startScreen,
+                    initialNavRoute = startRoute,
+                    initialAuthenticated = startAuth,
+                    initialEmailVerificationOrigin = startOrigin,
+                    initialBackstack = startBackstack
+                )
             }
         }
     }
@@ -274,14 +292,20 @@ enum class AppScreen {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ParentAppMainContent() {
+fun ParentAppMainContent(
+    initialScreen: AppScreen = AppScreen.SPLASH,
+    initialNavRoute: String = "home",
+    initialAuthenticated: Boolean = false,
+    initialEmailVerificationOrigin: AppScreen = AppScreen.LOGIN,
+    initialBackstack: List<AppScreen>? = null
+) {
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val mmkv = remember { ParentalDatabase.getInstance().mmkv }
     val scope = rememberCoroutineScope()
 
-    var currentScreen by rememberSaveable { mutableStateOf(AppScreen.SPLASH) }
-    var currentNavRoute by rememberSaveable { mutableStateOf("home") }
+    var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
+    var currentNavRoute by rememberSaveable { mutableStateOf(initialNavRoute) }
     var activeChildId by remember { mutableStateOf(mmkv.selectedChildId ?: "") }
     var activeChildName by remember { mutableStateOf("Child") }
     var lastPairedChildName by remember { mutableStateOf("Child") }
@@ -298,13 +322,19 @@ fun ParentAppMainContent() {
             }
         )
     ) {
-        mutableStateListOf(AppScreen.SPLASH)
+        mutableStateListOf<AppScreen>().apply {
+            if (initialBackstack != null) {
+                addAll(initialBackstack)
+            } else {
+                add(initialScreen)
+            }
+        }
     }
 
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
-    var isSessionAuthenticated by rememberSaveable { mutableStateOf(false) }
-    var emailVerificationOrigin by rememberSaveable { mutableStateOf(AppScreen.LOGIN) }
+    var isSessionAuthenticated by rememberSaveable { mutableStateOf(initialAuthenticated) }
+    var emailVerificationOrigin by rememberSaveable { mutableStateOf(initialEmailVerificationOrigin) }
     var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
     var isRetryingConnection by remember { mutableStateOf(false) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
@@ -332,6 +362,37 @@ fun ParentAppMainContent() {
                 currentNavRoute = route
             }
         }
+    }
+
+    LaunchedEffect(initialScreen) {
+        currentScreen = initialScreen
+        navManager.synchronizeBackstack(initialScreen)
+        lastBackPressTime = 0L
+    }
+
+    LaunchedEffect(initialNavRoute) {
+        currentNavRoute = initialNavRoute
+        navManager.selectNavRoute(initialNavRoute)
+    }
+
+    LaunchedEffect(initialBackstack, initialScreen) {
+        screenBackstack.clear()
+        if (initialBackstack != null) {
+            screenBackstack.addAll(initialBackstack)
+        } else {
+            screenBackstack.add(initialScreen)
+        }
+        navManager.synchronizeBackstack(initialScreen)
+    }
+
+    LaunchedEffect(initialAuthenticated) {
+        isSessionAuthenticated = initialAuthenticated
+        navManager.hasAuthenticatedSession = initialAuthenticated
+    }
+
+    LaunchedEffect(initialEmailVerificationOrigin) {
+        emailVerificationOrigin = initialEmailVerificationOrigin
+        navManager.emailVerificationOrigin = initialEmailVerificationOrigin
     }
 
     LaunchedEffect(emailVerificationOrigin) {
@@ -756,6 +817,14 @@ fun ParentAppMainContent() {
                         },
                         onForgotPasswordClick = {
                             currentScreen = AppScreen.FORGOT_PASSWORD
+                        },
+                        onNavigateToEmailVerification = { unverifiedEmail ->
+                            if (unverifiedEmail.isNotBlank()) {
+                                mmkv.userEmail = unverifiedEmail
+                            }
+                            emailVerificationOrigin = AppScreen.LOGIN
+                            navManager.emailVerificationOrigin = AppScreen.LOGIN
+                            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                         },
                         onBiometricClick = {
                             val hasSession = !mmkv.accessToken.isNullOrBlank()

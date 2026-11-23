@@ -122,15 +122,29 @@ class FastifyRestClient(
                 refreshToken = refToken
                 Result.success(AuthResponseDto(user, token, refToken))
             } else {
-                val msg = try {
-                    JSONObject(response.body).optString("message", "Invalid email or password")
-                } catch (_: Exception) {
-                    "Authentication failed (HTTP ${response.statusCode})"
+                val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
+                val code = errorJson?.optString("code", "")?.trim()?.uppercase() ?: ""
+                val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
+                    ?: "Authentication failed (HTTP ${response.statusCode})"
+
+                when {
+                    code == "EMAIL_NOT_VERIFIED" || code == "UNVERIFIED_EMAIL" -> {
+                        Result.failure(UnverifiedEmailException(response.statusCode, msg))
+                    }
+                    code == "ACCOUNT_SUSPENDED" || code == "USER_SUSPENDED" -> {
+                        Result.failure(AccountSuspendedException(response.statusCode, msg))
+                    }
+                    else -> {
+                        Result.failure(Exception(msg))
+                    }
                 }
-                Result.failure(Exception(msg))
             }
         } catch (e: Exception) {
-            Result.failure(Exception(toUserFriendlyError(e)))
+            if (e is AuthException) {
+                Result.failure(e)
+            } else {
+                Result.failure(Exception(toUserFriendlyError(e)))
+            }
         }
     }
 
