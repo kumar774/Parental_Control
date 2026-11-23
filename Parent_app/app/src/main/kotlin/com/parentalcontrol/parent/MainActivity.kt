@@ -385,6 +385,10 @@ fun ParentAppMainContent() {
                     navManager.hasAuthenticatedSession = false
                     sessionRestorationManager.markSessionInvalidated()
                     isVerifyingRestoration = false
+                    // Preserve userEmail in MMKV so ParentEmailVerificationScreen retains the email context!
+                    mmkv.clearSession(preserveEmail = true)
+                    FastifyRestClient.shared.accessToken = null
+                    FastifyRestClient.shared.refreshToken = null
                     toastMessage = "Please verify your email address to access your dashboard"
                     toastType = ToastType.WARNING
                     navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
@@ -415,6 +419,24 @@ fun ParentAppMainContent() {
             isSessionAuthenticated = false
             navManager.hasAuthenticatedSession = false
             performLogout("Session expired. Please log in again.")
+        }
+    }
+
+    // Global email verification listener (reactive navigation to ParentEmailVerificationScreen without generic logout)
+    LaunchedEffect(Unit) {
+        SessionEventBus.emailVerificationRequiredFlow.collect { email ->
+            isSessionAuthenticated = false
+            navManager.hasAuthenticatedSession = false
+            sessionRestorationManager.markSessionInvalidated()
+            if (!email.isNullOrBlank()) {
+                mmkv.userEmail = email
+            }
+            mmkv.clearSession(preserveEmail = true)
+            FastifyRestClient.shared.accessToken = null
+            FastifyRestClient.shared.refreshToken = null
+            toastMessage = "Please verify your email address to access your dashboard"
+            toastType = ToastType.WARNING
+            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
         }
     }
 

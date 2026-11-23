@@ -59,6 +59,24 @@ class FastifyRestClient(
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
                 Result.success(user)
+            } else if (response.statusCode == 403) {
+                val kind = classifyAuthError(response.statusCode, response.body)
+                val message = try {
+                    JSONObject(response.body).optString("message", "")
+                } catch (_: Exception) {
+                    ""
+                }
+                if (kind == AuthErrorKind.UNVERIFIED_EMAIL) {
+                    accessToken = null
+                    SessionEventBus.emitEmailVerificationRequired()
+                    Result.failure(UnverifiedEmailException(403, if (message.isNotBlank()) message else "Email not verified"))
+                } else {
+                    accessToken = null
+                    refreshToken = null
+                    onSessionExpired?.invoke()
+                    SessionEventBus.emitSessionExpired("ACCOUNT_SUSPENDED")
+                    Result.failure(AccountSuspendedException(403, if (message.isNotBlank()) message else "Account suspended"))
+                }
             } else if (response.statusCode == 401) {
                 if (refreshToken.isNullOrBlank()) {
                     accessToken = null
@@ -1520,6 +1538,67 @@ class FastifyRestClient(
         }
     }
 
+    enum class AuthErrorKind {
+        UNVERIFIED_EMAIL,
+        ACCOUNT_SUSPENDED,
+        INVALID_REFRESH_TOKEN,
+        INVALID_PAYLOAD,
+        TRANSIENT_FAILURE,
+        UNKNOWN
+    }
+
+    internal fun classifyAuthError(statusCode: Int, responseBody: String?): AuthErrorKind {
+        if (statusCode == 408 || statusCode == 429 || statusCode in 500..599) {
+            return AuthErrorKind.TRANSIENT_FAILURE
+        }
+
+        val message = try {
+            if (!responseBody.isNullOrBlank()) {
+                JSONObject(responseBody).optString("message", "")
+            } else ""
+        } catch (_: Exception) {
+            ""
+        }
+
+        // Email verification check (HTTP 403)
+        if (statusCode == 403 && (
+            message.contains("email not verified", ignoreCase = true) ||
+            message.contains("verify your email", ignoreCase = true) ||
+            message.contains("unverified", ignoreCase = true)
+        )) {
+            return AuthErrorKind.UNVERIFIED_EMAIL
+        }
+
+        // Account suspension check (HTTP 403)
+        if (statusCode == 403 && (
+            message.contains("suspended", ignoreCase = true) ||
+            message.contains("contact support", ignoreCase = true)
+        )) {
+            return AuthErrorKind.ACCOUNT_SUSPENDED
+        }
+
+        // Invalid refresh payload check (HTTP 400)
+        if (statusCode == 400 && (
+            message.contains("refresh token payload", ignoreCase = true) ||
+            message.contains("invalid refresh token", ignoreCase = true) ||
+            message.contains("refresh", ignoreCase = true)
+        )) {
+            return AuthErrorKind.INVALID_PAYLOAD
+        }
+
+        // Confirmed invalid / revoked / expired refresh token (HTTP 401)
+        if (statusCode == 401) {
+            return AuthErrorKind.INVALID_REFRESH_TOKEN
+        }
+
+        // Fallback for 403 where message does not specify unverified email
+        if (statusCode == 403) {
+            return AuthErrorKind.ACCOUNT_SUSPENDED
+        }
+
+        return AuthErrorKind.UNKNOWN
+    }
+
     private fun refreshSessionInternal(): Result<TokenRefreshResponseDto> {
         val currentRefToken = refreshToken
         if (currentRefToken.isNullOrBlank()) {
@@ -1527,7 +1606,7 @@ class FastifyRestClient(
             refreshToken = null
             onSessionExpired?.invoke()
             SessionEventBus.emitSessionExpired("NO_REFRESH_TOKEN")
-            return Result.failure(Exception("No refresh token available"))
+            return Result.failure(InvalidRefreshTokenException(401, "No refresh token available"))
         }
 
         return try {
@@ -1547,44 +1626,60 @@ class FastifyRestClient(
                 onTokenRefreshed?.invoke(newAccess, newRefresh)
 
                 Result.success(TokenRefreshResponseDto(newAccess, newRefresh, expiresIn))
-            } else if (response.statusCode == 408 || response.statusCode == 429 || response.statusCode in 500..599) {
-                // HTTP 408 (Request Timeout), HTTP 429 (Too Many Requests / Rate Limited),
-                // and HTTP 5xx (500, 502, 503, 504) are transient failures.
-                // Strictly preserve tokens and DO NOT emit SessionExpired.
-                Result.failure(java.io.IOException("Transient error during token refresh (HTTP ${response.statusCode})"))
             } else {
+                val errorKind = classifyAuthError(response.statusCode, response.body)
                 val responseMessage = try {
                     JSONObject(response.body).optString("message", "")
                 } catch (_: Exception) {
                     ""
                 }
 
-                // Backend refresh contract (/api/v1/auth/refresh):
-                // - 401 Unauthorized: 'Invalid refresh token', 'Token reuse detected...', 'Refresh token has expired'
-                // - 403 Forbidden: 'Account suspended...', 'Email not verified...'
-                // - 400 Bad Request: 'Invalid refresh token payload'
-                val isConfirmedInvalidRefreshToken = response.statusCode == 401 ||
-                    response.statusCode == 403 ||
-                    (response.statusCode == 400 && (
-                        responseMessage.contains("refresh", ignoreCase = true) ||
-                        responseMessage.contains("token", ignoreCase = true) ||
-                        responseMessage.contains("payload", ignoreCase = true)
-                    )) ||
-                    responseMessage.contains("invalid refresh token", ignoreCase = true) ||
-                    responseMessage.contains("token reuse detected", ignoreCase = true) ||
-                    responseMessage.contains("refresh token has expired", ignoreCase = true) ||
-                    responseMessage.contains("account suspended", ignoreCase = true) ||
-                    responseMessage.contains("email not verified", ignoreCase = true)
-
-                if (isConfirmedInvalidRefreshToken) {
-                    accessToken = null
-                    refreshToken = null
-                    onSessionExpired?.invoke()
-                    SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
-                    Result.failure(Exception("Session expired or refresh token revoked (HTTP ${response.statusCode}): ${if (responseMessage.isNotBlank()) responseMessage else "Invalid refresh token"}"))
-                } else {
-                    // Non-auth error code (e.g. unexpected 4xx): treat as transient failure without wiping tokens
-                    Result.failure(java.io.IOException("Unexpected response during token refresh (HTTP ${response.statusCode})"))
+                when (errorKind) {
+                    AuthErrorKind.TRANSIENT_FAILURE -> {
+                        // HTTP 408 (Request Timeout), HTTP 429 (Too Many Requests / Rate Limited),
+                        // and HTTP 5xx (500, 502, 503, 504) are transient failures.
+                        // Strictly preserve tokens and DO NOT emit SessionExpired.
+                        Result.failure(java.io.IOException("Transient error during token refresh (HTTP ${response.statusCode})"))
+                    }
+                    AuthErrorKind.UNVERIFIED_EMAIL -> {
+                        // Email verification required: DO NOT emit generic SessionExpired.
+                        // Invalidate unverified access token and emit dedicated email verification requirement.
+                        accessToken = null
+                        SessionEventBus.emitEmailVerificationRequired()
+                        val msg = if (responseMessage.isNotBlank()) responseMessage else "Email not verified. Please verify your email before refreshing session."
+                        Result.failure(UnverifiedEmailException(403, msg))
+                    }
+                    AuthErrorKind.ACCOUNT_SUSPENDED -> {
+                        // Account suspended: confirmed terminal rejection
+                        accessToken = null
+                        refreshToken = null
+                        onSessionExpired?.invoke()
+                        SessionEventBus.emitSessionExpired("ACCOUNT_SUSPENDED")
+                        val msg = if (responseMessage.isNotBlank()) responseMessage else "Account suspended. Please contact support."
+                        Result.failure(AccountSuspendedException(403, msg))
+                    }
+                    AuthErrorKind.INVALID_REFRESH_TOKEN -> {
+                        // Confirmed invalid / revoked / expired refresh token (HTTP 401)
+                        accessToken = null
+                        refreshToken = null
+                        onSessionExpired?.invoke()
+                        SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
+                        val msg = if (responseMessage.isNotBlank()) responseMessage else "Invalid refresh token"
+                        Result.failure(InvalidRefreshTokenException(401, msg))
+                    }
+                    AuthErrorKind.INVALID_PAYLOAD -> {
+                        // Invalid refresh payload (HTTP 400)
+                        accessToken = null
+                        refreshToken = null
+                        onSessionExpired?.invoke()
+                        SessionEventBus.emitSessionExpired("REFRESH_REJECTED_${response.statusCode}")
+                        val msg = if (responseMessage.isNotBlank()) responseMessage else "Invalid refresh token payload"
+                        Result.failure(InvalidRefreshPayloadException(400, msg))
+                    }
+                    AuthErrorKind.UNKNOWN -> {
+                        // Unexpected response code (e.g. 404, 405): treat as transient failure without wiping tokens
+                        Result.failure(java.io.IOException("Unexpected response during token refresh (HTTP ${response.statusCode})"))
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -1677,6 +1772,17 @@ class FastifyRestClient(
             refreshToken = null
             onSessionExpired?.invoke()
             SessionEventBus.emitSessionExpired("HTTP_401")
+        } else if (initialResponse.statusCode == 403 && !isAuthExemptPath(path)) {
+            val errorKind = classifyAuthError(403, initialResponse.body)
+            if (errorKind == AuthErrorKind.UNVERIFIED_EMAIL) {
+                accessToken = null
+                SessionEventBus.emitEmailVerificationRequired()
+            } else if (errorKind == AuthErrorKind.ACCOUNT_SUSPENDED) {
+                accessToken = null
+                refreshToken = null
+                onSessionExpired?.invoke()
+                SessionEventBus.emitSessionExpired("ACCOUNT_SUSPENDED")
+            }
         }
 
         return initialResponse

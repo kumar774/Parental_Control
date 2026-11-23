@@ -1,6 +1,11 @@
 package com.parentalcontrol.parent.navigation
 
+import com.parentalcontrol.core.network.rest.AccountSuspendedException
+import com.parentalcontrol.core.network.rest.AuthException
+import com.parentalcontrol.core.network.rest.InvalidRefreshPayloadException
+import com.parentalcontrol.core.network.rest.InvalidRefreshTokenException
 import com.parentalcontrol.core.network.rest.SessionExpiredException
+import com.parentalcontrol.core.network.rest.UnverifiedEmailException
 import com.parentalcontrol.parent.AppScreen
 
 sealed interface SessionVerificationResult {
@@ -45,14 +50,24 @@ class SessionRestorationManager(
         val err = verifyResult.exceptionOrNull()
         val errMsg = err?.message ?: ""
 
-        val isUnverifiedEmail = errMsg.contains("403") ||
-            errMsg.contains("not verified", ignoreCase = true)
+        // Structured check for Unverified Email on initial verification
+        val isUnverifiedEmail = err is UnverifiedEmailException ||
+            (errMsg.contains("403") && errMsg.contains("not verified", ignoreCase = true))
         if (isUnverifiedEmail) {
             isProcessSessionVerified = false
             return SessionVerificationResult.UnverifiedEmail
         }
 
+        // Structured check for Account Suspended on initial verification
+        val isAccountSuspended = err is AccountSuspendedException ||
+            (errMsg.contains("403") && (errMsg.contains("suspended", ignoreCase = true) || errMsg.contains("contact support", ignoreCase = true)))
+        if (isAccountSuspended) {
+            isProcessSessionVerified = false
+            return SessionVerificationResult.ExpiredOrInvalid
+        }
+
         val isExpiredOrInvalid = err is SessionExpiredException ||
+            err is InvalidRefreshTokenException ||
             errMsg.contains("401") ||
             errMsg.contains("USER_NOT_FOUND", ignoreCase = true) ||
             errMsg.contains("jwt expired", ignoreCase = true) ||
@@ -70,14 +85,22 @@ class SessionRestorationManager(
 
                     val verifyErr = verifyAfterRefresh.exceptionOrNull()
                     val verifyErrMsg = verifyErr?.message ?: ""
-                    val isSecondVerifyUnverified = verifyErrMsg.contains("403") ||
-                        verifyErrMsg.contains("not verified", ignoreCase = true)
+                    val isSecondVerifyUnverified = verifyErr is UnverifiedEmailException ||
+                        (verifyErrMsg.contains("403") && verifyErrMsg.contains("not verified", ignoreCase = true))
                     if (isSecondVerifyUnverified) {
                         isProcessSessionVerified = false
                         return SessionVerificationResult.UnverifiedEmail
                     }
 
+                    val isSecondVerifySuspended = verifyErr is AccountSuspendedException ||
+                        (verifyErrMsg.contains("403") && (verifyErrMsg.contains("suspended", ignoreCase = true) || verifyErrMsg.contains("contact support", ignoreCase = true)))
+                    if (isSecondVerifySuspended) {
+                        isProcessSessionVerified = false
+                        return SessionVerificationResult.ExpiredOrInvalid
+                    }
+
                     val isSecondVerifyExpiredOrInvalid = verifyErr is SessionExpiredException ||
+                        verifyErr is InvalidRefreshTokenException ||
                         verifyErrMsg.contains("401") ||
                         verifyErrMsg.contains("USER_NOT_FOUND", ignoreCase = true) ||
                         verifyErrMsg.contains("jwt expired", ignoreCase = true) ||
@@ -96,17 +119,19 @@ class SessionRestorationManager(
                 val refreshErr = refreshResult.exceptionOrNull()
                 val refreshErrMsg = refreshErr?.message ?: ""
 
-                val isRefreshDefinitivelyRejected = refreshErr is SessionExpiredException ||
-                    refreshErrMsg.contains("401") ||
-                    refreshErrMsg.contains("403") ||
-                    refreshErrMsg.contains("invalid refresh token", ignoreCase = true) ||
-                    refreshErrMsg.contains("refresh token revoked", ignoreCase = true) ||
-                    refreshErrMsg.contains("refresh token expired", ignoreCase = true) ||
-                    refreshErrMsg.contains("token expired", ignoreCase = true) ||
-                    refreshErrMsg.contains("jwt expired", ignoreCase = true) ||
-                    refreshErrMsg.contains("REFRESH_REJECTED", ignoreCase = true) ||
-                    refreshErrMsg.contains("unauthorized", ignoreCase = true) ||
-                    refreshErrMsg.contains("user_not_found", ignoreCase = true)
+                // 1. Structured check for Unverified Email on refresh failure: return UnverifiedEmail, NOT ExpiredOrInvalid!
+                if (refreshErr is UnverifiedEmailException ||
+                    (refreshErrMsg.contains("403") && refreshErrMsg.contains("not verified", ignoreCase = true))) {
+                    isProcessSessionVerified = false
+                    return SessionVerificationResult.UnverifiedEmail
+                }
+
+                // 2. Structured check for Account Suspended on refresh failure: reject session
+                if (refreshErr is AccountSuspendedException ||
+                    (refreshErrMsg.contains("403") && (refreshErrMsg.contains("suspended", ignoreCase = true) || refreshErrMsg.contains("contact support", ignoreCase = true)))) {
+                    isProcessSessionVerified = false
+                    return SessionVerificationResult.ExpiredOrInvalid
+                }
 
                 val isNetworkOrServerFailure = refreshErr is java.io.IOException ||
                     refreshErrMsg.contains("timeout", ignoreCase = true) ||
@@ -123,6 +148,20 @@ class SessionRestorationManager(
                     refreshErrMsg.contains("503") ||
                     refreshErrMsg.contains("504") ||
                     refreshErrMsg.contains("5xx", ignoreCase = true)
+
+                val isRefreshDefinitivelyRejected = refreshErr is SessionExpiredException ||
+                    refreshErr is InvalidRefreshTokenException ||
+                    refreshErr is InvalidRefreshPayloadException ||
+                    refreshErrMsg.contains("401") ||
+                    refreshErrMsg.contains("400") ||
+                    refreshErrMsg.contains("invalid refresh token", ignoreCase = true) ||
+                    refreshErrMsg.contains("refresh token revoked", ignoreCase = true) ||
+                    refreshErrMsg.contains("refresh token expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("token expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("jwt expired", ignoreCase = true) ||
+                    refreshErrMsg.contains("REFRESH_REJECTED", ignoreCase = true) ||
+                    refreshErrMsg.contains("unauthorized", ignoreCase = true) ||
+                    refreshErrMsg.contains("user_not_found", ignoreCase = true)
 
                 if (isNetworkOrServerFailure && !isRefreshDefinitivelyRejected) {
                     return SessionVerificationResult.NetworkUnavailable(

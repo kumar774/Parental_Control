@@ -27,7 +27,7 @@ interface IMmkvStorage {
     var familyCardNo: String?
     var familyPin: String?
 
-    fun clearSession()
+    fun clearSession(preserveEmail: Boolean = false)
 }
 
 /**
@@ -246,29 +246,33 @@ class FastMmkvStorage(
             }
         }
 
-    override fun clearSession() {
+    override fun clearSession(preserveEmail: Boolean) {
         cache.remove(KEY_USER_ID)
         cache.remove(KEY_ACCESS_TOKEN)
         cache.remove(KEY_REFRESH_TOKEN)
         cache.remove(KEY_SELECTED_CHILD_ID)
-        cache.remove(KEY_USER_EMAIL)
+        if (!preserveEmail) {
+            cache.remove(KEY_USER_EMAIL)
+        }
         cache.remove(KEY_USER_PHONE)
         cache.remove(KEY_USER_FULL_NAME)
         cache.remove(KEY_USER_PLAN)
         cache.remove(KEY_FAMILY_CARD_NO)
         cache.remove(KEY_FAMILY_PIN)
-        prefs?.edit()
+        val editor = prefs?.edit()
             ?.remove(KEY_USER_ID)
             ?.remove(KEY_ACCESS_TOKEN)
             ?.remove(KEY_REFRESH_TOKEN)
             ?.remove(KEY_SELECTED_CHILD_ID)
-            ?.remove(KEY_USER_EMAIL)
             ?.remove(KEY_USER_PHONE)
             ?.remove(KEY_USER_FULL_NAME)
             ?.remove(KEY_USER_PLAN)
             ?.remove(KEY_FAMILY_CARD_NO)
             ?.remove(KEY_FAMILY_PIN)
-            ?.apply()
+        if (!preserveEmail) {
+            editor?.remove(KEY_USER_EMAIL)
+        }
+        editor?.apply()
     }
 
     companion object {

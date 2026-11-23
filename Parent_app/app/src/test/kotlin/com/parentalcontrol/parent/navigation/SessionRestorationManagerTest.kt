@@ -445,4 +445,108 @@ class SessionRestorationManagerTest {
         assertTrue("Credentials must remain preserved", hasAccess && hasRefresh)
         assertFalse("Session must not be marked verified until second verify passes", SessionRestorationManager.isProcessSessionVerified)
     }
+
+    @Test
+    fun testRefreshFailure_Http403EmailNotVerified_ReturnsUnverifiedEmail() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(com.parentalcontrol.core.network.rest.SessionExpiredException("HTTP 401 token expired"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.failure(com.parentalcontrol.core.network.rest.UnverifiedEmailException(403, "Email not verified. Please verify your email before refreshing session."))
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.UnverifiedEmail, result)
+        assertEquals(1, verifyCount)
+        assertEquals(1, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testRefreshFailure_Http403AccountSuspended_ReturnsExpiredOrInvalid() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(com.parentalcontrol.core.network.rest.SessionExpiredException("HTTP 401 token expired"))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.failure(com.parentalcontrol.core.network.rest.AccountSuspendedException(403, "Account suspended. Please contact support."))
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.ExpiredOrInvalid, result)
+        assertEquals(1, verifyCount)
+        assertEquals(1, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testInitialVerify_Http403EmailNotVerified_ReturnsUnverifiedEmail() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(com.parentalcontrol.core.network.rest.UnverifiedEmailException(403, "Email not verified. Please verify your email before accessing this resource."))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.success(Unit)
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.UnverifiedEmail, result)
+        assertEquals(1, verifyCount)
+        assertEquals(0, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testInitialVerify_Http403AccountSuspended_ReturnsExpiredOrInvalid() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(com.parentalcontrol.core.network.rest.AccountSuspendedException(403, "Account suspended. Please contact support."))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.success(Unit)
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        assertEquals(SessionVerificationResult.ExpiredOrInvalid, result)
+        assertEquals(1, verifyCount)
+        assertEquals(0, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
 }

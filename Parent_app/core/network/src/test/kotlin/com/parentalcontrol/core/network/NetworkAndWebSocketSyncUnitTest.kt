@@ -342,8 +342,8 @@ class NetworkAndWebSocketSyncUnitTest {
             Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Invalid refresh token"}"""),
             Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Token reuse detected. All sessions have been revoked for security."}"""),
             Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Refresh token has expired"}"""),
-            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Account suspended. Please contact support."}"""),
-            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Email not verified. Please verify your email before refreshing session."}""")
+            Pair(400, """{"statusCode":400,"error":"Bad Request","message":"Invalid refresh token payload"}"""),
+            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Account suspended. Please contact support."}""")
         )
 
         for ((statusCode, bodyJson) in testCases) {
@@ -371,6 +371,36 @@ class NetworkAndWebSocketSyncUnitTest {
             assertNull("Access token must be cleared on confirmed rejection ($statusCode)", client.accessToken)
             assertNull("Refresh token must be cleared on confirmed rejection ($statusCode)", client.refreshToken)
         }
+    }
+
+    @Test
+    fun testTokenRefreshHttp403EmailNotVerified_DoesNotTriggerGenericLogout() = runBlocking {
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+        var sessionExpiredTriggered = false
+        client.onSessionExpired = {
+            sessionExpiredTriggered = true
+        }
+
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, headers, body ->
+            when {
+                fullUrl.endsWith("/api/v1/auth/refresh") -> {
+                    FastifyRestClient.HttpResponse(
+                        403,
+                        """{"statusCode":403,"error":"Forbidden","message":"Email not verified. Please verify your email before refreshing session."}"""
+                    )
+                }
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val refreshResult = client.refreshSession()
+        assertFalse("Refresh must fail for unverified email", refreshResult.isSuccess)
+        assertTrue("Error must be UnverifiedEmailException", refreshResult.exceptionOrNull() is com.parentalcontrol.core.network.rest.UnverifiedEmailException)
+        assertFalse("Session expired callback must NOT be triggered for unverified email", sessionExpiredTriggered)
+        assertNull("Access token must be cleared for unverified email", client.accessToken)
     }
 
     @Test
