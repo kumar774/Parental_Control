@@ -62,6 +62,21 @@ data class PairingCodeResponseDto(
     val expiresAtEpochMs: Long
 )
 
+data class PairingStatusDto(
+    val status: String, // "pending", "paired", "expired"
+    val deviceId: String? = null,
+    val childName: String? = null,
+    val deviceName: String? = null
+)
+
+data class AppSettingsDto(
+    val googleAuthEnabled: Boolean = false,
+    val googleClientId: String? = null,
+    val childAppDownloadUrl: String = "https://download.guardian.io/child-app-latest.apk",
+    val childAppLatestVersion: String = "1.0.0",
+    val childAppMinVersion: String = "1.0.0"
+)
+
 data class AppRuleDto(
     val packageName: String,
     val appName: String,

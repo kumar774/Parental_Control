@@ -150,6 +150,7 @@ import com.parentalcontrol.parent.ui.auth.ParentEmailVerificationScreen
 import com.parentalcontrol.parent.ui.onboarding.ChildProfileEditScreen
 import com.parentalcontrol.parent.ui.onboarding.ChildUninstallGuideScreen
 import com.parentalcontrol.parent.ui.pairing.ChooseDeviceTypeScreen
+import com.parentalcontrol.parent.ui.pairing.ParentConsentScreen
 import com.parentalcontrol.parent.ui.pairing.PairingSuccessScreen
 import com.parentalcontrol.parent.ui.pairing.QrScannerScreen
 import com.parentalcontrol.parent.ui.settings.AdbUsbActivationGuideScreen
@@ -273,6 +274,7 @@ enum class AppScreen {
     // Phase 10 Routes (Completing 66 Screens)
     PAIRING_SUCCESS,
     CHOOSE_DEVICE_TYPE,
+    PARENT_CONSENT,
     QR_SCANNER,
     CHILD_PROFILE_EDIT,
     CHILD_UNINSTALL_GUIDE,
@@ -560,6 +562,7 @@ fun ParentAppMainContent(
     var showLogoutConfirmModal by remember { mutableStateOf(false) }
     var showAvatarCropperModal by remember { mutableStateOf(false) }
     var selectedLegalDocType by remember { mutableStateOf("privacy") }
+    var legalScreenReturnTarget by remember { mutableStateOf(AppScreen.MAIN_SHELL) }
 
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
@@ -797,7 +800,7 @@ fun ParentAppMainContent(
                 AppScreen.WELCOME_CAROUSEL -> {
                     WelcomeCarouselScreen(
                         onGetStarted = {
-                            currentScreen = AppScreen.REGISTER
+                            currentScreen = AppScreen.LOGIN
                         },
                         onLoginClick = {
                             currentScreen = AppScreen.LOGIN
@@ -873,6 +876,25 @@ fun ParentAppMainContent(
                                 )
                             }
                         },
+                        onGoogleSignInClick = {
+                            toastMessage = "Connecting with Google Identity Services…"
+                            toastType = ToastType.INFO
+                            scope.launch {
+                                val res = FastifyRestClient.shared.loginWithGoogle("mock-google-id-token-${System.currentTimeMillis()}")
+                                if (res.isSuccess) {
+                                    val user = res.getOrNull()!!
+                                    mmkv.accessToken = user.accessToken
+                                    mmkv.refreshToken = user.refreshToken
+                                    mmkv.userEmail = user.user.email
+                                    toastMessage = "Welcome, ${user.user.fullName}!"
+                                    toastType = ToastType.SUCCESS
+                                    navigateToAuthenticatedRoot()
+                                } else {
+                                    toastMessage = res.exceptionOrNull()?.message ?: "Google sign-in failed"
+                                    toastType = ToastType.ERROR
+                                }
+                            }
+                        },
                         onBackClick = {
                             currentScreen = AppScreen.WELCOME_CAROUSEL
                         }
@@ -888,6 +910,35 @@ fun ParentAppMainContent(
                         },
                         onLoginClick = {
                             currentScreen = AppScreen.LOGIN
+                        },
+                        onTermsClick = {
+                            selectedLegalDocType = "terms"
+                            legalScreenReturnTarget = AppScreen.REGISTER
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onPrivacyPolicyClick = {
+                            selectedLegalDocType = "privacy"
+                            legalScreenReturnTarget = AppScreen.REGISTER
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onGoogleSignUpClick = {
+                            toastMessage = "Connecting with Google Identity Services…"
+                            toastType = ToastType.INFO
+                            scope.launch {
+                                val res = FastifyRestClient.shared.loginWithGoogle("mock-google-id-token-${System.currentTimeMillis()}")
+                                if (res.isSuccess) {
+                                    val user = res.getOrNull()!!
+                                    mmkv.accessToken = user.accessToken
+                                    mmkv.refreshToken = user.refreshToken
+                                    mmkv.userEmail = user.user.email
+                                    toastMessage = "Account created with Google!"
+                                    toastType = ToastType.SUCCESS
+                                    navigateToAuthenticatedRoot()
+                                } else {
+                                    toastMessage = res.exceptionOrNull()?.message ?: "Google sign-up failed"
+                                    toastType = ToastType.ERROR
+                                }
+                            }
                         },
                         onBackClick = {
                             currentScreen = AppScreen.WELCOME_CAROUSEL
@@ -1441,18 +1492,45 @@ fun ParentAppMainContent(
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
                     ChooseDeviceTypeScreen(
                         onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onContinueSetup = {
-                            currentScreen = AppScreen.QR_SCANNER
+                        onSelectParentDevice = {
+                            currentScreen = AppScreen.PARENT_CONSENT
+                        },
+                        onContinueToPairing = {
+                            currentScreen = AppScreen.DEVICE_PAIRING
+                        }
+                    )
+                }
+
+                AppScreen.PARENT_CONSENT -> {
+                    ParentConsentScreen(
+                        onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
+                        onConsentAccepted = { currentScreen = AppScreen.DEVICE_PAIRING },
+                        onOpenTerms = {
+                            selectedLegalDocType = "terms"
+                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onOpenPrivacy = {
+                            selectedLegalDocType = "privacy"
+                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onOpenCoppa = {
+                            selectedLegalDocType = "coppa"
+                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                            currentScreen = AppScreen.NATIVE_LEGAL
                         }
                     )
                 }
 
                 AppScreen.QR_SCANNER -> {
-                    QrScannerScreen(
+                    // Redirect legacy mock scanner route directly to real DevicePairingScreen
+                    DevicePairingScreen(
                         onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onQrScanned = {
-                            toastMessage = "QR pairing code verified"
-                            toastType = ToastType.SUCCESS
+                        onPairingSuccess = { name, model ->
+                            lastPairedChildName = name
+                            lastPairedDeviceName = model
+                            activeChildName = name
                             currentScreen = AppScreen.PAIRING_SUCCESS
                         }
                     )
@@ -1574,8 +1652,14 @@ fun ParentAppMainContent(
                 }
 
                 AppScreen.NATIVE_LEGAL -> {
+                    val initialLegalTab = when (selectedLegalDocType) {
+                        "terms" -> 1
+                        "coppa" -> 2
+                        else -> 0
+                    }
                     NativeLegalScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL }
+                        initialTab = initialLegalTab,
+                        onNavigateBack = { currentScreen = legalScreenReturnTarget }
                     )
                 }
 

@@ -30,8 +30,12 @@ android {
   }
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+  }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
   }
 
   buildFeatures {
@@ -60,4 +64,30 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.material.icons.extended)
+
+  // CameraX
+  val cameraVersion = "1.4.1"
+  implementation("androidx.camera:camera-core:$cameraVersion")
+  implementation("androidx.camera:camera-camera2:$cameraVersion")
+  implementation("androidx.camera:camera-lifecycle:$cameraVersion")
+  implementation("androidx.camera:camera-view:$cameraVersion")
+
+  // ML Kit Barcode Scanning
+  implementation("com.google.mlkit:barcode-scanning:17.3.0")
+  implementation("com.google.guava:guava:33.3.1-android")
+
+  // ZXing QR Generation
+  implementation("com.google.zxing:core:3.5.3")
+
+  // Encrypted Storage & Security Crypto
+  implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+  // Kotlinx Serialization & Coroutines
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
+  // Test Dependencies
+  testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation("org.json:json:20240303")
 }

@@ -148,6 +148,41 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun loginWithGoogle(idToken: String): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("idToken", idToken)
+            }.toString()
+
+            val response = executePost("/api/v1/auth/google", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val userJson = json.getJSONObject("user")
+                val token = json.getString("accessToken")
+                val refToken = json.getString("refreshToken")
+
+                val user = AuthUserDto(
+                    id = userJson.getString("id"),
+                    email = userJson.getString("email"),
+                    fullName = userJson.optString("fullName", "Parent"),
+                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
+                    isGuest = userJson.optBoolean("isGuest", false)
+                )
+
+                accessToken = token
+                refreshToken = refToken
+                Result.success(AuthResponseDto(user, token, refToken))
+            } else {
+                val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
+                val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
+                    ?: "Google authentication failed (HTTP ${response.statusCode})"
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     private fun toUserFriendlyError(e: Exception): String {
         return if (e is java.net.ConnectException || e is java.net.SocketTimeoutException || e is java.net.UnknownHostException) {
             "Unable to connect to guardian servers. Please check your internet connection."
@@ -441,6 +476,52 @@ class FastifyRestClient(
                     JSONObject(response.body).optString("message", "Pairing confirmation failed")
                 } catch (_: Exception) {
                     "Pairing confirmation failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun getAppSettings(): Result<AppSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeGet("/api/v1/config/app-settings")
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = AppSettingsDto(
+                    googleAuthEnabled = json.optBoolean("googleAuthEnabled", false),
+                    googleClientId = if (json.has("googleClientId") && !json.isNull("googleClientId")) json.getString("googleClientId") else null,
+                    childAppDownloadUrl = json.optString("childAppDownloadUrl", "https://download.guardian.io/child-app-latest.apk"),
+                    childAppLatestVersion = json.optString("childAppLatestVersion", "1.0.0"),
+                    childAppMinVersion = json.optString("childAppMinVersion", "1.0.0")
+                )
+                Result.success(dto)
+            } else {
+                Result.success(AppSettingsDto())
+            }
+        } catch (e: Exception) {
+            Result.success(AppSettingsDto())
+        }
+    }
+
+    suspend fun checkPairingStatus(code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeGet("/api/v1/devices/pair-status/${code.trim()}", accessToken)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = PairingStatusDto(
+                    status = json.optString("status", "pending"),
+                    deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null,
+                    childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null,
+                    deviceName = if (json.has("deviceName") && !json.isNull("deviceName")) json.getString("deviceName") else null
+                )
+                Result.success(dto)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Pairing status query failed")
+                } catch (_: Exception) {
+                    "Pairing status query failed (HTTP ${response.statusCode})"
                 }
                 Result.failure(Exception(msg))
             }
@@ -1858,15 +1939,15 @@ class FastifyRestClient(
         throw lastException ?: Exception("Network connection failed")
     }
 
-    private fun executeGet(path: String, bearerToken: String?): HttpResponse =
+    private fun executeGet(path: String, bearerToken: String? = null): HttpResponse =
         executeRequest("GET", path, null, bearerToken)
 
-    private fun executePost(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+    private fun executePost(path: String, jsonBody: String, bearerToken: String? = null): HttpResponse =
         executeRequest("POST", path, jsonBody, bearerToken)
 
-    private fun executePut(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+    private fun executePut(path: String, jsonBody: String, bearerToken: String? = null): HttpResponse =
         executeRequest("PUT", path, jsonBody, bearerToken)
 
-    private fun executeDelete(path: String, bearerToken: String?): HttpResponse =
+    private fun executeDelete(path: String, bearerToken: String? = null): HttpResponse =
         executeRequest("DELETE", path, null, bearerToken)
 }

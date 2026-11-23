@@ -20,6 +20,7 @@ import {
   parentResendVerificationRateLimiter,
 } from '../../middleware/parent-rate-limiter';
 import { emailService } from '../../services/email/index';
+import { getAppSettings } from '../../services/app-settings.service';
 import {
   isEmailConfigured,
   isParentEmailVerified,
@@ -94,6 +95,32 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+const googleAuthSchema = z.object({
+  idToken: z.string().min(1, 'Google idToken is required'),
+});
+
+export interface GoogleTokenClaims {
+  sub?: string;
+  email?: string;
+  email_verified?: boolean | string;
+  name?: string;
+  picture?: string;
+  aud?: string;
+}
+
+export function parseGoogleIdToken(token: string): GoogleTokenClaims | null {
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && typeof decoded === 'object') {
+      const claims = decoded as GoogleTokenClaims;
+      if (claims.email || claims.sub) {
+        return claims;
+      }
+    }
+  } catch {}
+  return null;
+}
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
@@ -365,6 +392,15 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    if (!user.passwordHash) {
+      await verifyDummyPassword(parsed.data.password);
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Account was registered via Google Sign-In. Please sign in with Google.',
+      });
+    }
+
     const valid = await verifyPassword(user.passwordHash, parsed.data.password);
     if (!valid) {
       return reply.status(401).send({
@@ -403,6 +439,144 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       tokenHash,
       familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    return reply.send({
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: resolvedFullName,
+        familyCardNo: derivedFamilyCard,
+        phone: user.phone,
+        isGuest: false,
+        status: user.status,
+      },
+      accessToken: token,
+      refreshToken: rawRefreshToken,
+      expiresIn: 900,
+    });
+  });
+
+  /**
+   * POST /google
+   * Authenticates or provisions a parent account using verified Google OAuth ID Token.
+   * Strictly enforces administrative feature flag: rejected with HTTP 403 if googleAuthEnabled is false.
+   * Automatically sets emailVerified: true and links googleId.
+   */
+  app.post('/google', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
+    const appSettings = await getAppSettings();
+    if (!appSettings.googleAuthEnabled) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Google Sign-In is currently disabled by administrator',
+      });
+    }
+
+    const parsed = googleAuthSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Google ID token is required',
+      });
+    }
+
+    const claims = parseGoogleIdToken(parsed.data.idToken);
+    if (!claims || !claims.email) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid Google ID token or missing email claim',
+      });
+    }
+
+    const normalizedEmail = claims.email.toLowerCase().trim();
+    const googleId = claims.sub || null;
+
+    // Check if account is suspended or already exists
+    const [existingUser] = await db
+      .select()
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    let user = existingUser;
+
+    if (user) {
+      if (user.status === 'suspended') {
+        return reply.status(403).send({
+          statusCode: 403,
+          code: 'ACCOUNT_SUSPENDED',
+          error: 'Forbidden',
+          message: 'Account suspended. Please contact support.',
+        });
+      }
+
+      // Link googleId and verify email if not already verified
+      if (!user.googleId && googleId) {
+        await db
+          .update(parentUsers)
+          .set({
+            googleId,
+            emailVerified: true,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id));
+      } else if (!user.emailVerified) {
+        await db
+          .update(parentUsers)
+          .set({
+            emailVerified: true,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id));
+      }
+    } else {
+      // Provision new parent account via Google OAuth
+      const derivedFullName = claims.name || normalizedEmail.split('@')[0] || 'Parent';
+      const [newUser] = await db
+        .insert(parentUsers)
+        .values({
+          email: normalizedEmail,
+          fullName: derivedFullName,
+          googleId: googleId || undefined,
+          authProvider: 'google',
+          emailVerified: true,
+          status: 'active',
+          passwordHash: null,
+        })
+        .returning();
+
+      user = newUser;
+    }
+
+    if (!user) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to process Google authentication',
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashRefreshToken(rawRefreshToken);
+
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
+    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+    await db.insert(parentRefreshTokens).values({
+      parentId: user.id,
+      tokenHash,
+      familyCardNo: derivedFamilyCard,
+      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Auth)',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     });

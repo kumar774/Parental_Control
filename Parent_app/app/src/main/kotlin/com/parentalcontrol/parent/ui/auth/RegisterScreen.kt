@@ -66,6 +66,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
+import com.parentalcontrol.core.network.rest.FastifyRestClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.OutlinedButton
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
@@ -98,11 +101,22 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onLoginClick: () -> Unit,
     onBackClick: () -> Unit = {},
+    onTermsClick: () -> Unit = {},
+    onPrivacyPolicyClick: () -> Unit = {},
+    onGoogleSignUpClick: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val uiState by viewModel.uiState.collectAsState()
+    var isGoogleAuthEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val settings = FastifyRestClient.shared.getAppSettings()
+        if (settings.isSuccess) {
+            isGoogleAuthEnabled = settings.getOrNull()?.googleAuthEnabled == true
+        }
+    }
 
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -468,11 +482,9 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(Space16))
 
-                // Terms of Service Checkbox
+                // Terms of Service & Privacy Policy Checkbox with clickable legal links
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !uiState.isLoading) { isTermsAccepted = !isTermsAccepted },
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
@@ -486,12 +498,42 @@ fun RegisterScreen(
                         )
                     )
                     Spacer(modifier = Modifier.width(Space8))
-                    Text(
-                        text = "I accept Family Privacy Policy and COPPA-compliant parental supervision terms.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFCBD5E1),
-                        lineHeight = 16.sp
-                    )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "I accept ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Terms of Service",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = NeonCyan,
+                                fontSize = 12.sp,
+                                modifier = Modifier.clickable { onTermsClick() }
+                            )
+                            Text(
+                                text = " & ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Privacy Policy",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = NeonCyan,
+                                fontSize = 12.sp,
+                                modifier = Modifier.clickable { onPrivacyPolicyClick() }
+                            )
+                        }
+                        Text(
+                            text = "and grant COPPA-compliant parental supervision consent.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(Space20))
@@ -563,6 +605,59 @@ fun RegisterScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+
+                // Google Sign-Up Button (conditionally enabled via remote configuration)
+                if (isGoogleAuthEnabled) {
+                    Spacer(modifier = Modifier.height(Space16))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
+                        Text(
+                            text = "OR",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B),
+                            modifier = Modifier.padding(horizontal = Space12)
+                        )
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
+                    }
+                    Spacer(modifier = Modifier.height(Space16))
+                    OutlinedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onGoogleSignUpClick()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RadiusCapsule,
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF0F172A),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "G",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                color = Color(0xFF4285F4)
+                            )
+                            Spacer(modifier = Modifier.width(Space12))
+                            Text(
+                                text = "Sign up with Google",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

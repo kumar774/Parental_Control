@@ -1,5 +1,6 @@
 package com.parentalcontrol.parent.ui.auth
 
+import com.parentalcontrol.core.database.ParentalDatabase
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,7 +63,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.database.ParentalDatabase
+import com.parentalcontrol.core.network.rest.FastifyRestClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.OutlinedButton
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
@@ -93,12 +96,21 @@ fun LoginScreen(
     onBiometricClick: () -> Unit,
     onNavigateToEmailVerification: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
+    onGoogleSignInClick: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val mmkv = ParentalDatabase.getInstance().mmkv
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
+    var isGoogleAuthEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val settings = FastifyRestClient.shared.getAppSettings()
+        if (settings.isSuccess) {
+            isGoogleAuthEnabled = settings.getOrNull()?.googleAuthEnabled == true
+        }
+    }
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -395,6 +407,59 @@ fun LoginScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+
+                // Google Sign-In Button (conditionally enabled via remote configuration)
+                if (isGoogleAuthEnabled) {
+                    Spacer(modifier = Modifier.height(Space16))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
+                        Text(
+                            text = "OR",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B),
+                            modifier = Modifier.padding(horizontal = Space12)
+                        )
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
+                    }
+                    Spacer(modifier = Modifier.height(Space16))
+                    OutlinedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onGoogleSignInClick()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RadiusCapsule,
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF0F172A),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "G",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                color = Color(0xFF4285F4)
+                            )
+                            Spacer(modifier = Modifier.width(Space12))
+                            Text(
+                                text = "Sign in with Google",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
 

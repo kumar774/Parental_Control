@@ -51,6 +51,25 @@ export interface UpdateSmtpPayload {
   fromName: string;
 }
 
+export interface AppSettingsResponse {
+  id: string;
+  googleAuthEnabled: boolean;
+  googleClientId: string | null;
+  childAppDownloadUrl: string;
+  childAppLatestVersion: string;
+  childAppMinVersion: string;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface UpdateAppSettingsPayload {
+  googleAuthEnabled?: boolean;
+  googleClientId?: string | null;
+  childAppDownloadUrl?: string;
+  childAppLatestVersion?: string;
+  childAppMinVersion?: string;
+}
+
 export interface DashboardOverview {
   generatedAt: string;
   parents: {
@@ -571,6 +590,26 @@ export const adminApi = {
     return request<{ statusCode: number; message: string }>(
       '/smtp/test',
       { method: 'POST', body: JSON.stringify({ toEmail }) },
+      SETTINGS_BASE_URL
+    );
+  },
+
+  /**
+   * Fetches general application & mobile client settings
+   */
+  async getAppSettings(): Promise<AppSettingsResponse> {
+    return request<AppSettingsResponse>('/app', { method: 'GET' }, SETTINGS_BASE_URL);
+  },
+
+  /**
+   * Updates application & mobile client settings
+   */
+  async updateAppSettings(
+    payload: UpdateAppSettingsPayload
+  ): Promise<{ statusCode: number; message: string; settings: AppSettingsResponse }> {
+    return request<{ statusCode: number; message: string; settings: AppSettingsResponse }>(
+      '/app',
+      { method: 'PUT', body: JSON.stringify(payload) },
       SETTINGS_BASE_URL
     );
   },

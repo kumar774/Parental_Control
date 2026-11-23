@@ -39,6 +39,7 @@ import {
 } from '../services/admin-api';
 import { SessionManagementPanel } from '../components/SessionManagementPanel';
 import { SmtpSettingsPanel } from '../components/SmtpSettingsPanel';
+import { AppSettingsPanel } from '../components/AppSettingsPanel';
 
 type Tab = 'overview' | 'parents' | 'devices' | 'audit' | 'health' | 'sessions' | 'settings';
 
@@ -92,12 +93,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['overview', 'parents', 'devices', 'audit', 'health', 'sessions'].includes(tabParam)) {
+      if (tabParam && ['overview', 'parents', 'devices', 'audit', 'health', 'sessions', 'settings'].includes(tabParam)) {
         return tabParam as Tab;
       }
     }
     return 'overview';
   });
+
+  const [settingsSubTab, setSettingsSubTab] = useState<'app' | 'smtp'>('app');
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
@@ -356,7 +359,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'audit', label: 'Security & Audit', icon: <ShieldCheck className="w-4 h-4" /> },
     { id: 'health', label: 'System Health', icon: <Server className="w-4 h-4" /> },
     { id: 'sessions', label: 'Active Sessions', icon: <KeyRound className="w-4 h-4" /> },
-    { id: 'settings', label: 'Email & SMTP', icon: <Mail className="w-4 h-4" /> },
+    { id: 'settings', label: 'System Settings', icon: <Server className="w-4 h-4" /> },
   ];
 
   return (
@@ -2333,10 +2336,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 7: EMAIL & SMTP SETTINGS */}
+        {/* TAB 7: SYSTEM SETTINGS (GENERAL APP & SMTP) */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <SmtpSettingsPanel />
+            <div className="flex border-b border-slate-800 gap-6">
+              <button
+                type="button"
+                onClick={() => setSettingsSubTab('app')}
+                className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${
+                  settingsSubTab === 'app'
+                    ? 'border-indigo-500 text-indigo-400 font-semibold'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                General & Mobile App Settings
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsSubTab('smtp')}
+                className={`pb-3 text-sm font-medium flex items-center gap-2 border-b-2 transition ${
+                  settingsSubTab === 'smtp'
+                    ? 'border-indigo-500 text-indigo-400 font-semibold'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                Email & SMTP Configuration
+              </button>
+            </div>
+
+            {settingsSubTab === 'app' ? <AppSettingsPanel /> : <SmtpSettingsPanel />}
           </div>
         )}
       </main>

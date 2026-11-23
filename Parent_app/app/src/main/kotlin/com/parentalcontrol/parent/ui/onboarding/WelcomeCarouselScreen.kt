@@ -294,7 +294,7 @@ fun WelcomeCarouselScreen(
 
         Spacer(modifier = Modifier.height(Space8))
 
-        // PRIMARY BUTTON: Get Started / Create Free Account
+        // PRIMARY BUTTON: Get Started (Advances to Login)
         Button(
             onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -315,7 +315,7 @@ fun WelcomeCarouselScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Get Started - Create Account",
+                    text = "Get Started",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

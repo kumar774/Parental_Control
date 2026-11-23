@@ -4,6 +4,15 @@ import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { emailService } from '../../services/email/index';
 import { db } from '../../db/index';
 import { adminControlAuditLogs } from '../../db/schema/parental-control';
+import { getAppSettings, updateAppSettings } from '../../services/app-settings.service';
+
+const appSettingsConfigSchema = z.object({
+  googleAuthEnabled: z.boolean().optional(),
+  googleClientId: z.string().trim().nullable().optional(),
+  childAppDownloadUrl: z.string().trim().url('Child App download URL must be a valid URL').optional(),
+  childAppLatestVersion: z.string().trim().min(1).optional(),
+  childAppMinVersion: z.string().trim().min(1).optional(),
+});
 
 const smtpConfigSchema = z.object({
   host: z.string().trim().min(1, 'Host is required').max(255),
@@ -33,6 +42,59 @@ export const adminSettingsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         message: 'Insufficient administrative privileges to configure system email settings',
       });
     }
+  });
+
+  /**
+   * GET /api/v1/admin/settings/app
+   * Returns general application & mobile client settings.
+   */
+  app.get('/app', async (_request, reply) => {
+    const settings = await getAppSettings();
+    return reply.send(settings);
+  });
+
+  /**
+   * PUT /api/v1/admin/settings/app
+   * Updates application settings (Google Auth, Child App download URL/version).
+   */
+  app.put('/app', async (request, reply) => {
+    const parsed = appSettingsConfigSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid application settings payload',
+      });
+    }
+
+    const admin = request.adminUser!;
+    const updated = await updateAppSettings(parsed.data, admin.id);
+
+    try {
+      await db.insert(adminControlAuditLogs).values({
+        adminId: admin.id,
+        action: 'APP_SETTINGS_UPDATE',
+        targetType: 'SYSTEM_SETTINGS',
+        targetId: null,
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'] as string,
+        severity: 'info',
+        metadata: {
+          changedFields: Object.keys(parsed.data),
+          googleAuthEnabled: updated.googleAuthEnabled,
+          childAppDownloadUrl: updated.childAppDownloadUrl,
+          childAppLatestVersion: updated.childAppLatestVersion,
+        },
+      });
+    } catch {
+      // Non-fatal audit log failure
+    }
+
+    return reply.send({
+      statusCode: 200,
+      message: 'Application settings updated successfully',
+      settings: updated,
+    });
   });
 
   /**

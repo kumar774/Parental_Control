@@ -1,8 +1,9 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { eq, count, sql, desc } from 'drizzle-orm';
+import { eq, and, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { db } from '../../db/index';
-import { childDevices } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
@@ -22,10 +23,26 @@ const deviceQuerySchema = z.object({
   }, z.number().int().min(1).max(50).default(20)),
 });
 
-export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  // All device routes require parent authentication and active account status
-  app.addHook('preHandler', requireParentAuth);
+const pairCodeSchema = z.object({
+  childName: z.string().trim().min(1).max(100).optional(),
+  deviceModel: z.string().trim().max(255).optional(),
+  expiresInSeconds: z.coerce.number().int().min(60).max(3600).default(600),
+});
 
+const pairConfirmSchema = z.object({
+  code: z.string().min(1, 'Pairing code is required'),
+  childName: z.string().trim().min(1).max(100).default('Child'),
+  deviceName: z.string().trim().max(255).default('Android Phone'),
+  model: z.string().trim().max(255).optional(),
+  osVersion: z.string().trim().max(100).default('Android 14'),
+  appVersion: z.string().trim().max(100).default('1.0.0'),
+});
+
+function normalizePairingCode(code: string): string {
+  return code.replace(/[^0-9a-zA-Z]/g, '').trim();
+}
+
+export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   /**
    * GET /api/v1/devices
    * Retrieves paginated list of child devices belonging to the authenticated parent.
@@ -33,7 +50,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
    * Real-time zero-trust status check: rejects suspended parent with HTTP 403.
    * Server-side bounded pagination with maximum page size 50 (clamped).
    */
-  app.get('/', async (request, reply) => {
+  app.get('/', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const parent = request.parentUser!;
     const parsedQuery = deviceQuerySchema.parse(request.query || {});
     const page = parsedQuery.page;
@@ -85,11 +102,220 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
   });
 
   /**
+   * POST /api/v1/devices/pair-code
+   * Generates a 9-digit pairing code and QR payload for enrolling a child device.
+   * Matches Parent_app's FastifyRestClient.kt generatePairingCode().
+   */
+  app.post('/pair-code', { preHandler: [requireParentAuth] }, async (request, reply) => {
+    const parent = request.parentUser!;
+    const parsed = pairCodeSchema.safeParse(request.body || {});
+    const expiresInSeconds = parsed.success ? parsed.data.expiresInSeconds : 600;
+
+    // Generate 9-digit numeric pairing code (e.g. 748291034)
+    const rawCode = crypto.randomInt(100000000, 1000000000).toString();
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    const qrPayload = `pc-pair:${rawCode}:${expiresAt.getTime()}`;
+
+    const [session] = await db
+      .insert(pairingSessions)
+      .values({
+        parentId: parent.id,
+        pairingCode: rawCode,
+        qrPayload,
+        status: 'pending',
+        childName: parsed.success ? parsed.data.childName : null,
+        deviceModel: parsed.success ? parsed.data.deviceModel : null,
+        expiresAt,
+      })
+      .returning();
+
+    if (!session) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to create pairing session',
+      });
+    }
+
+    return reply.status(200).send({
+      code: rawCode,
+      qrPayload,
+      expiresInSeconds,
+      expiresAt: expiresAt.toISOString(),
+    });
+  });
+
+  /**
+   * GET /api/v1/devices/pair-status/:code
+   * Checks real-time pairing session state.
+   * Polled by Parent_app while waiting for Child_app QR scan / code entry.
+   */
+  app.get('/pair-status/:code', async (request, reply) => {
+    const { code } = request.params as { code: string };
+    const normalizedCode = normalizePairingCode(code);
+
+    let session;
+    try {
+      const [record] = await db
+        .select()
+        .from(pairingSessions)
+        .where(eq(pairingSessions.pairingCode, normalizedCode))
+        .limit(1);
+      session = record;
+    } catch {
+      session = null;
+    }
+
+    if (!session) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Pairing session not found',
+      });
+    }
+
+    let status = session.status;
+    if (status === 'pending' && new Date(session.expiresAt).getTime() < Date.now()) {
+      status = 'expired';
+      await db
+        .update(pairingSessions)
+        .set({ status: 'expired' })
+        .where(eq(pairingSessions.id, session.id));
+    }
+
+    return reply.status(200).send({
+      status,
+      deviceId: session.childDeviceId,
+      childName: session.childName,
+      deviceModel: session.deviceModel,
+      expiresAt: session.expiresAt,
+    });
+  });
+
+  /**
+   * POST /api/v1/devices/pair-confirm
+   * Parent confirms pairing and provisions enrolled child device.
+   * Matches Parent_app's FastifyRestClient.kt confirmPairing().
+   */
+  app.post('/pair-confirm', { preHandler: [requireParentAuth] }, async (request, reply) => {
+    const parent = request.parentUser!;
+    const parsed = pairConfirmSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid pairing confirmation payload',
+      });
+    }
+
+    const normalizedCode = normalizePairingCode(parsed.data.code);
+
+    const [session] = await db
+      .select()
+      .from(pairingSessions)
+      .where(
+        and(
+          eq(pairingSessions.pairingCode, normalizedCode),
+          eq(pairingSessions.parentId, parent.id)
+        )
+      )
+      .limit(1);
+
+    if (!session) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Pairing session not found for this account',
+      });
+    }
+
+    if (new Date(session.expiresAt).getTime() < Date.now()) {
+      if (session.status === 'pending') {
+        await db
+          .update(pairingSessions)
+          .set({ status: 'expired' })
+          .where(eq(pairingSessions.id, session.id));
+      }
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Pairing code has expired',
+      });
+    }
+
+    // If already paired, return existing device
+    if (session.status === 'paired' && session.childDeviceId) {
+      const [existingDevice] = await db
+        .select()
+        .from(childDevices)
+        .where(eq(childDevices.id, session.childDeviceId))
+        .limit(1);
+
+      if (existingDevice) {
+        return reply.status(200).send({
+          deviceId: existingDevice.id,
+          childName: existingDevice.childName,
+          deviceName: existingDevice.deviceModel || parsed.data.deviceName,
+          model: existingDevice.deviceModel,
+          status: 'paired',
+        });
+      }
+    }
+
+    const resolvedChildName = parsed.data.childName || session.childName || 'Child';
+    const resolvedDeviceModel = parsed.data.model || parsed.data.deviceName || session.deviceModel || 'Android Phone';
+
+    const [newDevice] = await db
+      .insert(childDevices)
+      .values({
+        parentId: parent.id,
+        childName: resolvedChildName,
+        deviceModel: resolvedDeviceModel,
+        osVersion: parsed.data.osVersion,
+        appVersion: parsed.data.appVersion,
+        isLocked: false,
+        batteryPct: 100,
+        isCharging: false,
+        accessibilityHealthy: true,
+        deviceAdminActive: true,
+        knoxActive: false,
+        lastSeenAt: new Date(),
+      })
+      .returning();
+
+    if (!newDevice) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to create child device record',
+      });
+    }
+
+    await db
+      .update(pairingSessions)
+      .set({
+        status: 'paired',
+        childDeviceId: newDevice.id,
+        childName: newDevice.childName,
+        deviceModel: newDevice.deviceModel,
+      })
+      .where(eq(pairingSessions.id, session.id));
+
+    return reply.status(200).send({
+      deviceId: newDevice.id,
+      childName: newDevice.childName,
+      deviceName: newDevice.deviceModel || parsed.data.deviceName,
+      model: newDevice.deviceModel,
+      status: 'paired',
+    });
+  });
+
+  /**
    * GET /api/v1/devices/:deviceId
    * Retrieves single child device with strict parent ownership verification.
    * Enforces cross-parent resource isolation: returns 404 if not found, 403 if device belongs to another parent.
    */
-  app.get('/:deviceId', async (request, reply) => {
+  app.get('/:deviceId', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const { deviceId } = request.params as { deviceId: string };
     const parent = request.parentUser!;
 
@@ -144,7 +370,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
    * Verifies parent ownership, then honestly reports unsupported status because
    * Child_app currently lacks mobile push transport and cryptographic signature verification.
    */
-  app.post('/:deviceId/commands', async (request, reply) => {
+  app.post('/:deviceId/commands', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const { deviceId } = request.params as { deviceId: string };
     const parent = request.parentUser!;
 
