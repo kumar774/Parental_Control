@@ -96,26 +96,36 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+import {
+  verifyGoogleIdToken,
+  GoogleAuthVerificationError,
+  type GoogleTokenClaims,
+} from '../../services/google-auth.service';
+
 const googleAuthSchema = z.object({
   idToken: z.string().min(1, 'Google idToken is required'),
+  password: z.string().optional(),
+  fullName: z.string().optional(),
 });
 
-export interface GoogleTokenClaims {
-  sub?: string;
-  email?: string;
-  email_verified?: boolean | string;
-  name?: string;
-  picture?: string;
-  aud?: string;
-}
+export { GoogleTokenClaims };
 
 export function parseGoogleIdToken(token: string): GoogleTokenClaims | null {
   try {
     const decoded = jwt.decode(token);
     if (decoded && typeof decoded === 'object') {
-      const claims = decoded as GoogleTokenClaims;
+      const claims = decoded as any;
       if (claims.email || claims.sub) {
-        return claims;
+        return {
+          sub: claims.sub || '',
+          email: claims.email || '',
+          email_verified: claims.email_verified === true || claims.email_verified === 'true',
+          name: claims.name,
+          picture: claims.picture,
+          aud: claims.aud || '',
+          iss: claims.iss || '',
+          exp: claims.exp || 0,
+        };
       }
     }
   } catch {}
@@ -484,17 +494,28 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    const claims = parseGoogleIdToken(parsed.data.idToken);
-    if (!claims || !claims.email) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid Google ID token or missing email claim',
+    let claims: GoogleTokenClaims;
+    try {
+      claims = await verifyGoogleIdToken(parsed.data.idToken, appSettings.googleClientId || undefined);
+    } catch (err: any) {
+      if (err instanceof GoogleAuthVerificationError) {
+        return reply.status(err.statusCode).send({
+          statusCode: err.statusCode,
+          code: err.code || 'INVALID_GOOGLE_TOKEN',
+          error: 'Unauthorized',
+          message: err.message,
+        });
+      }
+      return reply.status(401).send({
+        statusCode: 401,
+        code: 'INVALID_GOOGLE_TOKEN',
+        error: 'Unauthorized',
+        message: err.message || 'Failed to cryptographically verify Google ID token',
       });
     }
 
     const normalizedEmail = claims.email.toLowerCase().trim();
-    const googleId = claims.sub || null;
+    const googleId = claims.sub;
 
     // Check if account is suspended or already exists
     const [existingUser] = await db
@@ -512,6 +533,16 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           code: 'ACCOUNT_SUSPENDED',
           error: 'Forbidden',
           message: 'Account suspended. Please contact support.',
+        });
+      }
+
+      // Prevent account takeover: verify Google account ID matches if user already linked Google
+      if (user.googleId && user.googleId !== googleId) {
+        return reply.status(403).send({
+          statusCode: 403,
+          code: 'GOOGLE_ACCOUNT_MISMATCH',
+          error: 'Forbidden',
+          message: 'Account is already associated with a different Google account. Linking rejected.',
         });
       }
 
@@ -535,8 +566,21 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           .where(eq(parentUsers.id, user.id));
       }
     } else {
-      // Provision new parent account via Google OAuth
-      const derivedFullName = claims.name || normalizedEmail.split('@')[0] || 'Parent';
+      // Provision new parent account via Google OAuth (with optional password hashing)
+      let passwordHash: string | null = null;
+      if (parsed.data.password) {
+        const pwCheck = validateParentPassword(parsed.data.password);
+        if (!pwCheck.valid) {
+          return reply.status(400).send({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: pwCheck.message || 'Password does not meet complexity requirements',
+          });
+        }
+        passwordHash = await hashPassword(parsed.data.password);
+      }
+
+      const derivedFullName = parsed.data.fullName || claims.name || normalizedEmail.split('@')[0] || 'Parent';
       const [newUser] = await db
         .insert(parentUsers)
         .values({
@@ -546,7 +590,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           authProvider: 'google',
           emailVerified: true,
           status: 'active',
-          passwordHash: null,
+          passwordHash,
         })
         .returning();
 

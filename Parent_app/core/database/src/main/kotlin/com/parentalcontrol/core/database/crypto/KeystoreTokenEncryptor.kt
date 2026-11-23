@@ -101,8 +101,8 @@ class KeystoreTokenEncryptor(
             val base64 = Base64.getEncoder().encodeToString(combined)
             "$ENCRYPTED_PREFIX$base64"
         } catch (e: Exception) {
-            // In case of unexpected crypto failure, don't crash app
-            plainText
+            // Fail closed on Keystore crypto failure to prevent plaintext token leakage
+            null
         }
     }
 

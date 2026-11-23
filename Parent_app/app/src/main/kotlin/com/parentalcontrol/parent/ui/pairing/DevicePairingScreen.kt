@@ -118,12 +118,15 @@ import com.parentalcontrol.core.designsystem.theme.NeonCyan
 import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
 import com.parentalcontrol.core.designsystem.theme.RadiusLarge
 import com.parentalcontrol.core.designsystem.theme.RadiusMedium
+import com.parentalcontrol.core.designsystem.theme.Space4
+import com.parentalcontrol.core.designsystem.theme.Space6
+import com.parentalcontrol.core.designsystem.theme.Space8
+import com.parentalcontrol.core.designsystem.theme.Space10
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space20
 import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space6
-import com.parentalcontrol.core.designsystem.theme.Space8
+import com.parentalcontrol.core.designsystem.theme.Space32
 import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
 import com.parentalcontrol.core.designsystem.theme.StatusWarningAmber
 import com.parentalcontrol.core.designsystem.theme.TextMuted
@@ -176,8 +179,6 @@ fun DevicePairingScreen(
     val childDao = remember { ParentalDatabase.getInstance().childDeviceDao }
     val haptic = LocalHapticFeedback.current
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Scan QR, 1: 9-Digit Code, 2: Download Child App
-
     // CameraX & Scan States
     var isFlashOn by remember { mutableStateOf(false) }
     var isPairingLoading by remember { mutableStateOf(false) }
@@ -216,10 +217,8 @@ fun DevicePairingScreen(
                 remainingSeconds = maxOf(0, diffSec)
             } else {
                 pairingCodeError = result.exceptionOrNull()?.message ?: "Failed to generate pairing code"
-                // Local fallback 9-digit code if offline
-                val randomDigits = (100000000L..999999999L).random().toString()
-                serverPairingCode = randomDigits
-                remainingSeconds = 600
+                serverPairingCode = null
+                remainingSeconds = 0
             }
         }
     }
@@ -277,13 +276,6 @@ fun DevicePairingScreen(
                 val err = statusRes.exceptionOrNull()?.message ?: "Binding status check failed"
                 Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    // Initial code fetch on entering 9-digit code tab
-    LaunchedEffect(selectedTabIndex) {
-        if (selectedTabIndex == 0 && serverPairingCode == null) {
-            fetchNewPairingCode()
         }
     }
 
@@ -396,75 +388,7 @@ fun DevicePairingScreen(
 
             Spacer(modifier = Modifier.height(Space16))
 
-            // 3-Tab Selector: 9-Digit Code | Scan QR | Download App
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = Color(0xFF0F172A),
-                divider = {},
-                indicator = { tabPositions ->
-                    SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                        color = NeonCyan
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RadiusLarge)
-                    .border(1.dp, Color(0xFF334155), RadiusLarge)
-            ) {
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = {
-                        selectedTabIndex = 0
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(Space6))
-                            Text("9-Digit Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    selectedContentColor = NeonCyan,
-                    unselectedContentColor = TextMuted
-                )
-                Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = {
-                        selectedTabIndex = 1
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(Space6))
-                            Text("Scan QR", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    selectedContentColor = NeonCyan,
-                    unselectedContentColor = TextMuted
-                )
-                Tab(
-                    selected = selectedTabIndex == 2,
-                    onClick = {
-                        selectedTabIndex = 2
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(Space6))
-                            Text("Download App", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    selectedContentColor = NeonCyan,
-                    unselectedContentColor = TextMuted
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            // Body Switcher
+            // FlashGet Kids Continuous Vertical Flow: 01 Download Kids -> 02 Bind Child's Device
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -472,213 +396,207 @@ fun DevicePairingScreen(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                when (selectedTabIndex) {
-                    0 -> {
-                        // SECTION C: 9-Digit Numeric Code Display & Status Check
-                        SectionCNineDigitCode(
-                            pairingCode = serverPairingCode,
-                            remainingSeconds = remainingSeconds,
-                            isFetching = isFetchingPairingCode,
-                            errorMessage = pairingCodeError,
-                            isCheckingStatus = isCheckingBindingStatus,
-                            onRefreshCode = { fetchNewPairingCode() },
-                            onCheckBindingStatus = { checkBindingStatus() }
-                        )
-                    }
+                // ==========================================
+                // SECTION 01: Download Kids (QR Code + Link)
+                // ==========================================
+                Section01DownloadKids(
+                    downloadUrl = childDownloadUrl,
+                    context = context
+                )
 
-                    1 -> {
-                        // SECTION B: Real CameraX + ML Kit Scanner
-                        SectionBScanner(
-                            hasCameraPermission = hasCameraPermission,
-                            isFlashOn = isFlashOn,
-                            onToggleFlash = { isFlashOn = !isFlashOn },
-                            onRequestPermission = {
-                                try {
-                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onQrCodeDetected = { rawQr ->
-                                val code = extractPairingCode(rawQr)
-                                Toast.makeText(context, "Pairing with code $code...", Toast.LENGTH_SHORT).show()
-                                scope.launch {
-                                    val result = FastifyRestClient.shared.confirmPairing(code)
-                                    if (result.isSuccess) {
-                                        val dev = result.getOrNull()!!
-                                        childDao.insertOrUpdate(
-                                            ChildDeviceEntity(
-                                                id = dev.id,
-                                                deviceName = dev.deviceName,
-                                                childName = dev.childName.ifBlank { dev.deviceName },
-                                                childAge = 10,
-                                                avatarUrl = null,
-                                                isLocked = false,
-                                                batteryPercent = 100,
-                                                isCharging = false,
-                                                isOnline = true,
-                                                activeApp = null,
-                                                lastKnownLat = null,
-                                                lastKnownLng = null,
-                                                lastSeenAt = System.currentTimeMillis()
-                                            )
-                                        )
-                                        onPairingSuccess(dev.childName, dev.deviceName)
-                                    } else {
-                                        val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
-                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                    }
-                                }
+                Spacer(modifier = Modifier.height(Space20))
+
+                // ==========================================
+                // SECTION 02: Bind Child's Device
+                // ==========================================
+                Section02BindChildDevice(
+                    hasCameraPermission = hasCameraPermission,
+                    isFlashOn = isFlashOn,
+                    onToggleFlash = { isFlashOn = !isFlashOn },
+                    onRequestPermission = {
+                        try {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onQrCodeDetected = { rawQr ->
+                        val code = extractPairingCode(rawQr)
+                        Toast.makeText(context, "Pairing with code $code...", Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            val result = FastifyRestClient.shared.confirmPairing(code)
+                            if (result.isSuccess) {
+                                val dev = result.getOrNull()!!
+                                childDao.insertOrUpdate(
+                                    ChildDeviceEntity(
+                                        id = dev.id,
+                                        deviceName = dev.deviceName,
+                                        childName = dev.childName.ifBlank { dev.deviceName },
+                                        childAge = 10,
+                                        avatarUrl = null,
+                                        isLocked = false,
+                                        batteryPercent = 100,
+                                        isCharging = false,
+                                        isOnline = true,
+                                        activeApp = null,
+                                        lastKnownLat = null,
+                                        lastKnownLng = null,
+                                        lastSeenAt = System.currentTimeMillis()
+                                    )
+                                )
+                                onPairingSuccess(dev.childName, dev.deviceName)
+                            } else {
+                                val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
+                                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                             }
-                        )
-                    }
+                        }
+                    },
+                    pairingCode = serverPairingCode,
+                    remainingSeconds = remainingSeconds,
+                    isFetching = isFetchingPairingCode,
+                    errorMessage = pairingCodeError,
+                    isCheckingStatus = isCheckingBindingStatus,
+                    onRefreshCode = { fetchNewPairingCode() },
+                    onCheckBindingStatus = { checkBindingStatus() }
+                )
 
-                    2 -> {
-                        // SECTION A: Download Child App (Download URL, open browser, QR code)
-                        SectionADownloadApp(
-                            downloadUrl = childDownloadUrl,
-                            context = context,
-                            onGoToScanner = { selectedTabIndex = 1 }
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(Space32))
             }
         }
     }
 }
 
 /**
- * Section B: Real CameraX + ML Kit QR Scanner
+ * Section 01: Download Kids (QR Code + Direct Download Link)
+ * Replicates FlashGet Kids Section 01 layout 1:1
  */
 @Composable
-private fun SectionBScanner(
+private fun Section01DownloadKids(
+    downloadUrl: String,
+    context: Context
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlassCard(shape = RadiusLarge)
+            .background(Color(0xFF0F172A))
+            .border(1.dp, Color(0xFF334155), RadiusLarge)
+            .padding(Space20),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(NeonCyan.copy(alpha = 0.2f))
+                    .border(1.dp, NeonCyan, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "01",
+                    color = NeonCyan,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(Space10))
+            Column {
+                Text(
+                    text = "Download Kids",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "1. Scan the QR code with child's device to download Kids.",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Space16))
+
+        // Download QR Code Card
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .clip(RadiusMedium)
+                .background(Color.White)
+                .padding(Space8),
+            contentAlignment = Alignment.Center
+        ) {
+            DownloadQrCanvas(data = downloadUrl)
+        }
+
+        Spacer(modifier = Modifier.height(Space16))
+
+        Text(
+            text = "2. Or download through this link in browser:",
+            color = Color(0xFF94A3B8),
+            fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(Space8))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RadiusCapsule)
+                .background(Color(0xFF1E293B))
+                .border(1.dp, Color(0xFF334155), RadiusCapsule)
+                .padding(horizontal = Space12, vertical = Space8),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = downloadUrl,
+                color = NeonCyan,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = {
+                    try {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Child App Download Link", downloadUrl)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Link copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Copied: $downloadUrl", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Copy link",
+                    tint = NeonCyan,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Section 02: Bind Child's Device (Camera QR Scanner + Generated 9-Digit Code + Check Status Button)
+ * Replicates FlashGet Kids Section 02 layout 1:1
+ */
+@Composable
+private fun Section02BindChildDevice(
     hasCameraPermission: Boolean,
     isFlashOn: Boolean,
     onToggleFlash: () -> Unit,
     onRequestPermission: () -> Unit,
-    onQrCodeDetected: (String) -> Unit
-) {
-    Text(
-        text = "Scan Child Companion QR Code",
-        color = Color.White,
-        fontSize = 20.sp,
-        fontWeight = FontWeight.ExtraBold,
-        textAlign = TextAlign.Center
-    )
-    Spacer(modifier = Modifier.height(Space6))
-    Text(
-        text = "Open Guardian Child on your child's phone and aim your camera at the pairing QR code.",
-        color = Color(0xFF94A3B8),
-        fontSize = 12.sp,
-        textAlign = TextAlign.Center,
-        lineHeight = 16.sp
-    )
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    if (hasCameraPermission) {
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .clip(RadiusLarge)
-                .background(Color.Black)
-                .border(2.dp, NeonCyan.copy(alpha = 0.8f), RadiusLarge)
-        ) {
-            LiveCameraQrScanner(
-                onQrCodeDetected = onQrCodeDetected,
-                isFlashOn = isFlashOn,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Torch Toggle Button
-            IconButton(
-                onClick = onToggleFlash,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(12.dp)
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isFlashOn) NeonCyan.copy(alpha = 0.25f) else Color(0xFF1E293B))
-                    .border(1.dp, if (isFlashOn) NeonCyan else Color(0xFF334155), CircleShape)
-            ) {
-                Icon(
-                    imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                    contentDescription = "Flash Toggle",
-                    tint = if (isFlashOn) NeonCyan else Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Text(
-                text = "Align Child QR Code inside reticle",
-                color = Color(0xFFE2E8F0),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp)
-            )
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .size(280.dp)
-                .clip(RadiusLarge)
-                .background(Color(0xFF0F172A))
-                .border(1.5.dp, Color(0xFF1E293B), RadiusLarge)
-                .padding(Space20),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E293B))
-                    .border(1.dp, NeonCyan, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = null,
-                    tint = NeonCyan,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space16))
-            Text(
-                text = "Camera Access Required",
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(Space6))
-            Text(
-                text = "Enable camera permission to scan your child's QR code instantly.",
-                color = Color(0xFF94A3B8),
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(Space16))
-            Button(
-                onClick = onRequestPermission,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(40.dp)
-            ) {
-                Text("Grant Camera Permission", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-/**
- * Section C: 9-Digit Numeric Code Display & Entry
- */
-@Composable
-private fun SectionCNineDigitCode(
+    onQrCodeDetected: (String) -> Unit,
     pairingCode: String?,
     remainingSeconds: Int,
     isFetching: Boolean,
@@ -687,237 +605,239 @@ private fun SectionCNineDigitCode(
     onRefreshCode: () -> Unit,
     onCheckBindingStatus: () -> Unit
 ) {
-    Text(
-        text = "9-Digit Pairing Code",
-        color = Color.White,
-        fontSize = 20.sp,
-        fontWeight = FontWeight.ExtraBold,
-        textAlign = TextAlign.Center
-    )
-    Spacer(modifier = Modifier.height(Space6))
-    Text(
-        text = "Enter this 9-digit code into your child's companion app to bind the device.",
-        color = Color(0xFF94A3B8),
-        fontSize = 12.sp,
-        textAlign = TextAlign.Center,
-        lineHeight = 16.sp
-    )
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    // Display Card for Server 9-digit pairing code
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .liquidGlassCard(shape = RadiusLarge)
             .background(Color(0xFF0F172A))
-            .border(1.5.dp, NeonCyan.copy(alpha = 0.5f), RadiusLarge)
-            .padding(Space24),
+            .border(1.dp, Color(0xFF334155), RadiusLarge)
+            .padding(Space20),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(NeonCyan.copy(alpha = 0.2f))
+                    .border(1.dp, NeonCyan, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "02",
+                    color = NeonCyan,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(Space10))
+            Column {
+                Text(
+                    text = "Bind child's device",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "1. Open Kids on the child's device, scan the QR code to bind.",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Space16))
+
+        // Part 1: Camera Scanner Option (UPAR)
+        if (hasCameraPermission) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RadiusLarge)
+                    .background(Color.Black)
+                    .border(1.5.dp, NeonCyan.copy(alpha = 0.8f), RadiusLarge)
+            ) {
+                LiveCameraQrScanner(
+                    onQrCodeDetected = onQrCodeDetected,
+                    isFlashOn = isFlashOn,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                IconButton(
+                    onClick = onToggleFlash,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (isFlashOn) NeonCyan.copy(alpha = 0.3f) else Color(0xFF1E293B))
+                        .border(1.dp, if (isFlashOn) NeonCyan else Color(0xFF334155), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                        contentDescription = "Flash Toggle",
+                        tint = if (isFlashOn) NeonCyan else Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Text(
+                    text = "Aim camera at QR code on child's screen",
+                    color = Color(0xFFE2E8F0),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RadiusLarge)
+                    .background(Color(0xFF1E293B))
+                    .border(1.dp, Color(0xFF334155), RadiusLarge)
+                    .padding(Space12),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.height(Space8))
+                Text(
+                    text = "Camera access required to scan child's QR code",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(Space10))
+                Button(
+                    onClick = onRequestPermission,
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text("Enable Camera", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Space20))
+
+        // Part 2: Generated 9-Digit Code Option (NICHE)
         Text(
-            text = "PARENT PAIRING CODE",
+            text = "2. You can also bind child's device through 9-digit code:",
             color = Color(0xFF94A3B8),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
+            fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(Space16))
+        Spacer(modifier = Modifier.height(Space12))
 
-        if (isFetching) {
-            CircularProgressIndicator(modifier = Modifier.size(36.dp), color = NeonCyan)
-        } else {
-            val formattedCode = formatNineDigitCode(pairingCode ?: "--- --- ---")
-            Text(
-                text = formattedCode,
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(Space16))
-
-        // Countdown Timer & Status
-        val minutes = remainingSeconds / 60
-        val seconds = remainingSeconds % 60
-        val timeDisplay = "%02d:%02d".format(minutes, seconds)
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RadiusLarge)
+                .background(Color(0xFF1E293B))
+                .border(1.dp, NeonCyan.copy(alpha = 0.4f), RadiusLarge)
+                .padding(Space16),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Timer,
-                contentDescription = null,
-                tint = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(Space6))
-            Text(
-                text = if (remainingSeconds > 0) "Expires in $timeDisplay (Single-Use)" else "Code expired",
-                color = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (isFetching) {
+                CircularProgressIndicator(modifier = Modifier.size(28.dp), color = NeonCyan)
+            } else if (errorMessage != null && pairingCode == null) {
+                Text(
+                    text = errorMessage,
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(Space8))
+                OutlinedButton(
+                    onClick = onRefreshCode,
+                    shape = RadiusCapsule,
+                    border = BorderStroke(1.dp, Color(0xFF334155))
+                ) {
+                    Text("Retry", color = NeonCyan, fontSize = 12.sp)
+                }
+            } else {
+                val formattedCode = formatNineDigitCode(pairingCode ?: "--- --- ---")
+                Text(
+                    text = formattedCode,
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 2.sp
+                )
+
+                Spacer(modifier = Modifier.height(Space10))
+
+                val minutes = remainingSeconds / 60
+                val seconds = remainingSeconds % 60
+                val timeDisplay = "%02d:%02d".format(minutes, seconds)
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(Space4))
+                    Text(
+                        text = if (remainingSeconds > 0) "Expires in $timeDisplay (Single-Use)" else "Code expired",
+                        color = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Space10))
+
+                OutlinedButton(
+                    onClick = onRefreshCode,
+                    shape = RadiusCapsule,
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(Space6))
+                    Text("Generate New Code", color = NeonCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(Space16))
+        Spacer(modifier = Modifier.height(Space20))
 
-        // Refresh Code Button
-        OutlinedButton(
-            onClick = onRefreshCode,
-            shape = RadiusCapsule,
-            border = BorderStroke(1.dp, Color(0xFF334155)),
-            modifier = Modifier.height(38.dp)
+        // Part 3: Check binding status button
+        Button(
+            onClick = onCheckBindingStatus,
+            enabled = !isCheckingStatus,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RadiusLarge,
+            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(Space6))
-            Text("Generate New Code", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    // Check binding status button (FlashGet Kids style)
-    Button(
-        onClick = onCheckBindingStatus,
-        enabled = !isCheckingStatus,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        shape = RadiusLarge,
-        colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
-    ) {
-        if (isCheckingStatus) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-        } else {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(Space8))
-            Text("Check binding status", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        }
-    }
-}
-
-/**
- * Section A: Download Child App (Download URL, QR Code, Browser Intent)
- */
-@Composable
-private fun SectionADownloadApp(
-    downloadUrl: String,
-    context: Context,
-    onGoToScanner: () -> Unit
-) {
-    Text(
-        text = "Download Child Companion App",
-        color = Color.White,
-        fontSize = 20.sp,
-        fontWeight = FontWeight.ExtraBold,
-        textAlign = TextAlign.Center
-    )
-    Spacer(modifier = Modifier.height(Space6))
-    Text(
-        text = "Install the Guardian Child companion app on your child's phone to begin.",
-        color = Color(0xFF94A3B8),
-        fontSize = 12.sp,
-        textAlign = TextAlign.Center
-    )
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    // Download QR Code Card
-    Box(
-        modifier = Modifier
-            .size(200.dp)
-            .liquidGlassCard(shape = RadiusLarge)
-            .clip(RadiusLarge)
-            .background(Color.White)
-            .padding(Space12),
-        contentAlignment = Alignment.Center
-    ) {
-        DownloadQrCanvas(data = downloadUrl)
-    }
-
-    Spacer(modifier = Modifier.height(Space12))
-
-    Text(
-        text = downloadUrl,
-        fontSize = 11.sp,
-        color = NeonCyan,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = Space16)
-    )
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    // Open Download Link in Browser Button
-    Button(
-        onClick = {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(context, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
+            if (isCheckingStatus) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(Space8))
+                Text("Check binding status", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = RadiusCapsule,
-        colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
-    ) {
-        Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(Space8))
-        Text("Open Download Link in Browser", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-    }
-
-    Spacer(modifier = Modifier.height(Space8))
-
-    // Share Download Link Button
-    OutlinedButton(
-        onClick = {
-            try {
-                val sendIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(Intent.EXTRA_TEXT, "Download Parental Control Companion App: $downloadUrl")
-                    type = "text/plain"
-                }
-                val shareIntent = Intent.createChooser(sendIntent, "Share Child App Link")
-                context.startActivity(shareIntent)
-            } catch (e: Exception) {
-                Toast.makeText(context, "Share error: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = RadiusCapsule,
-        border = BorderStroke(1.dp, Color(0xFF334155)),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF1E293B), contentColor = Color.White)
-    ) {
-        Icon(Icons.Default.Share, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(Space8))
-        Text("Share Download Link", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-    }
-
-    Spacer(modifier = Modifier.height(Space16))
-
-    // Next step button
-    Button(
-        onClick = onGoToScanner,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = RadiusLarge,
-        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
-    ) {
-        Text("Proceed to Pairing Scanner", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
     }
 }
 

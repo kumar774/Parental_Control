@@ -9,11 +9,17 @@ import {
   updateAppSettings,
   resetAppSettingsForTest,
 } from '../../src/services/app-settings.service';
+import {
+  verifyGoogleIdToken,
+  setGoogleTokenVerifierForTest,
+  GoogleAuthVerificationError,
+} from '../../src/services/google-auth.service';
 import { parseGoogleIdToken } from '../../src/routes/parent/auth.routes';
 
-describe('Pairing & App Settings Unit Tests', () => {
-  beforeEach(() => {
-    resetAppSettingsForTest();
+describe('Pairing & App Settings Security Unit Tests', () => {
+  beforeEach(async () => {
+    await resetAppSettingsForTest();
+    setGoogleTokenVerifierForTest(null);
   });
 
   describe('1. App Settings Service & Public Config', () => {
@@ -35,7 +41,7 @@ describe('Pairing & App Settings Unit Tests', () => {
           childAppLatestVersion: '2.0.0',
           childAppMinVersion: '1.5.0',
         },
-        '00000000-0000-0000-0000-000000000000'
+        null
       );
 
       assert.equal(updated.googleAuthEnabled, true);
@@ -54,7 +60,7 @@ describe('Pairing & App Settings Unit Tests', () => {
           googleAuthEnabled: false,
           googleClientId: 'secret-client-id.apps.googleusercontent.com',
         },
-        '00000000-0000-0000-0000-000000000000'
+        null
       );
 
       const publicSettings = await getPublicAppSettings();
@@ -80,8 +86,8 @@ describe('Pairing & App Settings Unit Tests', () => {
     });
   });
 
-  describe('3. Google Auth Token Parsing & Feature Enforcement', () => {
-    it('parses valid JWT claims from Google idToken', () => {
+  describe('3. Google Auth Token Verification & Security Controls', () => {
+    it('parses valid JWT claims from Google idToken legacy helper', () => {
       const token = jwt.sign(
         {
           sub: 'google-sub-987654321',
@@ -99,7 +105,7 @@ describe('Pairing & App Settings Unit Tests', () => {
       assert.equal(claims.name, 'Guardian Parent');
     });
 
-    it('returns null on invalid token strings', () => {
+    it('returns null on invalid token strings in parseGoogleIdToken', () => {
       assert.equal(parseGoogleIdToken(''), null);
       assert.equal(parseGoogleIdToken('invalid.garbage.jwt'), null);
     });
@@ -124,6 +130,48 @@ describe('Pairing & App Settings Unit Tests', () => {
       assert.ok(json.message.includes('disabled'));
       await app.close();
     });
+
+    it('rejects Google tokens when email is unverified', async () => {
+      setGoogleTokenVerifierForTest(async () => {
+        throw new GoogleAuthVerificationError(
+          'Google account email is not verified',
+          403,
+          'EMAIL_NOT_VERIFIED'
+        );
+      });
+
+      await updateAppSettings({ googleAuthEnabled: true }, null);
+      const app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'mock-unverified-token' },
+      });
+
+      assert.equal(res.statusCode, 403);
+      const json = JSON.parse(res.body);
+      assert.equal(json.code, 'EMAIL_NOT_VERIFIED');
+      await app.close();
+    });
+
+    it('rejects Google tokens on audience mismatch', async () => {
+      setGoogleTokenVerifierForTest(async () => {
+        throw new GoogleAuthVerificationError('Token audience mismatch', 401);
+      });
+
+      await updateAppSettings({ googleAuthEnabled: true }, null);
+      const app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'token-with-wrong-aud' },
+      });
+
+      assert.equal(res.statusCode, 401);
+      await app.close();
+    });
   });
 
   describe('4. Pairing Endpoints Contract & Validation', () => {
@@ -136,6 +184,63 @@ describe('Pairing & App Settings Unit Tests', () => {
       });
 
       assert.equal(res.statusCode, 401);
+      await app.close();
+    });
+
+    it('rejects unauthenticated GET /api/v1/devices/pair-status/:code with 401', async () => {
+      const app = await buildApp();
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/devices/pair-status/999999999',
+      });
+
+      assert.equal(res.statusCode, 401);
+      await app.close();
+    });
+
+    it('creates genuine server session via POST /api/v1/child/pair-session', async () => {
+      const app = await buildApp();
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/child/pair-session',
+        payload: {
+          deviceModel: 'Samsung Galaxy A15',
+        },
+      });
+
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.body);
+      assert.ok(json.sessionId);
+      assert.equal(typeof json.pairingCode, 'string');
+      assert.equal(json.pairingCode.length, 9);
+      assert.ok(json.pollingToken);
+      assert.equal(json.pollingToken.length, 64);
+      assert.ok(json.qrPayload);
+      await app.close();
+    });
+
+    it('rejects child pair-status polling without x-polling-token with 401', async () => {
+      const app = await buildApp();
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/child/pair-status/00000000-0000-0000-0000-000000000000',
+      });
+
+      assert.equal(res.statusCode, 401);
+      await app.close();
+    });
+
+    it('rejects child pair-status polling with invalid polling token with 404', async () => {
+      const app = await buildApp();
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/child/pair-status/00000000-0000-0000-0000-000000000000',
+        headers: {
+          'x-polling-token': 'wrong-token-12345',
+        },
+      });
+
+      assert.equal(res.statusCode, 404);
       await app.close();
     });
 
@@ -153,14 +258,18 @@ describe('Pairing & App Settings Unit Tests', () => {
       await app.close();
     });
 
-    it('returns 404 for unknown pairing code on GET /api/v1/devices/pair-status/:code', async () => {
+    it('rejects unauthenticated POST /api/v1/parent/consent with 401', async () => {
       const app = await buildApp();
       const res = await app.inject({
-        method: 'GET',
-        url: '/api/v1/devices/pair-status/999999999',
+        method: 'POST',
+        url: '/api/v1/parent/consent',
+        payload: {
+          consentType: 'parental_supervision',
+          policyVersion: 'v1.0',
+        },
       });
 
-      assert.equal(res.statusCode, 404);
+      assert.equal(res.statusCode, 401);
       await app.close();
     });
   });

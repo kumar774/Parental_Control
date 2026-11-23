@@ -44,4 +44,19 @@ class ChildRestClientTest {
         assertEquals("paired", status.status)
         assertEquals("dev_123", status.deviceId)
     }
+
+    @Test
+    fun testPairSessionResultModel() {
+        val session = PairSessionResult(
+            success = true,
+            sessionId = "session-uuid-1",
+            pairingCode = "123456789",
+            qrPayload = "{\"sessionId\":\"session-uuid-1\",\"code\":\"123456789\"}",
+            pollingToken = "secret-token-64-hex"
+        )
+        assertTrue(session.success)
+        assertEquals("session-uuid-1", session.sessionId)
+        assertEquals("123456789", session.pairingCode)
+        assertEquals("secret-token-64-hex", session.pollingToken)
+    }
 }

@@ -230,11 +230,10 @@ export const pairingSessions = pgTable(
   'pairing_sessions',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    parentId: uuid('parent_id')
-      .notNull()
-      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id').references(() => parentUsers.id, { onDelete: 'cascade' }),
     pairingCode: varchar('pairing_code', { length: 16 }).notNull().unique(),
     qrPayload: text('qr_payload').notNull(),
+    pollingToken: varchar('polling_token', { length: 64 }),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     childDeviceId: uuid('child_device_id').references(() => childDevices.id, { onDelete: 'set null' }),
     childName: text('child_name'),
@@ -246,10 +245,35 @@ export const pairingSessions = pgTable(
     index('idx_pairing_sessions_code').on(table.pairingCode),
     index('idx_pairing_sessions_parent').on(table.parentId),
     index('idx_pairing_sessions_expires').on(table.expiresAt),
+    index('idx_pairing_sessions_polling_token').on(table.pollingToken),
     check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'paired', 'expired')`),
   ]
 );
 
 export type PairingSession = typeof pairingSessions.$inferSelect;
 export type NewPairingSession = typeof pairingSessions.$inferInsert;
+
+/**
+ * Parental Consent Records.
+ * Tracks explicit parental consent acceptance with timestamp, policy version, and IP.
+ */
+export const parentConsents = pgTable(
+  'parent_consents',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    consentType: varchar('consent_type', { length: 64 }).notNull().default('parental_supervision'),
+    policyVersion: varchar('policy_version', { length: 32 }).notNull().default('v1.0'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    consentedAt: timestamp('consented_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_parent_consents_parent').on(table.parentId),
+  ]
+);
+
+export type ParentConsent = typeof parentConsents.$inferSelect;
+export type NewParentConsent = typeof parentConsents.$inferInsert;
 

@@ -16,9 +16,10 @@ object AppNetworkConfig {
 
     /**
      * Set to true when building for live production server.
-     * Set to false for local development and Wi-Fi testing.
+     * Defaults to true (HTTPS) for production security;
+     * debug configurations explicitly set this to false for local development.
      */
-    var IS_PRODUCTION: Boolean = false
+    var IS_PRODUCTION: Boolean = true
 
     /**
      * Tailscale Laptop IP - works anywhere globally over Tailscale VPN!

@@ -188,6 +188,9 @@ import com.parentalcontrol.parent.ui.modals.AvatarImageCropperBottomSheet
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG) {
+            com.parentalcontrol.core.network.config.AppNetworkConfig.IS_PRODUCTION = false
+        }
         enableEdgeToEdge()
         val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
             runCatching { AppScreen.valueOf(it) }.getOrNull()
@@ -304,6 +307,7 @@ fun ParentAppMainContent(
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val mmkv = remember { ParentalDatabase.getInstance().mmkv }
+    val childDao = remember { ParentalDatabase.getInstance().childDeviceDao }
     val scope = rememberCoroutineScope()
 
     var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
@@ -813,7 +817,14 @@ fun ParentAppMainContent(
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
                             toastType = ToastType.SUCCESS
-                            navigateToAuthenticatedRoot()
+                            isSessionAuthenticated = true
+                            navManager.hasAuthenticatedSession = true
+                            sessionRestorationManager.markSessionVerified()
+                            if (childDao.getAllDevicesSync().isEmpty()) {
+                                currentScreen = AppScreen.CHOOSE_DEVICE_TYPE
+                            } else {
+                                navigateToAuthenticatedRoot()
+                            }
                         },
                         onRegisterClick = {
                             currentScreen = AppScreen.REGISTER
@@ -1491,12 +1502,18 @@ fun ParentAppMainContent(
 
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
                     ChooseDeviceTypeScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
+                        onNavigateBack = {
+                            if (childDao.getAllDevicesSync().isEmpty()) {
+                                currentScreen = AppScreen.LOGIN
+                            } else {
+                                currentScreen = AppScreen.MAIN_SHELL
+                            }
+                        },
                         onSelectParentDevice = {
                             currentScreen = AppScreen.PARENT_CONSENT
                         },
                         onContinueToPairing = {
-                            currentScreen = AppScreen.DEVICE_PAIRING
+                            currentScreen = AppScreen.PARENT_CONSENT
                         }
                     )
                 }
@@ -1504,7 +1521,12 @@ fun ParentAppMainContent(
                 AppScreen.PARENT_CONSENT -> {
                     ParentConsentScreen(
                         onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
-                        onConsentAccepted = { currentScreen = AppScreen.DEVICE_PAIRING },
+                        onConsentAccepted = {
+                            scope.launch {
+                                FastifyRestClient.shared.recordParentConsent()
+                            }
+                            currentScreen = AppScreen.DEVICE_PAIRING
+                        },
                         onOpenTerms = {
                             selectedLegalDocType = "terms"
                             legalScreenReturnTarget = AppScreen.PARENT_CONSENT

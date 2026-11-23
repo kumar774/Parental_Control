@@ -106,8 +106,8 @@ class DeviceStorage internal constructor(
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } catch (e: Throwable) {
-                Log.w(TAG, "EncryptedSharedPreferences fallback to standard prefs: ${e.message}")
-                context.getSharedPreferences("${PREFS_NAME}_fallback", Context.MODE_PRIVATE)
+                Log.e(TAG, "Hardware Keystore EncryptedSharedPreferences initialization failed: ${e.message}", e)
+                throw SecurityException("Failed to initialize hardware-backed EncryptedSharedPreferences. Plaintext storage is disallowed for security.", e)
             }
         }
     }

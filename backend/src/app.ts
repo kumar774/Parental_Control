@@ -9,6 +9,7 @@ import { adminDashboardRoutes } from './routes/admin/dashboard.routes';
 import { adminSettingsRoutes } from './routes/admin/settings.routes';
 import { parentAuthRoutes } from './routes/parent/auth.routes';
 import { parentDeviceRoutes } from './routes/parent/device.routes';
+import { parentConsentRoutes } from './routes/parent/consent.routes';
 import { configRoutes } from './routes/config.routes';
 import { childRoutes } from './routes/child/child.routes';
 import { isAllowedOrigin } from './middleware/admin-session.guard';
@@ -66,6 +67,9 @@ export async function buildApp() {
 
   // Parent Mobile Device Routes (matches Parent_app client contract: /api/v1/devices)
   await app.register(parentDeviceRoutes, { prefix: '/api/v1/devices' });
+
+  // Parent Consent Management Routes
+  await app.register(parentConsentRoutes, { prefix: '/api/v1/parent' });
 
   // Public Runtime Configuration Routes (Google Auth availability, Child App download URL)
   await app.register(configRoutes, { prefix: '/api/v1/config' });

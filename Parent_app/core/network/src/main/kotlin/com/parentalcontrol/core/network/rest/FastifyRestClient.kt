@@ -530,6 +530,35 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun recordParentConsent(
+        consentType: String = "parental_supervision",
+        policyVersion: String = "v1.0"
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to record consent"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("consentType", consentType)
+                put("policyVersion", policyVersion)
+            }.toString()
+            val response = executePost("/api/v1/parent/consent", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(true)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Failed to record consent")
+                } catch (_: Exception) {
+                    "Failed to record consent (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun getDevices(): Result<List<DeviceDto>> = withContext(Dispatchers.IO) {
         try {
             val response = executeGet("/api/v1/devices", accessToken)

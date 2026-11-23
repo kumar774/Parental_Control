@@ -20,11 +20,21 @@ data class PairResult(
     val message: String? = null
 )
 
+data class PairSessionResult(
+    val success: Boolean,
+    val sessionId: String? = null,
+    val pairingCode: String? = null,
+    val qrPayload: String? = null,
+    val pollingToken: String? = null,
+    val message: String? = null
+)
+
 data class PairStatusResult(
     val status: String, // "pending", "paired", "expired", "not_found"
     val deviceId: String? = null,
     val deviceToken: String? = null,
     val parentId: String? = null,
+    val childName: String? = null,
     val message: String? = null
 )
 
@@ -33,9 +43,13 @@ class ChildRestClient(
 ) {
     companion object {
         const val TAG = "ChildRestClient"
+        // Production default HTTPS endpoint
+        const val PROD_BASE_URL = "https://api.parentalcontrol.guardian.io"
+        // Development local fallback
         const val DEFAULT_BASE_URL = "http://100.86.72.5:3000"
 
         val candidateHosts = listOf(
+            PROD_BASE_URL,
             "http://100.86.72.5:3000",
             "http://192.168.31.178:3000",
             "http://127.0.0.1:3000",
@@ -46,8 +60,75 @@ class ChildRestClient(
     }
 
     /**
-     * Submit pairing request to Backend when Child inputs or scans Parent's pairing code.
-     * Calls POST /api/v1/child/pair
+     * Creates a genuine server-registered pairing session for Child App's QR code.
+     * Calls POST /api/v1/child/pair-session.
+     */
+    suspend fun createPairSession(): PairSessionResult = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/pair-session"
+        try {
+            val jsonBody = JSONObject().apply {
+                put("deviceModel", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+                put("osVersion", "Android ${Build.VERSION.RELEASE}")
+                put("appVersion", "1.0.0-PROD")
+            }.toString()
+
+            val response = executeRequestWithFailover(path, "POST", jsonBody)
+            if (response.code in 200..299) {
+                val json = JSONObject(response.body)
+                PairSessionResult(
+                    success = true,
+                    sessionId = json.optString("sessionId"),
+                    pairingCode = json.optString("pairingCode"),
+                    qrPayload = json.optString("qrPayload"),
+                    pollingToken = json.optString("pollingToken"),
+                    message = "Session created successfully"
+                )
+            } else {
+                PairSessionResult(success = false, message = "HTTP ${response.code}: Failed to create pairing session")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create pairing session", e)
+            PairSessionResult(success = false, message = e.localizedMessage ?: "Network error creating pairing session")
+        }
+    }
+
+    /**
+     * Check status of a genuine server-issued pairing session using scoped polling token.
+     * Calls GET /api/v1/child/pair-status/:sessionId with x-polling-token header.
+     */
+    suspend fun checkPairStatus(sessionId: String, pollingToken: String): PairStatusResult = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/pair-status/$sessionId"
+
+        try {
+            val extraHeaders = mapOf("x-polling-token" to pollingToken)
+            val response = executeRequestWithFailover(path, "GET", null, extraHeaders = extraHeaders)
+            if (response.code in 200..299) {
+                val json = JSONObject(response.body)
+                val status = json.optString("status", "pending")
+                val deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null
+                val deviceToken = if (json.has("deviceToken") && !json.isNull("deviceToken")) json.getString("deviceToken") else null
+                val parentId = if (json.has("parentId") && !json.isNull("parentId")) json.getString("parentId") else null
+                val childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null
+
+                PairStatusResult(
+                    status = status,
+                    deviceId = deviceId,
+                    deviceToken = deviceToken,
+                    parentId = parentId,
+                    childName = childName
+                )
+            } else {
+                PairStatusResult(status = "error", message = "HTTP ${response.code}")
+            }
+        } catch (e: Exception) {
+            PairStatusResult(status = "error", message = e.localizedMessage)
+        }
+    }
+
+    /**
+     * Submit pairing request to Backend when Child inputs Parent's pairing code.
+     * Calls POST /api/v1/child/pair.
+     * Rejects missing or empty tokens — never returns fabricated tokens.
      */
     suspend fun pairWithParent(
         pairingCode: String,
@@ -58,11 +139,10 @@ class ChildRestClient(
     ): PairResult = withContext(Dispatchers.IO) {
         val cleanCode = normalizeCode(pairingCode)
         val path = "/api/v1/child/pair"
-        
+
         try {
             val jsonBody = JSONObject().apply {
                 put("pairingCode", cleanCode)
-                put("code", cleanCode) // fallback alias
                 put("childName", childName)
                 put("deviceModel", if (deviceModel.isNotBlank()) deviceModel else "Android Child Device")
                 put("osVersion", osVersion)
@@ -72,10 +152,17 @@ class ChildRestClient(
             val response = executeRequestWithFailover(path, "POST", jsonBody)
             if (response.code in 200..299) {
                 val json = JSONObject(response.body)
-                val deviceId = json.optString("deviceId", json.optString("id", ""))
-                val deviceToken = json.optString("deviceToken", json.optString("token", "dev_token_${System.currentTimeMillis()}"))
-                val parentId = json.optString("parentId", "")
+                val deviceId = json.optString("deviceId", json.optString("id", "")).takeIf { it.isNotBlank() }
+                val deviceToken = json.optString("deviceToken", json.optString("token", "")).takeIf { it.isNotBlank() }
+                val parentId = json.optString("parentId", "").takeIf { it.isNotBlank() }
                 val respChildName = json.optString("childName", childName)
+
+                if (deviceId == null || deviceToken == null) {
+                    return@withContext PairResult(
+                        success = false,
+                        message = "Pairing failed: backend returned empty device credential"
+                    )
+                }
 
                 PairResult(
                     success = true,
@@ -99,44 +186,14 @@ class ChildRestClient(
         }
     }
 
-    /**
-     * Check status of an ephemeral pairing session created by Child (when Child displays QR/Code).
-     * Calls GET /api/v1/devices/pair-status/:code
-     */
-    suspend fun checkPairStatus(pairingCode: String): PairStatusResult = withContext(Dispatchers.IO) {
-        val cleanCode = normalizeCode(pairingCode)
-        val path = "/api/v1/devices/pair-status/$cleanCode"
-
-        try {
-            val response = executeRequestWithFailover(path, "GET", null)
-            if (response.code in 200..299) {
-                val json = JSONObject(response.body)
-                val status = json.optString("status", "pending")
-                val deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null
-                val deviceToken = if (json.has("deviceToken") && !json.isNull("deviceToken")) json.getString("deviceToken") else null
-                val parentId = if (json.has("parentId") && !json.isNull("parentId")) json.getString("parentId") else null
-
-                PairStatusResult(
-                    status = status,
-                    deviceId = deviceId,
-                    deviceToken = deviceToken,
-                    parentId = parentId
-                )
-            } else {
-                PairStatusResult(status = "error", message = "HTTP ${response.code}")
-            }
-        } catch (e: Exception) {
-            PairStatusResult(status = "error", message = e.localizedMessage)
-        }
-    }
-
     private data class HttpResponse(val code: Int, val body: String)
 
     private fun executeRequestWithFailover(
         path: String,
         method: String,
         jsonBody: String?,
-        bearerToken: String? = null
+        bearerToken: String? = null,
+        extraHeaders: Map<String, String> = emptyMap()
     ): HttpResponse {
         val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
         var lastException: Exception? = null
@@ -144,7 +201,7 @@ class ChildRestClient(
         for (host in hosts) {
             try {
                 val fullUrl = if (host.endsWith("/")) "$host${path.removePrefix("/")}" else "$host$path"
-                val response = executeHttpRequest(fullUrl, method, jsonBody, bearerToken)
+                val response = executeHttpRequest(fullUrl, method, jsonBody, bearerToken, extraHeaders)
                 baseUrl = host // Pin working host
                 return response
             } catch (e: Exception) {
@@ -158,7 +215,8 @@ class ChildRestClient(
         urlString: String,
         method: String,
         jsonBody: String?,
-        bearerToken: String? = null
+        bearerToken: String? = null,
+        extraHeaders: Map<String, String> = emptyMap()
     ): HttpResponse {
         val url = URL(urlString)
         val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -169,6 +227,9 @@ class ChildRestClient(
             setRequestProperty("Accept", "application/json")
             if (!bearerToken.isNullOrBlank()) {
                 setRequestProperty("Authorization", "Bearer $bearerToken")
+            }
+            extraHeaders.forEach { (key, value) ->
+                setRequestProperty(key, value)
             }
         }
 

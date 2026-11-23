@@ -23,6 +23,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (com.parentalcontrol.child.BuildConfig.DEBUG) {
+            com.parentalcontrol.child.network.ChildRestClient.instance.baseUrl =
+                com.parentalcontrol.child.network.ChildRestClient.DEFAULT_BASE_URL
+        } else {
+            com.parentalcontrol.child.network.ChildRestClient.instance.baseUrl =
+                com.parentalcontrol.child.network.ChildRestClient.PROD_BASE_URL
+        }
         storage = DeviceStorage.getInstance(applicationContext)
 
         setContent {

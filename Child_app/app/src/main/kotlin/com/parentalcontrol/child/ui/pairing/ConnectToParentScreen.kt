@@ -98,34 +98,43 @@ fun ConnectToParentScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
 
-    // State for child QR code and auto-generated child pairing code
-    var childCode by remember {
-        mutableStateOf(String.format("%09d", Random.nextLong(100_000_000L, 999_999_999L)))
-    }
+    // State for child QR code and server-issued pairing session
+    var childCode by remember { mutableStateOf<String?>(null) }
+    var sessionId by remember { mutableStateOf<String?>(null) }
+    var pollingToken by remember { mutableStateOf<String?>(null) }
     var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    // Generate QR Code bitmap whenever childCode changes
-    LaunchedEffect(childCode) {
-        val payload = "pc-pair:$childCode"
-        qrBitmap = QrCodeGenerator.generateQrBitmap(payload, sizePx = 480)
+    // Fetch genuine server-issued pairing session on mount
+    LaunchedEffect(Unit) {
+        val sessionResult = ChildRestClient.instance.createPairSession()
+        if (sessionResult.success && sessionResult.sessionId != null && sessionResult.pairingCode != null) {
+            sessionId = sessionResult.sessionId
+            childCode = sessionResult.pairingCode
+            pollingToken = sessionResult.pollingToken
+            val payload = sessionResult.qrPayload ?: "pc-pair:${sessionResult.pairingCode}"
+            qrBitmap = QrCodeGenerator.generateQrBitmap(payload, sizePx = 480)
+        }
     }
 
     // Background polling: If Parent scans this Child's QR code on Parent App
-    LaunchedEffect(childCode) {
+    LaunchedEffect(sessionId, pollingToken) {
+        val currentSessionId = sessionId ?: return@LaunchedEffect
+        val currentPollingToken = pollingToken ?: return@LaunchedEffect
+
         while (isActive) {
             delay(2500L)
             try {
-                val pollResult = ChildRestClient.instance.checkPairStatus(childCode)
-                if (pollResult.status == "paired" && pollResult.deviceId != null) {
+                val pollResult = ChildRestClient.instance.checkPairStatus(currentSessionId, currentPollingToken)
+                if (pollResult.status == "paired" && pollResult.deviceId != null && !pollResult.deviceToken.isNullOrBlank()) {
                     storage.savePairingSession(
                         deviceId = pollResult.deviceId,
-                        deviceToken = pollResult.deviceToken ?: "token_${System.currentTimeMillis()}",
+                        deviceToken = pollResult.deviceToken,
                         parentId = pollResult.parentId ?: "parent_auto",
-                        childName = "Child Phone"
+                        childName = pollResult.childName ?: "Child Phone"
                     )
                     successMessage = "Connected to Parent!"
                     delay(500L)
-                    onPairingSuccess(pollResult.deviceId, "Child Phone")
+                    onPairingSuccess(pollResult.deviceId, pollResult.childName ?: "Child Phone")
                     break
                 }
             } catch (_: Exception) {}
@@ -150,10 +159,10 @@ fun ConnectToParentScreen(
                 childName = "Child Phone"
             )
             isLoading = false
-            if (result.success && result.deviceId != null) {
+            if (result.success && result.deviceId != null && !result.deviceToken.isNullOrBlank()) {
                 storage.savePairingSession(
                     deviceId = result.deviceId,
-                    deviceToken = result.deviceToken ?: "dev_tok_${System.currentTimeMillis()}",
+                    deviceToken = result.deviceToken,
                     parentId = result.parentId ?: "parent_primary",
                     childName = result.childName ?: "Child Phone"
                 )
@@ -202,37 +211,84 @@ fun ConnectToParentScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Phone Illustration with 123 XXX 789 badge (FlashGet Kids style)
-        FlashGetCodeHeroIllustration()
+        // SECTION 1: PAIRING QR CODE (UPAR - For Parent App to scan this child device)
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White)
+                .border(1.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (qrBitmap != null) {
+                Image(
+                    bitmap = qrBitmap!!.asImageBitmap(),
+                    contentDescription = "Child Pairing QR Code",
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                CircularProgressIndicator(color = FlashGetPurple, modifier = Modifier.size(32.dp))
+            }
+        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Instructions
         Text(
-            text = "This app needs to be installed on the child's device. After successful binding, the device's information will be uploaded to the parent.",
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
-            color = Color(0xFF475569),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Please enter the binding code from Parental Control for parent:",
-            fontSize = 13.sp,
+            text = "Show this QR code to the Parent App to scan",
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF1E293B),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Divider with "OR"
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 40.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color(0xFFE2E8F0))
+            )
+            Text(
+                text = "  OR ENTER 9-DIGIT CODE  ",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8),
+                letterSpacing = 1.sp
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color(0xFFE2E8F0))
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
-        // SECTION 1: 9-DIGIT CODE ENTRY BOX (Underline / Slot Cells)
+        Text(
+            text = "Enter the 9-digit code displayed on the Parent App:",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF475569),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // SECTION 2: 9-DIGIT CODE ENTRY BOX (NICHE)
         NineDigitInputWidget(
             code = inputCode,
             onCodeChange = { newCode ->
@@ -311,71 +367,7 @@ fun ConnectToParentScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Divider with "OR"
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 40.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(Color(0xFFE2E8F0))
-            )
-            Text(
-                text = "  OR SCAN QR CODE  ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8),
-                letterSpacing = 1.sp
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(Color(0xFFE2E8F0))
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // SECTION 2: QR CODE (For Parent to scan this child phone)
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .border(1.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (qrBitmap != null) {
-                Image(
-                    bitmap = qrBitmap!!.asImageBitmap(),
-                    contentDescription = "Child Pairing QR Code",
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                CircularProgressIndicator(color = FlashGetPurple, modifier = Modifier.size(32.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Show this QR code to the Parent App to scan",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF475569),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

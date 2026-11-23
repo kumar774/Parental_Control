@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index';
 import { systemAppSettings, SystemAppSettings } from '../db/schema/parental-control';
+import { adminUsers } from '../db/schema/admin-auth';
 
 export interface PublicAppSettings {
   googleAuthEnabled: boolean;
@@ -80,10 +81,26 @@ export async function getPublicAppSettings(): Promise<PublicAppSettings> {
 
 export async function updateAppSettings(
   data: Partial<PublicAppSettings>,
-  adminId: string
+  adminId?: string | null
 ): Promise<SystemAppSettings> {
+  let validAdminId: string | null = null;
+  if (adminId) {
+    try {
+      const [adminRow] = await db
+        .select({ id: adminUsers.id })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminId))
+        .limit(1);
+      if (adminRow) {
+        validAdminId = adminRow.id;
+      }
+    } catch {
+      validAdminId = null;
+    }
+  }
+
   const updatePayload: Partial<typeof systemAppSettings.$inferInsert> = {
-    updatedBy: adminId,
+    updatedBy: validAdminId,
     updatedAt: new Date(),
   };
 
@@ -103,43 +120,35 @@ export async function updateAppSettings(
     updatePayload.childAppMinVersion = data.childAppMinVersion.trim();
   }
 
-  try {
-    const [updated] = await db
-      .insert(systemAppSettings)
-      .values({
-        id: 'default',
-        googleAuthEnabled: updatePayload.googleAuthEnabled ?? inMemorySettings.googleAuthEnabled,
-        googleClientId: updatePayload.googleClientId ?? inMemorySettings.googleClientId,
-        childAppDownloadUrl: updatePayload.childAppDownloadUrl ?? inMemorySettings.childAppDownloadUrl,
-        childAppLatestVersion: updatePayload.childAppLatestVersion ?? inMemorySettings.childAppLatestVersion,
-        childAppMinVersion: updatePayload.childAppMinVersion ?? inMemorySettings.childAppMinVersion,
-        updatedBy: adminId,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: systemAppSettings.id,
-        set: updatePayload,
-      })
-      .returning();
+  // Durable write: write to persistent database and return updated record.
+  // DB write failures MUST throw to prevent false success.
+  const [updated] = await db
+    .insert(systemAppSettings)
+    .values({
+      id: 'default',
+      googleAuthEnabled: updatePayload.googleAuthEnabled ?? inMemorySettings.googleAuthEnabled,
+      googleClientId: updatePayload.googleClientId ?? inMemorySettings.googleClientId,
+      childAppDownloadUrl: updatePayload.childAppDownloadUrl ?? inMemorySettings.childAppDownloadUrl,
+      childAppLatestVersion: updatePayload.childAppLatestVersion ?? inMemorySettings.childAppLatestVersion,
+      childAppMinVersion: updatePayload.childAppMinVersion ?? inMemorySettings.childAppMinVersion,
+      updatedBy: validAdminId,
+      updatedAt: updatePayload.updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: systemAppSettings.id,
+      set: updatePayload,
+    })
+    .returning();
 
-    if (updated) {
-      inMemorySettings = updated;
-      return updated;
-    }
-  } catch {
-    // Apply in-memory update
-    inMemorySettings = {
-      ...inMemorySettings,
-      ...updatePayload,
-      updatedBy: adminId,
-      updatedAt: new Date(),
-    } as SystemAppSettings;
+  if (updated) {
+    inMemorySettings = updated;
+    return updated;
   }
 
-  return inMemorySettings;
+  throw new Error('Database write failed: unable to persist application settings');
 }
 
-export function resetAppSettingsForTest(): void {
+export async function resetAppSettingsForTest(): Promise<void> {
   inMemorySettings = {
     id: 'default',
     googleAuthEnabled: false,
@@ -150,4 +159,18 @@ export function resetAppSettingsForTest(): void {
     updatedBy: null,
     updatedAt: new Date(),
   };
+  try {
+    await db
+      .update(systemAppSettings)
+      .set({
+        googleAuthEnabled: false,
+        googleClientId: null,
+        childAppDownloadUrl: 'https://download.guardian.io/child-app-latest.apk',
+        childAppLatestVersion: '1.0.0',
+        childAppMinVersion: '1.0.0',
+        updatedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(systemAppSettings.id, 'default'));
+  } catch {}
 }

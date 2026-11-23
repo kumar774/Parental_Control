@@ -115,7 +115,7 @@ fun ChooseDeviceTypeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Choose Device Role",
+                        text = "Whose device is this?",
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -191,13 +191,13 @@ fun ChooseDeviceTypeScreen(
 
                         Column {
                             Text(
-                                text = "Parent Device",
+                                text = "Parents' devices",
                                 color = TextPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Administrator Controller Hub",
+                                text = "Parents are in control of their kids' phones.",
                                 color = NeonCyan,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
@@ -271,13 +271,13 @@ fun ChooseDeviceTypeScreen(
 
                         Column {
                             Text(
-                                text = "Child Device",
+                                text = "Kids' devices",
                                 color = TextPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Supervised Companion Client",
+                                text = "Kids are under parental supervision.",
                                 color = AccentCyan,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
