@@ -45,6 +45,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FlashOff
@@ -194,24 +195,11 @@ fun DevicePairingScreen(
     var pairingCodeExpiresAt by remember { mutableLongStateOf(0L) }
     var remainingSeconds by remember { mutableIntStateOf(0) }
     var isFetchingPairingCode by remember { mutableStateOf(false) }
+    var isCheckingBindingStatus by remember { mutableStateOf(false) }
     var pairingCodeError by remember { mutableStateOf<String?>(null) }
-
-    // Manual Input Dialog States
-    var showManualInputDialog by remember { mutableStateOf(false) }
-    var manualPinInput by remember { mutableStateOf("") }
-    var manualPinError by remember { mutableStateOf<String?>(null) }
 
     // Download Info States
     var childDownloadUrl by remember { mutableStateOf("https://download.guardian.io/child-app-latest.apk") }
-
-    // Fetch remote settings (download URL)
-    LaunchedEffect(Unit) {
-        val settings = FastifyRestClient.shared.getAppSettings()
-        if (settings.isSuccess) {
-            val url = settings.getOrNull()?.childAppDownloadUrl
-            if (!url.isNullOrBlank()) childDownloadUrl = url
-        }
-    }
 
     // Function to generate new 9-digit pairing code from server
     fun fetchNewPairingCode() {
@@ -236,9 +224,65 @@ fun DevicePairingScreen(
         }
     }
 
+    // Fetch remote settings (download URL) & automatically fetch 9-digit pairing code on entry
+    LaunchedEffect(Unit) {
+        val settings = FastifyRestClient.shared.getAppSettings()
+        if (settings.isSuccess) {
+            val url = settings.getOrNull()?.childAppDownloadUrl
+            if (!url.isNullOrBlank()) childDownloadUrl = url
+        }
+        fetchNewPairingCode()
+    }
+
+    // Check binding status on button click
+    fun checkBindingStatus() {
+        val code = serverPairingCode
+        if (code.isNullOrBlank()) {
+            Toast.makeText(context, "Pairing code not available yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        isCheckingBindingStatus = true
+        scope.launch {
+            val statusRes = FastifyRestClient.shared.checkPairingStatus(code)
+            isCheckingBindingStatus = false
+            if (statusRes.isSuccess) {
+                val statusDto = statusRes.getOrNull()
+                val targetId = statusDto?.deviceId
+                if (statusDto?.status == "paired" && !targetId.isNullOrBlank()) {
+                    val childName = statusDto.childName ?: "Child Phone"
+                    val deviceName = statusDto.deviceName ?: "Android Device"
+                    childDao.insertOrUpdate(
+                        ChildDeviceEntity(
+                            id = targetId,
+                            deviceName = deviceName,
+                            childName = childName,
+                            childAge = 10,
+                            avatarUrl = null,
+                            isLocked = false,
+                            batteryPercent = 100,
+                            isCharging = false,
+                            isOnline = true,
+                            activeApp = null,
+                            lastKnownLat = null,
+                            lastKnownLng = null,
+                            lastSeenAt = System.currentTimeMillis()
+                        )
+                    )
+                    Toast.makeText(context, "Child device successfully bound!", Toast.LENGTH_SHORT).show()
+                    onPairingSuccess(childName, deviceName)
+                } else {
+                    Toast.makeText(context, "Binding not completed yet. Enter code or scan QR on child device.", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val err = statusRes.exceptionOrNull()?.message ?: "Binding status check failed"
+                Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // Initial code fetch on entering 9-digit code tab
     LaunchedEffect(selectedTabIndex) {
-        if (selectedTabIndex == 1 && serverPairingCode == null) {
+        if (selectedTabIndex == 0 && serverPairingCode == null) {
             fetchNewPairingCode()
         }
     }
@@ -352,7 +396,7 @@ fun DevicePairingScreen(
 
             Spacer(modifier = Modifier.height(Space16))
 
-            // 3-Tab Selector: Scan QR | 9-Digit Code | Download App
+            // 3-Tab Selector: 9-Digit Code | Scan QR | Download App
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color(0xFF0F172A),
@@ -376,9 +420,9 @@ fun DevicePairingScreen(
                     },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(Space6))
-                            Text("Scan QR", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("9-Digit Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     },
                     selectedContentColor = NeonCyan,
@@ -392,9 +436,9 @@ fun DevicePairingScreen(
                     },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(Space6))
-                            Text("9-Digit Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Scan QR", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     },
                     selectedContentColor = NeonCyan,
@@ -430,6 +474,19 @@ fun DevicePairingScreen(
             ) {
                 when (selectedTabIndex) {
                     0 -> {
+                        // SECTION C: 9-Digit Numeric Code Display & Status Check
+                        SectionCNineDigitCode(
+                            pairingCode = serverPairingCode,
+                            remainingSeconds = remainingSeconds,
+                            isFetching = isFetchingPairingCode,
+                            errorMessage = pairingCodeError,
+                            isCheckingStatus = isCheckingBindingStatus,
+                            onRefreshCode = { fetchNewPairingCode() },
+                            onCheckBindingStatus = { checkBindingStatus() }
+                        )
+                    }
+
+                    1 -> {
                         // SECTION B: Real CameraX + ML Kit Scanner
                         SectionBScanner(
                             hasCameraPermission = hasCameraPermission,
@@ -472,27 +529,6 @@ fun DevicePairingScreen(
                                         Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                                     }
                                 }
-                            },
-                            onEnterManuallyClick = {
-                                manualPinError = null
-                                manualPinInput = ""
-                                showManualInputDialog = true
-                            }
-                        )
-                    }
-
-                    1 -> {
-                        // SECTION C: 9-Digit Numeric Code Display & Entry
-                        SectionCNineDigitCode(
-                            pairingCode = serverPairingCode,
-                            remainingSeconds = remainingSeconds,
-                            isFetching = isFetchingPairingCode,
-                            errorMessage = pairingCodeError,
-                            onRefreshCode = { fetchNewPairingCode() },
-                            onEnterChildCodeClick = {
-                                manualPinError = null
-                                manualPinInput = ""
-                                showManualInputDialog = true
                             }
                         )
                     }
@@ -502,145 +538,11 @@ fun DevicePairingScreen(
                         SectionADownloadApp(
                             downloadUrl = childDownloadUrl,
                             context = context,
-                            onGoToScanner = { selectedTabIndex = 0 }
+                            onGoToScanner = { selectedTabIndex = 1 }
                         )
                     }
                 }
             }
-        }
-
-        // Manual 9-Digit Code Entry Dialog
-        if (showManualInputDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showManualInputDialog = false
-                    manualPinError = null
-                },
-                containerColor = Color(0xFF0F172A),
-                titleContentColor = Color.White,
-                textContentColor = Color(0xFF94A3B8),
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Keyboard, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(Space8))
-                        Text(
-                            text = "Enter 9-Digit Pairing Code",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(Space12)) {
-                        Text(
-                            text = "Enter the 9-digit pairing code displayed on your child's phone screen:",
-                            fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
-                        )
-                        OutlinedTextField(
-                            value = formatNineDigitCode(manualPinInput),
-                            onValueChange = {
-                                val clean = it.filter { ch -> ch.isDigit() }
-                                if (clean.length <= 9) {
-                                    manualPinInput = clean
-                                    if (manualPinError != null) manualPinError = null
-                                }
-                            },
-                            placeholder = { Text("XXX - XXX - XXX", color = Color(0xFF64748B)) },
-                            singleLine = true,
-                            isError = manualPinError != null,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = if (manualPinError != null) Color(0xFFEF4444) else NeonCyan,
-                                unfocusedBorderColor = if (manualPinError != null) Color(0xFFEF4444) else Color(0xFF334155),
-                                errorBorderColor = Color(0xFFEF4444),
-                                cursorColor = NeonCyan
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        if (manualPinError != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ErrorOutline,
-                                    contentDescription = null,
-                                    tint = Color(0xFFEF4444),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = manualPinError!!,
-                                    color = Color(0xFFEF4444),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val cleanDigits = manualPinInput.filter { it.isDigit() }
-                            if (cleanDigits.length < 6 || cleanDigits.length > 9) {
-                                manualPinError = "Please enter a valid 9-digit pairing code"
-                                return@Button
-                            }
-                            manualPinError = null
-                            isPairingLoading = true
-                            scope.launch {
-                                val result = FastifyRestClient.shared.confirmPairing(cleanDigits)
-                                isPairingLoading = false
-                                if (result.isSuccess) {
-                                    val dev = result.getOrNull()!!
-                                    childDao.insertOrUpdate(
-                                        ChildDeviceEntity(
-                                            id = dev.id,
-                                            deviceName = dev.deviceName,
-                                            childName = dev.childName.ifBlank { dev.deviceName },
-                                            childAge = 10,
-                                            avatarUrl = null,
-                                            isLocked = false,
-                                            batteryPercent = 100,
-                                            isCharging = false,
-                                            isOnline = true,
-                                            activeApp = null,
-                                            lastKnownLat = null,
-                                            lastKnownLng = null,
-                                            lastSeenAt = System.currentTimeMillis()
-                                        )
-                                    )
-                                    showManualInputDialog = false
-                                    onPairingSuccess(dev.childName, dev.deviceName)
-                                } else {
-                                    manualPinError = result.exceptionOrNull()?.message ?: "Pairing failed. Please verify code."
-                                }
-                            }
-                        },
-                        enabled = !isPairingLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isPairingLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                        } else {
-                            Text("Connect Device", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showManualInputDialog = false
-                        manualPinError = null
-                    }) {
-                        Text("Cancel", color = Color(0xFF94A3B8))
-                    }
-                }
-            )
         }
     }
 }
@@ -654,8 +556,7 @@ private fun SectionBScanner(
     isFlashOn: Boolean,
     onToggleFlash: () -> Unit,
     onRequestPermission: () -> Unit,
-    onQrCodeDetected: (String) -> Unit,
-    onEnterManuallyClick: () -> Unit
+    onQrCodeDetected: (String) -> Unit
 ) {
     Text(
         text = "Scan Child Companion QR Code",
@@ -771,23 +672,6 @@ private fun SectionBScanner(
             }
         }
     }
-
-    Spacer(modifier = Modifier.height(Space20))
-
-    // Fallback: Enter 9-Digit Code Manually
-    OutlinedButton(
-        onClick = onEnterManuallyClick,
-        shape = RadiusLarge,
-        border = BorderStroke(1.dp, Color(0xFF334155)),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-    ) {
-        Icon(Icons.Default.Keyboard, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(Space8))
-        Text("Enter Code Manually", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
 }
 
 /**
@@ -799,8 +683,9 @@ private fun SectionCNineDigitCode(
     remainingSeconds: Int,
     isFetching: Boolean,
     errorMessage: String?,
+    isCheckingStatus: Boolean,
     onRefreshCode: () -> Unit,
-    onEnterChildCodeClick: () -> Unit
+    onCheckBindingStatus: () -> Unit
 ) {
     Text(
         text = "9-Digit Pairing Code",
@@ -811,7 +696,7 @@ private fun SectionCNineDigitCode(
     )
     Spacer(modifier = Modifier.height(Space6))
     Text(
-        text = "Enter this 9-digit code into your child's companion app, or enter the code shown on their screen.",
+        text = "Enter this 9-digit code into your child's companion app to bind the device.",
         color = Color(0xFF94A3B8),
         fontSize = 12.sp,
         textAlign = TextAlign.Center,
@@ -897,18 +782,23 @@ private fun SectionCNineDigitCode(
 
     Spacer(modifier = Modifier.height(Space20))
 
-    // Action to enter child-generated code
+    // Check binding status button (FlashGet Kids style)
     Button(
-        onClick = onEnterChildCodeClick,
+        onClick = onCheckBindingStatus,
+        enabled = !isCheckingStatus,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp),
         shape = RadiusLarge,
         colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
     ) {
-        Icon(Icons.Default.Keyboard, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(Space8))
-        Text("Enter Child's 9-Digit Code", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        if (isCheckingStatus) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(Space8))
+            Text("Check binding status", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
     }
 }
 

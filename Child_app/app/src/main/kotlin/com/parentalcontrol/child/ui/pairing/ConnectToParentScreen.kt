@@ -364,24 +364,15 @@ fun ConnectToParentScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Formatted code under QR code
-        val formattedChildCode = childCode.chunked(3).joinToString(" - ")
         Text(
-            text = "Child Code: $formattedChildCode",
+            text = "Show this QR code to the Parent App to scan",
             fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            color = FlashGetPurple
-        )
-
-        Text(
-            text = "Show this QR code or code to the Parent App",
-            fontSize = 12.sp,
-            color = Color(0xFF64748B),
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF475569),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
