@@ -306,7 +306,7 @@ class SessionRestorationManagerTest {
     fun testUnverifiedEmail_ReturnsUnverifiedEmail() = runTest {
         val manager = SessionRestorationManager(
             verifySessionCall = {
-                Result.failure(Exception("HTTP 403 Parent email address is not verified"))
+                Result.failure(com.parentalcontrol.core.network.rest.UnverifiedEmailException(403, "Parent email address is not verified"))
             },
             refreshSessionCall = {
                 Result.failure(Exception("Should not be called"))
@@ -599,6 +599,33 @@ class SessionRestorationManagerTest {
         assertTrue("Unknown 403 during refresh must be treated as NetworkUnavailable, not logout", result is SessionVerificationResult.NetworkUnavailable)
         assertEquals(1, verifyCount)
         assertEquals(1, refreshCount)
+        assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
+    }
+
+    @Test
+    fun testInitialVerify_Http403PermissionDeniedContactSupport_DoesNotTreatAsSuspended() = runTest {
+        var verifyCount = 0
+        var refreshCount = 0
+
+        val manager = SessionRestorationManager(
+            verifySessionCall = {
+                verifyCount++
+                Result.failure(Exception("Permission denied. Contact support for access."))
+            },
+            refreshSessionCall = {
+                refreshCount++
+                Result.success(Unit)
+            },
+            hasAccessToken = { true },
+            hasRefreshToken = { true }
+        )
+
+        val result = manager.evaluateSession()
+
+        // "Contact support" without ACCOUNT_SUSPENDED code must NOT be classified as ExpiredOrInvalid or UnverifiedEmail!
+        assertTrue("Must fall through to NetworkUnavailable safely without logging out user", result is SessionVerificationResult.NetworkUnavailable)
+        assertEquals(1, verifyCount)
+        assertEquals(0, refreshCount)
         assertFalse("Process session must not be verified", SessionRestorationManager.isProcessSessionVerified)
     }
 }

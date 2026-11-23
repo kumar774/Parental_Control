@@ -359,6 +359,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     if (user.status === 'suspended') {
       return reply.status(403).send({
         statusCode: 403,
+        code: 'ACCOUNT_SUSPENDED',
         error: 'Forbidden',
         message: 'Account suspended. Please contact support.',
       });

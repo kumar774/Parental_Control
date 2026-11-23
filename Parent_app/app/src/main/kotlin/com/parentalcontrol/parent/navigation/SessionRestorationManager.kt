@@ -52,7 +52,7 @@ class SessionRestorationManager(
 
         // Structured check for Unverified Email on initial verification
         val isUnverifiedEmail = err is UnverifiedEmailException ||
-            (errMsg.contains("403") && errMsg.contains("not verified", ignoreCase = true))
+            errMsg.contains("EMAIL_NOT_VERIFIED")
         if (isUnverifiedEmail) {
             isProcessSessionVerified = false
             return SessionVerificationResult.UnverifiedEmail
@@ -60,7 +60,7 @@ class SessionRestorationManager(
 
         // Structured check for Account Suspended on initial verification
         val isAccountSuspended = err is AccountSuspendedException ||
-            (errMsg.contains("403") && (errMsg.contains("suspended", ignoreCase = true) || errMsg.contains("contact support", ignoreCase = true)))
+            errMsg.contains("ACCOUNT_SUSPENDED")
         if (isAccountSuspended) {
             isProcessSessionVerified = false
             return SessionVerificationResult.ExpiredOrInvalid
@@ -86,14 +86,14 @@ class SessionRestorationManager(
                     val verifyErr = verifyAfterRefresh.exceptionOrNull()
                     val verifyErrMsg = verifyErr?.message ?: ""
                     val isSecondVerifyUnverified = verifyErr is UnverifiedEmailException ||
-                        (verifyErrMsg.contains("403") && verifyErrMsg.contains("not verified", ignoreCase = true))
+                        verifyErrMsg.contains("EMAIL_NOT_VERIFIED")
                     if (isSecondVerifyUnverified) {
                         isProcessSessionVerified = false
                         return SessionVerificationResult.UnverifiedEmail
                     }
 
                     val isSecondVerifySuspended = verifyErr is AccountSuspendedException ||
-                        (verifyErrMsg.contains("403") && (verifyErrMsg.contains("suspended", ignoreCase = true) || verifyErrMsg.contains("contact support", ignoreCase = true)))
+                        verifyErrMsg.contains("ACCOUNT_SUSPENDED")
                     if (isSecondVerifySuspended) {
                         isProcessSessionVerified = false
                         return SessionVerificationResult.ExpiredOrInvalid
@@ -121,14 +121,14 @@ class SessionRestorationManager(
 
                 // 1. Structured check for Unverified Email on refresh failure: return UnverifiedEmail, NOT ExpiredOrInvalid!
                 if (refreshErr is UnverifiedEmailException ||
-                    (refreshErrMsg.contains("403") && refreshErrMsg.contains("not verified", ignoreCase = true))) {
+                    refreshErrMsg.contains("EMAIL_NOT_VERIFIED")) {
                     isProcessSessionVerified = false
                     return SessionVerificationResult.UnverifiedEmail
                 }
 
                 // 2. Structured check for Account Suspended on refresh failure: reject session
                 if (refreshErr is AccountSuspendedException ||
-                    (refreshErrMsg.contains("403") && (refreshErrMsg.contains("suspended", ignoreCase = true) || refreshErrMsg.contains("contact support", ignoreCase = true)))) {
+                    refreshErrMsg.contains("ACCOUNT_SUSPENDED")) {
                     isProcessSessionVerified = false
                     return SessionVerificationResult.ExpiredOrInvalid
                 }

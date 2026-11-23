@@ -1570,7 +1570,7 @@ class FastifyRestClient(
         val code = json?.optString("code", "")?.trim()?.uppercase() ?: ""
         val message = json?.optString("message", "") ?: ""
 
-        // 1. Structured machine-readable error codes (preferred)
+        // 1. Structured machine-readable error codes (strictly required for account state changes)
         when (code) {
             "EMAIL_NOT_VERIFIED", "UNVERIFIED_EMAIL" -> return AuthErrorKind.UNVERIFIED_EMAIL
             "ACCOUNT_SUSPENDED", "USER_SUSPENDED" -> return AuthErrorKind.ACCOUNT_SUSPENDED
@@ -1578,22 +1578,10 @@ class FastifyRestClient(
             "INVALID_REFRESH_PAYLOAD", "INVALID_PAYLOAD" -> return AuthErrorKind.INVALID_PAYLOAD
         }
 
-        // 2. HTTP 403 specific checks
+        // 2. HTTP 403: Any 403 without an explicit structured error code MUST remain UNKNOWN.
+        // Message-based suspension/unverified guessing is removed to prevent false logouts
+        // on arbitrary errors such as "Permission denied. Contact support for access."
         if (statusCode == 403) {
-            if (message.contains("email not verified", ignoreCase = true) ||
-                message.contains("verify your email", ignoreCase = true) ||
-                message.contains("unverified", ignoreCase = true)
-            ) {
-                return AuthErrorKind.UNVERIFIED_EMAIL
-            }
-
-            if (message.contains("suspended", ignoreCase = true) ||
-                message.contains("contact support", ignoreCase = true)
-            ) {
-                return AuthErrorKind.ACCOUNT_SUSPENDED
-            }
-
-            // Generic / unknown HTTP 403 (e.g. proxy, WAF, role permission) must NOT be assumed as account suspension
             return AuthErrorKind.UNKNOWN
         }
 

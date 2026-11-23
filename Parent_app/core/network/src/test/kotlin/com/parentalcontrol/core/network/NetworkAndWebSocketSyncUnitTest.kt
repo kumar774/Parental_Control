@@ -339,11 +339,11 @@ class NetworkAndWebSocketSyncUnitTest {
     @Test
     fun testConfirmedInvalidRefreshToken_ClearsAccessAndRefreshTokens() = runBlocking {
         val testCases = listOf(
-            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Invalid refresh token"}"""),
-            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Token reuse detected. All sessions have been revoked for security."}"""),
-            Pair(401, """{"statusCode":401,"error":"Unauthorized","message":"Refresh token has expired"}"""),
-            Pair(400, """{"statusCode":400,"error":"Bad Request","message":"Invalid refresh token payload"}"""),
-            Pair(403, """{"statusCode":403,"error":"Forbidden","message":"Account suspended. Please contact support."}""")
+            Pair(401, """{"statusCode":401,"code":"INVALID_REFRESH_TOKEN","error":"Unauthorized","message":"Invalid refresh token"}"""),
+            Pair(401, """{"statusCode":401,"code":"TOKEN_REUSE_DETECTED","error":"Unauthorized","message":"Token reuse detected. All sessions have been revoked for security."}"""),
+            Pair(401, """{"statusCode":401,"code":"REFRESH_TOKEN_EXPIRED","error":"Unauthorized","message":"Refresh token has expired"}"""),
+            Pair(400, """{"statusCode":400,"code":"INVALID_PAYLOAD","error":"Bad Request","message":"Invalid refresh token payload"}"""),
+            Pair(403, """{"statusCode":403,"code":"ACCOUNT_SUSPENDED","error":"Forbidden","message":"Account suspended. Please contact support."}""")
         )
 
         for ((statusCode, bodyJson) in testCases) {
@@ -389,7 +389,7 @@ class NetworkAndWebSocketSyncUnitTest {
                 fullUrl.endsWith("/api/v1/auth/refresh") -> {
                     FastifyRestClient.HttpResponse(
                         403,
-                        """{"statusCode":403,"error":"Forbidden","message":"Email not verified. Please verify your email before refreshing session."}"""
+                        """{"statusCode":403,"code":"EMAIL_NOT_VERIFIED","error":"Forbidden","message":"Email not verified. Please verify your email before refreshing session."}"""
                     )
                 }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
@@ -561,13 +561,18 @@ class NetworkAndWebSocketSyncUnitTest {
             client.classifyAuthError(400, """{"code":"INVALID_PAYLOAD","message":"Bad request"}""")
         )
 
-        // Text heuristics for 403
+        // 403 with message alone (no structured code) MUST remain UNKNOWN
+        // Specifically verifies that "Permission denied. Contact support for access." does NOT trigger false suspension
         assertEquals(
-            FastifyRestClient.AuthErrorKind.UNVERIFIED_EMAIL,
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
+            client.classifyAuthError(403, """{"message":"Permission denied. Contact support for access."}""")
+        )
+        assertEquals(
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
             client.classifyAuthError(403, """{"message":"Please verify your email before proceeding"}""")
         )
         assertEquals(
-            FastifyRestClient.AuthErrorKind.ACCOUNT_SUSPENDED,
+            FastifyRestClient.AuthErrorKind.UNKNOWN,
             client.classifyAuthError(403, """{"message":"Account is suspended. Contact support."}""")
         )
 
@@ -584,6 +589,25 @@ class NetworkAndWebSocketSyncUnitTest {
             FastifyRestClient.AuthErrorKind.UNKNOWN,
             client.classifyAuthError(403, null)
         )
+    }
+
+    @Test
+    fun testVerifySession_PermissionDeniedContactSupport_PreservesTokens() = runBlocking {
+        var sessionExpiredCalled = false
+        val client = FastifyRestClient(
+            accessToken = "active-access-token",
+            refreshToken = "active-refresh-token"
+        )
+        client.onSessionExpired = { sessionExpiredCalled = true }
+        client.customTransport = FastifyRestClient.HttpTransport { _, _, _, _ ->
+            FastifyRestClient.HttpResponse(403, """{"statusCode":403,"message":"Permission denied. Contact support for access."}""")
+        }
+
+        val result = client.verifySession()
+        assertFalse("Verify must fail for 403", result.isSuccess)
+        assertFalse("Must NOT trigger session expired on unknown 403 even with 'contact support'", sessionExpiredCalled)
+        assertEquals("Access token must NOT be cleared", "active-access-token", client.accessToken)
+        assertEquals("Refresh token must NOT be cleared", "active-refresh-token", client.refreshToken)
     }
 
     @Test
