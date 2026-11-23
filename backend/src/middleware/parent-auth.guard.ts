@@ -51,6 +51,7 @@ export async function requireParentAuth(request: FastifyRequest, reply: FastifyR
   if (decoded.emailVerified === false) {
     return reply.status(403).send({
       statusCode: 403,
+      code: 'EMAIL_NOT_VERIFIED',
       error: 'Forbidden',
       message: 'Email not verified. Please verify your email before accessing this resource.',
     });
@@ -74,6 +75,7 @@ export async function requireParentAuth(request: FastifyRequest, reply: FastifyR
   if (user.status === 'suspended') {
     return reply.status(403).send({
       statusCode: 403,
+      code: 'ACCOUNT_SUSPENDED',
       error: 'Forbidden',
       message: 'Account suspended. Please contact support.',
     });
@@ -84,6 +86,7 @@ export async function requireParentAuth(request: FastifyRequest, reply: FastifyR
   if (!isVerified) {
     return reply.status(403).send({
       statusCode: 403,
+      code: 'EMAIL_NOT_VERIFIED',
       error: 'Forbidden',
       message: 'Email not verified. Please verify your email before accessing this resource.',
     });

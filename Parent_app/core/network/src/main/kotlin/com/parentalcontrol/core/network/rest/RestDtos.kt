@@ -379,5 +379,27 @@ data class FeedbackSubmitResponseDto(
     val feedbackId: String? = null
 )
 
-class SessionExpiredException(val code: String = "USER_NOT_FOUND") : Exception("Session expired: $code")
+sealed class AuthException(val statusCode: Int, message: String) : Exception(message)
+
+class UnverifiedEmailException(
+    statusCode: Int = 403,
+    message: String = "Email not verified. Please verify your email before proceeding."
+) : AuthException(statusCode, message)
+
+class AccountSuspendedException(
+    statusCode: Int = 403,
+    message: String = "Account suspended. Please contact support."
+) : AuthException(statusCode, message)
+
+class InvalidRefreshTokenException(
+    statusCode: Int = 401,
+    message: String = "Invalid or expired refresh token."
+) : AuthException(statusCode, message)
+
+class InvalidRefreshPayloadException(
+    statusCode: Int = 400,
+    message: String = "Invalid refresh token payload."
+) : AuthException(statusCode, message)
+
+class SessionExpiredException(val code: String = "USER_NOT_FOUND") : AuthException(401, "Session expired: $code")
 

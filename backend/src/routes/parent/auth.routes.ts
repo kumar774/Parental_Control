@@ -359,6 +359,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     if (user.status === 'suspended') {
       return reply.status(403).send({
         statusCode: 403,
+        code: 'ACCOUNT_SUSPENDED',
         error: 'Forbidden',
         message: 'Account suspended. Please contact support.',
       });
@@ -379,6 +380,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     if (!isVerified) {
       return reply.status(403).send({
         statusCode: 403,
+        code: 'EMAIL_NOT_VERIFIED',
         error: 'Forbidden',
         message: 'Email not verified. Please verify your email before logging in.',
       });
@@ -467,7 +469,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     type RefreshResult =
       | { ok: true; accessToken: string; refreshToken: string; expiresIn: number }
-      | { ok: false; status: number; error: string; message: string };
+      | { ok: false; status: number; code?: string; error: string; message: string };
 
     // Atomic token rotation inside a single database transaction with row locking
     const result = await db.transaction<RefreshResult>(async (tx) => {
@@ -483,6 +485,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return {
           ok: false,
           status: 401,
+          code: 'INVALID_REFRESH_TOKEN',
           error: 'Unauthorized',
           message: 'Invalid refresh token',
         };
@@ -504,6 +507,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return {
           ok: false,
           status: 403,
+          code: 'ACCOUNT_SUSPENDED',
           error: 'Forbidden',
           message: 'Account suspended. Please contact support.',
         };
@@ -515,6 +519,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return {
           ok: false,
           status: 403,
+          code: 'EMAIL_NOT_VERIFIED',
           error: 'Forbidden',
           message: 'Email not verified. Please verify your email before refreshing session.',
         };
@@ -539,6 +544,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return {
           ok: false,
           status: 401,
+          code: 'TOKEN_REUSE_DETECTED',
           error: 'Unauthorized',
           message: 'Token reuse detected. All sessions have been revoked for security.',
         };
@@ -549,6 +555,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         return {
           ok: false,
           status: 401,
+          code: 'REFRESH_TOKEN_EXPIRED',
           error: 'Unauthorized',
           message: 'Refresh token has expired',
         };
@@ -610,6 +617,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         statusCode: result.status,
         error: result.error,
         message: result.message,
+        code: result.code,
       });
     }
 

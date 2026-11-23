@@ -13,6 +13,8 @@ import com.parentalcontrol.core.model.usecase.AuthenticateParentUseCase
 import com.parentalcontrol.core.model.usecase.GeneratePairingCodeUseCase
 import com.parentalcontrol.core.model.usecase.VerifyEmailOtpUseCase
 import com.parentalcontrol.core.network.rest.FastifyRestClient
+import com.parentalcontrol.core.network.rest.UnverifiedEmailException
+import com.parentalcontrol.core.network.rest.AccountSuspendedException
 import com.parentalcontrol.parent.ui.base.BaseMviViewModel
 import kotlinx.coroutines.launch
 
@@ -98,8 +100,17 @@ class AuthViewModel(
                 sendEffect(AuthUiEffect.NavigateToDashboard)
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Authentication failed. Please check credentials."
-                updateState { copy(isLoading = false, errorMessage = errorMsg) }
-                sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                if (err is UnverifiedEmailException || errorMsg.contains("EMAIL_NOT_VERIFIED")) {
+                    updateState { copy(isLoading = false, errorMessage = null) }
+                    sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                    sendEffect(AuthUiEffect.NavigateToEmailVerification)
+                } else if (err is AccountSuspendedException || errorMsg.contains("ACCOUNT_SUSPENDED")) {
+                    updateState { copy(isLoading = false, errorMessage = errorMsg) }
+                    sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                } else {
+                    updateState { copy(isLoading = false, errorMessage = errorMsg) }
+                    sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
+                }
             }
         }
     }

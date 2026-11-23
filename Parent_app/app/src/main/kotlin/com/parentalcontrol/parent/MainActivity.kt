@@ -168,6 +168,9 @@ import com.parentalcontrol.parent.ui.modals.VipDiscountPromoBottomSheet
 import com.parentalcontrol.parent.ui.modals.VoucherRedemptionBottomSheet
 import com.parentalcontrol.parent.ui.modals.BindPhoneAuthBottomSheet
 import com.parentalcontrol.parent.ui.modals.StreamQuotaExhaustedSheet
+import com.parentalcontrol.parent.navigation.AppNavigationManager
+import com.parentalcontrol.parent.navigation.SessionRestorationManager
+import com.parentalcontrol.parent.navigation.SessionVerificationResult
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.platform.LocalContext
 import com.parentalcontrol.core.database.ParentalDatabase
@@ -185,9 +188,27 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        } ?: AppScreen.SPLASH
+        val startAuth = intent?.getBooleanExtra("EXTRA_IS_AUTHENTICATED", false) ?: false
+        val startOrigin = intent?.getStringExtra("EXTRA_EMAIL_ORIGIN")?.let {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        } ?: AppScreen.LOGIN
+        val startRoute = intent?.getStringExtra("EXTRA_START_ROUTE") ?: "home"
+        val startBackstack = intent?.getStringArrayListExtra("EXTRA_BACKSTACK")?.mapNotNull {
+            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        }
+
         setContent {
             LiquidGlassTheme(darkTheme = true) {
-                ParentAppMainContent()
+                ParentAppMainContent(
+                    initialScreen = startScreen,
+                    initialNavRoute = startRoute,
+                    initialAuthenticated = startAuth,
+                    initialEmailVerificationOrigin = startOrigin,
+                    initialBackstack = startBackstack
+                )
             }
         }
     }
@@ -271,14 +292,20 @@ enum class AppScreen {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ParentAppMainContent() {
+fun ParentAppMainContent(
+    initialScreen: AppScreen = AppScreen.SPLASH,
+    initialNavRoute: String = "home",
+    initialAuthenticated: Boolean = false,
+    initialEmailVerificationOrigin: AppScreen = AppScreen.LOGIN,
+    initialBackstack: List<AppScreen>? = null
+) {
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val mmkv = remember { ParentalDatabase.getInstance().mmkv }
     val scope = rememberCoroutineScope()
 
-    var currentScreen by rememberSaveable { mutableStateOf(AppScreen.SPLASH) }
-    var currentNavRoute by rememberSaveable { mutableStateOf("home") }
+    var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
+    var currentNavRoute by rememberSaveable { mutableStateOf(initialNavRoute) }
     var activeChildId by remember { mutableStateOf(mmkv.selectedChildId ?: "") }
     var activeChildName by remember { mutableStateOf("Child") }
     var lastPairedChildName by remember { mutableStateOf("Child") }
@@ -295,31 +322,198 @@ fun ParentAppMainContent() {
             }
         )
     ) {
-        mutableStateListOf(AppScreen.SPLASH)
+        mutableStateListOf<AppScreen>().apply {
+            if (initialBackstack != null) {
+                addAll(initialBackstack)
+            } else {
+                add(initialScreen)
+            }
+        }
+    }
+
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
+    var isSessionAuthenticated by rememberSaveable { mutableStateOf(initialAuthenticated) }
+    var emailVerificationOrigin by rememberSaveable { mutableStateOf(initialEmailVerificationOrigin) }
+    var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isRetryingConnection by remember { mutableStateOf(false) }
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+
+    val sessionRestorationManager = remember {
+        SessionRestorationManager(
+            verifySessionCall = { FastifyRestClient.shared.verifySession().map { } },
+            refreshSessionCall = { FastifyRestClient.shared.refreshSession().map { } },
+            hasAccessToken = { !mmkv.accessToken.isNullOrBlank() },
+            hasRefreshToken = { !mmkv.refreshToken.isNullOrBlank() }
+        )
+    }
+
+    val navManager = remember {
+        AppNavigationManager(
+            initialScreen = currentScreen,
+            initialRoute = currentNavRoute,
+            initialBackstack = screenBackstack,
+            hasAuthenticatedSession = isSessionAuthenticated,
+            emailVerificationOrigin = emailVerificationOrigin,
+            screenBackstack = screenBackstack
+        ).apply {
+            onNavigationChanged = { screen, route ->
+                currentScreen = screen
+                currentNavRoute = route
+            }
+        }
+    }
+
+    LaunchedEffect(initialScreen) {
+        currentScreen = initialScreen
+        navManager.synchronizeBackstack(initialScreen)
+        lastBackPressTime = 0L
+    }
+
+    LaunchedEffect(initialNavRoute) {
+        currentNavRoute = initialNavRoute
+        navManager.selectNavRoute(initialNavRoute)
+    }
+
+    LaunchedEffect(initialBackstack, initialScreen) {
+        screenBackstack.clear()
+        if (initialBackstack != null) {
+            screenBackstack.addAll(initialBackstack)
+        } else {
+            screenBackstack.add(initialScreen)
+        }
+        navManager.synchronizeBackstack(initialScreen)
+    }
+
+    LaunchedEffect(initialAuthenticated) {
+        isSessionAuthenticated = initialAuthenticated
+        navManager.hasAuthenticatedSession = initialAuthenticated
+    }
+
+    LaunchedEffect(initialEmailVerificationOrigin) {
+        emailVerificationOrigin = initialEmailVerificationOrigin
+        navManager.emailVerificationOrigin = initialEmailVerificationOrigin
+    }
+
+    LaunchedEffect(emailVerificationOrigin) {
+        navManager.emailVerificationOrigin = emailVerificationOrigin
+    }
+
+    val needsRestorationVerification = remember {
+        sessionRestorationManager.requiresRestorationVerification(
+            screen = currentScreen,
+            isAuthScreen = { navManager.isAuthenticationScreen(it) }
+        )
+    }
+    var isVerifyingRestoration by remember { mutableStateOf(needsRestorationVerification) }
+    var restoredTargetScreen by remember { mutableStateOf(if (needsRestorationVerification) currentScreen else null) }
+
+    // Centralized Navigation Boundary Helpers - delegating directly to AppNavigationManager
+    fun isAuthenticationScreen(screen: AppScreen): Boolean = navManager.isAuthenticationScreen(screen)
+
+    fun navigateToAuthenticatedRoot() {
+        isSessionAuthenticated = true
+        navManager.hasAuthenticatedSession = true
+        sessionRestorationManager.markSessionVerified()
+        navManager.navigateToAuthenticatedRoot()
+    }
+
+    fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
+        isSessionAuthenticated = false
+        navManager.hasAuthenticatedSession = false
+        navManager.navigateToUnauthenticatedRoot(screen)
+    }
+
+    fun performLogout(message: String = "Logged out successfully") {
+        isSessionAuthenticated = false
+        navManager.hasAuthenticatedSession = false
+        sessionRestorationManager.markSessionInvalidated()
+        mmkv.clearSession()
+        FastifyRestClient.shared.accessToken = null
+        FastifyRestClient.shared.refreshToken = null
+        navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        toastMessage = message
+        toastType = ToastType.INFO
+    }
+
+    // Process recreation / auth guard: delegates to AppNavigationManager using verified session state
+    LaunchedEffect(Unit) {
+        if (needsRestorationVerification) {
+            when (val result = sessionRestorationManager.evaluateSession()) {
+                SessionVerificationResult.Authenticated -> {
+                    isSessionAuthenticated = true
+                    navManager.hasAuthenticatedSession = true
+                    sessionRestorationManager.markSessionVerified()
+                    navManager.restoreState(hasValidAuthSession = true)
+                    isVerifyingRestoration = false
+                }
+                SessionVerificationResult.UnverifiedEmail -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    sessionRestorationManager.markSessionInvalidated()
+                    isVerifyingRestoration = false
+                    // Preserve userEmail in MMKV so ParentEmailVerificationScreen retains the email context!
+                    mmkv.clearSession(preserveEmail = true)
+                    FastifyRestClient.shared.accessToken = null
+                    FastifyRestClient.shared.refreshToken = null
+                    toastMessage = "Please verify your email address to access your dashboard"
+                    toastType = ToastType.WARNING
+                    emailVerificationOrigin = AppScreen.LOGIN
+                    navManager.emailVerificationOrigin = AppScreen.LOGIN
+                    navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                }
+                SessionVerificationResult.ExpiredOrInvalid -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    sessionRestorationManager.markSessionInvalidated()
+                    isVerifyingRestoration = false
+                    performLogout("Session expired. Please log in again.")
+                }
+                is SessionVerificationResult.NetworkUnavailable -> {
+                    isSessionAuthenticated = false
+                    navManager.hasAuthenticatedSession = false
+                    isVerifyingRestoration = false
+                    connectionErrorMessage = result.message
+                    navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
+                }
+            }
+        } else {
+            navManager.restoreState(hasValidAuthSession = isSessionAuthenticated)
+        }
     }
 
     // Global session expiry listener (reactive kick to Login on 401 or DB deletion)
     LaunchedEffect(Unit) {
         SessionEventBus.sessionExpiredFlow.collect {
-            mmkv.clearSession()
-            FastifyRestClient.shared.accessToken = null
-            FastifyRestClient.shared.refreshToken = null
-            currentScreen = AppScreen.LOGIN
-            screenBackstack.clear()
-            screenBackstack.add(AppScreen.LOGIN)
+            isSessionAuthenticated = false
+            navManager.hasAuthenticatedSession = false
+            performLogout("Session expired. Please log in again.")
         }
     }
 
-    // Keep screenBackstack in sync with currentScreen
-    LaunchedEffect(currentScreen) {
-        if (screenBackstack.contains(currentScreen)) {
-            val idx = screenBackstack.lastIndexOf(currentScreen)
-            while (screenBackstack.size > idx + 1) {
-                screenBackstack.removeAt(screenBackstack.lastIndex)
+    // Global email verification listener (reactive navigation to ParentEmailVerificationScreen without generic logout)
+    LaunchedEffect(Unit) {
+        SessionEventBus.emailVerificationRequiredFlow.collect { email ->
+            isSessionAuthenticated = false
+            navManager.hasAuthenticatedSession = false
+            sessionRestorationManager.markSessionInvalidated()
+            if (!email.isNullOrBlank()) {
+                mmkv.userEmail = email
             }
-        } else {
-            screenBackstack.add(currentScreen)
+            mmkv.clearSession(preserveEmail = true)
+            FastifyRestClient.shared.accessToken = null
+            FastifyRestClient.shared.refreshToken = null
+            toastMessage = "Please verify your email address to access your dashboard"
+            toastType = ToastType.WARNING
+            emailVerificationOrigin = AppScreen.LOGIN
+            navManager.emailVerificationOrigin = AppScreen.LOGIN
+            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
         }
+    }
+
+    // Keep screenBackstack in sync with currentScreen via AppNavigationManager
+    LaunchedEffect(currentScreen) {
+        navManager.synchronizeBackstack(currentScreen)
     }
 
     // Phase 3 & 4 Modal visibility states
@@ -367,12 +561,6 @@ fun ParentAppMainContent() {
     var showAvatarCropperModal by remember { mutableStateOf(false) }
     var selectedLegalDocType by remember { mutableStateOf("privacy") }
 
-    var toastMessage by remember { mutableStateOf<String?>(null) }
-    var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
-    var lastBackPressTime by remember { mutableStateOf(0L) }
-    var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
-    var isRetryingConnection by remember { mutableStateOf(false) }
-
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
             kotlinx.coroutines.delay(3000L)
@@ -380,9 +568,9 @@ fun ParentAppMainContent() {
         }
     }
 
-    fun navigateBack(): Boolean {
-        // 1. Dismiss any open bottom sheet or modal first
-        if (showInstantLockModal || showBonusTimeModal || showEmergencyQrModal ||
+    // Bind open modals and modal dismissal to navigation manager
+    navManager.isAnyModalOpen = {
+        showInstantLockModal || showBonusTimeModal || showEmergencyQrModal ||
             showGeofenceEditorModal || showLocateRingModal || showGpsDriftModal ||
             showAppRuleModal || showFocusModeModal || showChildApprovalModal ||
             showAddCustomUrlModal || showChildWebApprovalModal || showVpnDisclosureModal ||
@@ -391,63 +579,38 @@ fun ParentAppMainContent() {
             showUrgentBroadcastModal || showUpgradePremiumModal || showVipDiscountModal ||
             showVoucherRedemptionModal || showBindPhoneModal || showStreamQuotaExhaustedModal ||
             showLogoutConfirmModal || showAvatarCropperModal
-        ) {
-            showInstantLockModal = false
-            showBonusTimeModal = false
-            showEmergencyQrModal = false
-            showGeofenceEditorModal = false
-            showLocateRingModal = false
-            showGpsDriftModal = false
-            showAppRuleModal = false
-            showFocusModeModal = false
-            showChildApprovalModal = false
-            showAddCustomUrlModal = false
-            showChildWebApprovalModal = false
-            showVpnDisclosureModal = false
-            showLivePaintModal = false
-            showTemporaryAccessModal = false
-            showStreamTroubleshooterModal = false
-            showKeywordConfigModal = false
-            showInviteCoParentModal = false
-            showSosAlertOverlay = false
-            showUrgentBroadcastModal = false
-            showUpgradePremiumModal = false
-            showVipDiscountModal = false
-            showVoucherRedemptionModal = false
-            showBindPhoneModal = false
-            showStreamQuotaExhaustedModal = false
-            showLogoutConfirmModal = false
-            showAvatarCropperModal = false
-            return true
-        }
+    }
+    navManager.dismissAllModals = {
+        showInstantLockModal = false
+        showBonusTimeModal = false
+        showEmergencyQrModal = false
+        showGeofenceEditorModal = false
+        showLocateRingModal = false
+        showGpsDriftModal = false
+        showAppRuleModal = false
+        showFocusModeModal = false
+        showChildApprovalModal = false
+        showAddCustomUrlModal = false
+        showChildWebApprovalModal = false
+        showVpnDisclosureModal = false
+        showLivePaintModal = false
+        showTemporaryAccessModal = false
+        showStreamTroubleshooterModal = false
+        showKeywordConfigModal = false
+        showInviteCoParentModal = false
+        showSosAlertOverlay = false
+        showUrgentBroadcastModal = false
+        showUpgradePremiumModal = false
+        showVipDiscountModal = false
+        showVoucherRedemptionModal = false
+        showBindPhoneModal = false
+        showStreamQuotaExhaustedModal = false
+        showLogoutConfirmModal = false
+        showAvatarCropperModal = false
+    }
 
-        // 2. If screenBackstack has more than 1 screen, pop back to previous screen
-        if (screenBackstack.size > 1) {
-            screenBackstack.removeAt(screenBackstack.lastIndex)
-            currentScreen = screenBackstack.last()
-            return true
-        }
-
-        // 3. Fallback for sub-screens if backstack was ever desynchronized
-        if (currentScreen != AppScreen.MAIN_SHELL &&
-            currentScreen != AppScreen.LOGIN &&
-            currentScreen != AppScreen.WELCOME_CAROUSEL &&
-            currentScreen != AppScreen.SPLASH &&
-            currentScreen != AppScreen.CONNECTION_ERROR
-        ) {
-            currentScreen = AppScreen.MAIN_SHELL
-            screenBackstack.clear()
-            screenBackstack.add(AppScreen.MAIN_SHELL)
-            return true
-        }
-
-        // 4. Inside MAIN_SHELL: If user switched to another tab ("me", "map", "lock", "limits"), back returns to "home"
-        if (currentScreen == AppScreen.MAIN_SHELL && currentNavRoute != "home") {
-            currentNavRoute = "home"
-            return true
-        }
-
-        return false
+    fun navigateBack(): Boolean {
+        return navManager.navigateBack(hasValidAuthSession = isSessionAuthenticated)
     }
 
     // Intercept system Android back button / swipe back gesture
@@ -481,19 +644,43 @@ fun ParentAppMainContent() {
                     subtitle = "Scan fingerprint to access your dashboard",
                     negativeButtonText = "Log In Again",
                     onSuccess = {
-                        currentScreen = AppScreen.MAIN_SHELL
+                        if (SessionRestorationManager.isProcessSessionVerified) {
+                            navigateToAuthenticatedRoot()
+                        } else {
+                            scope.launch {
+                                when (val result = sessionRestorationManager.evaluateSession()) {
+                                    SessionVerificationResult.Authenticated -> {
+                                        navigateToAuthenticatedRoot()
+                                    }
+                                    SessionVerificationResult.UnverifiedEmail -> {
+                                        toastMessage = "Please verify your email address to access your dashboard"
+                                        toastType = ToastType.WARNING
+                                        emailVerificationOrigin = AppScreen.LOGIN
+                                        navManager.emailVerificationOrigin = AppScreen.LOGIN
+                                        navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                    }
+                                    SessionVerificationResult.ExpiredOrInvalid -> {
+                                        performLogout("Session expired. Please log in again.")
+                                    }
+                                    is SessionVerificationResult.NetworkUnavailable -> {
+                                        connectionErrorMessage = result.message
+                                        navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
+                                    }
+                                }
+                            }
+                        }
                     },
                     onError = { err ->
                         toastMessage = "Biometric cancelled: $err"
                         toastType = ToastType.INFO
-                        currentScreen = AppScreen.LOGIN
+                        navigateToUnauthenticatedRoot(AppScreen.LOGIN)
                     }
                 )
             } else {
-                currentScreen = AppScreen.MAIN_SHELL
+                navigateToAuthenticatedRoot()
             }
         } else {
-            currentScreen = AppScreen.MAIN_SHELL
+            navigateToAuthenticatedRoot()
         }
     }
 
@@ -502,7 +689,18 @@ fun ParentAppMainContent() {
             .fillMaxSize()
             .background(BgCanvas)
     ) {
-        AnimatedContent(
+        if (isVerifyingRestoration) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = AccentIndigo,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        } else {
+            AnimatedContent(
             targetState = currentScreen,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "ScreenTransition"
@@ -515,6 +713,8 @@ fun ParentAppMainContent() {
                             if (savedToken.isNullOrBlank()) {
                                 val pendingEmail = mmkv.userEmail
                                 if (!pendingEmail.isNullOrBlank()) {
+                                    emailVerificationOrigin = AppScreen.LOGIN
+                                    navManager.emailVerificationOrigin = AppScreen.LOGIN
                                     currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                                     screenBackstack.clear()
                                     screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
@@ -523,58 +723,23 @@ fun ParentAppMainContent() {
                                 }
                             } else {
                                 scope.launch {
-                                    val sessionResult = FastifyRestClient.shared.verifySession()
-                                    if (sessionResult.isSuccess) {
-                                        proceedToMainDashboard()
-                                    } else {
-                                        val err = sessionResult.exceptionOrNull()
-                                        val isUnverifiedEmail = (err?.message?.contains("403") == true) ||
-                                            (err?.message?.contains("not verified", ignoreCase = true) == true)
-                                        val isExpiredOrInvalid = err is SessionExpiredException ||
-                                            (err?.message?.contains("401") == true) ||
-                                            (err?.message?.contains("USER_NOT_FOUND") == true)
-
-                                        if (isUnverifiedEmail) {
+                                    when (val result = sessionRestorationManager.evaluateSession()) {
+                                        SessionVerificationResult.Authenticated -> {
+                                            proceedToMainDashboard()
+                                        }
+                                        SessionVerificationResult.UnverifiedEmail -> {
                                             toastMessage = "Please verify your email address to access your dashboard"
                                             toastType = ToastType.WARNING
-                                            currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
-                                            screenBackstack.clear()
-                                            screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                        } else if (isExpiredOrInvalid) {
-                                            // Expired token -> attempt refresh via repository if available
-                                            val savedRefreshToken = mmkv.refreshToken
-                                            var refreshed = false
-                                            if (!savedRefreshToken.isNullOrBlank()) {
-                                                val refreshResult = runCatching {
-                                                    FastifyRestClient.shared.refreshSession()
-                                                }.getOrNull()
-                                                if (refreshResult?.isSuccess == true) {
-                                                    val verifyAfterRefresh = FastifyRestClient.shared.verifySession()
-                                                    if (verifyAfterRefresh.isSuccess) {
-                                                        refreshed = true
-                                                        proceedToMainDashboard()
-                                                    }
-                                                }
-                                            }
-
-                                            if (!refreshed) {
-                                                // Invalid session -> Login
-                                                mmkv.clearSession()
-                                                FastifyRestClient.shared.accessToken = null
-                                                FastifyRestClient.shared.refreshToken = null
-                                                toastMessage = "Session expired or user deleted. Please log in again."
-                                                toastType = ToastType.ERROR
-                                                currentScreen = AppScreen.LOGIN
-                                                screenBackstack.clear()
-                                                screenBackstack.add(AppScreen.LOGIN)
-                                            }
-                                        } else {
-                                            // Server unreachable / network failure -> Show a recoverable retry/connection error screen.
-                                            // NEVER bypass authentication into MAIN_SHELL on network failure!
-                                            connectionErrorMessage = err?.message ?: "Unable to connect to guardian servers"
-                                            currentScreen = AppScreen.CONNECTION_ERROR
-                                            screenBackstack.clear()
-                                            screenBackstack.add(AppScreen.CONNECTION_ERROR)
+                                            emailVerificationOrigin = AppScreen.LOGIN
+                                            navManager.emailVerificationOrigin = AppScreen.LOGIN
+                                            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                        }
+                                        SessionVerificationResult.ExpiredOrInvalid -> {
+                                            performLogout("Session expired or user deleted. Please log in again.")
+                                        }
+                                        is SessionVerificationResult.NetworkUnavailable -> {
+                                            connectionErrorMessage = result.message
+                                            navigateToUnauthenticatedRoot(AppScreen.CONNECTION_ERROR)
                                         }
                                     }
                                 }
@@ -590,35 +755,33 @@ fun ParentAppMainContent() {
                         onRetryClick = {
                             isRetryingConnection = true
                             scope.launch {
-                                val retryResult = FastifyRestClient.shared.verifySession()
+                                val result = sessionRestorationManager.evaluateSession()
                                 isRetryingConnection = false
-                                if (retryResult.isSuccess) {
-                                    toastMessage = "Connected successfully"
-                                    toastType = ToastType.SUCCESS
-                                    proceedToMainDashboard()
-                                } else {
-                                    val retryErr = retryResult.exceptionOrNull()
-                                    val isUnverified = (retryErr?.message?.contains("403") == true) ||
-                                        (retryErr?.message?.contains("not verified", ignoreCase = true) == true)
-                                    val isExpired = retryErr is SessionExpiredException ||
-                                        (retryErr?.message?.contains("401") == true)
-                                    if (isUnverified) {
+                                when (result) {
+                                    SessionVerificationResult.Authenticated -> {
+                                        toastMessage = "Connected successfully"
+                                        toastType = ToastType.SUCCESS
+                                        if (restoredTargetScreen != null && !navManager.isAuthenticationScreen(restoredTargetScreen!!)) {
+                                            isSessionAuthenticated = true
+                                            navManager.hasAuthenticatedSession = true
+                                            sessionRestorationManager.markSessionVerified()
+                                            navManager.navigateTo(restoredTargetScreen!!)
+                                        } else {
+                                            proceedToMainDashboard()
+                                        }
+                                    }
+                                    SessionVerificationResult.UnverifiedEmail -> {
                                         toastMessage = "Please verify your email address to access your dashboard"
                                         toastType = ToastType.WARNING
-                                        currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
-                                        screenBackstack.clear()
-                                        screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                    } else if (isExpired) {
-                                        mmkv.clearSession()
-                                        FastifyRestClient.shared.accessToken = null
-                                        FastifyRestClient.shared.refreshToken = null
-                                        toastMessage = "Session expired. Please log in again."
-                                        toastType = ToastType.ERROR
-                                        currentScreen = AppScreen.LOGIN
-                                        screenBackstack.clear()
-                                        screenBackstack.add(AppScreen.LOGIN)
-                                    } else {
-                                        connectionErrorMessage = retryErr?.message ?: "Server unreachable"
+                                        emailVerificationOrigin = AppScreen.LOGIN
+                                        navManager.emailVerificationOrigin = AppScreen.LOGIN
+                                        navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                    }
+                                    SessionVerificationResult.ExpiredOrInvalid -> {
+                                        performLogout("Session expired. Please log in again.")
+                                    }
+                                    is SessionVerificationResult.NetworkUnavailable -> {
+                                        connectionErrorMessage = result.message
                                         toastMessage = "Connection failed. Server still unreachable."
                                         toastType = ToastType.ERROR
                                     }
@@ -626,12 +789,7 @@ fun ParentAppMainContent() {
                             }
                         },
                         onLoginAgainClick = {
-                            mmkv.clearSession()
-                            FastifyRestClient.shared.accessToken = null
-                            FastifyRestClient.shared.refreshToken = null
-                            currentScreen = AppScreen.LOGIN
-                            screenBackstack.clear()
-                            screenBackstack.add(AppScreen.LOGIN)
+                            performLogout("Please log in again.")
                         }
                     )
                 }
@@ -652,13 +810,21 @@ fun ParentAppMainContent() {
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
                             toastType = ToastType.SUCCESS
-                            currentScreen = AppScreen.MAIN_SHELL
+                            navigateToAuthenticatedRoot()
                         },
                         onRegisterClick = {
                             currentScreen = AppScreen.REGISTER
                         },
                         onForgotPasswordClick = {
                             currentScreen = AppScreen.FORGOT_PASSWORD
+                        },
+                        onNavigateToEmailVerification = { unverifiedEmail ->
+                            if (unverifiedEmail.isNotBlank()) {
+                                mmkv.userEmail = unverifiedEmail
+                            }
+                            emailVerificationOrigin = AppScreen.LOGIN
+                            navManager.emailVerificationOrigin = AppScreen.LOGIN
+                            navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
                         },
                         onBiometricClick = {
                             val hasSession = !mmkv.accessToken.isNullOrBlank()
@@ -676,9 +842,29 @@ fun ParentAppMainContent() {
                                     subtitle = "Scan fingerprint to unlock your session",
                                     negativeButtonText = "Cancel",
                                     onSuccess = {
-                                        toastMessage = "Biometric authenticated"
-                                        toastType = ToastType.SUCCESS
-                                        currentScreen = AppScreen.MAIN_SHELL
+                                        scope.launch {
+                                            when (val result = sessionRestorationManager.evaluateSession()) {
+                                                SessionVerificationResult.Authenticated -> {
+                                                    toastMessage = "Biometric authenticated"
+                                                    toastType = ToastType.SUCCESS
+                                                    navigateToAuthenticatedRoot()
+                                                }
+                                                SessionVerificationResult.UnverifiedEmail -> {
+                                                    toastMessage = "Please verify your email address to access your dashboard"
+                                                    toastType = ToastType.WARNING
+                                                    emailVerificationOrigin = AppScreen.LOGIN
+                                                    navManager.emailVerificationOrigin = AppScreen.LOGIN
+                                                    navigateToUnauthenticatedRoot(AppScreen.PARENT_EMAIL_VERIFICATION)
+                                                }
+                                                SessionVerificationResult.ExpiredOrInvalid -> {
+                                                    performLogout("Session expired. Please log in with password.")
+                                                }
+                                                is SessionVerificationResult.NetworkUnavailable -> {
+                                                    toastMessage = "Unable to verify session with server. Please check your internet connection."
+                                                    toastType = ToastType.ERROR
+                                                }
+                                            }
+                                        }
                                     },
                                     onError = { err ->
                                         toastMessage = "Biometric cancelled: $err"
@@ -696,6 +882,8 @@ fun ParentAppMainContent() {
                 AppScreen.REGISTER -> {
                     RegisterScreen(
                         onRegisterSuccess = {
+                            emailVerificationOrigin = AppScreen.REGISTER
+                            navManager.emailVerificationOrigin = AppScreen.REGISTER
                             currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                         },
                         onLoginClick = {
@@ -1291,14 +1479,19 @@ fun ParentAppMainContent() {
                     ParentEmailVerificationScreen(
                         email = mmkv.userEmail ?: "your registered email",
                         onNavigateBack = {
-                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.REGISTER else AppScreen.LOGIN
+                            if (!navManager.navigateBack(hasValidAuthSession = isSessionAuthenticated)) {
+                                val target = if (emailVerificationOrigin == AppScreen.REGISTER) AppScreen.REGISTER else AppScreen.LOGIN
+                                navigateToUnauthenticatedRoot(target)
+                            }
                         },
                         onVerificationSuccess = {
                             toastMessage = "Email verified successfully! Please log in to continue."
                             toastType = ToastType.SUCCESS
-                            currentScreen = if (mmkv.accessToken.isNullOrBlank()) AppScreen.LOGIN else AppScreen.MAIN_SHELL
-                            screenBackstack.clear()
-                            screenBackstack.add(currentScreen)
+                            if (mmkv.accessToken.isNullOrBlank()) {
+                                navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+                            } else {
+                                navigateToAuthenticatedRoot()
+                            }
                         }
                     )
                 }
@@ -1465,7 +1658,7 @@ fun ParentAppMainContent() {
                                     if (route == "instant_lock") {
                                         showInstantLockModal = true
                                     } else {
-                                        currentNavRoute = route
+                                        navManager.selectNavRoute(route)
                                     }
                                 },
                                 unreadAlertsCount = 0
@@ -2068,12 +2261,7 @@ fun ParentAppMainContent() {
                 onDismissRequest = { showLogoutConfirmModal = false },
                 onConfirmLogout = {
                     showLogoutConfirmModal = false
-                    mmkv.clearSession()
-                    FastifyRestClient.shared.accessToken = null
-                    FastifyRestClient.shared.refreshToken = null
-                    currentScreen = AppScreen.LOGIN
-                    toastMessage = "Logged out successfully"
-                    toastType = ToastType.INFO
+                    performLogout()
                 }
             )
         }
@@ -2088,6 +2276,7 @@ fun ParentAppMainContent() {
                     toastType = ToastType.SUCCESS
                 }
             )
+        }
         }
 
         // Floating Frosted HUD Toast

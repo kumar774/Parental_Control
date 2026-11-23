@@ -91,6 +91,7 @@ fun LoginScreen(
     onForgotPasswordClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onBiometricClick: () -> Unit,
+    onNavigateToEmailVerification: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
@@ -113,6 +114,7 @@ fun LoginScreen(
         viewModel.uiEffect.collect { effect ->
             when (effect) {
                 is AuthUiEffect.NavigateToDashboard -> onLoginSuccess()
+                is AuthUiEffect.NavigateToEmailVerification -> onNavigateToEmailVerification(email)
                 else -> {}
             }
         }

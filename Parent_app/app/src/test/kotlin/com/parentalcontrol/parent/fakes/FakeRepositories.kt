@@ -193,8 +193,9 @@ class FakeAuthAndSettingsRepository : IAuthRepository, ISettingsRepository {
     val account = ParentAccount(id = "parent-1", email = "alexander.parent@guardian.io", fullName = "Alexander Wright")
     private val accountFlow = MutableStateFlow<ParentAccount?>(account)
 
+    var loginResult: Result<ParentAccount>? = null
     override fun observeCurrentAccount(): Flow<ParentAccount?> = accountFlow.asStateFlow()
-    override suspend fun login(email: String, passwordHash: String): Result<ParentAccount> = Result.success(account)
+    override suspend fun login(email: String, passwordHash: String): Result<ParentAccount> = loginResult ?: Result.success(account)
     override suspend fun register(email: String, passwordHash: String, fullName: String): Result<ParentAccount> = Result.success(account)
     override suspend fun verifyEmailOtp(email: String, otpCode: String): Result<Unit> = Result.success(Unit)
     override suspend fun sendPasswordReset(email: String): Result<Unit> = Result.success(Unit)
