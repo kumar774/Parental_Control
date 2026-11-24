@@ -487,12 +487,14 @@ export async function runMigrations(customClient?: any) {
 // Allow direct execution: `tsx src/db/migrate.ts`
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   runMigrations()
-    .then(({ appliedCount }) => {
+    .then(async ({ appliedCount }) => {
       console.log(`[Migration Runner] Finished successfully (${appliedCount} applied).`);
+      await pool.end().catch(() => {});
       process.exit(0);
     })
-    .catch((err) => {
+    .catch(async (err) => {
       console.error('[Migration Runner] Unhandled error during migration:', err);
+      await pool.end().catch(() => {});
       process.exit(1);
     });
 }

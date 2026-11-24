@@ -50,16 +50,32 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     return parsed.toString();
   }
 
+  function createTestPool(connectionString: string): pg.Pool {
+    const p = new Pool({ connectionString, max: 5 });
+    p.on('error', () => {
+      // Ignore background pool disconnection during dropDisposableDatabase or test teardown
+    });
+    return p;
+  }
+
   async function createDisposableDatabase(dbName: string): Promise<string> {
     assert.match(dbName, /auth001_.*_test/i, 'Database name must follow disposable test pattern');
     createdTestDbs.push(dbName);
-    await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
+    try {
+      await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
+    } catch {
+      // ignore
+    }
     await mainConn.pool.query(`CREATE DATABASE ${dbName};`);
     return createTestDbUrl(dbName);
   }
 
   async function dropDisposableDatabase(dbName: string) {
-    await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
+    try {
+      await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
+    } catch {
+      // ignore cleanup errors
+    }
     const idx = createdTestDbs.indexOf(dbName);
     if (idx !== -1) {
       createdTestDbs.splice(idx, 1);
@@ -85,7 +101,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       assert.ok(output.includes('[Migration Runner] Complete: 11 migration(s) applied successfully'));
 
       // Verify migration tracking in schema_migrations
-      const client = new Pool({ connectionString: testDbUrl });
+      const client = createTestPool(testDbUrl);
       try {
         const migrationsRes = await client.query('SELECT name FROM public.schema_migrations ORDER BY name ASC;');
         const recordedNames = migrationsRes.rows.map((r: { name: string }) => r.name);
@@ -160,7 +176,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     await mainConn.pool.query(`GRANT parental_audit_pruner TO ${tempMigratorRole} WITH ADMIN OPTION;`);
 
     const adminTestUrl = createTestDbUrl(testDbName);
-    const adminTestPool = new Pool({ connectionString: adminTestUrl });
+    const adminTestPool = createTestPool(adminTestUrl);
     try {
       await adminTestPool.query(`ALTER SCHEMA public OWNER TO ${tempMigratorRole};`);
       await adminTestPool.query(`GRANT ALL ON SCHEMA public TO ${tempMigratorRole};`);
@@ -184,7 +200,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       assert.ok(output.includes('[Migration Runner] Complete: 11 migration(s) applied successfully'));
 
       // Verify tracking
-      const migratorPool = new Pool({ connectionString: migratorTestUrl });
+      const migratorPool = createTestPool(migratorTestUrl);
       try {
         const res = await migratorPool.query('SELECT count(*)::int AS count FROM public.schema_migrations;');
         assert.equal(res.rows[0].count, 11);
@@ -205,7 +221,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_upgrade_cli_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       // 1. Pre-apply migrations 0000 through 0008 manually to simulate pre-0009 production database
       await testPool.query(`
@@ -243,6 +259,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       `);
       assert.equal(preCheck.rows[0].count, 0, 'New tables must not exist before upgrade');
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       // 2. Execute npm run db:migrate to perform upgrade
       const output = execSync('npm run db:migrate', {
         cwd: backendDir,
@@ -258,22 +277,26 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       assert.ok(output.includes('[Migration Runner] Complete: 2 migration(s) applied successfully'));
 
       // 3. Verify all 11 migrations are now recorded in schema_migrations
-      const postMigRes = await testPool.query('SELECT name FROM public.schema_migrations ORDER BY name ASC;');
-      const names = postMigRes.rows.map((r: { name: string }) => r.name);
-      assert.equal(names.length, 11);
-      assert.ok(names.includes('0009_pairing_and_app_settings.sql'));
-      assert.ok(names.includes('0010_pairing_security_and_consent.sql'));
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const postMigRes = await verifyPool.query('SELECT name FROM public.schema_migrations ORDER BY name ASC;');
+        const names = postMigRes.rows.map((r: { name: string }) => r.name);
+        assert.equal(names.length, 11);
+        assert.ok(names.includes('0009_pairing_and_app_settings.sql'));
+        assert.ok(names.includes('0010_pairing_security_and_consent.sql'));
 
-      // 4. Verify upgraded tables and columns exist
-      const postCheck = await testPool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name IN ('system_app_settings', 'pairing_sessions', 'parent_consents');
-      `);
-      assert.equal(postCheck.rows.length, 3);
+        // 4. Verify upgraded tables and columns exist
+        const postCheck = await verifyPool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+            AND table_name IN ('system_app_settings', 'pairing_sessions', 'parent_consents');
+        `);
+        assert.equal(postCheck.rows.length, 3);
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -282,7 +305,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_partial_0001_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       // 0000 is applied
       await testPool.query(`
@@ -310,6 +333,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         $$;
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -333,10 +359,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         `Expected fatal incomplete schema error, got: ${stderrOutput}`
       );
 
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
-      assert.equal(res.rows.length, 0, 'Incomplete security migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
+        assert.equal(res.rows.length, 0, 'Incomplete security migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -345,7 +375,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_neg_0001_sig_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       await testPool.query(`
         CREATE TABLE public.schema_migrations (
@@ -373,6 +403,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         $$;
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -396,10 +429,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         `Expected fatal incomplete schema error, got: ${stderrOutput}`
       );
 
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
-      assert.equal(res.rows.length, 0, 'Incomplete 0001 migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
+        assert.equal(res.rows.length, 0, 'Incomplete 0001 migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -408,7 +445,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_partial_0005_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       await testPool.query(`
         CREATE TABLE public.schema_migrations (
@@ -444,6 +481,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         $$ LANGUAGE plpgsql;
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -467,10 +507,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         `Expected fatal incomplete schema error, got: ${stderrOutput}`
       );
 
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0005_protected_superadmin.sql';");
-      assert.equal(res.rows.length, 0, 'Incomplete 0005 migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0005_protected_superadmin.sql';");
+        assert.equal(res.rows.length, 0, 'Incomplete 0005 migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -479,7 +523,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_partial_0009_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       // Setup schema_migrations with 0000..0008 recorded
       await testPool.query(`
@@ -513,6 +557,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         );
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       // Run npm run db:migrate and assert failure
       let threw = false;
       let stderrOutput = '';
@@ -538,10 +585,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       );
 
       // Verify that 0009 was NEVER recorded in schema_migrations
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0009_pairing_and_app_settings.sql';");
-      assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0009_pairing_and_app_settings.sql';");
+        assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -550,7 +601,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_partial_0010_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       // Setup schema_migrations with 0000..0009 recorded
       await testPool.query(`
@@ -588,6 +639,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         CREATE INDEX idx_parent_consents_parent ON public.parent_consents(parent_id);
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -612,10 +666,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       );
 
       // Verify that 0010 was NEVER recorded in schema_migrations
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0010_pairing_security_and_consent.sql';");
-      assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0010_pairing_security_and_consent.sql';");
+        assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -624,7 +682,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_partial_0003_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       // Setup schema_migrations with 0000..0002 recorded
       await testPool.query(`
@@ -652,6 +710,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         );
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -676,10 +737,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       );
 
       // Verify that 0003 was NEVER recorded in schema_migrations
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
-      assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
+        assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -688,7 +753,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_neg_wrong_table_constraint_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       await testPool.query(`
         CREATE TABLE public.schema_migrations (
@@ -719,6 +784,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         );
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -742,10 +810,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         `Expected fatal error for wrong table constraint, got: ${stderrOutput}`
       );
 
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
-      assert.equal(res.rows.length, 0);
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
+        assert.equal(res.rows.length, 0);
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -754,7 +826,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_neg_0003_privs_test';
     const testDbUrl = await createDisposableDatabase(testDbName);
 
-    const testPool = new Pool({ connectionString: testDbUrl });
+    const testPool = createTestPool(testDbUrl);
     try {
       await testPool.query(`
         CREATE TABLE public.schema_migrations (
@@ -785,6 +857,9 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         GRANT DELETE ON public.admin_control_audit_logs TO parental_admin;
       `);
 
+      // Close test pool before running external migrator process
+      await testPool.end();
+
       let threw = false;
       let stderrOutput = '';
       try {
@@ -808,10 +883,14 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         `Expected fatal error for disallowed privilege, got: ${stderrOutput}`
       );
 
-      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
-      assert.equal(res.rows.length, 0);
+      const verifyPool = createTestPool(testDbUrl);
+      try {
+        const res = await verifyPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
+        assert.equal(res.rows.length, 0);
+      } finally {
+        await verifyPool.end();
+      }
     } finally {
-      await testPool.end();
       await dropDisposableDatabase(testDbName);
     }
   });
