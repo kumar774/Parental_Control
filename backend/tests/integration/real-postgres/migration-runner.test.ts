@@ -15,7 +15,7 @@ const drizzleDir = path.resolve(backendDir, 'drizzle');
 
 const { Pool } = pg;
 
-describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integration Suite', () => {
+describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integration Suite', { timeout: 300000 }, () => {
   let mainConn: VerifiedDbConnection;
   const createdTestDbs: string[] = [];
 
@@ -146,26 +146,29 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     }
   });
 
-  it('2. Migration under intended database role (parental_migrator): executes npm run db:migrate and verifies ownership', async () => {
+  it('2. Migration under dedicated disposable role: executes npm run db:migrate and verifies ownership', async () => {
     const testDbName = 'auth001_role_migrator_cli_test';
+    const tempMigratorRole = `auth001_temp_migrator_${Date.now()}`;
     await createDisposableDatabase(testDbName);
 
     const migratorPass = process.env.CI_MIGRATOR_PASS || crypto.randomBytes(32).toString('hex');
-    // Configure role privileges for the migration test
-    await mainConn.pool.query(`ALTER ROLE parental_migrator WITH LOGIN PASSWORD '${migratorPass}';`);
-    await mainConn.pool.query(`GRANT ALL ON DATABASE ${testDbName} TO parental_migrator;`);
-    await mainConn.pool.query(`GRANT parental_audit_pruner TO parental_migrator WITH ADMIN OPTION;`);
+    // Create dedicated ephemeral migrator role without modifying shared cluster roles
+    await mainConn.pool.query(
+      `CREATE ROLE ${tempMigratorRole} WITH LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`
+    );
+    await mainConn.pool.query(`GRANT ALL ON DATABASE ${testDbName} TO ${tempMigratorRole};`);
+    await mainConn.pool.query(`GRANT parental_audit_pruner TO ${tempMigratorRole} WITH ADMIN OPTION;`);
 
     const adminTestUrl = createTestDbUrl(testDbName);
     const adminTestPool = new Pool({ connectionString: adminTestUrl });
     try {
-      await adminTestPool.query(`ALTER SCHEMA public OWNER TO parental_migrator;`);
-      await adminTestPool.query(`GRANT ALL ON SCHEMA public TO parental_migrator;`);
+      await adminTestPool.query(`ALTER SCHEMA public OWNER TO ${tempMigratorRole};`);
+      await adminTestPool.query(`GRANT ALL ON SCHEMA public TO ${tempMigratorRole};`);
     } finally {
       await adminTestPool.end();
     }
 
-    const migratorTestUrl = createTestDbUrl(testDbName, 'parental_migrator', migratorPass);
+    const migratorTestUrl = createTestDbUrl(testDbName, tempMigratorRole, migratorPass);
 
     try {
       const output = execSync('npm run db:migrate', {
@@ -177,7 +180,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         encoding: 'utf8',
       });
 
-      assert.ok(output.includes("as user: 'parental_migrator'"));
+      assert.ok(output.includes(`as user: '${tempMigratorRole}'`));
       assert.ok(output.includes('[Migration Runner] Complete: 11 migration(s) applied successfully'));
 
       // Verify tracking
@@ -189,6 +192,11 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         await migratorPool.end();
       }
     } finally {
+      try {
+        await mainConn.pool.query(`REVOKE ALL ON DATABASE ${testDbName} FROM ${tempMigratorRole};`);
+        await mainConn.pool.query(`REVOKE parental_audit_pruner FROM ${tempMigratorRole};`);
+        await mainConn.pool.query(`DROP ROLE IF EXISTS ${tempMigratorRole};`);
+      } catch (_e) {}
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -327,6 +335,69 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
 
       const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
       assert.equal(res.rows.length, 0, 'Incomplete security migration must never be recorded in schema_migrations');
+    } finally {
+      await testPool.end();
+      await dropDisposableDatabase(testDbName);
+    }
+  });
+
+  it('4c. Negative test (0001 overload/signature): fails closed when function has wrong argument signature', async () => {
+    const testDbName = 'auth001_neg_0001_sig_test';
+    const testDbUrl = await createDisposableDatabase(testDbName);
+
+    const testPool = new Pool({ connectionString: testDbUrl });
+    try {
+      await testPool.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        );
+        INSERT INTO public.schema_migrations (name) VALUES ('0000_fast_yellow_claw.sql');
+      `);
+
+      // Create function with wrong argument types (integer instead of uuid)
+      await testPool.query(`
+        CREATE OR REPLACE FUNCTION public.prune_archived_audit_logs(
+          p_verification_id integer,
+          p_batch_ids integer[],
+          p_archive_checksum text,
+          p_manifest_hash text
+        ) RETURNS integer
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          RETURN 0;
+        END;
+        $$;
+      `);
+
+      let threw = false;
+      let stderrOutput = '';
+      try {
+        execSync('npm run db:migrate', {
+          cwd: backendDir,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDbUrl,
+          },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err: any) {
+        threw = true;
+        stderrOutput = err.stderr || err.stdout || err.message;
+      }
+
+      assert.ok(threw, 'Migration runner MUST fail on 0001 with wrong function argument signature');
+      assert.ok(
+        stderrOutput.includes('[Migration Runner FATAL] Incomplete schema detected for 0001_audit_prune_function.sql'),
+        `Expected fatal incomplete schema error, got: ${stderrOutput}`
+      );
+
+      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
+      assert.equal(res.rows.length, 0, 'Incomplete 0001 migration must never be recorded in schema_migrations');
     } finally {
       await testPool.end();
       await dropDisposableDatabase(testDbName);
@@ -607,6 +678,138 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       // Verify that 0003 was NEVER recorded in schema_migrations
       const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
       assert.equal(res.rows.length, 0, 'Partial migration must never be recorded in schema_migrations');
+    } finally {
+      await testPool.end();
+      await dropDisposableDatabase(testDbName);
+    }
+  });
+
+  it('6b. Negative test: fails closed when constraint exists on wrong table with same name', async () => {
+    const testDbName = 'auth001_neg_wrong_table_constraint_test';
+    const testDbUrl = await createDisposableDatabase(testDbName);
+
+    const testPool = new Pool({ connectionString: testDbUrl });
+    try {
+      await testPool.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        );
+      `);
+      for (const name of ['0000_fast_yellow_claw.sql', '0001_audit_prune_function.sql', '0002_admin_dashboard_hybrid.sql']) {
+        await testPool.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [name]);
+      }
+
+      // Create admin_control_audit_logs table WITHOUT the constraint
+      await testPool.query(`
+        CREATE TABLE public.admin_control_audit_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          severity VARCHAR(32)
+        );
+        CREATE INDEX idx_admin_control_audit_severity_created ON public.admin_control_audit_logs(severity);
+      `);
+
+      // Create a dummy table that holds the constraint name 'admin_control_audit_severity_check'
+      await testPool.query(`
+        CREATE TABLE public.dummy_wrong_table (
+          id INT PRIMARY KEY,
+          status TEXT,
+          CONSTRAINT admin_control_audit_severity_check CHECK (status IN ('info', 'warning', 'critical'))
+        );
+      `);
+
+      let threw = false;
+      let stderrOutput = '';
+      try {
+        execSync('npm run db:migrate', {
+          cwd: backendDir,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDbUrl,
+          },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err: any) {
+        threw = true;
+        stderrOutput = err.stderr || err.stdout || err.message;
+      }
+
+      assert.ok(threw, 'Migration runner MUST fail when constraint is on the wrong table');
+      assert.ok(
+        stderrOutput.includes('[Migration Runner FATAL] Incomplete schema detected for 0003_admin_control_audit_severity.sql'),
+        `Expected fatal error for wrong table constraint, got: ${stderrOutput}`
+      );
+
+      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
+      assert.equal(res.rows.length, 0);
+    } finally {
+      await testPool.end();
+      await dropDisposableDatabase(testDbName);
+    }
+  });
+
+  it('6c. Negative test: fails closed when 0003 table privilege revocations are missing', async () => {
+    const testDbName = 'auth001_neg_0003_privs_test';
+    const testDbUrl = await createDisposableDatabase(testDbName);
+
+    const testPool = new Pool({ connectionString: testDbUrl });
+    try {
+      await testPool.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        );
+      `);
+      for (const name of ['0000_fast_yellow_claw.sql', '0001_audit_prune_function.sql', '0002_admin_dashboard_hybrid.sql']) {
+        await testPool.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [name]);
+      }
+
+      // Create tables and constraint/index for 0003, but intentionally GRANT DELETE to parental_admin
+      await testPool.query(`
+        CREATE TABLE public.admin_control_audit_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          severity VARCHAR(32) NOT NULL DEFAULT 'info',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          CONSTRAINT admin_control_audit_severity_check CHECK (severity IN ('info', 'warning', 'critical'))
+        );
+        CREATE INDEX idx_admin_control_audit_severity_created ON public.admin_control_audit_logs(severity, created_at);
+
+        CREATE TABLE IF NOT EXISTS public.admin_auth_audit_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+        CREATE TABLE IF NOT EXISTS public.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+        CREATE TABLE IF NOT EXISTS public.child_devices (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+
+        -- Insecure state: grant DELETE to parental_admin which violates 0003 guarantee
+        GRANT DELETE ON public.admin_control_audit_logs TO parental_admin;
+      `);
+
+      let threw = false;
+      let stderrOutput = '';
+      try {
+        execSync('npm run db:migrate', {
+          cwd: backendDir,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDbUrl,
+          },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err: any) {
+        threw = true;
+        stderrOutput = err.stderr || err.stdout || err.message;
+      }
+
+      assert.ok(threw, 'Migration runner MUST fail when parental_admin holds disallowed DELETE privilege');
+      assert.ok(
+        stderrOutput.includes('[Migration Runner FATAL] Incomplete schema detected for 0003_admin_control_audit_severity.sql'),
+        `Expected fatal error for disallowed privilege, got: ${stderrOutput}`
+      );
+
+      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0003_admin_control_audit_severity.sql';");
+      assert.equal(res.rows.length, 0);
     } finally {
       await testPool.end();
       await dropDisposableDatabase(testDbName);

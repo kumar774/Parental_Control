@@ -8,7 +8,8 @@ import androidx.security.crypto.MasterKey
 
 enum class PairingStatus {
     UNPAIRED,
-    PAIRED
+    PAIRED,
+    PAIRING_REQUIRES_REPAIR
 }
 
 data class DeviceSession(
@@ -84,6 +85,22 @@ class DeviceStorage internal constructor(
 
     fun clearPairingSession() {
         prefs.edit().clear().apply()
+    }
+
+    /**
+     * Atomically clears invalid credentials and marks local state as PAIRING_REQUIRES_REPAIR
+     * upon terminal ACK rejection (e.g. 401, 403, 404, 410) so the child device does not
+     * remain falsely paired.
+     */
+    fun markPairingRequiresRepair() {
+        prefs.edit()
+            .remove(KEY_DEVICE_ID)
+            .remove(KEY_DEVICE_TOKEN)
+            .remove(KEY_PARENT_ID)
+            .remove(KEY_PENDING_ACK_SESSION_ID)
+            .remove(KEY_PENDING_ACK_POLLING_TOKEN)
+            .putString(KEY_STATUS, PairingStatus.PAIRING_REQUIRES_REPAIR.name)
+            .apply()
     }
 
     fun savePendingPairAck(sessionId: String, pollingToken: String) {

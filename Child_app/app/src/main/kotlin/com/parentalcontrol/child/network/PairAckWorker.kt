@@ -35,8 +35,9 @@ class PairAckWorker(
                     Result.retry()
                 }
                 is AckOutcome.PermanentFailure -> {
-                    Log.e(TAG, "Permanent rejection (${outcome.statusCode}) for session $sessionId: ${outcome.message}. Clearing stale pending ACK.")
-                    storage.clearPendingPairAck()
+                    Log.e(TAG, "Permanent rejection (${outcome.statusCode}) for session $sessionId: ${outcome.message}. Resetting local pairing credentials to PAIRING_REQUIRES_REPAIR.")
+                    storage.markPairingRequiresRepair()
+                    PairAckRetryManager.cancelBackgroundRetry(applicationContext)
                     Result.failure()
                 }
             }

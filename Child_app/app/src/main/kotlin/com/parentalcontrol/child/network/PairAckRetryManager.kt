@@ -94,8 +94,8 @@ object PairAckRetryManager {
                 false
             }
             is AckOutcome.PermanentFailure -> {
-                Log.e(TAG, "Permanent rejection during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; clearing stale pending ACK")
-                storage.clearPendingPairAck()
+                Log.e(TAG, "Permanent rejection during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; resetting local credentials to PAIRING_REQUIRES_REPAIR")
+                storage.markPairingRequiresRepair()
                 context?.let { cancelBackgroundRetry(it) }
                 false
             }

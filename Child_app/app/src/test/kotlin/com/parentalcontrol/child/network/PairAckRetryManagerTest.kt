@@ -107,8 +107,16 @@ class PairAckRetryManagerTest {
     }
 
     @Test
-    fun testPermanentFailure401ClearsPendingAckSafely() = runBlocking {
-        storage.savePendingPairAck("sess-perm-401", "token-perm-401")
+    fun testPermanentFailure401ResetsPairingCredentialsAndMarksRequiresRepair() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-401",
+            deviceToken = "tok-401",
+            parentId = "par-401",
+            childName = "Child",
+            sessionId = "sess-perm-401",
+            pollingToken = "token-perm-401"
+        )
+        assertTrue(storage.isPaired())
         assertNotNull(storage.getPendingPairAck())
 
         val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
@@ -116,33 +124,118 @@ class PairAckRetryManagerTest {
         }
         assertFalse(success)
 
-        // Permanent failure MUST clear the stale pending ACK to prevent infinite useless loops
+        // Permanent failure MUST reset local credentials and set PAIRING_REQUIRES_REPAIR
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
+        assertNull(storage.getSession().deviceToken)
         assertNull(storage.getPendingPairAck())
     }
 
     @Test
-    fun testPermanentFailure404ClearsPendingAckSafely() = runBlocking {
-        storage.savePendingPairAck("sess-perm-404", "token-perm-404")
-        assertNotNull(storage.getPendingPairAck())
+    fun testPermanentFailure403ForbiddenResetsPairingCredentials() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-403",
+            deviceToken = "tok-403",
+            parentId = "par-403",
+            childName = "Child",
+            sessionId = "sess-perm-403",
+            pollingToken = "token-perm-403"
+        )
+        assertTrue(storage.isPaired())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.PermanentFailure(403, "Forbidden / Pairing Revoked")
+        }
+        assertFalse(success)
+
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
+        assertNull(storage.getSession().deviceToken)
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testPermanentFailure404NotFoundResetsPairingCredentials() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-404",
+            deviceToken = "tok-404",
+            parentId = "par-404",
+            childName = "Child",
+            sessionId = "sess-perm-404",
+            pollingToken = "token-perm-404"
+        )
+        assertTrue(storage.isPaired())
 
         val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(404, "Session Not Found")
         }
         assertFalse(success)
 
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
+        assertNull(storage.getSession().deviceToken)
         assertNull(storage.getPendingPairAck())
     }
 
     @Test
-    fun testPermanentFailure410ExpiredTokenClearsPendingAckSafely() = runBlocking {
-        storage.savePendingPairAck("sess-perm-410", "token-perm-410")
-        assertNotNull(storage.getPendingPairAck())
+    fun testPermanentFailure410ExpiredTokenResetsPairingCredentials() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-410",
+            deviceToken = "tok-410",
+            parentId = "par-410",
+            childName = "Child",
+            sessionId = "sess-perm-410",
+            pollingToken = "token-perm-410"
+        )
+        assertTrue(storage.isPaired())
 
         val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(410, "Pairing Session Expired")
         }
         assertFalse(success)
 
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
+        assertNull(storage.getSession().deviceToken)
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testTransientVsPermanentStatePreservation() = runBlocking {
+        // Given a paired device with a pending ACK
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-trans",
+            deviceToken = "tok-trans",
+            parentId = "par-trans",
+            childName = "Child",
+            sessionId = "sess-trans",
+            pollingToken = "token-trans"
+        )
+        assertTrue(storage.isPaired())
+
+        // 1. Transient failure (503 Service Unavailable) retains paired status and pending ACK
+        val transientResult = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(503, "Service Unavailable")
+        }
+        assertFalse(transientResult)
+        assertTrue(storage.isPaired())
+        assertEquals(PairingStatus.PAIRED, storage.getSession().status)
+        assertEquals("dev-trans", storage.getSession().deviceId)
+        assertNotNull(storage.getPendingPairAck())
+
+        // 2. Subsequent permanent rejection (401 Unauthorized) transitions to PAIRING_REQUIRES_REPAIR
+        val permanentResult = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.PermanentFailure(401, "Session Revoked")
+        }
+        assertFalse(permanentResult)
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
+        assertNull(storage.getSession().deviceToken)
         assertNull(storage.getPendingPairAck())
     }
 

@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
                 ChildHomeScreen(
                     session = currentSession,
                     onUnpairClick = {
-                        storage.clearPairingSession()
+                        PairAckRetryManager.unpair(this@MainActivity, storage)
                         currentSession = storage.getSession()
                         isPaired = false
                         onboardingStep = 0
