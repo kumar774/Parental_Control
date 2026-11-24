@@ -8,9 +8,9 @@ import org.junit.Test
 class ChildRestClientTest {
 
     @Test
-    fun testDefaultBaseUrl() {
-        val client = ChildRestClient()
-        assertEquals("http://100.86.72.5:3000", client.baseUrl)
+    fun testProductionBaseUrlIsHttps() {
+        assertTrue("Production URL must start with https://", ChildRestClient.PROD_BASE_URL.startsWith("https://"))
+        assertTrue("Candidate hosts must include production URL", ChildRestClient.candidateHosts.contains(ChildRestClient.PROD_BASE_URL))
     }
 
     @Test

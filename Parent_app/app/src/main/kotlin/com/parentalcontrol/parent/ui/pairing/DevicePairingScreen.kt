@@ -10,7 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -66,14 +65,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.json.JSONObject
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -145,12 +139,34 @@ import kotlinx.coroutines.launch
  * Section C: 9-Digit numeric manual pairing code (XXX - XXX - XXX) fetched from POST /api/v1/devices/pair-code
  *            with countdown timer and single-use expiry, and manual entry dialog.
  */
-private fun extractPairingCode(raw: String): String {
+internal fun extractPairingCode(raw: String): String {
     val trimmed = raw.trim()
+    // 1. JSON QR Contract: {"version":1,"type":"child_pair","sessionId":"...","code":"123456789","expiresAt":"..."}
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        // Fast & JVM test-compatible regex extraction for code/pairingCode
+        val jsonCodeMatch = Regex("""\"(?:code|pairingCode)\"\s*:\s*\"?([0-9]{9})\"?""").find(trimmed)
+        if (jsonCodeMatch != null) {
+            return jsonCodeMatch.groupValues[1]
+        }
+        try {
+            val json = JSONObject(trimmed)
+            if (json.has("code")) {
+                val code = json.getString("code").filter { it.isDigit() }
+                if (code.length == 9) return code
+            }
+            if (json.has("pairingCode")) {
+                val code = json.getString("pairingCode").filter { it.isDigit() }
+                if (code.length == 9) return code
+            }
+        } catch (_: Throwable) {}
+    }
+    // 2. Colon-delimited scheme: pc-pair:123456789 or pcpair:123456789
     val parts = trimmed.split(":")
     if (parts.size >= 2 && (parts[0].equals("pc-pair", ignoreCase = true) || parts[0].equals("pcpair", ignoreCase = true))) {
-        return parts[1]
+        val code = parts[1].filter { it.isDigit() }
+        if (code.length == 9) return code
     }
+    // 3. Plain numeric 9-digit code
     val digitsOnly = trimmed.filter { it.isDigit() }
     if (digitsOnly.length in 6..16) {
         return digitsOnly
@@ -373,7 +389,7 @@ fun DevicePairingScreen(
                 Spacer(modifier = Modifier.width(Space12))
                 Column {
                     Text(
-                        text = "Device Pairing",
+                        text = "Bind child's device",
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -844,7 +860,6 @@ private fun Section02BindChildDevice(
 /**
  * Live CameraX Preview with ML Kit Barcode Scanning.
  */
-@OptIn(ExperimentalGetImage::class)
 @Composable
 private fun LiveCameraQrScanner(
     onQrCodeDetected: (String) -> Unit,

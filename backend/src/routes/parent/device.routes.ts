@@ -270,7 +270,8 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
               )
             )
           )
-          .limit(1);
+          .limit(1)
+          .for('update');
 
         if (!session) {
           return { error: 'Pairing session not found for this account', status: 404 };
@@ -330,7 +331,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
           throw new Error('Failed to create child device record');
         }
 
-        await tx
+        const [updatedSession] = await tx
           .update(pairingSessions)
           .set({
             status: 'paired',
@@ -339,7 +340,17 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
             childName: newDevice.childName,
             deviceModel: newDevice.deviceModel,
           })
-          .where(eq(pairingSessions.id, session.id));
+          .where(
+            and(
+              eq(pairingSessions.id, session.id),
+              eq(pairingSessions.status, 'pending')
+            )
+          )
+          .returning();
+
+        if (!updatedSession) {
+          return { error: 'Pairing session was claimed or confirmed concurrently', status: 409 };
+        }
 
         return {
           device: newDevice,
@@ -351,7 +362,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         const code = result.status || 400;
         return reply.status(code).send({
           statusCode: code,
-          error: code === 404 ? 'Not Found' : 'Bad Request',
+          error: code === 409 ? 'Conflict' : (code === 404 ? 'Not Found' : 'Bad Request'),
           message: result.error,
         });
       }

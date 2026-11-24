@@ -54,6 +54,24 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       assert.equal(publicSettings.childAppDownloadUrl, 'https://download.guardian.io/child-app-v2.apk');
     });
 
+    it('rejects enabling googleAuthEnabled when googleClientId is missing or empty', async () => {
+      await assert.rejects(
+        async () => {
+          await updateAppSettings(
+            {
+              googleAuthEnabled: true,
+              googleClientId: '',
+            },
+            null
+          );
+        },
+        {
+          name: 'Error',
+          message: 'Google Client ID is required to enable Google Authentication',
+        }
+      );
+    });
+
     it('redacts googleClientId from public config when googleAuthEnabled is false', async () => {
       await updateAppSettings(
         {
@@ -140,7 +158,7 @@ describe('Pairing & App Settings Security Unit Tests', () => {
         );
       });
 
-      await updateAppSettings({ googleAuthEnabled: true }, null);
+      await updateAppSettings({ googleAuthEnabled: true, googleClientId: 'test.apps.googleusercontent.com' }, null);
       const app = await buildApp();
 
       const res = await app.inject({
@@ -160,7 +178,7 @@ describe('Pairing & App Settings Security Unit Tests', () => {
         throw new GoogleAuthVerificationError('Token audience mismatch', 401);
       });
 
-      await updateAppSettings({ googleAuthEnabled: true }, null);
+      await updateAppSettings({ googleAuthEnabled: true, googleClientId: 'test.apps.googleusercontent.com' }, null);
       const app = await buildApp();
 
       const res = await app.inject({
@@ -170,6 +188,46 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       });
 
       assert.equal(res.statusCode, 401);
+      await app.close();
+    });
+
+    it('verifyGoogleIdToken strictly throws when expectedClientId is empty or missing', async () => {
+      await assert.rejects(
+        async () => {
+          await verifyGoogleIdToken('some-token', '');
+        },
+        {
+          name: 'GoogleAuthVerificationError',
+          message: 'Configured Google Client ID (audience) is mandatory for token verification',
+        }
+      );
+    });
+
+    it('new Google user without password/name receives requiresProfileCompletion: true', async () => {
+      setGoogleTokenVerifierForTest(async () => ({
+        sub: 'new-google-user-12345',
+        email: 'new.parent@example.com',
+        email_verified: true,
+        name: 'New Parent',
+        aud: 'test.apps.googleusercontent.com',
+        iss: 'https://accounts.google.com',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }));
+
+      await updateAppSettings({ googleAuthEnabled: true, googleClientId: 'test.apps.googleusercontent.com' }, null);
+      const app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'valid-google-id-token' },
+      });
+
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.body);
+      assert.equal(json.requiresProfileCompletion, true);
+      assert.equal(json.email, 'new.parent@example.com');
+      assert.ok(json.message.includes('Please provide full name and password'));
       await app.close();
     });
   });

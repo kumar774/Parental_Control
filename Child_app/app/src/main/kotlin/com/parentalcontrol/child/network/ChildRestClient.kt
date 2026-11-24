@@ -45,16 +45,25 @@ class ChildRestClient(
         const val TAG = "ChildRestClient"
         // Production default HTTPS endpoint
         const val PROD_BASE_URL = "https://api.parentalcontrol.guardian.io"
-        // Development local fallback
-        const val DEFAULT_BASE_URL = "http://100.86.72.5:3000"
+        // Base URL: Production HTTPS by default; debug can use local IP if in debug build
+        val DEFAULT_BASE_URL: String = if (com.parentalcontrol.child.BuildConfig.DEBUG) {
+            "http://100.86.72.5:3000"
+        } else {
+            PROD_BASE_URL
+        }
 
-        val candidateHosts = listOf(
-            PROD_BASE_URL,
-            "http://100.86.72.5:3000",
-            "http://192.168.31.178:3000",
-            "http://127.0.0.1:3000",
-            "http://10.0.2.2:3000"
-        )
+        // Candidate hosts strictly restricted to debug build only
+        val candidateHosts: List<String> = if (com.parentalcontrol.child.BuildConfig.DEBUG) {
+            listOf(
+                PROD_BASE_URL,
+                "http://100.86.72.5:3000",
+                "http://192.168.31.178:3000",
+                "http://127.0.0.1:3000",
+                "http://10.0.2.2:3000"
+            )
+        } else {
+            listOf(PROD_BASE_URL)
+        }
 
         val instance: ChildRestClient by lazy { ChildRestClient() }
     }
@@ -195,7 +204,15 @@ class ChildRestClient(
         bearerToken: String? = null,
         extraHeaders: Map<String, String> = emptyMap()
     ): HttpResponse {
-        val hosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
+        val rawHosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
+        val hosts = if (!com.parentalcontrol.child.BuildConfig.DEBUG) {
+            rawHosts.filter { it.startsWith("https://", ignoreCase = true) }
+        } else {
+            rawHosts
+        }
+        if (hosts.isEmpty()) {
+            throw SecurityException("Cleartext HTTP traffic is rejected in release build. No valid HTTPS host configured.")
+        }
         var lastException: Exception? = null
 
         for (host in hosts) {

@@ -125,11 +125,16 @@ fun ConnectToParentScreen(
             delay(2500L)
             try {
                 val pollResult = ChildRestClient.instance.checkPairStatus(currentSessionId, currentPollingToken)
-                if (pollResult.status == "paired" && pollResult.deviceId != null && !pollResult.deviceToken.isNullOrBlank()) {
+                if (pollResult.status == "paired" && !pollResult.deviceId.isNullOrBlank() && !pollResult.deviceToken.isNullOrBlank()) {
+                    val pId = pollResult.parentId
+                    if (pId.isNullOrBlank()) {
+                        errorMessage = "Pairing response rejected: missing parent identity"
+                        break
+                    }
                     storage.savePairingSession(
                         deviceId = pollResult.deviceId,
                         deviceToken = pollResult.deviceToken,
-                        parentId = pollResult.parentId ?: "parent_auto",
+                        parentId = pId,
                         childName = pollResult.childName ?: "Child Phone"
                     )
                     successMessage = "Connected to Parent!"
@@ -159,11 +164,16 @@ fun ConnectToParentScreen(
                 childName = "Child Phone"
             )
             isLoading = false
-            if (result.success && result.deviceId != null && !result.deviceToken.isNullOrBlank()) {
+            if (result.success && !result.deviceId.isNullOrBlank() && !result.deviceToken.isNullOrBlank()) {
+                val pId = result.parentId
+                if (pId.isNullOrBlank()) {
+                    errorMessage = "Pairing response rejected: missing parent identity"
+                    return@launch
+                }
                 storage.savePairingSession(
                     deviceId = result.deviceId,
                     deviceToken = result.deviceToken,
-                    parentId = result.parentId ?: "parent_primary",
+                    parentId = pId,
                     childName = result.childName ?: "Child Phone"
                 )
                 successMessage = "Pairing successful!"

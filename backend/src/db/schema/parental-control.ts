@@ -234,6 +234,8 @@ export const pairingSessions = pgTable(
     pairingCode: varchar('pairing_code', { length: 16 }).notNull().unique(),
     qrPayload: text('qr_payload').notNull(),
     pollingToken: varchar('polling_token', { length: 64 }),
+    issuedDeviceToken: text('issued_device_token'),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     childDeviceId: uuid('child_device_id').references(() => childDevices.id, { onDelete: 'set null' }),
     childName: text('child_name'),

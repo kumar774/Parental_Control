@@ -1522,9 +1522,6 @@ fun ParentAppMainContent(
                     ParentConsentScreen(
                         onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
                         onConsentAccepted = {
-                            scope.launch {
-                                FastifyRestClient.shared.recordParentConsent()
-                            }
                             currentScreen = AppScreen.DEVICE_PAIRING
                         },
                         onOpenTerms = {

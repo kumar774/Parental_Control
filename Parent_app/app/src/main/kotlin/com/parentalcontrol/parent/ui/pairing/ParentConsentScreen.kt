@@ -40,11 +40,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import com.parentalcontrol.core.network.rest.FastifyRestClient
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,7 +93,10 @@ fun ParentConsentScreen(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     var isConsentChecked by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submissionError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -297,13 +304,34 @@ fun ParentConsentScreen(
 
             Spacer(modifier = Modifier.height(Space24))
 
-            // Continue Button (disabled until checked)
+            if (submissionError != null) {
+                Text(
+                    text = submissionError!!,
+                    color = Color(0xFFEF4444),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Space8)
+                )
+                Spacer(modifier = Modifier.height(Space12))
+            }
+
+            // Continue Button (disabled until checked or while submitting)
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onConsentAccepted()
+                    isSubmitting = true
+                    submissionError = null
+                    scope.launch {
+                        val res = FastifyRestClient.shared.recordParentConsent()
+                        isSubmitting = false
+                        if (res.isSuccess) {
+                            onConsentAccepted()
+                        } else {
+                            submissionError = res.exceptionOrNull()?.message ?: "Failed to record consent on server. Please check connection and try again."
+                        }
+                    }
                 },
-                enabled = isConsentChecked,
+                enabled = isConsentChecked && !isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -314,23 +342,38 @@ fun ParentConsentScreen(
                     disabledContentColor = Color(0xFF64748B)
                 )
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "Accept & Proceed to Device Pairing",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isConsentChecked) Color.White else Color(0xFF64748B)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(Space8))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = if (isConsentChecked) Color.White else Color(0xFF64748B)
+                    Text(
+                        text = "Recording Consent...",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Accept & Proceed to Device Pairing",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isConsentChecked) Color.White else Color(0xFF64748B)
+                        )
+                        Spacer(modifier = Modifier.width(Space8))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = if (isConsentChecked) Color.White else Color(0xFF64748B)
+                        )
+                    }
                 }
             }
 

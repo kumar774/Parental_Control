@@ -2,8 +2,10 @@
 -- 1. Allow pairing_sessions.parent_id to be NULL for child-initiated QR pairing sessions
 ALTER TABLE "pairing_sessions" ALTER COLUMN "parent_id" DROP NOT NULL;
 
--- 2. Add polling_token for unguessable, scoped child polling authentication
+-- 2. Add polling_token and issued_device_token for unguessable, scoped child polling and idempotent credential delivery
 ALTER TABLE "pairing_sessions" ADD COLUMN IF NOT EXISTS "polling_token" varchar(64);
+ALTER TABLE "pairing_sessions" ADD COLUMN IF NOT EXISTS "issued_device_token" text;
+ALTER TABLE "pairing_sessions" ADD COLUMN IF NOT EXISTS "claimed_at" timestamp with time zone;
 
 -- 3. Parental Consent Persistence table
 CREATE TABLE IF NOT EXISTS "parent_consents" (

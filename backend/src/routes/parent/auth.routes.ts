@@ -477,11 +477,11 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    */
   app.post('/google', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
     const appSettings = await getAppSettings();
-    if (!appSettings.googleAuthEnabled) {
+    if (!appSettings.googleAuthEnabled || !appSettings.googleClientId || appSettings.googleClientId.trim().length === 0) {
       return reply.status(403).send({
         statusCode: 403,
         error: 'Forbidden',
-        message: 'Google Sign-In is currently disabled by administrator',
+        message: 'Google Sign-In is currently disabled or not properly configured (missing Client ID)',
       });
     }
 
@@ -496,7 +496,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
     let claims: GoogleTokenClaims;
     try {
-      claims = await verifyGoogleIdToken(parsed.data.idToken, appSettings.googleClientId || undefined);
+      claims = await verifyGoogleIdToken(parsed.data.idToken, appSettings.googleClientId);
     } catch (err: any) {
       if (err instanceof GoogleAuthVerificationError) {
         return reply.status(err.statusCode).send({
@@ -566,21 +566,30 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           .where(eq(parentUsers.id, user.id));
       }
     } else {
-      // Provision new parent account via Google OAuth (with optional password hashing)
-      let passwordHash: string | null = null;
-      if (parsed.data.password) {
-        const pwCheck = validateParentPassword(parsed.data.password);
-        if (!pwCheck.valid) {
-          return reply.status(400).send({
-            statusCode: 400,
-            error: 'Bad Request',
-            message: pwCheck.message || 'Password does not meet complexity requirements',
-          });
-        }
-        passwordHash = await hashPassword(parsed.data.password);
+      // Provision new parent account via Google OAuth
+      // Requires profile setup (full name and compliant password) for new user accounts
+      if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+        return reply.status(200).send({
+          statusCode: 200,
+          requiresProfileCompletion: true,
+          email: normalizedEmail,
+          fullName: claims.name || '',
+          googleId,
+          message: 'Google identity verified. Please provide full name and password to complete registration.',
+        });
       }
 
-      const derivedFullName = parsed.data.fullName || claims.name || normalizedEmail.split('@')[0] || 'Parent';
+      const pwCheck = validateParentPassword(parsed.data.password);
+      if (!pwCheck.valid) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: pwCheck.message || 'Password does not meet complexity requirements',
+        });
+      }
+      const passwordHash = await hashPassword(parsed.data.password);
+      const derivedFullName = parsed.data.fullName.trim();
+
       const [newUser] = await db
         .insert(parentUsers)
         .values({

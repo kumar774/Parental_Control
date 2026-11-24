@@ -96,10 +96,14 @@ async function fetchGooglePublicKeys(): Promise<GoogleJwkKey[]> {
  */
 export async function verifyGoogleIdToken(
   token: string,
-  expectedClientId?: string
+  expectedClientId: string
 ): Promise<GoogleTokenClaims> {
   if (!token || typeof token !== 'string') {
     throw new GoogleAuthVerificationError('Google ID token is required', 400);
+  }
+
+  if (!expectedClientId || typeof expectedClientId !== 'string' || expectedClientId.trim().length === 0) {
+    throw new GoogleAuthVerificationError('Configured Google Client ID (audience) is mandatory for token verification', 400);
   }
 
   if (testVerifier) {
@@ -162,18 +166,16 @@ export async function verifyGoogleIdToken(
     );
   }
 
-  // Audience validation
-  if (expectedClientId) {
-    const audMatches = Array.isArray(payload.aud)
-      ? payload.aud.includes(expectedClientId)
-      : payload.aud === expectedClientId;
+  // Audience validation (Strictly mandatory)
+  const audMatches = Array.isArray(payload.aud)
+    ? payload.aud.includes(expectedClientId)
+    : payload.aud === expectedClientId;
 
-    if (!audMatches) {
-      throw new GoogleAuthVerificationError(
-        `Token audience mismatch. Token was not issued for this application client ID.`,
-        401
-      );
-    }
+  if (!audMatches) {
+    throw new GoogleAuthVerificationError(
+      `Token audience mismatch. Token was not issued for this application client ID.`,
+      401
+    );
   }
 
   // Subject validation

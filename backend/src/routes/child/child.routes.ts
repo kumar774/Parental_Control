@@ -6,6 +6,19 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../../db/index';
 import { childDevices, pairingSessions } from '../../db/schema/parental-control';
 import { env } from '../../config/env';
+import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
+
+const childPairSessionRateLimiter = createParentRateLimiter({
+  windowSeconds: 3600,
+  maxRequests: 30,
+  prefix: 'rl:child_pair_session',
+});
+
+const childPairAttemptRateLimiter = createParentRateLimiter({
+  windowSeconds: 900,
+  maxRequests: 10,
+  prefix: 'rl:child_pair_attempt',
+});
 
 const childPairSchema = z.object({
   pairingCode: z.string().min(1, 'Pairing code is required'),
@@ -31,8 +44,9 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
    * Initiates a server-registered pairing session for Child App's QR code.
    * Generates a 9-digit pairing code and an unguessable 64-char scoped polling token.
    * Both QR scanning and code entry bind against this genuine server session.
+   * Rate limited to mitigate session generation abuse.
    */
-  app.post('/pair-session', async (request, reply) => {
+  app.post('/pair-session', { preHandler: [childPairSessionRateLimiter] }, async (request, reply) => {
     const parsed = childPairSessionSchema.safeParse(request.body || {});
     const rawCode = crypto.randomInt(100000000, 1000000000).toString();
     const pollingToken = crypto.randomBytes(32).toString('hex');
@@ -147,18 +161,20 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     }
 
     if (session.status === 'paired' && session.childDeviceId && session.parentId) {
-      // Issue device token
-      const deviceToken = jwt.sign(
-        { deviceId: session.childDeviceId, parentId: session.parentId, role: 'child' },
-        env.JWT_ACCESS_SECRET,
-        { expiresIn: '365d' }
-      );
+      // Idempotent credential retrieval: return existing issued token or mint and store once
+      let deviceToken = session.issuedDeviceToken;
+      if (!deviceToken) {
+        deviceToken = jwt.sign(
+          { deviceId: session.childDeviceId, parentId: session.parentId, role: 'child' },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: '365d' }
+        );
 
-      // Consume polling token so credentials cannot be re-fetched by replaying the token
-      await db
-        .update(pairingSessions)
-        .set({ pollingToken: null })
-        .where(eq(pairingSessions.id, session.id));
+        await db
+          .update(pairingSessions)
+          .set({ issuedDeviceToken: deviceToken, claimedAt: new Date() })
+          .where(eq(pairingSessions.id, session.id));
+      }
 
       return reply.status(200).send({
         statusCode: 200,
@@ -178,12 +194,56 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   });
 
   /**
+   * POST /api/v1/child/pair-ack/:sessionId
+   * Explicit acknowledgment from Child App confirming receipt of credentials.
+   * Clears pollingToken to close the delivery window.
+   */
+  app.post('/pair-ack/:sessionId', async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const pollingTokenHeader = request.headers['x-polling-token'] as string | undefined;
+
+    if (!pollingTokenHeader) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Missing x-polling-token header',
+      });
+    }
+
+    const [updated] = await db
+      .update(pairingSessions)
+      .set({ pollingToken: null })
+      .where(
+        and(
+          eq(pairingSessions.id, sessionId),
+          eq(pairingSessions.pollingToken, pollingTokenHeader)
+        )
+      )
+      .returning();
+
+    if (!updated) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid session or token already acknowledged',
+      });
+    }
+
+    return reply.status(200).send({
+      statusCode: 200,
+      message: 'Credential receipt acknowledged',
+    });
+  });
+
+  /**
    * POST /api/v1/child/pair
    * Called by Child_app when entering the 9-digit code displayed on Parent_app.
-   * Atomic, one-time execution in database transaction:
+   * Atomic, one-time execution in database transaction with row-level locking (FOR UPDATE)
+   * and conditional status transition to prevent race conditions.
    * Rejects expired, non-existent, or already-paired codes (no re-use).
+   * Rate limited against brute-force code guessing attacks.
    */
-  app.post('/pair', async (request, reply) => {
+  app.post('/pair', { preHandler: [childPairAttemptRateLimiter] }, async (request, reply) => {
     const parsed = childPairSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -197,11 +257,13 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
     try {
       const result = await db.transaction(async (tx) => {
+        // Row-level lock: FOR UPDATE prevents concurrent transactions from selecting the same session
         const [session] = await tx
           .select()
           .from(pairingSessions)
           .where(eq(pairingSessions.pairingCode, normalizedCode))
-          .limit(1);
+          .limit(1)
+          .for('update');
 
         if (!session) {
           return { error: 'Invalid pairing code', status: 400 };
@@ -264,22 +326,37 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           throw new Error('Failed to create child device record');
         }
 
-        // Transition session atomically to 'paired'
-        await tx
+        const deviceToken = jwt.sign(
+          { deviceId: newDevice.id, parentId: session.parentId, role: 'child' },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: '365d' }
+        );
+
+        // Transition session atomically to 'paired' with strict pending condition check
+        const [updatedSession] = await tx
           .update(pairingSessions)
           .set({
             status: 'paired',
             childDeviceId: newDevice.id,
             childName: newDevice.childName,
             deviceModel: newDevice.deviceModel,
+            issuedDeviceToken: deviceToken,
+            claimedAt: new Date(),
           })
-          .where(eq(pairingSessions.id, session.id));
+          .where(
+            and(
+              eq(pairingSessions.id, session.id),
+              eq(pairingSessions.status, 'pending')
+            )
+          )
+          .returning();
 
-        const deviceToken = jwt.sign(
-          { deviceId: newDevice.id, parentId: session.parentId, role: 'child' },
-          env.JWT_ACCESS_SECRET,
-          { expiresIn: '365d' }
-        );
+        if (!updatedSession) {
+          return {
+            error: 'Pairing code was claimed concurrently by another request',
+            status: 409,
+          };
+        }
 
         return {
           device: newDevice,
@@ -292,7 +369,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         const code = result.status || 400;
         return reply.status(code).send({
           statusCode: code,
-          error: 'Bad Request',
+          error: code === 409 ? 'Conflict' : 'Bad Request',
           message: result.error,
         });
       }
