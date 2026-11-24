@@ -2,6 +2,7 @@ package com.parentalcontrol.child.ui.pairing
 
 import android.graphics.Bitmap
 import android.widget.Toast
+import com.parentalcontrol.child.network.PairAckRetryManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -145,6 +146,7 @@ fun ConnectToParentScreen(
                         sessionId = currentSessionId,
                         pollingToken = currentPollingToken
                     )
+                    PairAckRetryManager.scheduleBackgroundRetry(context)
 
                     // Safely attempt immediate credential receipt acknowledgment
                     for (attempt in 1..3) {
@@ -152,6 +154,7 @@ fun ConnectToParentScreen(
                             val ackSuccess = ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)
                             if (ackSuccess) {
                                 storage.clearPendingPairAck()
+                                PairAckRetryManager.cancelBackgroundRetry(context)
                                 break
                             }
                         } catch (_: Exception) {}

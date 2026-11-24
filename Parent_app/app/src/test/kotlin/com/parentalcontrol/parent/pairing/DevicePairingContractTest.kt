@@ -108,6 +108,39 @@ class DevicePairingContractTest {
     }
 
     @Test
+    fun testValidResultRequiresNonNullSessionIdAndExpiresAt() {
+        val payload = """{"version":1,"type":"child_pair","sessionId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","code":"123456789","expiresAt":"2026-11-24T12:00:00Z"}"""
+        val res = parseChildQrContract(payload, nowMs = fixedNowMs)
+        assertTrue(res is ChildQrValidationResult.Valid)
+        val valid = res as ChildQrValidationResult.Valid
+        val sid: String = valid.sessionId // Compile-time guarantee: non-nullable String
+        val exp: String = valid.expiresAt // Compile-time guarantee: non-nullable String
+        assertEquals("a1b2c3d4-e5f6-7890-abcd-ef1234567890", sid)
+        assertEquals("2026-11-24T12:00:00Z", exp)
+    }
+
+    @Test
+    fun testConfirmPairingRejectsInvalidUuidOrCode() {
+        kotlinx.coroutines.runBlocking {
+            // Invalid UUID should fail immediately before network call
+            val resBadUuid = com.parentalcontrol.core.network.rest.FastifyRestClient.shared.confirmPairing(
+                code = "123456789",
+                sessionId = "not-a-valid-uuid"
+            )
+            assertTrue(resBadUuid.isFailure)
+            assertTrue(resBadUuid.exceptionOrNull() is IllegalArgumentException)
+
+            // Invalid code length should fail immediately before network call
+            val resBadCode = com.parentalcontrol.core.network.rest.FastifyRestClient.shared.confirmPairing(
+                code = "123",
+                sessionId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            )
+            assertTrue(resBadCode.isFailure)
+            assertTrue(resBadCode.exceptionOrNull() is IllegalArgumentException)
+        }
+    }
+
+    @Test
     fun testFormatNineDigitCode() {
         assertEquals("123 - 456 - 789", formatNineDigitCode("123456789"))
         assertEquals("123 - 456", formatNineDigitCode("123456"))

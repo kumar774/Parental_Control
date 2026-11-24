@@ -497,15 +497,25 @@ class FastifyRestClient(
 
     suspend fun confirmPairing(
         code: String,
+        sessionId: String,
         childName: String = "Child",
         deviceName: String = "Android Phone",
-        model: String? = null,
-        sessionId: String? = null
+        model: String? = null
     ): Result<DeviceDto> = withContext(Dispatchers.IO) {
+        val trimmedSessionId = sessionId.trim()
+        val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        if (!uuidRegex.matches(trimmedSessionId)) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId for pairing confirmation: $sessionId"))
+        }
+        val cleanCode = code.trim().filter { it.isDigit() }
+        if (cleanCode.length != 9) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid 9-digit pairing code: $code"))
+        }
+
         try {
             val jsonBody = JSONObject().apply {
-                put("code", code.trim())
-                if (!sessionId.isNullOrBlank()) put("sessionId", sessionId.trim())
+                put("code", cleanCode)
+                put("sessionId", trimmedSessionId)
                 put("childName", childName)
                 put("deviceName", deviceName)
                 if (!model.isNullOrBlank()) put("model", model)

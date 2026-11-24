@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         // Lifecycle-independent retry of pending pairing acknowledgment on startup
         if (storage.getPendingPairAck() != null) {
             lifecycleScope.launch(Dispatchers.IO) {
-                PairAckRetryManager.retryPendingAckIfNeeded(storage)
+                PairAckRetryManager.retryPendingAckIfNeeded(this@MainActivity, storage)
             }
         }
 
@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (::storage.isInitialized && storage.getPendingPairAck() != null) {
             lifecycleScope.launch(Dispatchers.IO) {
-                PairAckRetryManager.retryPendingAckIfNeeded(storage)
+                PairAckRetryManager.retryPendingAckIfNeeded(this@MainActivity, storage)
             }
         }
     }

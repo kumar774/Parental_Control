@@ -82,6 +82,9 @@ dependencies {
   // Encrypted Storage & Security Crypto
   implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+  // WorkManager for Reliable Background Retry
+  implementation("androidx.work:work-runtime-ktx:2.10.0")
+
   // Kotlinx Serialization & Coroutines
   implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
@@ -90,4 +93,5 @@ dependencies {
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation("org.json:json:20240303")
+  testImplementation("androidx.work:work-testing:2.10.0")
 }

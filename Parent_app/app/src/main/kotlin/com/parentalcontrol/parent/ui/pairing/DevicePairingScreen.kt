@@ -140,7 +140,7 @@ import kotlinx.coroutines.launch
  *            with countdown timer and single-use expiry, and manual entry dialog.
  */
 sealed class ChildQrValidationResult {
-    data class Valid(val code: String, val sessionId: String?, val expiresAt: String?) : ChildQrValidationResult()
+    data class Valid(val code: String, val sessionId: String, val expiresAt: String) : ChildQrValidationResult()
     data class Expired(val code: String, val expiresAt: String? = null) : ChildQrValidationResult()
     data class Invalid(val reason: String) : ChildQrValidationResult()
 }

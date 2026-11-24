@@ -314,8 +314,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
 
     // All successful confirmation responses MUST resolve to the exact same device ID
     const deviceIds = successResponses.map((r: any) => {
-      const b = JSON.parse(r.body);
-      return b.id || b.deviceId;
+      const parsed = JSON.parse(r.body);
+      return parsed.deviceId || parsed.id;
     });
     const uniqueDeviceIds = new Set(deviceIds);
     assert.equal(uniqueDeviceIds.size, 1, 'All successful responses must resolve to the identical device ID');

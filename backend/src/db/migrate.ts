@@ -6,6 +6,139 @@ import { pool } from './index';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export interface ObjectGuarantee {
+  type: 'table' | 'column' | 'index' | 'constraint' | 'function';
+  table?: string;
+  name: string;
+  isNullable?: 'YES' | 'NO';
+}
+
+export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
+  '0000_fast_yellow_claw.sql': [
+    { type: 'table', name: 'admin_users' },
+    { type: 'table', name: 'admin_sessions' },
+    { type: 'table', name: 'admin_mfa' },
+    { type: 'table', name: 'admin_recovery_codes' },
+    { type: 'table', name: 'admin_audit_logs' },
+    { type: 'table', name: 'admin_auth_audit_logs' },
+    { type: 'table', name: 'admin_control_audit_logs' },
+    { type: 'table', name: 'admin_mfa_challenges' },
+    { type: 'table', name: 'admin_password_resets' },
+    { type: 'table', name: 'users' },
+    { type: 'table', name: 'child_devices' },
+    { type: 'table', name: 'device_telemetry' },
+    { type: 'table', name: 'geofence_zones' },
+    { type: 'table', name: 'web_filter_rules' },
+    { type: 'column', table: 'admin_users', name: 'email' },
+    { type: 'column', table: 'admin_users', name: 'password_hash' },
+    { type: 'column', table: 'admin_sessions', name: 'token_hash' },
+    { type: 'column', table: 'users', name: 'email' },
+    { type: 'column', table: 'child_devices', name: 'parent_id' },
+    { type: 'index', name: 'admin_users_email_unique' },
+    { type: 'index', name: 'admin_users_username_unique' },
+    { type: 'index', name: 'admin_sessions_token_hash_unique' },
+    { type: 'index', name: 'admin_sessions_admin_id_idx' },
+  ],
+  '0001_audit_prune_function.sql': [
+    { type: 'function', name: 'prune_admin_audit_logs' },
+  ],
+  '0002_admin_dashboard_hybrid.sql': [
+    { type: 'table', name: 'admin_audit_archive_verifications' },
+    { type: 'index', name: 'idx_admin_audit_archive_verifications_timestamp' },
+  ],
+  '0003_admin_control_audit_severity.sql': [
+    { type: 'column', table: 'admin_control_audit_logs', name: 'severity' },
+    { type: 'constraint', name: 'admin_control_audit_severity_check' },
+    { type: 'index', name: 'idx_admin_control_audit_severity_created' },
+  ],
+  '0004_parental_admin_user_status_update.sql': [
+    { type: 'column', table: 'admin_users', name: 'status_reason' },
+  ],
+  '0005_protected_superadmin.sql': [
+    { type: 'column', table: 'admin_users', name: 'is_protected' },
+    { type: 'function', name: 'protect_superadmin_user' },
+  ],
+  '0006_parent_full_name.sql': [
+    { type: 'column', table: 'users', name: 'full_name' },
+  ],
+  '0007_parent_verification_tokens.sql': [
+    { type: 'table', name: 'parent_verification_tokens' },
+    { type: 'index', name: 'idx_parent_verification_tokens_token_hash' },
+  ],
+  '0008_system_smtp_settings.sql': [
+    { type: 'table', name: 'system_smtp_settings' },
+  ],
+  '0009_pairing_and_app_settings.sql': [
+    { type: 'table', name: 'system_app_settings' },
+    { type: 'table', name: 'pairing_sessions' },
+    { type: 'column', table: 'system_app_settings', name: 'google_auth_enabled' },
+    { type: 'column', table: 'system_app_settings', name: 'child_app_download_url' },
+    { type: 'column', table: 'pairing_sessions', name: 'pairing_code' },
+    { type: 'column', table: 'pairing_sessions', name: 'qr_payload' },
+    { type: 'column', table: 'pairing_sessions', name: 'expires_at' },
+    { type: 'column', table: 'users', name: 'google_id' },
+    { type: 'column', table: 'users', name: 'auth_provider' },
+    { type: 'column', table: 'users', name: 'password_hash', isNullable: 'YES' },
+    { type: 'index', name: 'idx_pairing_sessions_code' },
+    { type: 'index', name: 'idx_pairing_sessions_parent' },
+    { type: 'index', name: 'idx_pairing_sessions_expires' },
+    { type: 'constraint', name: 'pairing_sessions_status_check' },
+  ],
+  '0010_pairing_security_and_consent.sql': [
+    { type: 'table', name: 'parent_consents' },
+    { type: 'column', table: 'parent_consents', name: 'parent_id' },
+    { type: 'column', table: 'parent_consents', name: 'consent_type' },
+    { type: 'column', table: 'parent_consents', name: 'policy_version' },
+    { type: 'column', table: 'pairing_sessions', name: 'polling_token' },
+    { type: 'column', table: 'pairing_sessions', name: 'issued_device_token' },
+    { type: 'column', table: 'pairing_sessions', name: 'claimed_at' },
+    { type: 'column', table: 'pairing_sessions', name: 'parent_id', isNullable: 'YES' },
+    { type: 'index', name: 'idx_parent_consents_parent' },
+    { type: 'index', name: 'idx_pairing_sessions_polling_token' },
+  ],
+};
+
+export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {
+  if (obj.type === 'table') {
+    const res = await client.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1 LIMIT 1;`,
+      [obj.name]
+    );
+    return res.rows.length > 0;
+  }
+  if (obj.type === 'column') {
+    const res = await client.query(
+      `SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2 LIMIT 1;`,
+      [obj.table, obj.name]
+    );
+    if (res.rows.length === 0) return false;
+    if (obj.isNullable && res.rows[0].is_nullable !== obj.isNullable) return false;
+    return true;
+  }
+  if (obj.type === 'index') {
+    const res = await client.query(
+      `SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1 LIMIT 1;`,
+      [obj.name]
+    );
+    return res.rows.length > 0;
+  }
+  if (obj.type === 'constraint') {
+    const res = await client.query(
+      `SELECT 1 FROM pg_constraint WHERE conname = $1 LIMIT 1;`,
+      [obj.name]
+    );
+    return res.rows.length > 0;
+  }
+  if (obj.type === 'function') {
+    const res = await client.query(
+      `SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid WHERE n.nspname = 'public' AND p.proname = $1 LIMIT 1;`,
+      [obj.name]
+    );
+    return res.rows.length > 0;
+  }
+  return false;
+}
+
 export async function runMigrations(customClient?: any) {
   const client = customClient || await pool.connect();
   const appliedFiles: string[] = [];
@@ -24,7 +157,7 @@ export async function runMigrations(customClient?: any) {
       );
     `);
 
-    // Fetch already applied migrations
+    // Grant permissions on schema_migrations if role exists
     await client.query(`
       DO $$
       BEGIN
@@ -38,53 +171,44 @@ export async function runMigrations(customClient?: any) {
     const appliedRes = await client.query('SELECT name FROM public.schema_migrations;');
     const appliedSet = new Set(appliedRes.rows.map((r: { name: string }) => r.name));
 
-    // Baseline detection: if tables/columns already exist from psql bootstrapping without schema_migrations entries, baseline them
-    const baselineChecks: [string, string][] = [
-      ['0000_fast_yellow_claw.sql', 'admin_audit_archive_verifications'],
-      ['0001_audit_prune_function.sql', 'admin_auth_audit_logs'],
-      ['0002_admin_dashboard_hybrid.sql', 'admin_control_audit_logs'],
-      ['0003_admin_control_audit_severity.sql', 'admin_control_audit_logs'],
-      ['0004_parental_admin_user_status_update.sql', 'admin_users'],
-      ['0005_protected_superadmin.sql', 'admin_users'],
-      ['0006_parent_full_name.sql', 'users'],
-      ['0007_parent_verification_tokens.sql', 'parent_verification_tokens'],
-      ['0008_system_smtp_settings.sql', 'system_smtp_settings'],
-      ['0009_pairing_and_app_settings.sql', 'system_app_settings'],
-      ['0010_pairing_security_and_consent.sql', 'parent_consents'],
-    ];
+    // Baseline detection: strictly verify EVERY guaranteed schema object for each migration.
+    // Never mark a migration as applied if it is missing guaranteed objects.
+    // If a migration is partially present, fail closed with a clear FATAL error.
+    for (const [scriptName, guarantees] of Object.entries(MIGRATION_GUARANTEES)) {
+      if (appliedSet.has(scriptName)) {
+        continue;
+      }
 
-    for (const [scriptName, tableName] of baselineChecks) {
-      if (!appliedSet.has(scriptName)) {
-        const check = await client.query(
-          `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1 LIMIT 1;`,
-          [tableName]
-        );
-        if (check.rows.length > 0) {
-          if (scriptName === '0005_protected_superadmin.sql') {
-            const colCheck = await client.query(
-              `SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = 'is_protected' LIMIT 1;`
-            );
-            if (colCheck.rows.length === 0) continue;
-          }
-          if (scriptName === '0006_parent_full_name.sql') {
-            const colCheck = await client.query(
-              `SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'full_name' LIMIT 1;`
-            );
-            if (colCheck.rows.length === 0) continue;
-          }
-          if (scriptName === '0010_pairing_security_and_consent.sql') {
-            const colCheck = await client.query(
-              `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'parent_consents' LIMIT 1;`
-            );
-            if (colCheck.rows.length === 0) continue;
-          }
-          await client.query(
-            `INSERT INTO public.schema_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING;`,
-            [scriptName]
-          );
-          appliedSet.add(scriptName);
+      let passedCount = 0;
+      const missingObjects: string[] = [];
+
+      for (const guarantee of guarantees) {
+        const exists = await checkObjectExists(client, guarantee);
+        if (exists) {
+          passedCount++;
+        } else {
+          missingObjects.push(`${guarantee.type} ${guarantee.table ? guarantee.table + '.' : ''}${guarantee.name}`);
         }
       }
+
+      if (passedCount === guarantees.length && guarantees.length > 0) {
+        // All guaranteed schema objects are present in the database.
+        // Record as legitimately baselined in schema_migrations.
+        await client.query(
+          `INSERT INTO public.schema_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING;`,
+          [scriptName]
+        );
+        appliedSet.add(scriptName);
+      } else if (passedCount > 0 && passedCount < guarantees.length) {
+        // Incomplete / partial migration state detected!
+        // Never mark as completed; fail closed.
+        throw new Error(
+          `[Migration Runner FATAL] Incomplete schema detected for ${scriptName}: ` +
+          `${passedCount}/${guarantees.length} guaranteed schema objects exist. ` +
+          `Missing: ${missingObjects.join(', ')}. Database migration cannot proceed safely with partially applied schema.`
+        );
+      }
+      // If passedCount === 0: the migration has not been applied yet; runner will execute it from SQL file below.
     }
 
     // Find all versioned SQL files in drizzle directory
@@ -138,12 +262,12 @@ export async function runMigrations(customClient?: any) {
 // Allow direct execution: `tsx src/db/migrate.ts`
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   runMigrations()
-    .then(() => {
-      console.log('[Migration Runner] Finished.');
+    .then(({ appliedCount }) => {
+      console.log(`[Migration Runner] Finished successfully (${appliedCount} applied).`);
       process.exit(0);
     })
     .catch((err) => {
-      console.error('[Migration Runner FATAL]', err.message);
+      console.error('[Migration Runner] Unhandled error during migration:', err);
       process.exit(1);
     });
 }
