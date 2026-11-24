@@ -15,6 +15,7 @@ enum class PairingStatus {
 data class DeviceSession(
     val deviceId: String?,
     val deviceToken: String?,
+    val refreshToken: String? = null,
     val parentId: String?,
     val childName: String?,
     val status: PairingStatus,
@@ -24,20 +25,39 @@ data class DeviceSession(
 class DeviceStorage internal constructor(
     private val prefs: SharedPreferences
 ) {
+    private val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+    fun isValidUuid(value: String?): Boolean {
+        return !value.isNullOrBlank() && uuidRegex.matches(value)
+    }
+
     fun savePairingSession(
         deviceId: String,
         deviceToken: String,
         parentId: String,
-        childName: String
+        childName: String,
+        refreshToken: String? = null
     ) {
-        prefs.edit()
+        val editor = prefs.edit()
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
             .putString(KEY_CHILD_NAME, childName)
             .putString(KEY_STATUS, PairingStatus.PAIRED.name)
             .putLong(KEY_PAIRED_AT, System.currentTimeMillis())
-            .apply()
+
+        if (!refreshToken.isNullOrBlank()) {
+            editor.putString(KEY_REFRESH_TOKEN, refreshToken)
+        }
+        editor.apply()
+    }
+
+    fun updateTokens(deviceToken: String, refreshToken: String? = null) {
+        val editor = prefs.edit().putString(KEY_DEVICE_TOKEN, deviceToken)
+        if (!refreshToken.isNullOrBlank()) {
+            editor.putString(KEY_REFRESH_TOKEN, refreshToken)
+        }
+        editor.apply()
     }
 
     fun getSession(): DeviceSession {
@@ -51,6 +71,7 @@ class DeviceStorage internal constructor(
         return DeviceSession(
             deviceId = prefs.getString(KEY_DEVICE_ID, null),
             deviceToken = prefs.getString(KEY_DEVICE_TOKEN, null),
+            refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null),
             parentId = prefs.getString(KEY_PARENT_ID, null),
             childName = prefs.getString(KEY_CHILD_NAME, null),
             status = status,
@@ -58,9 +79,29 @@ class DeviceStorage internal constructor(
         )
     }
 
+    /**
+     * Validates that stored session meets strict production pairing criteria:
+     * status == PAIRED, valid UUID deviceId, valid UUID parentId, and non-blank deviceToken.
+     * If status is PAIRED but any field is missing or corrupt, atomically resets credentials
+     * to PAIRING_REQUIRES_REPAIR and returns false.
+     */
     fun isPaired(): Boolean {
         val session = getSession()
-        return session.status == PairingStatus.PAIRED && !session.deviceId.isNullOrBlank()
+        if (session.status != PairingStatus.PAIRED) {
+            return false
+        }
+
+        val hasValidDeviceId = isValidUuid(session.deviceId)
+        val hasValidParentId = isValidUuid(session.parentId)
+        val hasValidToken = !session.deviceToken.isNullOrBlank()
+
+        if (!hasValidDeviceId || !hasValidParentId || !hasValidToken) {
+            Log.w(TAG, "Corrupt or incomplete paired session detected (validDeviceId=$hasValidDeviceId, validParentId=$hasValidParentId, hasToken=$hasValidToken). Resetting to PAIRING_REQUIRES_REPAIR.")
+            markPairingRequiresRepair()
+            return false
+        }
+
+        return true
     }
 
     fun savePairingSessionWithPendingAck(
@@ -69,9 +110,10 @@ class DeviceStorage internal constructor(
         parentId: String,
         childName: String,
         sessionId: String,
-        pollingToken: String
+        pollingToken: String,
+        refreshToken: String? = null
     ) {
-        prefs.edit()
+        val editor = prefs.edit()
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
@@ -80,7 +122,11 @@ class DeviceStorage internal constructor(
             .putLong(KEY_PAIRED_AT, System.currentTimeMillis())
             .putString(KEY_PENDING_ACK_SESSION_ID, sessionId)
             .putString(KEY_PENDING_ACK_POLLING_TOKEN, pollingToken)
-            .apply()
+
+        if (!refreshToken.isNullOrBlank()) {
+            editor.putString(KEY_REFRESH_TOKEN, refreshToken)
+        }
+        editor.apply()
     }
 
     fun clearPairingSession() {
@@ -89,13 +135,14 @@ class DeviceStorage internal constructor(
 
     /**
      * Atomically clears invalid credentials and marks local state as PAIRING_REQUIRES_REPAIR
-     * upon terminal ACK rejection (e.g. 401, 403, 404, 410) so the child device does not
+     * upon terminal ACK rejection or corrupted session discovery so the child device does not
      * remain falsely paired.
      */
     fun markPairingRequiresRepair() {
         prefs.edit()
             .remove(KEY_DEVICE_ID)
             .remove(KEY_DEVICE_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_PARENT_ID)
             .remove(KEY_PENDING_ACK_SESSION_ID)
             .remove(KEY_PENDING_ACK_POLLING_TOKEN)
@@ -123,18 +170,41 @@ class DeviceStorage internal constructor(
             .apply()
     }
 
+    fun markPendingUnpair(deviceId: String, deviceToken: String) {
+        prefs.edit()
+            .putString(KEY_PENDING_UNPAIR_DEVICE_ID, deviceId)
+            .putString(KEY_PENDING_UNPAIR_DEVICE_TOKEN, deviceToken)
+            .apply()
+    }
+
+    fun getPendingUnpair(): Pair<String, String>? {
+        val id = prefs.getString(KEY_PENDING_UNPAIR_DEVICE_ID, null)
+        val token = prefs.getString(KEY_PENDING_UNPAIR_DEVICE_TOKEN, null)
+        return if (!id.isNullOrBlank() && !token.isNullOrBlank()) Pair(id, token) else null
+    }
+
+    fun clearPendingUnpair() {
+        prefs.edit()
+            .remove(KEY_PENDING_UNPAIR_DEVICE_ID)
+            .remove(KEY_PENDING_UNPAIR_DEVICE_TOKEN)
+            .apply()
+    }
+
     companion object {
         private const val TAG = "DeviceStorage"
         private const val PREFS_NAME = "child_device_secure_prefs"
 
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_DEVICE_TOKEN = "device_token"
+        const val KEY_REFRESH_TOKEN = "refresh_token"
         const val KEY_PARENT_ID = "parent_id"
         const val KEY_CHILD_NAME = "child_name"
         const val KEY_STATUS = "pairing_status"
         const val KEY_PAIRED_AT = "paired_at_epoch_ms"
         const val KEY_PENDING_ACK_SESSION_ID = "pending_ack_session_id"
         const val KEY_PENDING_ACK_POLLING_TOKEN = "pending_ack_polling_token"
+        const val KEY_PENDING_UNPAIR_DEVICE_ID = "pending_unpair_device_id"
+        const val KEY_PENDING_UNPAIR_DEVICE_TOKEN = "pending_unpair_device_token"
 
         @Volatile
         private var instance: DeviceStorage? = null
@@ -152,7 +222,7 @@ class DeviceStorage internal constructor(
             return DeviceStorage(customPrefs)
         }
 
-        private fun createSecurePreferences(context: Context): SharedPreferences {
+        fun createSecurePreferences(context: Context): SharedPreferences {
             return try {
                 val masterKey = MasterKey.Builder(context)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)

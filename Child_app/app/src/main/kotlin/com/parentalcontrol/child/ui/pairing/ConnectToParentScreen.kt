@@ -145,7 +145,8 @@ fun ConnectToParentScreen(
                         parentId = pId,
                         childName = pollResult.childName ?: "Child Phone",
                         sessionId = currentSessionId,
-                        pollingToken = currentPollingToken
+                        pollingToken = currentPollingToken,
+                        refreshToken = pollResult.refreshToken
                     )
                     PairAckRetryManager.scheduleBackgroundRetry(context)
 
@@ -159,8 +160,8 @@ fun ConnectToParentScreen(
                                     break
                                 }
                                 is AckOutcome.PermanentFailure -> {
-                                    // Stale/invalid token: clear pending ACK and do not keep retrying
-                                    storage.clearPendingPairAck()
+                                    // Permanent rejection: mark repair immediately and do not route to paired home
+                                    storage.markPairingRequiresRepair()
                                     PairAckRetryManager.cancelBackgroundRetry(context)
                                     break
                                 }
@@ -172,10 +173,15 @@ fun ConnectToParentScreen(
                         if (attempt < 3) delay(500L)
                     }
 
-                    successMessage = "Connected to Parent!"
-                    delay(500L)
-                    onPairingSuccess(pollResult.deviceId, pollResult.childName ?: "Child Phone")
-                    break
+                    if (storage.isPaired()) {
+                        successMessage = "Connected to Parent!"
+                        delay(500L)
+                        onPairingSuccess(pollResult.deviceId, pollResult.childName ?: "Child Phone")
+                        break
+                    } else {
+                        errorMessage = "Pairing acknowledgment permanently rejected by server"
+                        break
+                    }
                 }
             } catch (_: Exception) {}
         }
@@ -209,11 +215,16 @@ fun ConnectToParentScreen(
                     deviceId = result.deviceId,
                     deviceToken = result.deviceToken,
                     parentId = pId,
-                    childName = result.childName ?: "Child Phone"
+                    childName = result.childName ?: "Child Phone",
+                    refreshToken = result.refreshToken
                 )
-                successMessage = "Pairing successful!"
-                delay(600L)
-                onPairingSuccess(result.deviceId, result.childName ?: "Child Phone")
+                if (storage.isPaired()) {
+                    successMessage = "Pairing successful!"
+                    delay(600L)
+                    onPairingSuccess(result.deviceId, result.childName ?: "Child Phone")
+                } else {
+                    errorMessage = "Pairing response failed validation: invalid session credentials"
+                }
             } else {
                 errorMessage = result.message ?: "Invalid or expired pairing code"
             }

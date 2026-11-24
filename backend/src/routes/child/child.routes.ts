@@ -4,9 +4,10 @@ import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { childDevices, pairingSessions } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '../../db/schema/parental-control';
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
+import { requireChildDeviceAuth } from '../../middleware/child-auth.guard';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -171,7 +172,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
       // Concurrency-safe atomic credential issuance:
       // PostgreSQL row lock (FOR UPDATE) guarantees concurrent polling requests mint & return exactly one token
-      const deviceToken = await db.transaction(async (tx) => {
+      const credentials = await db.transaction(async (tx) => {
         const [locked] = await tx
           .select()
           .from(pairingSessions)
@@ -185,27 +186,49 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
         if (!locked) return null;
         if (locked.issuedDeviceToken) {
-          return locked.issuedDeviceToken;
+          try {
+            return JSON.parse(locked.issuedDeviceToken) as { deviceToken: string; refreshToken: string };
+          } catch {
+            return { deviceToken: locked.issuedDeviceToken, refreshToken: '' };
+          }
         }
 
+        const jti = crypto.randomUUID();
         const mintedToken = jwt.sign(
-          { deviceId: locked.childDeviceId, parentId: locked.parentId, role: 'child' },
+          { deviceId: locked.childDeviceId, parentId: locked.parentId, role: 'child', jti },
           env.JWT_ACCESS_SECRET,
-          { expiresIn: '365d' }
+          { expiresIn: '1h' }
         );
+
+        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+        const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+
+        await tx.insert(childDeviceTokens).values({
+          deviceId: locked.childDeviceId!,
+          parentId: locked.parentId!,
+          refreshTokenHash,
+          currentJti: jti,
+          isRevoked: false,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        });
+
+        const deliveryPayload = JSON.stringify({
+          deviceToken: mintedToken,
+          refreshToken: rawRefreshToken,
+        });
 
         await tx
           .update(pairingSessions)
           .set({
-            issuedDeviceToken: mintedToken,
+            issuedDeviceToken: deliveryPayload,
             claimedAt: locked.claimedAt || new Date(),
           })
           .where(eq(pairingSessions.id, locked.id));
 
-        return mintedToken;
+        return { deviceToken: mintedToken, refreshToken: rawRefreshToken };
       });
 
-      if (!deviceToken) {
+      if (!credentials) {
         return reply.status(500).send({
           statusCode: 500,
           error: 'Internal Server Error',
@@ -220,7 +243,8 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         parentId: session.parentId,
         childName: session.childName,
         deviceModel: session.deviceModel,
-        deviceToken,
+        deviceToken: credentials.deviceToken,
+        refreshToken: credentials.refreshToken,
       });
     }
 
@@ -233,7 +257,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   /**
    * POST /api/v1/child/pair-ack/:sessionId
    * Explicit, retry-safe acknowledgment from Child App confirming durable receipt of credentials.
-   * Clears pollingToken to close the delivery window once credentials are confirmed stored locally.
+   * Clears pollingToken and securely erases raw issuedDeviceToken to close delivery window.
    */
   app.post('/pair-ack/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
@@ -283,7 +307,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
     await db
       .update(pairingSessions)
-      .set({ pollingToken: null })
+      .set({ pollingToken: null, issuedDeviceToken: null })
       .where(eq(pairingSessions.id, sessionId));
 
     return reply.status(200).send({
@@ -383,11 +407,24 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           throw new Error('Failed to create child device record');
         }
 
+        const jti = crypto.randomUUID();
         const deviceToken = jwt.sign(
-          { deviceId: newDevice.id, parentId: session.parentId, role: 'child' },
+          { deviceId: newDevice.id, parentId: session.parentId, role: 'child', jti },
           env.JWT_ACCESS_SECRET,
-          { expiresIn: '365d' }
+          { expiresIn: '1h' }
         );
+
+        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+        const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+
+        await tx.insert(childDeviceTokens).values({
+          deviceId: newDevice.id,
+          parentId: session.parentId,
+          refreshTokenHash,
+          currentJti: jti,
+          isRevoked: false,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        });
 
         // Transition session atomically to 'paired' with strict pending condition check
         const [updatedSession] = await tx
@@ -397,7 +434,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
             childDeviceId: newDevice.id,
             childName: newDevice.childName,
             deviceModel: newDevice.deviceModel,
-            issuedDeviceToken: deviceToken,
+            issuedDeviceToken: null, // Zero persistence of raw tokens in pairing_sessions
             claimedAt: new Date(),
           })
           .where(
@@ -419,6 +456,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           device: newDevice,
           parentId: session.parentId,
           deviceToken,
+          refreshToken: rawRefreshToken,
         };
       });
 
@@ -438,6 +476,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         parentId: result.parentId,
         childName: result.device.childName,
         deviceToken: result.deviceToken,
+        refreshToken: result.refreshToken,
       });
     } catch (err: any) {
       return reply.status(500).send({
@@ -446,5 +485,201 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         message: err.message || 'Failed to complete device pairing',
       });
     }
+  });
+
+  /**
+   * POST /api/v1/child/refresh-token
+   * Rotating refresh credential exchange:
+   * Validates refresh token hash, ensures zero token reuse,
+   * revokes old refresh credential, and atomically issues new short-lived access JWT + new rotating refresh token.
+   */
+  app.post('/refresh-token', async (request, reply) => {
+    const childRefreshTokenSchema = z.object({
+      refreshToken: z.string().min(16, 'Valid refresh token is required'),
+      deviceId: z.string().uuid().optional(),
+    });
+
+    const parsed = childRefreshTokenSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid refresh token payload',
+      });
+    }
+
+    const { refreshToken } = parsed.data;
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    const [tokenRecord] = await db
+      .select()
+      .from(childDeviceTokens)
+      .where(eq(childDeviceTokens.refreshTokenHash, tokenHash))
+      .limit(1);
+
+    if (!tokenRecord) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid or already rotated refresh token',
+      });
+    }
+
+    if (tokenRecord.isRevoked || new Date(tokenRecord.expiresAt).getTime() < Date.now()) {
+      // Replay / Revoked token presentation: ensure all tokens for device are invalidated immediately
+      await db
+        .update(childDeviceTokens)
+        .set({ isRevoked: true, revokedAt: new Date(), revocationReason: 'replay_detected' })
+        .where(eq(childDeviceTokens.deviceId, tokenRecord.deviceId));
+
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Refresh token has been revoked or expired',
+      });
+    }
+
+    // Verify device is not marked as unpaired
+    const [device] = await db
+      .select({ isUnpaired: childDevices.isUnpaired })
+      .from(childDevices)
+      .where(eq(childDevices.id, tokenRecord.deviceId))
+      .limit(1);
+
+    if (!device || device.isUnpaired) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Device has been unpaired from parent account',
+      });
+    }
+
+    // Verify parent is active
+    const [parent] = await db
+      .select({ status: parentUsers.status })
+      .from(parentUsers)
+      .where(eq(parentUsers.id, tokenRecord.parentId))
+      .limit(1);
+
+    if (!parent || parent.status !== 'active') {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Parent account is suspended or inactive',
+      });
+    }
+
+    // Atomic one-time rotation
+    const newJti = crypto.randomUUID();
+    const newAccessToken = jwt.sign(
+      { deviceId: tokenRecord.deviceId, parentId: tokenRecord.parentId, role: 'child', jti: newJti },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const newRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+
+    await db
+      .update(childDeviceTokens)
+      .set({
+        refreshTokenHash: newRefreshTokenHash,
+        currentJti: newJti,
+        lastUsedAt: new Date(),
+        updatedAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      })
+      .where(eq(childDeviceTokens.id, tokenRecord.id));
+
+    return reply.status(200).send({
+      statusCode: 200,
+      accessToken: newAccessToken,
+      deviceToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresInSeconds: 3600,
+    });
+  });
+
+  /**
+   * POST /api/v1/child/heartbeat
+   * Authenticated periodic heartbeat from Child App.
+   * Updates lastSeenAt and battery/accessibility telemetry.
+   * Rejects revoked or unpaired credentials with HTTP 401.
+   */
+  app.post('/heartbeat', { preHandler: [requireChildDeviceAuth] }, async (request, reply) => {
+    const childHeartbeatSchema = z.object({
+      batteryPct: z.number().int().min(0).max(100).optional(),
+      isCharging: z.boolean().optional(),
+      accessibilityHealthy: z.boolean().optional(),
+      deviceAdminActive: z.boolean().optional(),
+    });
+
+    const device = request.childDevice!;
+    const parsed = childHeartbeatSchema.safeParse(request.body || {});
+
+    const updateData: Record<string, any> = {
+      lastSeenAt: new Date(),
+    };
+
+    if (parsed.success) {
+      if (parsed.data.batteryPct !== undefined) updateData.batteryPct = parsed.data.batteryPct;
+      if (parsed.data.isCharging !== undefined) updateData.isCharging = parsed.data.isCharging;
+      if (parsed.data.accessibilityHealthy !== undefined) updateData.accessibilityHealthy = parsed.data.accessibilityHealthy;
+      if (parsed.data.deviceAdminActive !== undefined) updateData.deviceAdminActive = parsed.data.deviceAdminActive;
+    }
+
+    await db
+      .update(childDevices)
+      .set(updateData)
+      .where(eq(childDevices.id, device.id));
+
+    return reply.status(200).send({
+      statusCode: 200,
+      status: 'ok',
+      deviceId: device.id,
+      serverTime: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * POST /api/v1/child/unpair
+   * Authenticated device-side unpair and credential revocation.
+   * Transactionally revokes all active device credentials and marks device unpaired.
+   */
+  app.post('/unpair', { preHandler: [requireChildDeviceAuth] }, async (request, reply) => {
+    const device = request.childDevice!;
+
+    await db.transaction(async (tx) => {
+      // 1. Revoke all credentials for device
+      await tx
+        .update(childDeviceTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: new Date(),
+          revocationReason: 'child_unpair',
+        })
+        .where(eq(childDeviceTokens.deviceId, device.id));
+
+      // 2. Mark device record as unpaired
+      await tx
+        .update(childDevices)
+        .set({
+          isUnpaired: true,
+          unpairedAt: new Date(),
+        })
+        .where(eq(childDevices.id, device.id));
+
+      // 3. Clear any active pairing sessions
+      await tx
+        .update(pairingSessions)
+        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .where(eq(pairingSessions.childDeviceId, device.id));
+    });
+
+    return reply.status(200).send({
+      statusCode: 200,
+      message: 'Device unpaired and credentials revoked successfully',
+      deviceId: device.id,
+    });
   });
 };

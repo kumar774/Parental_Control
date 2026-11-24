@@ -3,7 +3,7 @@ import { eq, and, or, isNull, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { db } from '../../db/index';
-import { childDevices, pairingSessions, parentConsents } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions, parentConsents, childDeviceTokens } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
@@ -60,7 +60,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const [totalRes] = await db
       .select({ total: count() })
       .from(childDevices)
-      .where(eq(childDevices.parentId, parent.id));
+      .where(and(eq(childDevices.parentId, parent.id), eq(childDevices.isUnpaired, false)));
 
     const total = totalRes?.total ?? 0;
 
@@ -81,7 +81,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
-      .where(eq(childDevices.parentId, parent.id))
+      .where(and(eq(childDevices.parentId, parent.id), eq(childDevices.isUnpaired, false)))
       .orderBy(sql`${childDevices.lastSeenAt} DESC NULLS LAST`, desc(childDevices.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
@@ -483,4 +483,72 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       commandStatus: 'BLOCKED_PENDING_ANDROID_TRANSPORT',
     });
   });
+
+  /**
+   * DELETE /api/v1/devices/:deviceId
+   * Parent-initiated device removal and server-side credential revocation.
+   * Transactionally revokes all active device credentials and removes device from active parent list.
+   */
+  const removeDeviceHandler = async (request: any, reply: any) => {
+    const { deviceId } = request.params as { deviceId: string };
+    const parent = request.parentUser!;
+
+    const [device] = await db
+      .select({ id: childDevices.id, parentId: childDevices.parentId })
+      .from(childDevices)
+      .where(eq(childDevices.id, deviceId))
+      .limit(1);
+
+    if (!device) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Device not found',
+      });
+    }
+
+    if (device.parentId !== parent.id) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Access denied: you do not own this device',
+      });
+    }
+
+    await db.transaction(async (tx) => {
+      // 1. Revoke all credentials for device
+      await tx
+        .update(childDeviceTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: new Date(),
+          revocationReason: 'parent_removed',
+        })
+        .where(eq(childDeviceTokens.deviceId, device.id));
+
+      // 2. Mark device as unpaired
+      await tx
+        .update(childDevices)
+        .set({
+          isUnpaired: true,
+          unpairedAt: new Date(),
+        })
+        .where(eq(childDevices.id, device.id));
+
+      // 3. Clear active pairing sessions
+      await tx
+        .update(pairingSessions)
+        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .where(eq(pairingSessions.childDeviceId, device.id));
+    });
+
+    return reply.status(200).send({
+      statusCode: 200,
+      message: 'Device removed and credentials revoked successfully',
+      deviceId: device.id,
+    });
+  };
+
+  app.delete('/:deviceId', { preHandler: [requireParentAuth] }, removeDeviceHandler);
+  app.post('/:deviceId/remove', { preHandler: [requireParentAuth] }, removeDeviceHandler);
 };

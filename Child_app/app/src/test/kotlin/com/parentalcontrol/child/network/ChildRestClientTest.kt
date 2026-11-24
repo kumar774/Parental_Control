@@ -20,11 +20,14 @@ class ChildRestClientTest {
             success = true,
             deviceId = "dev_999",
             deviceToken = "token_xyz",
+            refreshToken = "refresh_token_xyz",
             parentId = "parent_123",
             childName = "Emma"
         )
         assertTrue(successResult.success)
         assertEquals("dev_999", successResult.deviceId)
+        assertEquals("token_xyz", successResult.deviceToken)
+        assertEquals("refresh_token_xyz", successResult.refreshToken)
         assertEquals("Emma", successResult.childName)
 
         val failResult = PairResult(
@@ -40,10 +43,13 @@ class ChildRestClientTest {
         val status = PairStatusResult(
             status = "paired",
             deviceId = "dev_123",
-            deviceToken = "token_abc"
+            deviceToken = "token_abc",
+            refreshToken = "refresh_abc"
         )
         assertEquals("paired", status.status)
         assertEquals("dev_123", status.deviceId)
+        assertEquals("token_abc", status.deviceToken)
+        assertEquals("refresh_abc", status.refreshToken)
     }
 
     @Test
@@ -59,6 +65,44 @@ class ChildRestClientTest {
         assertEquals("session-uuid-1", session.sessionId)
         assertEquals("123456789", session.pairingCode)
         assertEquals("secret-token-64-hex", session.pollingToken)
+    }
+
+    @Test
+    fun testRefreshTokenResultModel() {
+        val refresh = RefreshTokenResult(
+            success = true,
+            deviceToken = "new_access_jwt",
+            refreshToken = "new_refresh_secret",
+            statusCode = 200,
+            message = "Rotated"
+        )
+        assertTrue(refresh.success)
+        assertEquals("new_access_jwt", refresh.deviceToken)
+        assertEquals("new_refresh_secret", refresh.refreshToken)
+    }
+
+    @Test
+    fun testHeartbeatOutcomeVariants() {
+        val success = HeartbeatOutcome.Success
+        assertTrue(success is HeartbeatOutcome.Success)
+
+        val revoked = HeartbeatOutcome.TokenExpiredOrRevoked(401, "Token expired")
+        assertEquals(401, revoked.statusCode)
+
+        val transient = HeartbeatOutcome.TransientError(503, "Service unavailable")
+        assertEquals(503, transient.statusCode)
+    }
+
+    @Test
+    fun testUnpairOutcomeVariants() {
+        val success = UnpairOutcome.Success
+        assertTrue(success is UnpairOutcome.Success)
+
+        val alreadyUnpaired = UnpairOutcome.AlreadyUnpairedOrRejected(404, "Device not found")
+        assertEquals(404, alreadyUnpaired.statusCode)
+
+        val transient = UnpairOutcome.TransientError(null, "Network down")
+        assertNull(transient.statusCode)
     }
 
     @Test

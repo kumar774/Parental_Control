@@ -162,6 +162,20 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'index', table: 'parent_consents', name: 'idx_parent_consents_parent' },
     { type: 'index', table: 'pairing_sessions', name: 'idx_pairing_sessions_polling_token' },
   ],
+  '0011_child_device_tokens_and_lifecycle.sql': [
+    { type: 'table', name: 'child_device_tokens' },
+    { type: 'column', table: 'child_device_tokens', name: 'device_id' },
+    { type: 'column', table: 'child_device_tokens', name: 'parent_id' },
+    { type: 'column', table: 'child_device_tokens', name: 'refresh_token_hash' },
+    { type: 'column', table: 'child_device_tokens', name: 'current_jti' },
+    { type: 'column', table: 'child_device_tokens', name: 'is_revoked' },
+    { type: 'column', table: 'child_devices', name: 'is_unpaired' },
+    { type: 'column', table: 'child_devices', name: 'unpaired_at' },
+    { type: 'index', table: 'child_device_tokens', name: 'idx_child_device_tokens_device' },
+    { type: 'index', table: 'child_device_tokens', name: 'idx_child_device_tokens_hash' },
+    { type: 'index', table: 'child_device_tokens', name: 'idx_child_device_tokens_jti' },
+    { type: 'index', table: 'child_devices', name: 'idx_child_devices_unpaired' },
+  ],
 };
 
 export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {

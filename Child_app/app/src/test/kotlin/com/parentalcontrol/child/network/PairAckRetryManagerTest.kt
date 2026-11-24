@@ -17,6 +17,9 @@ class PairAckRetryManagerTest {
     private lateinit var mockPrefs: MockSharedPreferences
     private lateinit var storage: DeviceStorage
 
+    private val validDeviceId = "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d"
+    private val validParentId = "98765432-10fe-4dcb-a987-6543210fedcb"
+
     @Before
     fun setUp() {
         mockPrefs = MockSharedPreferences()
@@ -24,10 +27,10 @@ class PairAckRetryManagerTest {
     }
 
     @Test
-    fun testNoPendingAckReturnsTrueImmediately() = runBlocking {
+    fun testNoPendingAckReturnsNonePendingImmediately() = runBlocking {
         assertNull(storage.getPendingPairAck())
         val result = PairAckRetryManager.retryPendingAckIfNeeded(storage)
-        assertTrue(result)
+        assertEquals(AckRetryResult.NonePending, result)
     }
 
     @Test
@@ -36,10 +39,10 @@ class PairAckRetryManagerTest {
         assertNotNull(storage.getPendingPairAck())
 
         // Simulating successful typed ACK (HTTP 200 OK)
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.Success
         }
-        assertTrue(success)
+        assertEquals(AckRetryResult.Confirmed, result)
 
         // Pending ACK MUST be cleared after successful 2xx response
         assertNull(storage.getPendingPairAck())
@@ -50,10 +53,10 @@ class PairAckRetryManagerTest {
         storage.savePendingPairAck("sess-trans-408", "token-trans-408")
         assertNotNull(storage.getPendingPairAck())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.TransientFailure(408, "Request Timeout")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TransientPending)
 
         val pending = storage.getPendingPairAck()
         assertNotNull(pending)
@@ -66,10 +69,10 @@ class PairAckRetryManagerTest {
         storage.savePendingPairAck("sess-trans-429", "token-trans-429")
         assertNotNull(storage.getPendingPairAck())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.TransientFailure(429, "Too Many Requests")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TransientPending)
 
         val pending = storage.getPendingPairAck()
         assertNotNull(pending)
@@ -81,10 +84,10 @@ class PairAckRetryManagerTest {
         storage.savePendingPairAck("sess-trans-503", "token-trans-503")
         assertNotNull(storage.getPendingPairAck())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.TransientFailure(503, "Service Unavailable")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TransientPending)
 
         val pending = storage.getPendingPairAck()
         assertNotNull(pending)
@@ -96,10 +99,10 @@ class PairAckRetryManagerTest {
         storage.savePendingPairAck("sess-trans-net", "token-trans-net")
         assertNotNull(storage.getPendingPairAck())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.TransientFailure(null, "SocketTimeoutException")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TransientPending)
 
         val pending = storage.getPendingPairAck()
         assertNotNull(pending)
@@ -109,9 +112,9 @@ class PairAckRetryManagerTest {
     @Test
     fun testPermanentFailure401ResetsPairingCredentialsAndMarksRequiresRepair() = runBlocking {
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-401",
+            deviceId = validDeviceId,
             deviceToken = "tok-401",
-            parentId = "par-401",
+            parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-401",
             pollingToken = "token-perm-401"
@@ -119,10 +122,11 @@ class PairAckRetryManagerTest {
         assertTrue(storage.isPaired())
         assertNotNull(storage.getPendingPairAck())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(401, "Unauthorized / Invalid Polling Token")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TerminalFailure)
+        assertEquals(401, (result as AckRetryResult.TerminalFailure).statusCode)
 
         // Permanent failure MUST reset local credentials and set PAIRING_REQUIRES_REPAIR
         assertFalse(storage.isPaired())
@@ -135,19 +139,19 @@ class PairAckRetryManagerTest {
     @Test
     fun testPermanentFailure403ForbiddenResetsPairingCredentials() = runBlocking {
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-403",
+            deviceId = validDeviceId,
             deviceToken = "tok-403",
-            parentId = "par-403",
+            parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-403",
             pollingToken = "token-perm-403"
         )
         assertTrue(storage.isPaired())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(403, "Forbidden / Pairing Revoked")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TerminalFailure)
 
         assertFalse(storage.isPaired())
         assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
@@ -159,19 +163,19 @@ class PairAckRetryManagerTest {
     @Test
     fun testPermanentFailure404NotFoundResetsPairingCredentials() = runBlocking {
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-404",
+            deviceId = validDeviceId,
             deviceToken = "tok-404",
-            parentId = "par-404",
+            parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-404",
             pollingToken = "token-perm-404"
         )
         assertTrue(storage.isPaired())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(404, "Session Not Found")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TerminalFailure)
 
         assertFalse(storage.isPaired())
         assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
@@ -183,19 +187,19 @@ class PairAckRetryManagerTest {
     @Test
     fun testPermanentFailure410ExpiredTokenResetsPairingCredentials() = runBlocking {
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-410",
+            deviceId = validDeviceId,
             deviceToken = "tok-410",
-            parentId = "par-410",
+            parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-410",
             pollingToken = "token-perm-410"
         )
         assertTrue(storage.isPaired())
 
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(410, "Pairing Session Expired")
         }
-        assertFalse(success)
+        assertTrue(result is AckRetryResult.TerminalFailure)
 
         assertFalse(storage.isPaired())
         assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
@@ -208,9 +212,9 @@ class PairAckRetryManagerTest {
     fun testTransientVsPermanentStatePreservation() = runBlocking {
         // Given a paired device with a pending ACK
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-trans",
+            deviceId = validDeviceId,
             deviceToken = "tok-trans",
-            parentId = "par-trans",
+            parentId = validParentId,
             childName = "Child",
             sessionId = "sess-trans",
             pollingToken = "token-trans"
@@ -221,17 +225,17 @@ class PairAckRetryManagerTest {
         val transientResult = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.TransientFailure(503, "Service Unavailable")
         }
-        assertFalse(transientResult)
+        assertTrue(transientResult is AckRetryResult.TransientPending)
         assertTrue(storage.isPaired())
         assertEquals(PairingStatus.PAIRED, storage.getSession().status)
-        assertEquals("dev-trans", storage.getSession().deviceId)
+        assertEquals(validDeviceId, storage.getSession().deviceId)
         assertNotNull(storage.getPendingPairAck())
 
         // 2. Subsequent permanent rejection (401 Unauthorized) transitions to PAIRING_REQUIRES_REPAIR
         val permanentResult = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
             AckOutcome.PermanentFailure(401, "Session Revoked")
         }
-        assertFalse(permanentResult)
+        assertTrue(permanentResult is AckRetryResult.TerminalFailure)
         assertFalse(storage.isPaired())
         assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, storage.getSession().status)
         assertNull(storage.getSession().deviceId)
@@ -242,9 +246,9 @@ class PairAckRetryManagerTest {
     @Test
     fun testUnpairCleanupClearsSessionAndPendingAck() {
         storage.savePairingSessionWithPendingAck(
-            deviceId = "dev-123",
+            deviceId = validDeviceId,
             deviceToken = "tok-123",
-            parentId = "par-123",
+            parentId = validParentId,
             childName = "Child Phone",
             sessionId = "sess-unpair-1",
             pollingToken = "poll-unpair-1"

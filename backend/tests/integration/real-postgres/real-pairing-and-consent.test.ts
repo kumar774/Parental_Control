@@ -14,6 +14,7 @@ import {
   parentConsents,
   systemAppSettings,
   childDevices,
+  childDeviceTokens,
 } from '../../../src/db/schema/parental-control';
 import { adminUsers, adminControlAuditLogs } from '../../../src/db/schema/admin-auth';
 import { eq, and } from 'drizzle-orm';
@@ -354,13 +355,21 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       assert.equal(pj.deviceToken, pollJsons[0].deviceToken);
     }
 
-    // 4. Acknowledging receipt invalidates pollingToken
+    // 4. Acknowledging receipt invalidates pollingToken and clears issuedDeviceToken from pairing_sessions
     const ackRes = await app.inject({
       method: 'POST',
       url: `/api/v1/child/pair-ack/${sessionId}`,
       headers: { 'x-polling-token': pollingToken },
     });
     assert.equal(ackRes.statusCode, 200);
+
+    // Verify raw tokens are completely nulled out from pairing_sessions in real database
+    const [clearedSession] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId));
+    assert.equal(clearedSession.pollingToken, null, 'pollingToken must be nulled after ACK');
+    assert.equal(clearedSession.issuedDeviceToken, null, 'issuedDeviceToken must be nulled after ACK to prevent bearer disclosure');
 
     // Calling ack again is retry-safe and returns 200
     const ackRetryRes = await app.inject({
@@ -380,5 +389,153 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
 
     // Cleanup session
     await conn.db.delete(pairingSessions).where(eq(pairingSessions.id, sessionId)).catch(() => {});
+  });
+
+  it('4. Device token lifecycle: rotation, replay detection, heartbeat, and server-side unpair', async () => {
+    // 1. Initiate pairing from parent side
+    const initRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-initiate',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(initRes.statusCode, 200);
+    const { code: pairingCode } = JSON.parse(initRes.body);
+
+    // 2. Child completes pairing with code
+    const pairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: {
+        pairingCode,
+        childName: 'Lifecycle Child',
+        deviceModel: 'Pixel 9 Pro',
+      },
+    });
+    assert.equal(pairRes.statusCode, 200);
+    const pairJson = JSON.parse(pairRes.body);
+    const deviceId = pairJson.deviceId;
+    const initialAccessToken = pairJson.deviceToken;
+    const initialRefreshToken = pairJson.refreshToken;
+
+    assert.ok(deviceId, 'deviceId must be returned');
+    assert.ok(initialAccessToken, 'initialAccessToken must be returned');
+    assert.ok(initialRefreshToken, 'initialRefreshToken must be returned');
+
+    // 3. Heartbeat succeeds with valid initial access token
+    const heartbeat1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${initialAccessToken}` },
+      payload: { batteryPct: 88, isCharging: true },
+    });
+    assert.equal(heartbeat1.statusCode, 200);
+    const hb1Json = JSON.parse(heartbeat1.body);
+    assert.equal(hb1Json.success, true);
+    assert.equal(hb1Json.batteryPct, 88);
+
+    // 4. Token rotation: Refresh token rotates atomically
+    const refreshRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/refresh-token',
+      payload: { refreshToken: initialRefreshToken, deviceId },
+    });
+    assert.equal(refreshRes.statusCode, 200);
+    const refreshJson = JSON.parse(refreshRes.body);
+    const secondAccessToken = refreshJson.deviceToken;
+    const secondRefreshToken = refreshJson.refreshToken;
+
+    assert.ok(secondAccessToken, 'New access token must be returned');
+    assert.ok(secondRefreshToken, 'New refresh token must be returned');
+    assert.notEqual(secondRefreshToken, initialRefreshToken, 'Refresh token must be rotated to a new secret');
+
+    // 5. Heartbeat succeeds with newly rotated access token
+    const heartbeat2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${secondAccessToken}` },
+      payload: { batteryPct: 92, isCharging: false },
+    });
+    assert.equal(heartbeat2.statusCode, 200);
+
+    // 6. Replay attack detection: Attempting to use old initialRefreshToken triggers revocation of all device tokens
+    const replayRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/refresh-token',
+      payload: { refreshToken: initialRefreshToken, deviceId },
+    });
+    assert.equal(replayRes.statusCode, 401, 'Replay of old refresh token must be rejected with 401');
+
+    // Because replay was detected, secondAccessToken is now revoked
+    const heartbeatAfterReplay = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${secondAccessToken}` },
+      payload: { batteryPct: 92 },
+    });
+    assert.equal(heartbeatAfterReplay.statusCode, 401, 'Active tokens must be rejected after replay attack is detected');
+
+    // 7. Child unpair and parent removal verification with fresh paired device
+    const initRes2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-initiate',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    const { code: code2 } = JSON.parse(initRes2.body);
+
+    const pairRes2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { pairingCode: code2, childName: 'Unpair Child' },
+    });
+    const { deviceId: deviceId2, deviceToken: token2 } = JSON.parse(pairRes2.body);
+
+    // Verify device is listed under parent
+    const devicesList1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/devices',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    const devList1Json = JSON.parse(devicesList1.body);
+    assert.ok(devList1Json.devices.some((d: any) => d.id === deviceId2), 'Device must be present in parent list');
+
+    // Child performs server-side unpair
+    const unpairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/unpair',
+      headers: { authorization: `Bearer ${token2}` },
+      payload: { reason: 'child_user_unpair' },
+    });
+    assert.equal(unpairRes.statusCode, 200);
+
+    // Calling unpair again is idempotent and returns 200
+    const unpairIdempotent = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/unpair',
+      headers: { authorization: `Bearer ${token2}` },
+      payload: { reason: 'child_user_unpair' },
+    });
+    assert.equal(unpairIdempotent.statusCode, 200);
+
+    // Heartbeat with unpaired token is now rejected with 401
+    const heartbeatAfterUnpair = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${token2}` },
+      payload: { batteryPct: 50 },
+    });
+    assert.equal(heartbeatAfterUnpair.statusCode, 401, 'Unpaired device token must be rejected');
+
+    // Verify device is filtered out from parent device list
+    const devicesList2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/devices',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    const devList2Json = JSON.parse(devicesList2.body);
+    assert.equal(
+      devList2Json.devices.some((d: any) => d.id === deviceId2),
+      false,
+      'Unpaired device must not appear in parent active devices list'
+    );
   });
 });

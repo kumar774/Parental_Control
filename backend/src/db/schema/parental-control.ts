@@ -66,11 +66,14 @@ export const childDevices = pgTable(
     accessibilityHealthy: boolean('accessibility_healthy').notNull().default(false),
     deviceAdminActive: boolean('device_admin_active').notNull().default(false),
     knoxActive: boolean('knox_active').notNull().default(false),
+    isUnpaired: boolean('is_unpaired').notNull().default(false),
+    unpairedAt: timestamp('unpaired_at', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
   (table) => [
     index('idx_child_devices_parent').on(table.parentId),
     index('idx_child_devices_last_seen').on(table.lastSeenAt),
+    index('idx_child_devices_unpaired').on(table.isUnpaired),
     check(
       'child_devices_battery_pct_check',
       sql`${table.batteryPct} IS NULL OR (${table.batteryPct} >= 0 AND ${table.batteryPct} <= 100)`
@@ -79,6 +82,39 @@ export const childDevices = pgTable(
       'child_devices_avatar_check',
       sql`${table.childAvatarId} IS NULL OR (${table.childAvatarId} >= 1 AND ${table.childAvatarId} <= 8)`
     ),
+  ]
+);
+
+/**
+ * Child Device Tokens.
+ * Implements full credential lifecycle: rotating refresh token hashes, short-lived JWT jti tracking,
+ * and server-side revocation on unpair, parent device removal, or account suspension.
+ * Plaintext refresh tokens are never stored (only SHA-256 hex digests).
+ */
+export const childDeviceTokens = pgTable(
+  'child_device_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => childDevices.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    refreshTokenHash: varchar('refresh_token_hash', { length: 64 }).notNull().unique(),
+    currentJti: varchar('current_jti', { length: 64 }).notNull(),
+    isRevoked: boolean('is_revoked').notNull().default(false),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revocationReason: varchar('revocation_reason', { length: 64 }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_child_device_tokens_device').on(table.deviceId),
+    index('idx_child_device_tokens_hash').on(table.refreshTokenHash),
+    index('idx_child_device_tokens_jti').on(table.currentJti),
   ]
 );
 
@@ -175,6 +211,9 @@ export type NewParentUser = typeof parentUsers.$inferInsert;
 
 export type ChildDevice = typeof childDevices.$inferSelect;
 export type NewChildDevice = typeof childDevices.$inferInsert;
+
+export type ChildDeviceToken = typeof childDeviceTokens.$inferSelect;
+export type NewChildDeviceToken = typeof childDeviceTokens.$inferInsert;
 
 export type AdminControlAuditLog = typeof adminControlAuditLogs.$inferSelect;
 export type NewAdminControlAuditLog = typeof adminControlAuditLogs.$inferInsert;

@@ -15,6 +15,7 @@ data class PairResult(
     val success: Boolean,
     val deviceId: String? = null,
     val deviceToken: String? = null,
+    val refreshToken: String? = null,
     val parentId: String? = null,
     val childName: String? = null,
     val message: String? = null
@@ -33,8 +34,17 @@ data class PairStatusResult(
     val status: String, // "pending", "paired", "expired", "not_found"
     val deviceId: String? = null,
     val deviceToken: String? = null,
+    val refreshToken: String? = null,
     val parentId: String? = null,
     val childName: String? = null,
+    val message: String? = null
+)
+
+data class RefreshTokenResult(
+    val success: Boolean,
+    val deviceToken: String? = null,
+    val refreshToken: String? = null,
+    val statusCode: Int = 0,
     val message: String? = null
 )
 
@@ -42,6 +52,18 @@ sealed class AckOutcome {
     data object Success : AckOutcome()
     data class TransientFailure(val statusCode: Int?, val message: String) : AckOutcome()
     data class PermanentFailure(val statusCode: Int, val message: String) : AckOutcome()
+}
+
+sealed class HeartbeatOutcome {
+    data object Success : HeartbeatOutcome()
+    data class TokenExpiredOrRevoked(val statusCode: Int, val message: String) : HeartbeatOutcome()
+    data class TransientError(val statusCode: Int?, val message: String) : HeartbeatOutcome()
+}
+
+sealed class UnpairOutcome {
+    data object Success : UnpairOutcome()
+    data class AlreadyUnpairedOrRejected(val statusCode: Int, val message: String) : UnpairOutcome()
+    data class TransientError(val statusCode: Int?, val message: String) : UnpairOutcome()
 }
 
 class ChildRestClient(
@@ -122,6 +144,7 @@ class ChildRestClient(
                 val status = json.optString("status", "pending")
                 val deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null
                 val deviceToken = if (json.has("deviceToken") && !json.isNull("deviceToken")) json.getString("deviceToken") else null
+                val refreshToken = if (json.has("refreshToken") && !json.isNull("refreshToken")) json.getString("refreshToken") else null
                 val parentId = if (json.has("parentId") && !json.isNull("parentId")) json.getString("parentId") else null
                 val childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null
 
@@ -129,6 +152,7 @@ class ChildRestClient(
                     status = status,
                     deviceId = deviceId,
                     deviceToken = deviceToken,
+                    refreshToken = refreshToken,
                     parentId = parentId,
                     childName = childName
                 )
@@ -201,6 +225,7 @@ class ChildRestClient(
                 val json = JSONObject(response.body)
                 val deviceId = json.optString("deviceId", json.optString("id", "")).takeIf { it.isNotBlank() }
                 val deviceToken = json.optString("deviceToken", json.optString("token", "")).takeIf { it.isNotBlank() }
+                val refreshToken = json.optString("refreshToken", "").takeIf { it.isNotBlank() }
                 val parentId = json.optString("parentId", "").takeIf { it.isNotBlank() }
                 val respChildName = json.optString("childName", childName)
 
@@ -215,6 +240,7 @@ class ChildRestClient(
                     success = true,
                     deviceId = deviceId,
                     deviceToken = deviceToken,
+                    refreshToken = refreshToken,
                     parentId = parentId,
                     childName = respChildName,
                     message = "Pairing successful"
@@ -230,6 +256,124 @@ class ChildRestClient(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to backend", e)
             PairResult(success = false, message = "Network error: ${e.localizedMessage ?: "Could not connect to server"}")
+        }
+    }
+
+    /**
+     * Authenticated heartbeat and telemetry update.
+     * Calls POST /api/v1/child/heartbeat with Bearer access JWT.
+     */
+    suspend fun sendHeartbeat(
+        deviceToken: String,
+        batteryPct: Int? = null,
+        isCharging: Boolean? = null
+    ): HeartbeatOutcome = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/heartbeat"
+        try {
+            val jsonBody = JSONObject().apply {
+                if (batteryPct != null) put("batteryPct", batteryPct)
+                if (isCharging != null) put("isCharging", isCharging)
+            }.toString()
+
+            val response = executeRequestWithFailover(path, "POST", jsonBody, bearerToken = deviceToken)
+            when (response.code) {
+                in 200..299 -> HeartbeatOutcome.Success
+                401, 403 -> HeartbeatOutcome.TokenExpiredOrRevoked(
+                    response.code,
+                    "Device token rejected or expired (HTTP ${response.code})"
+                )
+                else -> HeartbeatOutcome.TransientError(
+                    response.code,
+                    "Heartbeat failed with HTTP ${response.code}"
+                )
+            }
+        } catch (e: Exception) {
+            HeartbeatOutcome.TransientError(null, e.localizedMessage ?: "Network transport error during heartbeat")
+        }
+    }
+
+    /**
+     * Atomically rotates rotating refresh token and obtains a new 1-hour access JWT.
+     * Calls POST /api/v1/child/refresh-token.
+     */
+    suspend fun refreshDeviceToken(
+        refreshToken: String,
+        deviceId: String? = null
+    ): RefreshTokenResult = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/refresh-token"
+        try {
+            val jsonBody = JSONObject().apply {
+                put("refreshToken", refreshToken)
+                if (!deviceId.isNullOrBlank()) {
+                    put("deviceId", deviceId)
+                }
+            }.toString()
+
+            val response = executeRequestWithFailover(path, "POST", jsonBody)
+            if (response.code in 200..299) {
+                val json = JSONObject(response.body)
+                val newAccessToken = json.optString("deviceToken").takeIf { it.isNotBlank() }
+                val newRefreshToken = json.optString("refreshToken").takeIf { it.isNotBlank() }
+                if (newAccessToken != null && newRefreshToken != null) {
+                    RefreshTokenResult(
+                        success = true,
+                        deviceToken = newAccessToken,
+                        refreshToken = newRefreshToken,
+                        statusCode = response.code,
+                        message = "Tokens refreshed successfully"
+                    )
+                } else {
+                    RefreshTokenResult(
+                        success = false,
+                        statusCode = response.code,
+                        message = "Malformed response from refresh-token endpoint"
+                    )
+                }
+            } else {
+                RefreshTokenResult(
+                    success = false,
+                    statusCode = response.code,
+                    message = "Refresh rejected (HTTP ${response.code})"
+                )
+            }
+        } catch (e: Exception) {
+            RefreshTokenResult(
+                success = false,
+                statusCode = 0,
+                message = e.localizedMessage ?: "Network error during token refresh"
+            )
+        }
+    }
+
+    /**
+     * Server-side unpair and credential revocation.
+     * Calls POST /api/v1/child/unpair with Bearer access JWT.
+     * Idempotent: 2xx or 401/403/404/410 confirms revocation.
+     */
+    suspend fun unpairFromServer(
+        deviceToken: String,
+        reason: String = "child_user_unpair"
+    ): UnpairOutcome = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/unpair"
+        try {
+            val jsonBody = JSONObject().apply {
+                put("reason", reason)
+            }.toString()
+
+            val response = executeRequestWithFailover(path, "POST", jsonBody, bearerToken = deviceToken)
+            when (response.code) {
+                in 200..299 -> UnpairOutcome.Success
+                401, 403, 404, 410 -> UnpairOutcome.AlreadyUnpairedOrRejected(
+                    response.code,
+                    "Server confirmed credential revocation or already unpaired (HTTP ${response.code})"
+                )
+                else -> UnpairOutcome.TransientError(
+                    response.code,
+                    "Transient server error during unpair (HTTP ${response.code})"
+                )
+            }
+        } catch (e: Exception) {
+            UnpairOutcome.TransientError(null, e.localizedMessage ?: "Network transport error during unpair")
         }
     }
 

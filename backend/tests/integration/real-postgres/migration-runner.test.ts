@@ -97,8 +97,8 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         encoding: 'utf8',
       });
 
-      assert.ok(output.includes('[Migration Runner] Discovered 11 versioned migration scripts'));
-      assert.ok(output.includes('[Migration Runner] Complete: 11 migration(s) applied successfully'));
+      assert.ok(output.includes('[Migration Runner] Discovered 12 versioned migration scripts'));
+      assert.ok(output.includes('[Migration Runner] Complete: 12 migration(s) applied successfully'));
 
       // Verify migration tracking in schema_migrations
       const client = createTestPool(testDbUrl);
@@ -106,11 +106,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         const migrationsRes = await client.query('SELECT name FROM public.schema_migrations ORDER BY name ASC;');
         const recordedNames = migrationsRes.rows.map((r: { name: string }) => r.name);
 
-        assert.equal(recordedNames.length, 11, 'All 11 versioned migrations must be tracked');
+        assert.equal(recordedNames.length, 12, 'All 12 versioned migrations must be tracked');
         assert.ok(recordedNames.includes('0000_fast_yellow_claw.sql'));
         assert.ok(recordedNames.includes('0008_system_smtp_settings.sql'));
         assert.ok(recordedNames.includes('0009_pairing_and_app_settings.sql'));
         assert.ok(recordedNames.includes('0010_pairing_security_and_consent.sql'));
+        assert.ok(recordedNames.includes('0011_child_device_tokens_and_lifecycle.sql'));
 
         // Verify key tables exist
         const tablesRes = await client.query(`
@@ -197,13 +198,13 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       });
 
       assert.ok(output.includes(`as user: '${tempMigratorRole}'`));
-      assert.ok(output.includes('[Migration Runner] Complete: 11 migration(s) applied successfully'));
+      assert.ok(output.includes('[Migration Runner] Complete: 12 migration(s) applied successfully'));
 
       // Verify tracking
       const migratorPool = createTestPool(migratorTestUrl);
       try {
         const res = await migratorPool.query('SELECT count(*)::int AS count FROM public.schema_migrations;');
-        assert.equal(res.rows[0].count, 11);
+        assert.equal(res.rows[0].count, 12);
       } finally {
         await migratorPool.end();
       }
@@ -274,16 +275,18 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
 
       assert.ok(output.includes('Applying migration: 0009_pairing_and_app_settings.sql'));
       assert.ok(output.includes('Applying migration: 0010_pairing_security_and_consent.sql'));
-      assert.ok(output.includes('[Migration Runner] Complete: 2 migration(s) applied successfully'));
+      assert.ok(output.includes('Applying migration: 0011_child_device_tokens_and_lifecycle.sql'));
+      assert.ok(output.includes('[Migration Runner] Complete: 3 migration(s) applied successfully'));
 
-      // 3. Verify all 11 migrations are now recorded in schema_migrations
+      // 3. Verify all 12 migrations are now recorded in schema_migrations
       const verifyPool = createTestPool(testDbUrl);
       try {
         const postMigRes = await verifyPool.query('SELECT name FROM public.schema_migrations ORDER BY name ASC;');
         const names = postMigRes.rows.map((r: { name: string }) => r.name);
-        assert.equal(names.length, 11);
+        assert.equal(names.length, 12);
         assert.ok(names.includes('0009_pairing_and_app_settings.sql'));
         assert.ok(names.includes('0010_pairing_security_and_consent.sql'));
+        assert.ok(names.includes('0011_child_device_tokens_and_lifecycle.sql'));
 
         // 4. Verify upgraded tables and columns exist
         const postCheck = await verifyPool.query(`
@@ -900,7 +903,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     try {
-      // First run: applies 11 migrations
+      // First run: applies 12 migrations
       execSync('npm run db:migrate', {
         cwd: backendDir,
         env: {
