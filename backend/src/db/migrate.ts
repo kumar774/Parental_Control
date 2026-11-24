@@ -390,6 +390,30 @@ export async function runMigrations(customClient?: any) {
         }
       }
 
+      const partialNameMatches: string[] = [];
+      if (passedCount === 0) {
+        for (const guarantee of guarantees) {
+          if (guarantee.type === 'function' || guarantee.type === 'function_security') {
+            const fnCheck = await client.query(
+              `SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid WHERE n.nspname = 'public' AND p.proname = $1 LIMIT 1;`,
+              [guarantee.name]
+            );
+            if (fnCheck.rows.length > 0) {
+              partialNameMatches.push(`function public.${guarantee.name} (wrong signature or security properties)`);
+            }
+          }
+          if (guarantee.type === 'constraint' && guarantee.name) {
+            const conCheck = await client.query(
+              `SELECT c.relname FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND con.conname = $1 LIMIT 1;`,
+              [guarantee.name]
+            );
+            if (conCheck.rows.length > 0) {
+              partialNameMatches.push(`constraint ${guarantee.name} (attached to wrong table ${conCheck.rows[0].relname})`);
+            }
+          }
+        }
+      }
+
       if (passedCount === guarantees.length && guarantees.length > 0) {
         // All guaranteed schema objects are present in the database.
         // Record as legitimately baselined in schema_migrations.
@@ -398,13 +422,15 @@ export async function runMigrations(customClient?: any) {
           [scriptName]
         );
         appliedSet.add(scriptName);
-      } else if (passedCount > 0 && passedCount < guarantees.length) {
+      } else if ((passedCount > 0 && passedCount < guarantees.length) || partialNameMatches.length > 0) {
         // Incomplete / partial migration state detected!
         // Never mark as completed; fail closed.
         throw new Error(
           `[Migration Runner FATAL] Incomplete schema detected for ${scriptName}: ` +
           `${passedCount}/${guarantees.length} guaranteed schema objects exist. ` +
-          `Missing: ${missingObjects.join(', ')}. Database migration cannot proceed safely with partially applied schema.`
+          `Missing: ${missingObjects.join(', ')}. ` +
+          (partialNameMatches.length > 0 ? `Partial catalog conflicts: ${partialNameMatches.join(', ')}. ` : '') +
+          `Database migration cannot proceed safely with partially applied schema.`
         );
       }
       // If passedCount === 0: the migration has not been applied yet; runner will execute it from SQL file below.
