@@ -63,6 +63,19 @@ class DeviceStorageTest {
         assertNull(deviceStorage.getSession().deviceId)
     }
 
+    @Test
+    fun testPendingPairAckPersistenceAndClear() {
+        assertNull(deviceStorage.getPendingPairAck())
+
+        deviceStorage.savePendingPairAck("sess-uuid-1234", "polling-token-abcd")
+        val pending = deviceStorage.getPendingPairAck()
+        assertEquals("sess-uuid-1234", pending?.first)
+        assertEquals("polling-token-abcd", pending?.second)
+
+        deviceStorage.clearPendingPairAck()
+        assertNull(deviceStorage.getPendingPairAck())
+    }
+
     // In-memory SharedPreferences test implementation
     private class MockSharedPreferences : SharedPreferences {
         private val data = ConcurrentHashMap<String, Any>()

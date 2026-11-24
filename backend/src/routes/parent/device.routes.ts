@@ -31,6 +31,7 @@ const pairCodeSchema = z.object({
 
 const pairConfirmSchema = z.object({
   code: z.string().min(1, 'Pairing code is required'),
+  sessionId: z.string().uuid().optional(),
   childName: z.string().trim().min(1).max(100).default('Child'),
   deviceName: z.string().trim().max(255).default('Android Phone'),
   model: z.string().trim().max(255).optional(),
@@ -252,14 +253,19 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
 
     const rawInput = parsed.data.code.trim();
     const normalizedCode = normalizePairingCode(rawInput);
+    const providedSessionId = parsed.data.sessionId;
 
     try {
       const result = await db.transaction(async (tx) => {
-        const [session] = await tx
-          .select()
-          .from(pairingSessions)
-          .where(
-            and(
+        const whereClause = providedSessionId
+          ? and(
+              sql`${pairingSessions.id}::text = ${providedSessionId}`,
+              or(
+                eq(pairingSessions.parentId, parent.id),
+                isNull(pairingSessions.parentId)
+              )
+            )
+          : and(
               or(
                 eq(pairingSessions.pairingCode, normalizedCode),
                 sql`${pairingSessions.id}::text = ${rawInput}`
@@ -268,13 +274,22 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
                 eq(pairingSessions.parentId, parent.id),
                 isNull(pairingSessions.parentId)
               )
-            )
-          )
+            );
+
+        const [session] = await tx
+          .select()
+          .from(pairingSessions)
+          .where(whereClause)
           .limit(1)
           .for('update');
 
         if (!session) {
           return { error: 'Pairing session not found for this account', status: 404 };
+        }
+
+        // Validate code matches the designated session if sessionId was explicitly provided
+        if (providedSessionId && normalizePairingCode(session.pairingCode) !== normalizedCode) {
+          return { error: 'Pairing session ID and code mismatch', status: 400 };
         }
 
         if (new Date(session.expiresAt).getTime() < Date.now()) {

@@ -4,7 +4,7 @@ import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { emailService } from '../../services/email/index';
 import { db } from '../../db/index';
 import { adminControlAuditLogs } from '../../db/schema/parental-control';
-import { getAppSettings, updateAppSettings } from '../../services/app-settings.service';
+import { getAppSettingsStrict, updateAppSettings } from '../../services/app-settings.service';
 
 const appSettingsConfigSchema = z.object({
   googleAuthEnabled: z.boolean().optional(),
@@ -49,8 +49,16 @@ export const adminSettingsRoutes: FastifyPluginAsync = async (app: FastifyInstan
    * Returns general application & mobile client settings.
    */
   app.get('/app', async (_request, reply) => {
-    const settings = await getAppSettings();
-    return reply.send(settings);
+    try {
+      const settings = await getAppSettingsStrict();
+      return reply.send(settings);
+    } catch (err: any) {
+      return reply.status(503).send({
+        statusCode: 503,
+        error: 'Service Unavailable',
+        message: 'Database unavailable: Failed to fetch application settings',
+      });
+    }
   });
 
   /**

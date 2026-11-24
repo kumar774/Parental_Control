@@ -14,13 +14,32 @@ class DevicePairingContractTest {
 
     @Test
     fun testExactChildGeneratedPayloadAccepted() {
-        val validPayload = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":"2026-11-24T09:00:00.000Z"}"""
-        val result = parseChildQrContract(validPayload, nowMs = fixedNowMs)
+        // Exactly matches the backend-generated JSON payload from /api/v1/child/pair-session
+        val validIsoPayload = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":"2026-11-24T09:00:00.000Z"}"""
+        val result = parseChildQrContract(validIsoPayload, nowMs = fixedNowMs)
         assertTrue(result is ChildQrValidationResult.Valid)
         val valid = result as ChildQrValidationResult.Valid
         assertEquals("987654321", valid.code)
         assertEquals("00000000-0000-0000-0000-000000000001", valid.sessionId)
-        assertEquals("987654321", extractPairingCode(validPayload))
+        assertEquals("2026-11-24T09:00:00.000Z", valid.expiresAt)
+        assertEquals("987654321", extractPairingCode(validIsoPayload))
+
+        // Also accepts numeric millisecond timestamp
+        val validNumericPayload = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":1800000000000}"""
+        val resultNum = parseChildQrContract(validNumericPayload, nowMs = fixedNowMs)
+        assertTrue(resultNum is ChildQrValidationResult.Valid)
+        assertEquals("987654321", (resultNum as ChildQrValidationResult.Valid).code)
+    }
+
+    @Test
+    fun testInvalidCodeOrMalformedSessionIdRejected() {
+        // Non-9-digit code (e.g. 5 digits)
+        val shortCode = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"12345","expiresAt":"2026-11-24T09:00:00.000Z"}"""
+        assertTrue(parseChildQrContract(shortCode, nowMs = fixedNowMs) is ChildQrValidationResult.Invalid)
+
+        // Invalid non-UUID sessionId
+        val badUuid = """{"version":1,"type":"child_pair","sessionId":"not-a-valid-uuid","code":"987654321","expiresAt":"2026-11-24T09:00:00.000Z"}"""
+        assertTrue(parseChildQrContract(badUuid, nowMs = fixedNowMs) is ChildQrValidationResult.Invalid)
     }
 
     @Test

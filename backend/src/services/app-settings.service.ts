@@ -36,42 +36,72 @@ export async function resetAppSettingsForTest(): Promise<void> {
   testMockUpdater = null;
 }
 
-export async function getAppSettings(): Promise<SystemAppSettings> {
+/**
+ * Strict database fetch of application settings.
+ * Unlike getAppSettings(), this function does NOT catch database errors or fall back to defaults.
+ * Used by admin reads and updates to prevent database outages from being hidden or overwriting stored data with defaults.
+ */
+export async function getAppSettingsStrict(executor?: any): Promise<SystemAppSettings> {
   if (testMockProvider) {
     return testMockProvider();
   }
 
+  const client = executor || db;
+  const [row] = await client
+    .select()
+    .from(systemAppSettings)
+    .where(eq(systemAppSettings.id, 'default'))
+    .limit(1);
+
+  if (row) {
+    return row;
+  }
+
+  // Insert default if missing
+  const [inserted] = await client
+    .insert(systemAppSettings)
+    .values({
+      id: 'default',
+      googleAuthEnabled: false,
+      googleClientId: null,
+      childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
+      childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
+      childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted) {
+    return inserted;
+  }
+
+  const [reselected] = await client
+    .select()
+    .from(systemAppSettings)
+    .where(eq(systemAppSettings.id, 'default'))
+    .limit(1);
+
+  return reselected || {
+    id: 'default',
+    googleAuthEnabled: false,
+    googleClientId: null,
+    childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
+    childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
+    childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
+    updatedBy: null,
+    updatedAt: new Date(),
+  };
+}
+
+/**
+ * Public/auth decision read: Fails closed on database failure (googleAuthEnabled: false)
+ * to ensure public unauthenticated endpoints can safely proceed without enabling unverified auth.
+ */
+export async function getAppSettings(): Promise<SystemAppSettings> {
   try {
-    const [row] = await db
-      .select()
-      .from(systemAppSettings)
-      .where(eq(systemAppSettings.id, 'default'))
-      .limit(1);
-
-    if (row) {
-      return row;
-    }
-
-    // Insert default if missing
-    const [inserted] = await db
-      .insert(systemAppSettings)
-      .values({
-        id: 'default',
-        googleAuthEnabled: false,
-        googleClientId: null,
-        childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
-        childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
-        childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
-      })
-      .onConflictDoNothing()
-      .returning();
-
-    if (inserted) {
-      return inserted;
-    }
+    return await getAppSettingsStrict();
   } catch (err: any) {
-    // Fail closed: In production, database read errors must NEVER return unverified settings that could enable auth
-    console.error('[AppSettingsService] Database read failed, failing closed:', err?.message);
+    console.error('[AppSettingsService] Database read failed, failing closed for public auth:', err?.message);
     return {
       id: 'default',
       googleAuthEnabled: false,
@@ -83,17 +113,6 @@ export async function getAppSettings(): Promise<SystemAppSettings> {
       updatedAt: new Date(),
     };
   }
-
-  return {
-    id: 'default',
-    googleAuthEnabled: false,
-    googleClientId: null,
-    childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
-    childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
-    childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
-    updatedBy: null,
-    updatedAt: new Date(),
-  };
 }
 
 export async function getPublicAppSettings(): Promise<PublicAppSettings> {
@@ -133,8 +152,9 @@ export async function updateAppSettings(
     }
   }
 
-  // Fetch current settings from DB to check existing clientId if needed
-  const current = await getAppSettings();
+  // Fetch current settings strictly from DB.
+  // DB read errors MUST throw; never build a partial update from a fabricated default after a DB read error!
+  const current = await getAppSettingsStrict(executor);
 
   const updatePayload: Partial<typeof systemAppSettings.$inferInsert> = {
     updatedBy: validAdminId,

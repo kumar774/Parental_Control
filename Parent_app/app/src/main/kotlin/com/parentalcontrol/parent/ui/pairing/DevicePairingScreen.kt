@@ -141,7 +141,7 @@ import kotlinx.coroutines.launch
  */
 sealed class ChildQrValidationResult {
     data class Valid(val code: String, val sessionId: String?, val expiresAt: String?) : ChildQrValidationResult()
-    data class Expired(val code: String, val expiresAt: String) : ChildQrValidationResult()
+    data class Expired(val code: String, val expiresAt: String? = null) : ChildQrValidationResult()
     data class Invalid(val reason: String) : ChildQrValidationResult()
 }
 
@@ -183,21 +183,25 @@ internal fun parseChildQrContract(
             return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR")
         }
 
-        // 5. Expiry check
-        val expiresMatch = Regex("""\"expiresAt\"\s*:\s*\"([^\"]+)\"""").find(trimmed)
-        val expiresAt = expiresMatch?.groupValues?.get(1)
-        if (expiresAt != null) {
-            val expiryMs = try {
-                java.time.Instant.parse(expiresAt).toEpochMilli()
+        // 5. Expiry check (handles ISO-8601 string or numeric millisecond timestamp)
+        val expiresMatch = Regex("""\"expiresAt\"\s*:\s*(?:\"([^\"]+)\"|([0-9]+))""").find(trimmed)
+        val expiresStr = expiresMatch?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
+        val expiresNum = expiresMatch?.groupValues?.get(2)?.toLongOrNull()
+        val expiryMs = when {
+            expiresNum != null -> expiresNum
+            expiresStr != null -> try {
+                java.time.Instant.parse(expiresStr).toEpochMilli()
             } catch (_: Exception) {
                 null
             }
-            if (expiryMs != null && expiryMs < nowMs) {
-                return ChildQrValidationResult.Expired(code = code, expiresAt = expiresAt)
-            }
+            else -> null
+        }
+        val displayExpires = expiresStr ?: expiresNum?.toString()
+        if (expiryMs != null && expiryMs < nowMs) {
+            return ChildQrValidationResult.Expired(code = code, expiresAt = displayExpires)
         }
 
-        return ChildQrValidationResult.Valid(code = code, sessionId = sessionId, expiresAt = expiresAt)
+        return ChildQrValidationResult.Valid(code = code, sessionId = sessionId, expiresAt = displayExpires)
     }
 
     // Colon-delimited scheme: pc-pair:123456789 or pcpair:123456789
@@ -493,7 +497,10 @@ fun DevicePairingScreen(
                             is ChildQrValidationResult.Valid -> {
                                 Toast.makeText(context, "Pairing with code ${qrResult.code}...", Toast.LENGTH_SHORT).show()
                                 scope.launch {
-                                    val result = FastifyRestClient.shared.confirmPairing(qrResult.code)
+                                    val result = FastifyRestClient.shared.confirmPairing(
+                                        code = qrResult.code,
+                                        sessionId = qrResult.sessionId
+                                    )
                                     if (result.isSuccess) {
                                         val dev = result.getOrNull()!!
                                         childDao.insertOrUpdate(

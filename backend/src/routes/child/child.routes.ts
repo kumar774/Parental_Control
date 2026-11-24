@@ -58,11 +58,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       .values({
         parentId: null, // Unknown until Parent scans and confirms
         pairingCode: rawCode,
-        qrPayload: JSON.stringify({
-          sessionId: null,
-          code: rawCode,
-          expiresAt: expiresAt.getTime(),
-        }),
+        qrPayload: '',
         pollingToken,
         status: 'pending',
         deviceModel: parsed.success ? parsed.data.deviceModel : null,
@@ -78,12 +74,15 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
 
-    // Embed session ID in QR payload
-    const qrPayload = JSON.stringify({
+    // Embed session ID in typed Child QR Contract (version 1, child_pair, ISO-8601 expiry)
+    const qrContract = {
+      version: 1,
+      type: 'child_pair',
       sessionId: session.id,
       code: rawCode,
-      expiresAt: expiresAt.getTime(),
-    });
+      expiresAt: expiresAt.toISOString(),
+    };
+    const qrPayload = JSON.stringify(qrContract);
 
     await db
       .update(pairingSessions)
@@ -95,6 +94,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       sessionId: session.id,
       pairingCode: rawCode,
       qrPayload,
+      qrContract,
       pollingToken,
       expiresInSeconds,
       expiresAt: expiresAt.toISOString(),

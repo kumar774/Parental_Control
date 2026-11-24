@@ -165,6 +165,54 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(dbUser.authProvider, 'google');
     assert.ok(dbUser.passwordHash);
 
+    // Replay Protection Test: Submitting the same completionToken again is rejected with 409 Conflict
+    const replayRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/google/complete-profile',
+      payload: {
+        completionToken: step1Json.completionToken,
+        fullName: 'Replayed User',
+        password: 'GoogleUserStrongPass2026!',
+      },
+    });
+    assert.equal(replayRes.statusCode, 409);
+    assert.equal(JSON.parse(replayRes.body).code, 'COMPLETION_TOKEN_REPLAYED');
+
+    // Suspended User Test: If user is suspended, completion is rejected with 403 ACCOUNT_SUSPENDED
+    const suspendedEmail = `suspended-parent-${Date.now()}@example.com`;
+    const suspendedSub = `suspended-sub-${Date.now()}`;
+    await conn.db.insert(parentUsers).values({
+      email: suspendedEmail,
+      fullName: 'Suspended Parent',
+      status: 'suspended',
+      emailVerified: true,
+      authProvider: 'google',
+    });
+
+    const suspendedToken = jwt.sign(
+      {
+        jti: crypto.randomUUID(),
+        googleId: suspendedSub,
+        email: suspendedEmail,
+        purpose: 'google_profile_completion',
+      },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    const suspendedRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/google/complete-profile',
+      payload: {
+        completionToken: suspendedToken,
+        fullName: 'Suspended Parent',
+        password: 'GoogleUserStrongPass2026!',
+      },
+    });
+    assert.equal(suspendedRes.statusCode, 403);
+    assert.equal(JSON.parse(suspendedRes.body).code, 'ACCOUNT_SUSPENDED');
+    await conn.db.delete(parentUsers).where(eq(parentUsers.email, suspendedEmail)).catch(() => {});
+
     // Step 3: Subsequent login with same Google token succeeds directly
     const step3Res = await app.inject({
       method: 'POST',
@@ -194,7 +242,44 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const sessionId = sessionJson.sessionId;
     const pollingToken = sessionJson.pollingToken;
 
-    // 2. Concurrently confirm pairing from 5 requests
+    // Verify exact Child QR contract emitted by backend
+    const qrContract = JSON.parse(sessionJson.qrPayload);
+    assert.equal(qrContract.version, 1);
+    assert.equal(qrContract.type, 'child_pair');
+    assert.equal(qrContract.sessionId, sessionId);
+    assert.equal(qrContract.code, pairingCode);
+    assert.ok(qrContract.expiresAt);
+
+    // Negative Test: Mismatched code and sessionId is rejected with 400
+    const mismatchRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        code: '123123123', // wrong code for this session
+        sessionId: sessionId,
+        childName: 'Mismatch Kid',
+        deviceName: 'Mismatch Phone',
+      },
+    });
+    assert.equal(mismatchRes.statusCode, 400);
+    assert.match(JSON.parse(mismatchRes.body).message, /mismatch/i);
+
+    // Negative Test: Non-existent sessionId is rejected with 404
+    const notFoundRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        code: pairingCode,
+        sessionId: '00000000-0000-0000-0000-000000000099',
+        childName: 'Missing Kid',
+        deviceName: 'Missing Phone',
+      },
+    });
+    assert.equal(notFoundRes.statusCode, 404);
+
+    // 2. Concurrently confirm pairing from 5 requests (binding both code and sessionId)
     const confirmPromises = Array.from({ length: 5 }, (_, i) =>
       app.inject({
         method: 'POST',

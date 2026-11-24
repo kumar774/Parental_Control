@@ -66,6 +66,26 @@ class DeviceStorage internal constructor(
         prefs.edit().clear().apply()
     }
 
+    fun savePendingPairAck(sessionId: String, pollingToken: String) {
+        prefs.edit()
+            .putString(KEY_PENDING_ACK_SESSION_ID, sessionId)
+            .putString(KEY_PENDING_ACK_POLLING_TOKEN, pollingToken)
+            .apply()
+    }
+
+    fun getPendingPairAck(): Pair<String, String>? {
+        val sid = prefs.getString(KEY_PENDING_ACK_SESSION_ID, null)
+        val token = prefs.getString(KEY_PENDING_ACK_POLLING_TOKEN, null)
+        return if (!sid.isNullOrBlank() && !token.isNullOrBlank()) Pair(sid, token) else null
+    }
+
+    fun clearPendingPairAck() {
+        prefs.edit()
+            .remove(KEY_PENDING_ACK_SESSION_ID)
+            .remove(KEY_PENDING_ACK_POLLING_TOKEN)
+            .apply()
+    }
+
     companion object {
         private const val TAG = "DeviceStorage"
         private const val PREFS_NAME = "child_device_secure_prefs"
@@ -76,6 +96,8 @@ class DeviceStorage internal constructor(
         const val KEY_CHILD_NAME = "child_name"
         const val KEY_STATUS = "pairing_status"
         const val KEY_PAIRED_AT = "paired_at_epoch_ms"
+        const val KEY_PENDING_ACK_SESSION_ID = "pending_ack_session_id"
+        const val KEY_PENDING_ACK_POLLING_TOKEN = "pending_ack_polling_token"
 
         @Volatile
         private var instance: DeviceStorage? = null

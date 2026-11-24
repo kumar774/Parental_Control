@@ -5,6 +5,7 @@ import { buildApp } from '../../src/app';
 import { env } from '../../src/config/env';
 import {
   getAppSettings,
+  getAppSettingsStrict,
   getPublicAppSettings,
   updateAppSettings,
   setAppSettingsMockForTest,
@@ -154,6 +155,55 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       const publicSettings = await getPublicAppSettings();
       assert.equal(publicSettings.googleAuthEnabled, false);
       assert.equal(publicSettings.googleClientId, null);
+    });
+
+    it('getAppSettingsStrict throws when underlying database read fails (no silent default fallback)', async () => {
+      setAppSettingsMockForTest(async () => {
+        const err: any = new Error('Database connection failed');
+        err.code = 'ECONNREFUSED';
+        throw err;
+      });
+
+      await assert.rejects(
+        async () => {
+          await getAppSettingsStrict();
+        },
+        {
+          name: 'Error',
+          message: 'Database connection failed',
+        }
+      );
+    });
+
+    it('updateAppSettings fails and rejects transaction if database read fails, never overwriting with defaults', async () => {
+      // Mock an executor where select throws a DB error
+      const failingExecutor = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => {
+                const err: any = new Error('Database query timeout');
+                err.code = '57014';
+                throw err;
+              },
+            }),
+          }),
+        }),
+      };
+
+      await assert.rejects(
+        async () => {
+          await updateAppSettings(
+            { childAppLatestVersion: '3.0.0' },
+            null,
+            failingExecutor
+          );
+        },
+        {
+          name: 'Error',
+          message: 'Database query timeout',
+        }
+      );
     });
   });
 

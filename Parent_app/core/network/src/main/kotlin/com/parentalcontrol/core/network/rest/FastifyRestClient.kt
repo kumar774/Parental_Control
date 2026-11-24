@@ -499,11 +499,13 @@ class FastifyRestClient(
         code: String,
         childName: String = "Child",
         deviceName: String = "Android Phone",
-        model: String? = null
+        model: String? = null,
+        sessionId: String? = null
     ): Result<DeviceDto> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = JSONObject().apply {
                 put("code", code.trim())
+                if (!sessionId.isNullOrBlank()) put("sessionId", sessionId.trim())
                 put("childName", childName)
                 put("deviceName", deviceName)
                 if (!model.isNullOrBlank()) put("model", model)

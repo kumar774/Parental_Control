@@ -8,6 +8,7 @@ import {
   parentUsers,
   parentRefreshTokens,
   parentVerificationTokens,
+  parentRateLimits,
 } from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
@@ -556,8 +557,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       const needsProfileCompletion = !user.passwordHash || !user.fullName || user.fullName.trim().length === 0;
       if (needsProfileCompletion) {
         if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+          const completionJti = crypto.randomUUID();
           const completionToken = jwt.sign(
             {
+              jti: completionJti,
               googleId,
               email: normalizedEmail,
               purpose: 'google_profile_completion',
@@ -624,8 +627,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       // Provision new parent account via Google OAuth
       // Requires profile setup (full name and compliant password) for new user accounts
       if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+        const completionJti = crypto.randomUUID();
         const completionToken = jwt.sign(
           {
+            jti: completionJti,
             googleId,
             email: normalizedEmail,
             purpose: 'google_profile_completion',
@@ -759,84 +764,127 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const passwordHash = await hashPassword(parsed.data.password);
     const derivedFullName = parsed.data.fullName.trim();
 
-    // Check if user already exists
-    const [existing] = await db
-      .select()
-      .from(parentUsers)
-      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
-      .limit(1);
+    const tokenJti = tokenPayload.jti || crypto.createHash('sha256').update(parsed.data.completionToken).digest('hex');
+    const tokenKey = `used_completion_token:${tokenJti}`;
 
-    let user = existing;
-    if (user) {
-      const [updated] = await db
-        .update(parentUsers)
-        .set({
-          fullName: derivedFullName,
-          passwordHash,
-          googleId: googleId || user.googleId,
-          emailVerified: true,
-          updatedAt: sql`NOW()`,
-        })
-        .where(eq(parentUsers.id, user.id))
-        .returning();
-      user = updated;
-    } else {
-      const [created] = await db
-        .insert(parentUsers)
+    // Atomically consume token, verify account status, and complete profile in a single transaction
+    const txResult = await db.transaction(async (tx) => {
+      // 1. Replay Protection: Atomic single-use token consumption
+      const [consumed] = await tx
+        .insert(parentRateLimits)
         .values({
-          email: normalizedEmail,
-          fullName: derivedFullName,
-          googleId: googleId || undefined,
-          authProvider: 'google',
-          emailVerified: true,
-          status: 'active',
-          passwordHash,
+          key: tokenKey,
+          count: 1,
+          windowStartedAt: Date.now(),
+          expiresAt: tokenPayload.exp ? tokenPayload.exp * 1000 : Date.now() + 900000,
         })
+        .onConflictDoNothing()
         .returning();
-      user = created;
-    }
 
-    if (!user) {
-      return reply.status(500).send({
-        statusCode: 500,
-        error: 'Internal Server Error',
-        message: 'Failed to complete profile',
+      if (!consumed) {
+        return {
+          status: 409,
+          code: 'COMPLETION_TOKEN_REPLAYED',
+          message: 'Completion token has already been consumed. Please sign in with Google again.',
+        };
+      }
+
+      // 2. Account state check with row locking
+      const [lockedExisting] = await tx
+        .select()
+        .from(parentUsers)
+        .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+        .limit(1)
+        .for('update');
+
+      if (lockedExisting && lockedExisting.status === 'suspended') {
+        return {
+          status: 403,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact support.',
+        };
+      }
+
+      let user = lockedExisting;
+      if (user) {
+        const [updated] = await tx
+          .update(parentUsers)
+          .set({
+            fullName: derivedFullName,
+            passwordHash,
+            googleId: googleId || user.googleId,
+            emailVerified: true,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id))
+          .returning();
+        user = updated;
+      } else {
+        const [created] = await tx
+          .insert(parentUsers)
+          .values({
+            email: normalizedEmail,
+            fullName: derivedFullName,
+            googleId: googleId || undefined,
+            authProvider: 'google',
+            emailVerified: true,
+            status: 'active',
+            passwordHash,
+          })
+          .returning();
+        user = created;
+      }
+
+      if (!user) {
+        throw new Error('Failed to complete user profile in transaction');
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '15m' }
+      );
+      const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = hashRefreshToken(rawRefreshToken);
+      const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
+      const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+      await tx.insert(parentRefreshTokens).values({
+        parentId: user.id,
+        tokenHash,
+        familyCardNo: derivedFamilyCard,
+        deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
+        ipAddress: request.ip,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: resolvedFullName,
+          familyCardNo: derivedFamilyCard,
+          phone: user.phone,
+          isGuest: false,
+          status: user.status,
+        },
+        accessToken: token,
+        refreshToken: rawRefreshToken,
+        expiresIn: 900,
+      };
+    });
+
+    if ('code' in txResult && typeof txResult.status === 'number') {
+      const statusCode: number = txResult.status;
+      return reply.status(statusCode).send({
+        statusCode,
+        code: txResult.code,
+        error: statusCode === 403 ? 'Forbidden' : 'Conflict',
+        message: txResult.message,
       });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
-      env.JWT_ACCESS_SECRET,
-      { expiresIn: '15m' }
-    );
-    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = hashRefreshToken(rawRefreshToken);
-    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
-
-    await db.insert(parentRefreshTokens).values({
-      parentId: user.id,
-      tokenHash,
-      familyCardNo: derivedFamilyCard,
-      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
-      ipAddress: request.ip,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    });
-
-    return reply.send({
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
-        isGuest: false,
-        status: user.status,
-      },
-      accessToken: token,
-      refreshToken: rawRefreshToken,
-      expiresIn: 900,
-    });
+    return reply.status(200).send(txResult);
   });
 
   /**

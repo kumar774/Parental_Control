@@ -116,6 +116,19 @@ fun ConnectToParentScreen(
         }
     }
 
+    // Check and retry any pending unacknowledged pairing session receipt
+    LaunchedEffect(Unit) {
+        val pending = storage.getPendingPairAck()
+        if (pending != null) {
+            val (pSid, pToken) = pending
+            try {
+                if (ChildRestClient.instance.acknowledgePairReceipt(pSid, pToken)) {
+                    storage.clearPendingPairAck()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     // Background polling: If Parent scans this Child's QR code on Parent App
     LaunchedEffect(sessionId, pollingToken) {
         val currentSessionId = sessionId ?: return@LaunchedEffect
@@ -137,10 +150,20 @@ fun ConnectToParentScreen(
                         parentId = pId,
                         childName = pollResult.childName ?: "Child Phone"
                     )
-                    // Explicitly acknowledge credential receipt to invalidate single-use polling token on server
-                    try {
-                        ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)
-                    } catch (_: Exception) {}
+                    // Persist pending acknowledgment record alongside credentials for durable retry
+                    storage.savePendingPairAck(currentSessionId, currentPollingToken)
+
+                    // Safely acknowledge credential receipt to invalidate single-use polling token on server
+                    for (attempt in 1..3) {
+                        try {
+                            val ackSuccess = ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)
+                            if (ackSuccess) {
+                                storage.clearPendingPairAck()
+                                break
+                            }
+                        } catch (_: Exception) {}
+                        if (attempt < 3) delay(500L)
+                    }
 
                     successMessage = "Connected to Parent!"
                     delay(500L)
