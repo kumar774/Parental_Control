@@ -76,6 +76,37 @@ class DeviceStorageTest {
         assertNull(deviceStorage.getPendingPairAck())
     }
 
+    @Test
+    fun testSavePairingSessionWithPendingAckAtomic() {
+        assertNull(deviceStorage.getPendingPairAck())
+        assertFalse(deviceStorage.isPaired())
+
+        deviceStorage.savePairingSessionWithPendingAck(
+            deviceId = "dev-atomic-1",
+            deviceToken = "token-atomic-1",
+            parentId = "parent-atomic-1",
+            childName = "Atomic Kid",
+            sessionId = "session-atomic-uuid",
+            pollingToken = "poll-atomic-token"
+        )
+
+        assertTrue(deviceStorage.isPaired())
+        val session = deviceStorage.getSession()
+        assertEquals("dev-atomic-1", session.deviceId)
+        assertEquals("token-atomic-1", session.deviceToken)
+        assertEquals("parent-atomic-1", session.parentId)
+        assertEquals("Atomic Kid", session.childName)
+
+        val pending = deviceStorage.getPendingPairAck()
+        assertEquals("session-atomic-uuid", pending?.first)
+        assertEquals("poll-atomic-token", pending?.second)
+
+        deviceStorage.clearPendingPairAck()
+        assertNull(deviceStorage.getPendingPairAck())
+        // Session credentials remain intact
+        assertTrue(deviceStorage.isPaired())
+    }
+
     // In-memory SharedPreferences test implementation
     private class MockSharedPreferences : SharedPreferences {
         private val data = ConcurrentHashMap<String, Any>()

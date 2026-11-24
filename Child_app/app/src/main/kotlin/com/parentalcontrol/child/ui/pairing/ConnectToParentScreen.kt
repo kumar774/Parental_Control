@@ -118,15 +118,7 @@ fun ConnectToParentScreen(
 
     // Check and retry any pending unacknowledged pairing session receipt
     LaunchedEffect(Unit) {
-        val pending = storage.getPendingPairAck()
-        if (pending != null) {
-            val (pSid, pToken) = pending
-            try {
-                if (ChildRestClient.instance.acknowledgePairReceipt(pSid, pToken)) {
-                    storage.clearPendingPairAck()
-                }
-            } catch (_: Exception) {}
-        }
+        com.parentalcontrol.child.network.PairAckRetryManager.retryPendingAckIfNeeded(storage)
     }
 
     // Background polling: If Parent scans this Child's QR code on Parent App
@@ -144,16 +136,17 @@ fun ConnectToParentScreen(
                         errorMessage = "Pairing response rejected: missing parent identity"
                         break
                     }
-                    storage.savePairingSession(
+                    // Atomically persist credentials alongside pending acknowledgment record
+                    storage.savePairingSessionWithPendingAck(
                         deviceId = pollResult.deviceId,
                         deviceToken = pollResult.deviceToken,
                         parentId = pId,
-                        childName = pollResult.childName ?: "Child Phone"
+                        childName = pollResult.childName ?: "Child Phone",
+                        sessionId = currentSessionId,
+                        pollingToken = currentPollingToken
                     )
-                    // Persist pending acknowledgment record alongside credentials for durable retry
-                    storage.savePendingPairAck(currentSessionId, currentPollingToken)
 
-                    // Safely acknowledge credential receipt to invalidate single-use polling token on server
+                    // Safely attempt immediate credential receipt acknowledgment
                     for (attempt in 1..3) {
                         try {
                             val ackSuccess = ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)

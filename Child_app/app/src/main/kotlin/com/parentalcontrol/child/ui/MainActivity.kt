@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
+import com.parentalcontrol.child.network.PairAckRetryManager
 import com.parentalcontrol.child.service.ChildMonitoringService
 import com.parentalcontrol.child.storage.DeviceSession
 import com.parentalcontrol.child.storage.DeviceStorage
@@ -16,6 +18,8 @@ import com.parentalcontrol.child.ui.home.ChildHomeScreen
 import com.parentalcontrol.child.ui.pairing.ConnectToParentScreen
 import com.parentalcontrol.child.ui.pairing.KidConsentScreen
 import com.parentalcontrol.child.ui.pairing.KidDeviceSelectScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -31,6 +35,13 @@ class MainActivity : ComponentActivity() {
                 com.parentalcontrol.child.network.ChildRestClient.PROD_BASE_URL
         }
         storage = DeviceStorage.getInstance(applicationContext)
+
+        // Lifecycle-independent retry of pending pairing acknowledgment on startup
+        if (storage.getPendingPairAck() != null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                PairAckRetryManager.retryPendingAckIfNeeded(storage)
+            }
+        }
 
         setContent {
             var currentSession by remember { mutableStateOf<DeviceSession>(storage.getSession()) }
@@ -73,6 +84,15 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::storage.isInitialized && storage.getPendingPairAck() != null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                PairAckRetryManager.retryPendingAckIfNeeded(storage)
             }
         }
     }

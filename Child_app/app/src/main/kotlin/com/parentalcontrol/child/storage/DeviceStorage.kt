@@ -62,6 +62,26 @@ class DeviceStorage internal constructor(
         return session.status == PairingStatus.PAIRED && !session.deviceId.isNullOrBlank()
     }
 
+    fun savePairingSessionWithPendingAck(
+        deviceId: String,
+        deviceToken: String,
+        parentId: String,
+        childName: String,
+        sessionId: String,
+        pollingToken: String
+    ) {
+        prefs.edit()
+            .putString(KEY_DEVICE_ID, deviceId)
+            .putString(KEY_DEVICE_TOKEN, deviceToken)
+            .putString(KEY_PARENT_ID, parentId)
+            .putString(KEY_CHILD_NAME, childName)
+            .putString(KEY_STATUS, PairingStatus.PAIRED.name)
+            .putLong(KEY_PAIRED_AT, System.currentTimeMillis())
+            .putString(KEY_PENDING_ACK_SESSION_ID, sessionId)
+            .putString(KEY_PENDING_ACK_POLLING_TOKEN, pollingToken)
+            .apply()
+    }
+
     fun clearPairingSession() {
         prefs.edit().clear().apply()
     }

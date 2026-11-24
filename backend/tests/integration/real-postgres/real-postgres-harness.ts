@@ -166,32 +166,9 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
         );
       }
 
-      // Check and apply migrations 0009 and 0010 if missing
-      const pairCheck = await client2.query(`
-        SELECT count(*)::int AS count 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name = 'pairing_sessions'
-      `);
-      if (Number(pairCheck.rows[0]?.count) < 1) {
-        const fs = await import('fs');
-        const path = await import('path');
-        const m0009 = fs.readFileSync(path.resolve(process.cwd(), 'drizzle/0009_pairing_and_app_settings.sql'), 'utf8');
-        await client2.query(m0009);
-      }
-
-      const consentCheck = await client2.query(`
-        SELECT count(*)::int AS count 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name = 'parent_consents'
-      `);
-      if (Number(consentCheck.rows[0]?.count) < 1) {
-        const fs = await import('fs');
-        const path = await import('path');
-        const m0010 = fs.readFileSync(path.resolve(process.cwd(), 'drizzle/0010_pairing_security_and_consent.sql'), 'utf8');
-        await client2.query(m0010);
-      }
+      // Ensure all versioned migrations (including 0009 and 0010) are applied and tracked via runMigrations()
+      const { runMigrations } = await import('../../../src/db/migrate');
+      await runMigrations(client2);
     } finally {
       client2.release();
     }

@@ -154,72 +154,75 @@ internal fun parseChildQrContract(
     nowMs: Long = System.currentTimeMillis()
 ): ChildQrValidationResult {
     val trimmed = raw.trim()
-    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        // 1. Version check
-        val versionMatch = Regex("""\"version\"\s*:\s*([0-9]+)""").find(trimmed)
-        val version = versionMatch?.groupValues?.get(1)?.toIntOrNull()
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+        return ChildQrValidationResult.Invalid("Invalid pairing QR format: expected JSON child_pair contract")
+    }
+
+    return try {
+        val json = org.json.JSONObject(trimmed)
+
+        // 1. Version check (strictly version 1)
+        if (!json.has("version")) {
+            return ChildQrValidationResult.Invalid("Missing QR version")
+        }
+        val version = json.optInt("version", -1)
         if (version != 1) {
-            return ChildQrValidationResult.Invalid("Unsupported QR version: ${version ?: "missing"}")
+            return ChildQrValidationResult.Invalid("Unsupported QR version: $version")
         }
 
-        // 2. Type check
-        val typeMatch = Regex("""\"type\"\s*:\s*\"([^\"]+)\"""").find(trimmed)
-        val type = typeMatch?.groupValues?.get(1)
+        // 2. Type check (strictly 'child_pair')
+        if (!json.has("type")) {
+            return ChildQrValidationResult.Invalid("Missing QR type")
+        }
+        val type = json.optString("type")
         if (type != "child_pair") {
-            return ChildQrValidationResult.Invalid("Invalid QR type: ${type ?: "missing"}")
+            return ChildQrValidationResult.Invalid("Invalid QR type: $type")
         }
 
-        // 3. SessionId check (UUID format)
-        val sessionMatch = Regex("""\"sessionId\"\s*:\s*\"([0-9a-fA-F\-]{36})\"""").find(trimmed)
-        val sessionId = sessionMatch?.groupValues?.get(1)
-        if (sessionId == null) {
-            return ChildQrValidationResult.Invalid("Missing or invalid sessionId in QR")
+        // 3. SessionId check (UUID format required)
+        if (!json.has("sessionId")) {
+            return ChildQrValidationResult.Invalid("Missing sessionId in QR")
+        }
+        val sessionId = json.optString("sessionId")
+        val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        if (!uuidRegex.matches(sessionId)) {
+            return ChildQrValidationResult.Invalid("Invalid UUID sessionId in QR: $sessionId")
         }
 
-        // 4. Code check (9 digits)
-        val codeMatch = Regex("""\"(?:code|pairingCode)\"\s*:\s*\"?([0-9]{9})\"?""").find(trimmed)
-        val code = codeMatch?.groupValues?.get(1)
-        if (code == null) {
-            return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR")
-        }
-
-        // 5. Expiry check (handles ISO-8601 string or numeric millisecond timestamp)
-        val expiresMatch = Regex("""\"expiresAt\"\s*:\s*(?:\"([^\"]+)\"|([0-9]+))""").find(trimmed)
-        val expiresStr = expiresMatch?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
-        val expiresNum = expiresMatch?.groupValues?.get(2)?.toLongOrNull()
-        val expiryMs = when {
-            expiresNum != null -> expiresNum
-            expiresStr != null -> try {
-                java.time.Instant.parse(expiresStr).toEpochMilli()
-            } catch (_: Exception) {
-                null
-            }
+        // 4. Code check (strictly 9 digits)
+        val codeRaw = when {
+            json.has("code") -> json.optString("code")
+            json.has("pairingCode") -> json.optString("pairingCode")
             else -> null
         }
-        val displayExpires = expiresStr ?: expiresNum?.toString()
-        if (expiryMs != null && expiryMs < nowMs) {
-            return ChildQrValidationResult.Expired(code = code, expiresAt = displayExpires)
+        if (codeRaw.isNullOrBlank() || !codeRaw.matches(Regex("^[0-9]{9}$"))) {
+            return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR: $codeRaw")
         }
 
-        return ChildQrValidationResult.Valid(code = code, sessionId = sessionId, expiresAt = displayExpires)
-    }
-
-    // Colon-delimited scheme: pc-pair:123456789 or pcpair:123456789
-    val parts = trimmed.split(":")
-    if (parts.size >= 2 && (parts[0].equals("pc-pair", ignoreCase = true) || parts[0].equals("pcpair", ignoreCase = true))) {
-        val code = parts[1].filter { it.isDigit() }
-        if (code.length == 9) {
-            return ChildQrValidationResult.Valid(code = code, sessionId = null, expiresAt = null)
+        // 5. Expiry check: strictly mandatory, rejects missing/empty/unparsable
+        if (!json.has("expiresAt") || json.isNull("expiresAt")) {
+            return ChildQrValidationResult.Invalid("Missing expiresAt in QR")
         }
-    }
 
-    // Plain numeric 9-digit code
-    val digitsOnly = trimmed.filter { it.isDigit() }
-    if (digitsOnly.length == 9) {
-        return ChildQrValidationResult.Valid(code = digitsOnly, sessionId = null, expiresAt = null)
-    }
+        val displayExpires = json.optString("expiresAt", "")
+        val expiryMs: Long = when {
+            json.optLong("expiresAt", -1L) > 0L -> json.getLong("expiresAt")
+            displayExpires.isNotBlank() -> try {
+                java.time.Instant.parse(displayExpires).toEpochMilli()
+            } catch (_: Exception) {
+                return ChildQrValidationResult.Invalid("Malformed expiresAt timestamp in QR: $displayExpires")
+            }
+            else -> return ChildQrValidationResult.Invalid("Missing or empty expiresAt in QR")
+        }
 
-    return ChildQrValidationResult.Invalid("Invalid pairing QR format")
+        if (expiryMs < nowMs) {
+            ChildQrValidationResult.Expired(code = codeRaw, expiresAt = displayExpires)
+        } else {
+            ChildQrValidationResult.Valid(code = codeRaw, sessionId = sessionId, expiresAt = displayExpires)
+        }
+    } catch (e: Exception) {
+        ChildQrValidationResult.Invalid("Malformed JSON QR payload: ${e.message}")
+    }
 }
 
 internal fun extractPairingCode(raw: String): String {

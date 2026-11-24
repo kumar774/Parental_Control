@@ -78,16 +78,33 @@ class DevicePairingContractTest {
     }
 
     @Test
-    fun testColonSchemeAndPlainDigitsAccepted() {
-        val colonPayload = "pc-pair:123456789"
-        val res1 = parseChildQrContract(colonPayload)
-        assertTrue(res1 is ChildQrValidationResult.Valid)
-        assertEquals("123456789", (res1 as ChildQrValidationResult.Valid).code)
+    fun testMissingOrMalformedExpiresAtRejected() {
+        // Missing expiresAt
+        val missingExpires = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321"}"""
+        val res1 = parseChildQrContract(missingExpires, nowMs = fixedNowMs)
+        assertTrue(res1 is ChildQrValidationResult.Invalid)
 
-        val plainDigits = "456789123"
-        val res2 = parseChildQrContract(plainDigits)
-        assertTrue(res2 is ChildQrValidationResult.Valid)
-        assertEquals("456789123", (res2 as ChildQrValidationResult.Valid).code)
+        // Malformed non-date string
+        val malformedExpires = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":"invalid-timestamp"}"""
+        val res2 = parseChildQrContract(malformedExpires, nowMs = fixedNowMs)
+        assertTrue(res2 is ChildQrValidationResult.Invalid)
+
+        // Empty string
+        val emptyExpires = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":""}"""
+        val res3 = parseChildQrContract(emptyExpires, nowMs = fixedNowMs)
+        assertTrue(res3 is ChildQrValidationResult.Invalid)
+
+        // Null value
+        val nullExpires = """{"version":1,"type":"child_pair","sessionId":"00000000-0000-0000-0000-000000000001","code":"987654321","expiresAt":null}"""
+        val res4 = parseChildQrContract(nullExpires, nowMs = fixedNowMs)
+        assertTrue(res4 is ChildQrValidationResult.Invalid)
+    }
+
+    @Test
+    fun testNonJsonPlainStringRejected() {
+        val plain = "some-random-barcode-data"
+        val res = parseChildQrContract(plain, nowMs = fixedNowMs)
+        assertTrue(res is ChildQrValidationResult.Invalid)
     }
 
     @Test

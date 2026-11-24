@@ -31,7 +31,7 @@ const pairCodeSchema = z.object({
 
 const pairConfirmSchema = z.object({
   code: z.string().min(1, 'Pairing code is required'),
-  sessionId: z.string().uuid().optional(),
+  sessionId: z.string().uuid('Valid UUID sessionId is required for pairing confirmation'),
   childName: z.string().trim().min(1).max(100).default('Child'),
   deviceName: z.string().trim().max(255).default('Android Phone'),
   model: z.string().trim().max(255).optional(),
@@ -253,28 +253,17 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
 
     const rawInput = parsed.data.code.trim();
     const normalizedCode = normalizePairingCode(rawInput);
-    const providedSessionId = parsed.data.sessionId;
+    const sessionId = parsed.data.sessionId;
 
     try {
       const result = await db.transaction(async (tx) => {
-        const whereClause = providedSessionId
-          ? and(
-              sql`${pairingSessions.id}::text = ${providedSessionId}`,
-              or(
-                eq(pairingSessions.parentId, parent.id),
-                isNull(pairingSessions.parentId)
-              )
-            )
-          : and(
-              or(
-                eq(pairingSessions.pairingCode, normalizedCode),
-                sql`${pairingSessions.id}::text = ${rawInput}`
-              ),
-              or(
-                eq(pairingSessions.parentId, parent.id),
-                isNull(pairingSessions.parentId)
-              )
-            );
+        const whereClause = and(
+          sql`${pairingSessions.id}::text = ${sessionId}`,
+          or(
+            eq(pairingSessions.parentId, parent.id),
+            isNull(pairingSessions.parentId)
+          )
+        );
 
         const [session] = await tx
           .select()
@@ -287,8 +276,8 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
           return { error: 'Pairing session not found for this account', status: 404 };
         }
 
-        // Validate code matches the designated session if sessionId was explicitly provided
-        if (providedSessionId && normalizePairingCode(session.pairingCode) !== normalizedCode) {
+        // Validate code strictly matches the designated session
+        if (normalizePairingCode(session.pairingCode) !== normalizedCode) {
           return { error: 'Pairing session ID and code mismatch', status: 400 };
         }
 
@@ -385,6 +374,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       return reply.status(200).send({
         statusCode: 200,
         message: 'Device paired successfully',
+        id: result.device.id,
         deviceId: result.device.id,
         childName: result.device.childName,
         deviceName: result.device.deviceModel || parsed.data.deviceName,

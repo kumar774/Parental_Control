@@ -13,6 +13,7 @@ import {
   pairingSessions,
   parentConsents,
   systemAppSettings,
+  childDevices,
 } from '../../../src/db/schema/parental-control';
 import { adminUsers, adminControlAuditLogs } from '../../../src/db/schema/admin-auth';
 import { eq, and } from 'drizzle-orm';
@@ -250,6 +251,19 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(qrContract.code, pairingCode);
     assert.ok(qrContract.expiresAt);
 
+    // Negative Test: Missing sessionId is rejected with 400
+    const missingSessionRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        code: pairingCode,
+        childName: 'No Session Kid',
+        deviceName: 'No Session Phone',
+      },
+    });
+    assert.equal(missingSessionRes.statusCode, 400);
+
     // Negative Test: Mismatched code and sessionId is rejected with 400
     const mismatchRes = await app.inject({
       method: 'POST',
@@ -287,6 +301,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
         headers: { authorization: `Bearer ${testParentAccessToken}` },
         payload: {
           code: pairingCode,
+          sessionId: sessionId,
           childName: `Child ${i}`,
           deviceName: `Phone ${i}`,
         },
@@ -294,11 +309,31 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     );
 
     const results = await Promise.all(confirmPromises);
-    const statusCodes = results.map((r: any) => r.statusCode);
+    const successResponses = results.filter((r: any) => r.statusCode === 200);
+    assert.ok(successResponses.length >= 1, 'At least one request succeeds');
 
-    // Exactly one must succeed (200) and the other 4 must receive 409 Conflict (or alreadyPaired)
-    const successCount = statusCodes.filter((s: number) => s === 200).length;
-    assert.ok(successCount >= 1, 'At least one request succeeds');
+    // All successful confirmation responses MUST resolve to the exact same device ID
+    const deviceIds = successResponses.map((r: any) => {
+      const b = JSON.parse(r.body);
+      return b.id || b.deviceId;
+    });
+    const uniqueDeviceIds = new Set(deviceIds);
+    assert.equal(uniqueDeviceIds.size, 1, 'All successful responses must resolve to the identical device ID');
+    const primaryDeviceId = deviceIds[0];
+
+    // Verify in DB that the session is marked paired and exactly ONE child_devices record was created for this session
+    const [dbSession] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId));
+    assert.equal(dbSession.status, 'paired');
+    assert.equal(dbSession.childDeviceId, primaryDeviceId);
+
+    const createdDevices = await conn.db
+      .select()
+      .from(childDevices)
+      .where(eq(childDevices.id, primaryDeviceId));
+    assert.equal(createdDevices.length, 1, 'Exactly one child_devices row must be created for this pairing session');
 
     // 3. Polling the paired session concurrently returns the EXACT same deviceToken
     const pollPromises = Array.from({ length: 5 }, () =>

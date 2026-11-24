@@ -874,12 +874,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       };
     });
 
-    if ('code' in txResult && typeof txResult.status === 'number') {
-      const statusCode: number = txResult.status;
-      return reply.status(statusCode).send({
-        statusCode,
+    if ('code' in txResult && typeof txResult.code === 'string') {
+      const errorStatus = (txResult as { status: number; code: string; message: string }).status;
+      return reply.status(errorStatus).send({
+        statusCode: errorStatus,
         code: txResult.code,
-        error: statusCode === 403 ? 'Forbidden' : 'Conflict',
+        error: errorStatus === 403 ? 'Forbidden' : 'Conflict',
         message: txResult.message,
       });
     }
