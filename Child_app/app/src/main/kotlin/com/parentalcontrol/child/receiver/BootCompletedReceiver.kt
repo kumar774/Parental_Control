@@ -26,23 +26,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         ) {
             val storage = DeviceStorage.getInstance(context)
             if (storage.isPaired()) {
-                Log.i(TAG, "Device is paired. Restoring ChildMonitoringService and HeartbeatWorker on boot.")
-                try {
-                    val serviceIntent = Intent(context, ChildMonitoringService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ContextCompat.startForegroundService(context, serviceIntent)
-                    } else {
-                        context.startService(serviceIntent)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to start foreground service on boot: ${e.message}", e)
-                }
-
-                try {
-                    HeartbeatWorker.schedulePeriodic(context)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to schedule HeartbeatWorker on boot: ${e.message}")
-                }
+                Log.i(TAG, "Device is paired. Milestone scope: post-pairing background monitoring remains inactive.")
             } else {
                 Log.d(TAG, "Device is not paired; ignoring boot event.")
             }

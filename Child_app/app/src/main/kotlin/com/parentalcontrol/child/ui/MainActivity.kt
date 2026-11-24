@@ -19,6 +19,7 @@ import com.parentalcontrol.child.service.ChildMonitoringService
 import com.parentalcontrol.child.storage.DeviceSession
 import com.parentalcontrol.child.storage.DeviceStorage
 import com.parentalcontrol.child.ui.home.ChildHomeScreen
+import com.parentalcontrol.child.ui.pairing.ChildPairingSuccessScreen
 import com.parentalcontrol.child.ui.pairing.ConnectToParentScreen
 import com.parentalcontrol.child.ui.pairing.KidConsentScreen
 import com.parentalcontrol.child.ui.pairing.KidDeviceSelectScreen
@@ -63,23 +64,10 @@ class MainActivity : ComponentActivity() {
 
             var onboardingStep by remember { mutableIntStateOf(0) }
 
-            if (isPaired) {
-                // Only start monitoring service if stored session passes strict validation
-                // and there is no pending ACK awaiting server confirmation
-                if (storage.isPaired() && storage.getPendingPairAck() == null) {
-                    try {
-                        val serviceIntent = Intent(this, ChildMonitoringService::class.java)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            ContextCompat.startForegroundService(this, serviceIntent)
-                        } else {
-                            startService(serviceIntent)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to start ChildMonitoringService: ${e.message}")
-                    }
-                }
-
-                ChildHomeScreen(
+            if (isPaired && currentSession != null) {
+                // Milestone scope: terminal pairing success screen
+                // Post-pairing monitoring, heartbeat worker, and background services remain inactive
+                ChildPairingSuccessScreen(
                     session = currentSession,
                     onUnpairClick = {
                         lifecycleScope.launch(Dispatchers.IO) {
@@ -137,18 +125,6 @@ class MainActivity : ComponentActivity() {
                 val outcome = PairAckRetryManager.retryPendingAckIfNeeded(this@MainActivity, storage)
                 withContext(Dispatchers.Main) {
                     refreshStateFromStorage()
-                    if (outcome is AckRetryResult.Confirmed && storage.isPaired()) {
-                        try {
-                            val serviceIntent = Intent(this@MainActivity, ChildMonitoringService::class.java)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                ContextCompat.startForegroundService(this@MainActivity, serviceIntent)
-                            } else {
-                                startService(serviceIntent)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to start service after ACK confirmed: ${e.message}")
-                        }
-                    }
                 }
             }
         }

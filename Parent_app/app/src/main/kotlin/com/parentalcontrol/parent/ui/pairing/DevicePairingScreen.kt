@@ -333,13 +333,13 @@ fun DevicePairingScreen(
                             childAge = 10,
                             avatarUrl = null,
                             isLocked = false,
-                            batteryPercent = 100,
+                            batteryPercent = 0,
                             isCharging = false,
-                            isOnline = true,
+                            isOnline = false,
                             activeApp = null,
                             lastKnownLat = null,
                             lastKnownLng = null,
-                            lastSeenAt = System.currentTimeMillis()
+                            lastSeenAt = 0L
                         )
                     )
                     Toast.makeText(context, "Child device successfully bound!", Toast.LENGTH_SHORT).show()
@@ -376,13 +376,13 @@ fun DevicePairingScreen(
                                 childAge = 10,
                                 avatarUrl = null,
                                 isLocked = false,
-                                batteryPercent = 100,
+                                batteryPercent = 0,
                                 isCharging = false,
-                                isOnline = true,
+                                isOnline = false,
                                 activeApp = null,
                                 lastKnownLat = null,
                                 lastKnownLng = null,
-                                lastSeenAt = System.currentTimeMillis()
+                                lastSeenAt = 0L
                             )
                         )
                         onPairingSuccess(childName, deviceName)
@@ -514,13 +514,13 @@ fun DevicePairingScreen(
                                                 childAge = 10,
                                                 avatarUrl = null,
                                                 isLocked = false,
-                                                batteryPercent = 100,
+                                                batteryPercent = 0,
                                                 isCharging = false,
-                                                isOnline = true,
+                                                isOnline = false,
                                                 activeApp = null,
                                                 lastKnownLat = null,
                                                 lastKnownLng = null,
-                                                lastSeenAt = System.currentTimeMillis()
+                                                lastSeenAt = 0L
                                             )
                                         )
                                         onPairingSuccess(dev.childName, dev.deviceName)
@@ -823,7 +823,7 @@ private fun Section02BindChildDevice(
 
         // Part 2: Generated 9-Digit Code Option (NICHE)
         Text(
-            text = "2. You can also bind child's device through 9-digit code:",
+            text = "2. Enter this 9-digit code in the Child App to pair:",
             color = Color(0xFF94A3B8),
             fontSize = 12.sp,
             modifier = Modifier.fillMaxWidth()

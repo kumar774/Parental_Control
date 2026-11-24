@@ -322,12 +322,12 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
             osVersion: parsed.data.osVersion,
             appVersion: parsed.data.appVersion,
             isLocked: false,
-            batteryPct: 100,
+            batteryPct: null,
             isCharging: false,
-            accessibilityHealthy: true,
-            deviceAdminActive: true,
+            accessibilityHealthy: false,
+            deviceAdminActive: false,
             knoxActive: false,
-            lastSeenAt: new Date(),
+            lastSeenAt: null,
           })
           .returning();
 
