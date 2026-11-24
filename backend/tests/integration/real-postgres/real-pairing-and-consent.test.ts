@@ -395,7 +395,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     // 1. Initiate pairing from parent side
     const initRes = await app.inject({
       method: 'POST',
-      url: '/api/v1/devices/pair-initiate',
+      url: '/api/v1/devices/pair-code',
       headers: { authorization: `Bearer ${testParentAccessToken}` },
     });
     assert.equal(initRes.statusCode, 200);
@@ -477,7 +477,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     // 7. Child unpair and parent removal verification with fresh paired device
     const initRes2 = await app.inject({
       method: 'POST',
-      url: '/api/v1/devices/pair-initiate',
+      url: '/api/v1/devices/pair-code',
       headers: { authorization: `Bearer ${testParentAccessToken}` },
     });
     const { code: code2 } = JSON.parse(initRes2.body);
