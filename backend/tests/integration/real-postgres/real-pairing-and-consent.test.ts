@@ -8,6 +8,7 @@ import {
 } from './real-postgres-harness';
 import { buildApp } from '../../../src/app';
 import { env } from '../../../src/config/env';
+import { pool } from '../../../src/db/index';
 import {
   parentUsers,
   pairingSessions,
@@ -61,6 +62,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       await conn.db.delete(parentUsers).where(eq(parentUsers.id, testParentId)).catch(() => {});
       await conn.pool.end().catch(() => {});
     }
+    await pool.end().catch(() => {});
     if (app) {
       await app.close();
     }
@@ -458,6 +460,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     });
     assert.equal(heartbeat2.statusCode, 200);
 
+    // Wait for the concurrency race grace period (1500ms) to elapse before attempting replay attack
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+
     // 6. Replay attack detection: Attempting to use old initialRefreshToken triggers revocation of all device tokens
     const replayRes = await app.inject({
       method: 'POST',
@@ -507,6 +512,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       payload: { reason: 'child_user_unpair' },
     });
     assert.equal(unpairRes.statusCode, 200);
+    const unpairJson = JSON.parse(unpairRes.body);
+    assert.equal(unpairJson.status, 'unpaired');
 
     // Calling unpair again is idempotent and returns 200
     const unpairIdempotent = await app.inject({
@@ -516,6 +523,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       payload: { reason: 'child_user_unpair' },
     });
     assert.equal(unpairIdempotent.statusCode, 200);
+    const unpairIdempotentJson = JSON.parse(unpairIdempotent.body);
+    assert.equal(unpairIdempotentJson.status, 'unpaired');
 
     // Heartbeat with unpaired token is now rejected with 401
     const heartbeatAfterUnpair = await app.inject({
@@ -538,5 +547,213 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       false,
       'Unpaired device must not appear in parent active devices list'
     );
+  });
+
+  it('5. Concurrency: Simultaneous refresh requests with identical refresh token serialize cleanly via FOR UPDATE, allowing exactly ONE to succeed with no duplicate active credentials', async () => {
+    // 1. Initiate pairing from parent side
+    const initRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(initRes.statusCode, 200);
+    const { code: pairingCode } = JSON.parse(initRes.body);
+
+    // 2. Child completes pairing with code
+    const pairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: {
+        pairingCode,
+        childName: 'Concurrency Refresh Child',
+        deviceModel: 'Pixel 9 Concurrency',
+      },
+    });
+    assert.equal(pairRes.statusCode, 200);
+    const pairJson = JSON.parse(pairRes.body);
+    const deviceId = pairJson.deviceId;
+    const initialRefreshToken = pairJson.refreshToken;
+
+    assert.ok(deviceId);
+    assert.ok(initialRefreshToken);
+
+    // 3. Fire two simultaneous refresh requests using Promise.all
+    const [resA, resB] = await Promise.all([
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/child/refresh-token',
+        payload: { refreshToken: initialRefreshToken, deviceId },
+      }),
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/child/refresh-token',
+        payload: { refreshToken: initialRefreshToken, deviceId },
+      }),
+    ]);
+
+    const statusCodes = [resA.statusCode, resB.statusCode].sort();
+    assert.deepEqual(
+      statusCodes,
+      [200, 401],
+      'Simultaneous refresh requests must result in exactly one 200 and one 401 safe failure'
+    );
+
+    const successRes = resA.statusCode === 200 ? resA : resB;
+    const failRes = resA.statusCode === 401 ? resA : resB;
+
+    const successJson = JSON.parse(successRes.body);
+    const failJson = JSON.parse(failRes.body);
+
+    assert.ok(successJson.accessToken, 'Successful response must contain new access token');
+    assert.ok(successJson.refreshToken, 'Successful response must contain new refresh token');
+    assert.notEqual(successJson.refreshToken, initialRefreshToken, 'Refresh token must be rotated');
+    assert.equal(failJson.statusCode, 401);
+
+    // 4. Database verification: Verify single active refresh token guarantee in real Postgres
+    const activeTokens = await conn.db
+      .select()
+      .from(childDeviceTokens)
+      .where(
+        and(
+          eq(childDeviceTokens.deviceId, deviceId),
+          eq(childDeviceTokens.isRevoked, false)
+        )
+      );
+
+    assert.equal(
+      activeTokens.length,
+      1,
+      'There must be EXACTLY ONE active, unrevoked refresh token in the database (no duplicate active credentials)'
+    );
+
+    // 5. Verify the newly minted credential is fully operational
+    const heartbeatRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${successJson.accessToken}` },
+      payload: { batteryPct: 95, isCharging: false },
+    });
+    assert.equal(heartbeatRes.statusCode, 200, 'Device must be able to use the winning access token for heartbeat');
+  });
+
+  it('6. Device unpair succeeds with expired access token when valid refresh token is provided', async () => {
+    // 1. Pair a new device
+    const initRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(initRes.statusCode, 200);
+    const { code: pairingCode } = JSON.parse(initRes.body);
+
+    const pairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: {
+        pairingCode,
+        childName: 'Expired Token Unpair Child',
+        deviceModel: 'Samsung Galaxy S24',
+      },
+    });
+    assert.equal(pairRes.statusCode, 200);
+    const { deviceId, refreshToken } = JSON.parse(pairRes.body);
+
+    // 2. Synthesize an expired child access token
+    const expiredAccessToken = jwt.sign(
+      {
+        deviceId,
+        parentId: testParentId,
+        role: 'child',
+        jti: crypto.randomUUID(),
+      },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: -10 } // Expired 10 seconds ago
+    );
+
+    // 3. Heartbeat with expired token MUST be rejected with 401
+    const expiredHeartbeat = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${expiredAccessToken}` },
+      payload: { batteryPct: 50 },
+    });
+    assert.equal(expiredHeartbeat.statusCode, 401, 'Expired access token must be rejected on regular endpoints');
+
+    // 4. Calling unpair with expired access token BUT supplying valid refreshToken in body MUST succeed
+    const unpairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/unpair',
+      headers: { authorization: `Bearer ${expiredAccessToken}` },
+      payload: {
+        refreshToken,
+        reason: 'client_initiated_offline_unpair',
+      },
+    });
+
+    assert.equal(unpairRes.statusCode, 200);
+    const unpairJson = JSON.parse(unpairRes.body);
+    assert.equal(unpairJson.statusCode, 200);
+    assert.equal(unpairJson.status, 'unpaired', 'Explicit status: unpaired must be returned');
+    assert.equal(unpairJson.deviceId, deviceId);
+
+    // 5. Verify real database state: device marked isUnpaired and all tokens revoked
+    const [dbDevice] = await conn.db
+      .select()
+      .from(childDevices)
+      .where(eq(childDevices.id, deviceId))
+      .limit(1);
+    assert.ok(dbDevice);
+    assert.equal(dbDevice.isUnpaired, true, 'Device record must have isUnpaired = true');
+
+    const dbTokens = await conn.db
+      .select()
+      .from(childDeviceTokens)
+      .where(eq(childDeviceTokens.deviceId, deviceId));
+    assert.ok(dbTokens.length > 0);
+    for (const t of dbTokens) {
+      assert.equal(t.isRevoked, true, 'All tokens for device must be revoked');
+      assert.equal(t.revocationReason, 'child_unpair');
+    }
+
+    // 6. Idempotent retry: Calling unpair again with same refreshToken returns 200 with status: 'unpaired'
+    const retryUnpairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/unpair',
+      payload: { refreshToken },
+    });
+    assert.equal(retryUnpairRes.statusCode, 200);
+    const retryJson = JSON.parse(retryUnpairRes.body);
+    assert.equal(retryJson.status, 'unpaired');
+
+    // 7. Parent removal: Calling DELETE /api/v1/devices/:deviceId on an active device revokes all credentials and returns status: 'unpaired'
+    const initRes3 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    const { code: code3 } = JSON.parse(initRes3.body);
+
+    const pairRes3 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { pairingCode: code3, childName: 'Parent Removed Child' },
+    });
+    const { deviceId: deviceId3 } = JSON.parse(pairRes3.body);
+
+    const parentRemoveRes = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/devices/${deviceId3}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(parentRemoveRes.statusCode, 200);
+    const parentRemoveJson = JSON.parse(parentRemoveRes.body);
+    assert.equal(parentRemoveJson.status, 'unpaired', 'Parent removal must return status: unpaired');
+
+    const [dbDevice3] = await conn.db
+      .select()
+      .from(childDevices)
+      .where(eq(childDevices.id, deviceId3))
+      .limit(1);
+    assert.equal(dbDevice3.isUnpaired, true);
   });
 });

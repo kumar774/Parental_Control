@@ -544,6 +544,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
 
     return reply.status(200).send({
       statusCode: 200,
+      status: 'unpaired',
       message: 'Device removed and credentials revoked successfully',
       deviceId: device.id,
     });

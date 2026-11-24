@@ -1,7 +1,8 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import jwt from 'jsonwebtoken';
 import { buildApp } from '../../src/app';
+import { pool } from '../../src/db/index';
 import { env } from '../../src/config/env';
 import {
   getAppSettings,
@@ -23,6 +24,10 @@ describe('Pairing & App Settings Security Unit Tests', () => {
   beforeEach(async () => {
     await resetAppSettingsForTest();
     setGoogleTokenVerifierForTest(null);
+  });
+
+  after(async () => {
+    await pool.end().catch(() => {});
   });
 
   describe('1. App Settings Service & Public Config', () => {

@@ -7,9 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -18,22 +16,27 @@ import com.parentalcontrol.child.network.ChildRestClient
 import com.parentalcontrol.child.network.HeartbeatOutcome
 import com.parentalcontrol.child.storage.DeviceStorage
 import com.parentalcontrol.child.ui.MainActivity
+import com.parentalcontrol.child.worker.HeartbeatWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Ongoing foreground service providing persistent authenticated connection, telemetry sync,
- * and heartbeat reporting for paired child devices under Android background execution limits.
+ * Android 14+ compliant foreground service for Child Companion App.
+ *
+ * In compliance with API 34+ execution limits for FOREGROUND_SERVICE_TYPE_DATA_SYNC:
+ * 1. Does NOT run an endless while(isActive) loop.
+ * 2. Offloads persistent periodic sync to WorkManager (HeartbeatWorker).
+ * 3. Uses START_NOT_STICKY rather than pure START_STICKY to avoid infinite watchdog timeout restarts.
+ * 4. Manages ongoing foreground notification and performs bounded initial telemetry sync.
+ * 5. Reactively updates MonitoringStateManager and tears down cleanly upon credential revocation.
  */
 class ChildMonitoringService : Service() {
 
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
-    private var heartbeatLoopActive = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -46,18 +49,21 @@ class ChildMonitoringService : Service() {
         val storage = DeviceStorage.getInstance(applicationContext)
         if (!storage.isPaired()) {
             Log.w(TAG, "ChildMonitoringService started while device is not paired. Stopping service immediately.")
+            MonitoringStateManager.updateState(MonitoringState.Offline("Device not paired"))
             stopSelf()
             return START_NOT_STICKY
         }
 
+        MonitoringStateManager.updateState(MonitoringState.Paired)
         startForegroundNotification()
 
-        if (!heartbeatLoopActive) {
-            heartbeatLoopActive = true
-            startHeartbeatAndTelemetryLoop(storage)
-        }
+        // Ensure WorkManager periodic sync is enqueued for persistent background telemetry
+        HeartbeatWorker.schedulePeriodic(applicationContext)
 
-        return START_STICKY
+        // Perform bounded single initial sync on service start
+        performInitialSync(storage)
+
+        return START_NOT_STICKY
     }
 
     private fun startForegroundNotification() {
@@ -90,76 +96,66 @@ class ChildMonitoringService : Service() {
         }
     }
 
-    private fun startHeartbeatAndTelemetryLoop(storage: DeviceStorage) {
+    private fun performInitialSync(storage: DeviceStorage) {
         serviceScope.launch {
-            var delayMs = INITIAL_HEARTBEAT_INTERVAL_MS
-            while (isActive) {
-                if (!storage.isPaired()) {
-                    Log.w(TAG, "Storage no longer reports paired. Stopping monitoring loop.")
-                    stopSelf()
-                    break
-                }
-
-                val session = storage.getSession()
-                val token = session.deviceToken
-                if (token.isNullOrBlank()) {
-                    Log.w(TAG, "No valid device token found in session. Marking repair and stopping service.")
-                    storage.markPairingRequiresRepair()
-                    stopSelf()
-                    break
-                }
-
-                val (batteryPct, isCharging) = getBatteryStatus()
-
-                when (val outcome = ChildRestClient.instance.sendHeartbeat(token, batteryPct, isCharging)) {
-                    is HeartbeatOutcome.Success -> {
-                        Log.d(TAG, "Heartbeat acknowledged by server successfully (battery=$batteryPct%, charging=$isCharging)")
-                        delayMs = INITIAL_HEARTBEAT_INTERVAL_MS // Reset delay on successful ping
-                    }
-                    is HeartbeatOutcome.TokenExpiredOrRevoked -> {
-                        Log.w(TAG, "Heartbeat rejected with ${outcome.statusCode}: ${outcome.message}. Attempting token refresh...")
-                        val refreshToken = session.refreshToken
-                        if (!refreshToken.isNullOrBlank()) {
-                            val refreshResult = ChildRestClient.instance.refreshDeviceToken(refreshToken, session.deviceId)
-                            if (refreshResult.success && !refreshResult.deviceToken.isNullOrBlank()) {
-                                Log.i(TAG, "Device token successfully refreshed. Resuming heartbeat.")
-                                storage.updateTokens(refreshResult.deviceToken, refreshResult.refreshToken)
-                                delayMs = INITIAL_HEARTBEAT_INTERVAL_MS
-                                continue
-                            }
-                        }
-                        // Refresh token absent or permanently rejected -> credentials revoked
-                        Log.e(TAG, "Device credentials permanently revoked or refresh failed. Stopping service and marking repair.")
-                        storage.markPairingRequiresRepair()
-                        stopSelf()
-                        break
-                    }
-                    is HeartbeatOutcome.TransientError -> {
-                        Log.w(TAG, "Transient error during heartbeat: ${outcome.message}. Backing off.")
-                        delayMs = (delayMs * 2).coerceAtMost(MAX_BACKOFF_INTERVAL_MS)
-                    }
-                }
-
-                delay(delayMs)
+            if (!storage.isPaired()) {
+                stopSelf()
+                return@launch
             }
-        }
-    }
 
-    private fun getBatteryStatus(): Pair<Int?, Boolean?> {
-        return try {
-            val intentFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-            val batteryStatus = registerReceiver(null, intentFilter)
-            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val session = storage.getSession()
+            val token = session.deviceToken
+            if (token.isNullOrBlank()) {
+                Log.w(TAG, "Missing device token in session. Marking repair and stopping service.")
+                storage.markPairingRequiresRepair()
+                MonitoringStateManager.updateState(MonitoringState.CredentialsRevoked("Missing device token"))
+                stopSelf()
+                return@launch
+            }
 
-            val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale) else null
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                    status == BatteryManager.BATTERY_STATUS_FULL
+            MonitoringStateManager.updateState(MonitoringState.Reconnecting)
+            val (batteryPct, isCharging) = HeartbeatWorker.getBatteryStatus(applicationContext)
+            val isAdminActive = HeartbeatWorker.isDeviceAdminActive(applicationContext)
 
-            Pair(batteryPct, isCharging)
-        } catch (_: Exception) {
-            Pair(null, null)
+            when (val outcome = ChildRestClient.instance.sendHeartbeat(
+                deviceToken = token,
+                batteryPct = batteryPct,
+                isCharging = isCharging,
+                deviceAdminActive = isAdminActive
+            )) {
+                is HeartbeatOutcome.Success -> {
+                    Log.d(TAG, "Initial heartbeat sync acknowledged by server successfully")
+                    val now = System.currentTimeMillis()
+                    storage.saveLastSeen(now)
+                    MonitoringStateManager.updateState(MonitoringState.Online)
+                    MonitoringStateManager.updateState(MonitoringState.LastSeen(now))
+                }
+                is HeartbeatOutcome.TokenExpiredOrRevoked -> {
+                    Log.w(TAG, "Initial heartbeat rejected with ${outcome.statusCode}. Attempting token refresh...")
+                    val refreshToken = session.refreshToken
+                    if (!refreshToken.isNullOrBlank()) {
+                        val refreshResult = ChildRestClient.instance.refreshDeviceToken(refreshToken, session.deviceId)
+                        if (refreshResult.success && !refreshResult.deviceToken.isNullOrBlank()) {
+                            Log.i(TAG, "Token successfully refreshed during initial sync.")
+                            storage.updateTokens(refreshResult.deviceToken, refreshResult.refreshToken)
+                            val now = System.currentTimeMillis()
+                            storage.saveLastSeen(now)
+                            MonitoringStateManager.updateState(MonitoringState.Online)
+                            MonitoringStateManager.updateState(MonitoringState.LastSeen(now))
+                            return@launch
+                        }
+                    }
+                    Log.e(TAG, "Device credentials permanently revoked on server. Resetting to PAIRING_REQUIRES_REPAIR.")
+                    storage.markPairingRequiresRepair()
+                    MonitoringStateManager.updateState(MonitoringState.CredentialsRevoked(outcome.message))
+                    HeartbeatWorker.cancelPeriodic(applicationContext)
+                    stopSelf()
+                }
+                is HeartbeatOutcome.TransientError -> {
+                    Log.w(TAG, "Transient error during initial sync: ${outcome.message}")
+                    MonitoringStateManager.updateState(MonitoringState.Offline(outcome.message))
+                }
+            }
         }
     }
 
@@ -180,8 +176,7 @@ class ChildMonitoringService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        heartbeatLoopActive = false
-        serviceJob.cancel()
+        serviceScope.cancel()
         Log.i(TAG, "ChildMonitoringService destroyed")
     }
 
@@ -189,7 +184,5 @@ class ChildMonitoringService : Service() {
         private const val TAG = "ChildMonitoringService"
         private const val CHANNEL_ID = "guardian_kids_monitoring_channel"
         private const val NOTIFICATION_ID = 4001
-        private const val INITIAL_HEARTBEAT_INTERVAL_MS = 60_000L // 60s
-        private const val MAX_BACKOFF_INTERVAL_MS = 300_000L // 5 mins
     }
 }

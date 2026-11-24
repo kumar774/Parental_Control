@@ -28,8 +28,12 @@ android {
   buildFeatures {
     compose = true
     aidl = false
-    buildConfig = true
+    buildConfig = false
     shaders = false
+  }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
   }
 
   packaging {
@@ -104,9 +108,8 @@ dependencies {
   implementation("com.google.mlkit:barcode-scanning:17.3.0")
   implementation("com.google.guava:guava:33.3.1-android")
 
-  // Google Identity & Credential Manager
-  val credentialsVersion = "1.3.0"
-  implementation("androidx.credentials:credentials:$credentialsVersion")
-  implementation("androidx.credentials:credentials-play-services-auth:$credentialsVersion")
+  // Google Credential Manager & Identity
+  implementation("androidx.credentials:credentials:1.3.0")
+  implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
   implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }

@@ -61,9 +61,9 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
 
   const pool = new Pool({
     connectionString: databaseUrl,
-    max: 5,
-    idleTimeoutMillis: 5000,
-    connectionTimeoutMillis: 5000,
+    max: 10,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 15000,
   });
 
   let dbName = '';

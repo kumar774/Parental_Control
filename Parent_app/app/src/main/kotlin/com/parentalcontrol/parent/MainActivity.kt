@@ -192,9 +192,6 @@ import com.parentalcontrol.parent.ui.modals.AvatarImageCropperBottomSheet
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG) {
-            com.parentalcontrol.core.network.config.AppNetworkConfig.IS_PRODUCTION = false
-        }
         enableEdgeToEdge()
         val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
             runCatching { AppScreen.valueOf(it) }.getOrNull()

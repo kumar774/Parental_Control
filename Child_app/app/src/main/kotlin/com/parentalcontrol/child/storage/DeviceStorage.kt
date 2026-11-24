@@ -12,6 +12,12 @@ enum class PairingStatus {
     PAIRING_REQUIRES_REPAIR
 }
 
+data class PendingUnpair(
+    val deviceId: String,
+    val deviceToken: String,
+    val refreshToken: String? = null
+)
+
 data class DeviceSession(
     val deviceId: String?,
     val deviceToken: String?,
@@ -81,7 +87,8 @@ class DeviceStorage internal constructor(
 
     /**
      * Validates that stored session meets strict production pairing criteria:
-     * status == PAIRED, valid UUID deviceId, valid UUID parentId, and non-blank deviceToken.
+     * status == PAIRED, valid UUID deviceId, valid UUID parentId, non-blank deviceToken (access token),
+     * and non-blank refreshToken.
      * If status is PAIRED but any field is missing or corrupt, atomically resets credentials
      * to PAIRING_REQUIRES_REPAIR and returns false.
      */
@@ -94,9 +101,10 @@ class DeviceStorage internal constructor(
         val hasValidDeviceId = isValidUuid(session.deviceId)
         val hasValidParentId = isValidUuid(session.parentId)
         val hasValidToken = !session.deviceToken.isNullOrBlank()
+        val hasValidRefreshToken = !session.refreshToken.isNullOrBlank()
 
-        if (!hasValidDeviceId || !hasValidParentId || !hasValidToken) {
-            Log.w(TAG, "Corrupt or incomplete paired session detected (validDeviceId=$hasValidDeviceId, validParentId=$hasValidParentId, hasToken=$hasValidToken). Resetting to PAIRING_REQUIRES_REPAIR.")
+        if (!hasValidDeviceId || !hasValidParentId || !hasValidToken || !hasValidRefreshToken) {
+            Log.w(TAG, "Corrupt or incomplete paired session detected (validDeviceId=$hasValidDeviceId, validParentId=$hasValidParentId, hasToken=$hasValidToken, hasRefreshToken=$hasValidRefreshToken). Resetting to PAIRING_REQUIRES_REPAIR.")
             markPairingRequiresRepair()
             return false
         }
@@ -130,7 +138,17 @@ class DeviceStorage internal constructor(
     }
 
     fun clearPairingSession() {
-        prefs.edit().clear().apply()
+        prefs.edit()
+            .remove(KEY_DEVICE_ID)
+            .remove(KEY_DEVICE_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .remove(KEY_PARENT_ID)
+            .remove(KEY_CHILD_NAME)
+            .remove(KEY_STATUS)
+            .remove(KEY_PAIRED_AT)
+            .remove(KEY_PENDING_ACK_SESSION_ID)
+            .remove(KEY_PENDING_ACK_POLLING_TOKEN)
+            .apply()
     }
 
     /**
@@ -170,24 +188,41 @@ class DeviceStorage internal constructor(
             .apply()
     }
 
-    fun markPendingUnpair(deviceId: String, deviceToken: String) {
-        prefs.edit()
+    fun markPendingUnpair(deviceId: String, deviceToken: String, refreshToken: String? = null) {
+        val editor = prefs.edit()
             .putString(KEY_PENDING_UNPAIR_DEVICE_ID, deviceId)
             .putString(KEY_PENDING_UNPAIR_DEVICE_TOKEN, deviceToken)
-            .apply()
+        if (!refreshToken.isNullOrBlank()) {
+            editor.putString(KEY_PENDING_UNPAIR_REFRESH_TOKEN, refreshToken)
+        } else {
+            editor.remove(KEY_PENDING_UNPAIR_REFRESH_TOKEN)
+        }
+        editor.apply()
     }
 
-    fun getPendingUnpair(): Pair<String, String>? {
+    fun getPendingUnpair(): PendingUnpair? {
         val id = prefs.getString(KEY_PENDING_UNPAIR_DEVICE_ID, null)
         val token = prefs.getString(KEY_PENDING_UNPAIR_DEVICE_TOKEN, null)
-        return if (!id.isNullOrBlank() && !token.isNullOrBlank()) Pair(id, token) else null
+        val refreshToken = prefs.getString(KEY_PENDING_UNPAIR_REFRESH_TOKEN, null)
+        return if (!id.isNullOrBlank() && !token.isNullOrBlank()) {
+            PendingUnpair(id, token, refreshToken)
+        } else null
     }
 
     fun clearPendingUnpair() {
         prefs.edit()
             .remove(KEY_PENDING_UNPAIR_DEVICE_ID)
             .remove(KEY_PENDING_UNPAIR_DEVICE_TOKEN)
+            .remove(KEY_PENDING_UNPAIR_REFRESH_TOKEN)
             .apply()
+    }
+
+    fun saveLastSeen(epochMs: Long) {
+        prefs.edit().putLong(KEY_LAST_SEEN_AT, epochMs).apply()
+    }
+
+    fun getLastSeen(): Long {
+        return prefs.getLong(KEY_LAST_SEEN_AT, 0L)
     }
 
     companion object {
@@ -205,6 +240,8 @@ class DeviceStorage internal constructor(
         const val KEY_PENDING_ACK_POLLING_TOKEN = "pending_ack_polling_token"
         const val KEY_PENDING_UNPAIR_DEVICE_ID = "pending_unpair_device_id"
         const val KEY_PENDING_UNPAIR_DEVICE_TOKEN = "pending_unpair_device_token"
+        const val KEY_PENDING_UNPAIR_REFRESH_TOKEN = "pending_unpair_refresh_token"
+        const val KEY_LAST_SEEN_AT = "last_seen_at_epoch_ms"
 
         @Volatile
         private var instance: DeviceStorage? = null

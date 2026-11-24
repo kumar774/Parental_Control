@@ -100,12 +100,47 @@ class DeviceStorageTest {
     }
 
     @Test
+    fun testMissingRefreshTokenTriggersRepairState() {
+        // Paired session missing refreshToken must atomically reset to PAIRING_REQUIRES_REPAIR
+        deviceStorage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "token_abcdef",
+            parentId = validParentId,
+            childName = "Alex",
+            refreshToken = null
+        )
+
+        assertFalse(deviceStorage.isPaired())
+        val session = deviceStorage.getSession()
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, session.status)
+        assertNull(session.deviceId)
+        assertNull(session.deviceToken)
+        assertNull(session.refreshToken)
+    }
+
+    @Test
+    fun testBlankRefreshTokenTriggersRepairState() {
+        deviceStorage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "token_abcdef",
+            parentId = validParentId,
+            childName = "Alex",
+            refreshToken = "   "
+        )
+
+        assertFalse(deviceStorage.isPaired())
+        val session = deviceStorage.getSession()
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, session.status)
+    }
+
+    @Test
     fun testClearPairingSessionResetsToUnpaired() {
         deviceStorage.savePairingSession(
             deviceId = validDeviceId,
             deviceToken = "token_abc",
             parentId = validParentId,
-            childName = "Kid"
+            childName = "Kid",
+            refreshToken = "refresh_token_123"
         )
         assertTrue(deviceStorage.isPaired())
 
@@ -113,6 +148,29 @@ class DeviceStorageTest {
         assertFalse(deviceStorage.isPaired())
         assertEquals(PairingStatus.UNPAIRED, deviceStorage.getSession().status)
         assertNull(deviceStorage.getSession().deviceId)
+    }
+
+    @Test
+    fun testClearPairingSessionRetainsPendingUnpairUntilConfirmed() {
+        deviceStorage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "token_abc",
+            parentId = validParentId,
+            childName = "Kid",
+            refreshToken = "refresh_token_123"
+        )
+        deviceStorage.markPendingUnpair(validDeviceId, "token_abc", "refresh_token_123")
+
+        deviceStorage.clearPairingSession()
+        assertFalse(deviceStorage.isPaired())
+        val pending = deviceStorage.getPendingUnpair()
+        assertNotNull(pending)
+        assertEquals(validDeviceId, pending?.deviceId)
+        assertEquals("token_abc", pending?.deviceToken)
+        assertEquals("refresh_token_123", pending?.refreshToken)
+
+        deviceStorage.clearPendingUnpair()
+        assertNull(deviceStorage.getPendingUnpair())
     }
 
     @Test
@@ -148,11 +206,12 @@ class DeviceStorageTest {
     fun testPendingUnpairPersistenceAndClear() {
         assertNull(deviceStorage.getPendingUnpair())
 
-        deviceStorage.markPendingUnpair(validDeviceId, "pending-token-123")
+        deviceStorage.markPendingUnpair(validDeviceId, "pending-token-123", "pending-refresh-456")
         val pending = deviceStorage.getPendingUnpair()
         assertNotNull(pending)
-        assertEquals(validDeviceId, pending?.first)
-        assertEquals("pending-token-123", pending?.second)
+        assertEquals(validDeviceId, pending?.deviceId)
+        assertEquals("pending-token-123", pending?.deviceToken)
+        assertEquals("pending-refresh-456", pending?.refreshToken)
 
         deviceStorage.clearPendingUnpair()
         assertNull(deviceStorage.getPendingUnpair())

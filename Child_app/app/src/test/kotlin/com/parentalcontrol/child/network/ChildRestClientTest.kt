@@ -103,6 +103,9 @@ class ChildRestClientTest {
 
         val transient = UnpairOutcome.TransientError(null, "Network down")
         assertNull(transient.statusCode)
+
+        val transientAuth = UnpairOutcome.TransientError(401, "Unauthorized")
+        assertEquals(401, transientAuth.statusCode)
     }
 
     @Test

@@ -266,13 +266,17 @@ class ChildRestClient(
     suspend fun sendHeartbeat(
         deviceToken: String,
         batteryPct: Int? = null,
-        isCharging: Boolean? = null
+        isCharging: Boolean? = null,
+        deviceAdminActive: Boolean? = null,
+        accessibilityHealthy: Boolean? = null
     ): HeartbeatOutcome = withContext(Dispatchers.IO) {
         val path = "/api/v1/child/heartbeat"
         try {
             val jsonBody = JSONObject().apply {
                 if (batteryPct != null) put("batteryPct", batteryPct)
                 if (isCharging != null) put("isCharging", isCharging)
+                if (deviceAdminActive != null) put("deviceAdminActive", deviceAdminActive)
+                if (accessibilityHealthy != null) put("accessibilityHealthy", accessibilityHealthy)
             }.toString()
 
             val response = executeRequestWithFailover(path, "POST", jsonBody, bearerToken = deviceToken)
@@ -347,25 +351,39 @@ class ChildRestClient(
 
     /**
      * Server-side unpair and credential revocation.
-     * Calls POST /api/v1/child/unpair with Bearer access JWT.
-     * Idempotent: 2xx or 401/403/404/410 confirms revocation.
+     * Calls POST /api/v1/child/unpair with optional Bearer access JWT and body { refreshToken, reason }.
+     * Does NOT treat generic HTTP 401/403 as success/already-unpaired.
+     * Only explicit 2xx or 404/410 confirms server-side revocation.
      */
     suspend fun unpairFromServer(
-        deviceToken: String,
+        deviceToken: String?,
+        refreshToken: String? = null,
         reason: String = "child_user_unpair"
     ): UnpairOutcome = withContext(Dispatchers.IO) {
         val path = "/api/v1/child/unpair"
         try {
             val jsonBody = JSONObject().apply {
                 put("reason", reason)
+                if (!refreshToken.isNullOrBlank()) {
+                    put("refreshToken", refreshToken)
+                }
             }.toString()
 
-            val response = executeRequestWithFailover(path, "POST", jsonBody, bearerToken = deviceToken)
+            val response = executeRequestWithFailover(
+                path,
+                "POST",
+                jsonBody,
+                bearerToken = deviceToken?.takeIf { it.isNotBlank() }
+            )
             when (response.code) {
                 in 200..299 -> UnpairOutcome.Success
-                401, 403, 404, 410 -> UnpairOutcome.AlreadyUnpairedOrRejected(
+                404, 410 -> UnpairOutcome.AlreadyUnpairedOrRejected(
                     response.code,
-                    "Server confirmed credential revocation or already unpaired (HTTP ${response.code})"
+                    "Server confirmed device record not found or already removed (HTTP ${response.code})"
+                )
+                401, 403 -> UnpairOutcome.TransientError(
+                    response.code,
+                    "Server unpair rejected with HTTP ${response.code} (unauthorized/forbidden)"
                 )
                 else -> UnpairOutcome.TransientError(
                     response.code,

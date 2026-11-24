@@ -100,51 +100,64 @@ object PairAckRetryManager {
 
     /**
      * Unpair cleanup:
-     * 1. Stops local monitoring service.
+     * 1. Stops local monitoring service and cancels periodic heartbeat.
      * 2. Cancels background ACK work.
-     * 3. Attempts immediate server unpair / token revocation. If offline, schedules UnpairWorker.
+     * 3. Attempts immediate server unpair / token revocation passing refreshToken. If transient error or offline, retains pending unpair in DeviceStorage and schedules UnpairWorker.
      * 4. Clears local pairing session and pending ACK.
      */
     suspend fun unpair(
-        context: Context,
+        context: Context? = null,
         storage: DeviceStorage,
-        unpairRequester: suspend (token: String) -> UnpairOutcome = { t ->
-            ChildRestClient.instance.unpairFromServer(t)
+        unpairRequester: suspend (token: String?, refreshToken: String?) -> UnpairOutcome = { t, r ->
+            ChildRestClient.instance.unpairFromServer(t, r)
         }
     ): Boolean {
         val session = storage.getSession()
         val deviceToken = session.deviceToken
+        val refreshToken = session.refreshToken
         val deviceId = session.deviceId
 
         // Stop monitoring service immediately
-        try {
-            val serviceIntent = Intent(context, ChildMonitoringService::class.java)
-            context.stopService(serviceIntent)
-        } catch (_: Exception) {}
+        if (context != null) {
+            try {
+                val serviceIntent = Intent(context, ChildMonitoringService::class.java)
+                context.stopService(serviceIntent)
+            } catch (_: Exception) {}
 
-        // Cancel ACK background retry
-        cancelBackgroundRetry(context)
+            // Cancel ACK background retry and periodic heartbeat
+            cancelBackgroundRetry(context)
+            try {
+                com.parentalcontrol.child.worker.HeartbeatWorker.cancelPeriodic(context)
+            } catch (_: Exception) {}
+        }
 
         var serverConfirmed = false
-        if (!deviceToken.isNullOrBlank()) {
-            when (val outcome = unpairRequester(deviceToken)) {
-                is UnpairOutcome.Success, is UnpairOutcome.AlreadyUnpairedOrRejected -> {
-                    Log.i(TAG, "Server successfully revoked device token and confirmed unpair")
+        if (!deviceToken.isNullOrBlank() || !refreshToken.isNullOrBlank()) {
+            when (val outcome = unpairRequester(deviceToken, refreshToken)) {
+                is UnpairOutcome.Success -> {
+                    Log.i(TAG, "Server successfully confirmed unpair (2xx)")
                     serverConfirmed = true
                     storage.clearPendingUnpair()
-                    cancelUnpairRetry(context)
+                    context?.let { cancelUnpairRetry(it) }
+                }
+                is UnpairOutcome.AlreadyUnpairedOrRejected -> {
+                    Log.i(TAG, "Server confirmed device already removed (${outcome.statusCode}): ${outcome.message}")
+                    serverConfirmed = true
+                    storage.clearPendingUnpair()
+                    context?.let { cancelUnpairRetry(it) }
                 }
                 is UnpairOutcome.TransientError -> {
-                    Log.w(TAG, "Transient network error during server unpair: ${outcome.message}. Enqueuing background retry.")
+                    Log.w(TAG, "Server unpair transient/rejected (${outcome.statusCode}): ${outcome.message}. Retaining pending unpair in storage and scheduling background retry.")
                     if (!deviceId.isNullOrBlank()) {
-                        storage.markPendingUnpair(deviceId, deviceToken)
-                        scheduleUnpairRetry(context)
+                        // Retain pending unpair in DeviceStorage until explicit 200/2xx confirmation
+                        storage.markPendingUnpair(deviceId, deviceToken ?: "", refreshToken)
+                        context?.let { scheduleUnpairRetry(it) }
                     }
                 }
             }
         }
 
-        // Clear local credentials
+        // Clear local credentials (preserves pending unpair in storage)
         storage.clearPairingSession()
         storage.clearPendingPairAck()
         Log.i(TAG, "Local unpair complete: credentials cleared, monitoring stopped (serverConfirmed=$serverConfirmed)")

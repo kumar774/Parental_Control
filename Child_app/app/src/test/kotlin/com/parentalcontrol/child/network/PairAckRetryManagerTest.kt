@@ -117,7 +117,8 @@ class PairAckRetryManagerTest {
             parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-401",
-            pollingToken = "token-perm-401"
+            pollingToken = "token-perm-401",
+            refreshToken = "refresh-perm-401"
         )
         assertTrue(storage.isPaired())
         assertNotNull(storage.getPendingPairAck())
@@ -144,7 +145,8 @@ class PairAckRetryManagerTest {
             parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-403",
-            pollingToken = "token-perm-403"
+            pollingToken = "token-perm-403",
+            refreshToken = "refresh-perm-403"
         )
         assertTrue(storage.isPaired())
 
@@ -168,7 +170,8 @@ class PairAckRetryManagerTest {
             parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-404",
-            pollingToken = "token-perm-404"
+            pollingToken = "token-perm-404",
+            refreshToken = "refresh-perm-404"
         )
         assertTrue(storage.isPaired())
 
@@ -192,7 +195,8 @@ class PairAckRetryManagerTest {
             parentId = validParentId,
             childName = "Child",
             sessionId = "sess-perm-410",
-            pollingToken = "token-perm-410"
+            pollingToken = "token-perm-410",
+            refreshToken = "refresh-perm-410"
         )
         assertTrue(storage.isPaired())
 
@@ -210,14 +214,15 @@ class PairAckRetryManagerTest {
 
     @Test
     fun testTransientVsPermanentStatePreservation() = runBlocking {
-        // Given a paired device with a pending ACK
+        // Given a paired device with a pending ACK and valid refreshToken
         storage.savePairingSessionWithPendingAck(
             deviceId = validDeviceId,
             deviceToken = "tok-trans",
             parentId = validParentId,
             childName = "Child",
             sessionId = "sess-trans",
-            pollingToken = "token-trans"
+            pollingToken = "token-trans",
+            refreshToken = "refresh-tok-trans"
         )
         assertTrue(storage.isPaired())
 
@@ -251,7 +256,8 @@ class PairAckRetryManagerTest {
             parentId = validParentId,
             childName = "Child Phone",
             sessionId = "sess-unpair-1",
-            pollingToken = "poll-unpair-1"
+            pollingToken = "poll-unpair-1",
+            refreshToken = "refresh-unpair-1"
         )
         assertTrue(storage.isPaired())
         assertNotNull(storage.getPendingPairAck())
@@ -264,6 +270,92 @@ class PairAckRetryManagerTest {
         assertEquals(PairingStatus.UNPAIRED, storage.getSession().status)
         assertNull(storage.getSession().deviceId)
         assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testUnpairWith200SuccessClearsPendingUnpair() = runBlocking {
+        storage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "token-success-unpair",
+            parentId = validParentId,
+            childName = "Child Phone",
+            refreshToken = "refresh-success-unpair"
+        )
+        assertTrue(storage.isPaired())
+
+        // Mock requester simulating HTTP 200 OK
+        var passedToken: String? = null
+        var passedRefresh: String? = null
+        val serverConfirmed = PairAckRetryManager.unpair(
+            context = null,
+            storage = storage,
+            unpairRequester = { t, r ->
+                passedToken = t
+                passedRefresh = r
+                UnpairOutcome.Success
+            }
+        )
+
+        assertTrue(serverConfirmed)
+        assertEquals("token-success-unpair", passedToken)
+        assertEquals("refresh-success-unpair", passedRefresh)
+        assertFalse(storage.isPaired())
+        assertNull(storage.getPendingUnpair())
+    }
+
+    @Test
+    fun testUnpairWith401RetainsPendingUnpairInStorage() = runBlocking {
+        storage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "expired-access-token",
+            parentId = validParentId,
+            childName = "Child Phone",
+            refreshToken = "valid-offline-refresh-token"
+        )
+        assertTrue(storage.isPaired())
+
+        // Simulating HTTP 401: do NOT treat 401 as success; must retain pending unpair
+        val serverConfirmed = PairAckRetryManager.unpair(
+            context = null,
+            storage = storage,
+            unpairRequester = { _, _ ->
+                UnpairOutcome.TransientError(401, "Unauthorized")
+            }
+        )
+
+        assertFalse(serverConfirmed)
+        // Session cleared locally so child app doesn't remain in false paired state
+        assertFalse(storage.isPaired())
+        // BUT pending unpair is strictly retained in storage for background retry!
+        val pending = storage.getPendingUnpair()
+        assertNotNull(pending)
+        assertEquals(validDeviceId, pending?.deviceId)
+        assertEquals("expired-access-token", pending?.deviceToken)
+        assertEquals("valid-offline-refresh-token", pending?.refreshToken)
+    }
+
+    @Test
+    fun testUnpairWith404AlreadyRemovedClearsPendingUnpair() = runBlocking {
+        storage.savePairingSession(
+            deviceId = validDeviceId,
+            deviceToken = "token-404",
+            parentId = validParentId,
+            childName = "Child Phone",
+            refreshToken = "refresh-404"
+        )
+        assertTrue(storage.isPaired())
+
+        val serverConfirmed = PairAckRetryManager.unpair(
+            context = null,
+            storage = storage,
+            unpairRequester = { _, _ ->
+                UnpairOutcome.AlreadyUnpairedOrRejected(404, "Device record not found")
+            }
+        )
+
+        assertTrue(serverConfirmed)
+        assertFalse(storage.isPaired())
+        assertNull(storage.getPendingUnpair())
     }
 
     private class MockSharedPreferences : android.content.SharedPreferences {
