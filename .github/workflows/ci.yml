@@ -181,7 +181,7 @@ jobs:
         run: npm run build
 
   android:
-    name: Android CI (Unit Tests & Debug APK Build)
+    name: Android CI (Parent & Child Unit Tests & Debug APK Builds)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -194,14 +194,26 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission for Parent gradlew
         working-directory: Parent_app
         run: chmod +x gradlew
 
-      - name: Run Android Unit Tests
+      - name: Run Parent Android Unit Tests
         working-directory: Parent_app
         run: ./gradlew testDebugUnitTest
 
-      - name: Build Android Debug APK
+      - name: Build Parent Android Debug APK
         working-directory: Parent_app
+        run: ./gradlew assembleDebug
+
+      - name: Grant execute permission for Child gradlew
+        working-directory: Child_app
+        run: chmod +x gradlew
+
+      - name: Run Child Android Unit Tests
+        working-directory: Child_app
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build Child Android Debug APK
+        working-directory: Child_app
         run: ./gradlew assembleDebug
