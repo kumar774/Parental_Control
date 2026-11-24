@@ -55,12 +55,22 @@ object PairAckRetryManager {
     }
 
     /**
+     * Unpair cleanup: clears all pairing and pending ACK data, and cancels background WorkManager work.
+     */
+    fun unpair(context: Context, storage: DeviceStorage) {
+        storage.clearPairingSession()
+        storage.clearPendingPairAck()
+        cancelBackgroundRetry(context)
+        Log.i(TAG, "Unpair cleanup executed: pairing session cleared, pending ACK cleared, WorkManager job cancelled")
+    }
+
+    /**
      * Fast-path retry called on app start / resume with optional Context.
      */
     suspend fun retryPendingAckIfNeeded(
         context: Context? = null,
         storage: DeviceStorage,
-        ackRequester: suspend (sessionId: String, pollingToken: String) -> Boolean = { s, t ->
+        ackRequester: suspend (sessionId: String, pollingToken: String) -> AckOutcome = { s, t ->
             ChildRestClient.instance.acknowledgePairReceipt(s, t)
         }
     ): Boolean {
@@ -71,28 +81,30 @@ object PairAckRetryManager {
         val (sessionId, pollingToken) = pending
         Log.i(TAG, "Fast-path retrying pending ACK for session $sessionId")
 
-        return try {
-            val confirmed = ackRequester(sessionId, pollingToken)
-            if (confirmed) {
+        return when (val outcome = ackRequester(sessionId, pollingToken)) {
+            is AckOutcome.Success -> {
                 storage.clearPendingPairAck()
                 context?.let { cancelBackgroundRetry(it) }
                 Log.i(TAG, "Successfully confirmed and cleared pending ACK for session $sessionId")
                 true
-            } else {
-                Log.w(TAG, "Server rejected ACK for session $sessionId; scheduling background retry")
+            }
+            is AckOutcome.TransientFailure -> {
+                Log.w(TAG, "Transient failure during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; scheduling background retry")
                 context?.let { scheduleBackgroundRetry(it) }
                 false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception during fast-path pending ACK retry: ${e.message}; scheduling background retry")
-            context?.let { scheduleBackgroundRetry(it) }
-            false
+            is AckOutcome.PermanentFailure -> {
+                Log.e(TAG, "Permanent rejection during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; clearing stale pending ACK")
+                storage.clearPendingPairAck()
+                context?.let { cancelBackgroundRetry(it) }
+                false
+            }
         }
     }
 
     suspend fun retryPendingAckIfNeeded(
         storage: DeviceStorage,
-        ackRequester: suspend (sessionId: String, pollingToken: String) -> Boolean = { s, t ->
+        ackRequester: suspend (sessionId: String, pollingToken: String) -> AckOutcome = { s, t ->
             ChildRestClient.instance.acknowledgePairReceipt(s, t)
         }
     ): Boolean = retryPendingAckIfNeeded(null, storage, ackRequester)

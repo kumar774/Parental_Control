@@ -38,6 +38,12 @@ data class PairStatusResult(
     val message: String? = null
 )
 
+sealed class AckOutcome {
+    data object Success : AckOutcome()
+    data class TransientFailure(val statusCode: Int?, val message: String) : AckOutcome()
+    data class PermanentFailure(val statusCode: Int, val message: String) : AckOutcome()
+}
+
 class ChildRestClient(
     var baseUrl: String = DEFAULT_BASE_URL
 ) {
@@ -137,19 +143,32 @@ class ChildRestClient(
     /**
      * Acknowledge receipt of credentials after local persistence.
      * Calls POST /api/v1/child/pair-ack/:sessionId with x-polling-token header.
-     * Retry-safe and idempotent.
+     * Retry-safe and idempotent with typed AckOutcome.
      */
     suspend fun acknowledgePairReceipt(
         sessionId: String,
         pollingToken: String
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): AckOutcome = withContext(Dispatchers.IO) {
         val path = "/api/v1/child/pair-ack/$sessionId"
         try {
             val extraHeaders = mapOf("x-polling-token" to pollingToken)
             val response = executeRequestWithFailover(path, "POST", "{}", extraHeaders = extraHeaders)
-            response.code in 200..299
-        } catch (_: Exception) {
-            false
+            when (response.code) {
+                in 200..299 -> AckOutcome.Success
+                408, 429, in 500..599 -> AckOutcome.TransientFailure(
+                    response.code,
+                    "Transient server/network error (HTTP ${response.code})"
+                )
+                else -> AckOutcome.PermanentFailure(
+                    response.code,
+                    "Permanent client rejection or invalid token (HTTP ${response.code})"
+                )
+            }
+        } catch (e: Exception) {
+            AckOutcome.TransientFailure(
+                null,
+                "Network transport failure: ${e.message ?: "Unknown network error"}"
+            )
         }
     }
 

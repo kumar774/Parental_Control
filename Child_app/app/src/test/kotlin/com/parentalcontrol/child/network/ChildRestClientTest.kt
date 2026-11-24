@@ -2,6 +2,7 @@ package com.parentalcontrol.child.network
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,5 +59,35 @@ class ChildRestClientTest {
         assertEquals("session-uuid-1", session.sessionId)
         assertEquals("123456789", session.pairingCode)
         assertEquals("secret-token-64-hex", session.pollingToken)
+    }
+
+    @Test
+    fun testAckOutcomeTypedVariants() {
+        val success: AckOutcome = AckOutcome.Success
+        assertTrue(success is AckOutcome.Success)
+
+        val transientTimeout: AckOutcome = AckOutcome.TransientFailure(408, "Request Timeout")
+        assertTrue(transientTimeout is AckOutcome.TransientFailure)
+        assertEquals(408, (transientTimeout as AckOutcome.TransientFailure).statusCode)
+
+        val transientRateLimit: AckOutcome = AckOutcome.TransientFailure(429, "Too Many Requests")
+        assertTrue(transientRateLimit is AckOutcome.TransientFailure)
+        assertEquals(429, (transientRateLimit as AckOutcome.TransientFailure).statusCode)
+
+        val transientServer: AckOutcome = AckOutcome.TransientFailure(503, "Service Unavailable")
+        assertTrue(transientServer is AckOutcome.TransientFailure)
+        assertEquals(503, (transientServer as AckOutcome.TransientFailure).statusCode)
+
+        val transientNetwork: AckOutcome = AckOutcome.TransientFailure(null, "Socket timeout")
+        assertTrue(transientNetwork is AckOutcome.TransientFailure)
+        assertNull((transientNetwork as AckOutcome.TransientFailure).statusCode)
+
+        val permanentAuth: AckOutcome = AckOutcome.PermanentFailure(401, "Invalid token")
+        assertTrue(permanentAuth is AckOutcome.PermanentFailure)
+        assertEquals(401, (permanentAuth as AckOutcome.PermanentFailure).statusCode)
+
+        val permanentExpired: AckOutcome = AckOutcome.PermanentFailure(410, "Expired token")
+        assertTrue(permanentExpired is AckOutcome.PermanentFailure)
+        assertEquals(410, (permanentExpired as AckOutcome.PermanentFailure).statusCode)
     }
 }

@@ -7,10 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export interface ObjectGuarantee {
-  type: 'table' | 'column' | 'index' | 'constraint' | 'function';
+  type: 'table' | 'column' | 'index' | 'constraint' | 'function' | 'function_security' | 'trigger' | 'table_privilege';
   table?: string;
-  name: string;
+  name?: string;
   isNullable?: 'YES' | 'NO';
+  securityDefiner?: boolean;
+  owner?: string;
+  role?: string;
+  privilege?: string;
+  disallowedPrivilege?: string;
 }
 
 export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
@@ -47,7 +52,7 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'constraint', name: 'admin_users_username_unique' },
   ],
   '0001_audit_prune_function.sql': [
-    { type: 'function', name: 'prune_archived_audit_logs' },
+    { type: 'function_security', name: 'prune_archived_audit_logs', securityDefiner: true, owner: 'parental_audit_pruner' },
   ],
   '0002_admin_dashboard_hybrid.sql': [
     { type: 'table', name: 'users' },
@@ -67,6 +72,7 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'column', table: 'admin_control_audit_logs', name: 'severity' },
     { type: 'constraint', name: 'admin_control_audit_severity_check' },
     { type: 'index', name: 'idx_admin_control_audit_severity_created' },
+    { type: 'table_privilege', table: 'admin_control_audit_logs', role: 'parental_admin', disallowedPrivilege: 'DELETE' },
   ],
   '0004_parental_admin_user_status_update.sql': [
     { type: 'column', table: 'users', name: 'updated_at' },
@@ -80,6 +86,7 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'column', table: 'admin_users', name: 'is_protected' },
     { type: 'index', name: 'idx_admin_users_single_protected' },
     { type: 'function', name: 'protect_superadmin_invariant' },
+    { type: 'trigger', table: 'admin_users', name: 'trg_protect_superadmin' },
   ],
   '0006_parent_full_name.sql': [
     { type: 'column', table: 'users', name: 'full_name' },
@@ -145,24 +152,79 @@ export async function checkObjectExists(client: any, obj: ObjectGuarantee): Prom
   }
   if (obj.type === 'index') {
     const res = await client.query(
-      `SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1 LIMIT 1;`,
+      `SELECT 1 FROM pg_index i
+       JOIN pg_class c ON c.oid = i.indexrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname = $1 AND i.indisvalid = true LIMIT 1;`,
       [obj.name]
     );
     return res.rows.length > 0;
   }
   if (obj.type === 'constraint') {
     const res = await client.query(
-      `SELECT 1 FROM pg_constraint WHERE conname = $1 LIMIT 1;`,
+      `SELECT 1 FROM pg_constraint WHERE conname = $1 AND convalidated = true LIMIT 1;`,
       [obj.name]
     );
     return res.rows.length > 0;
   }
-  if (obj.type === 'function') {
+  if (obj.type === 'trigger') {
     const res = await client.query(
-      `SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid WHERE n.nspname = 'public' AND p.proname = $1 LIMIT 1;`,
-      [obj.name]
+      `SELECT 1 FROM pg_trigger t
+       JOIN pg_class c ON c.oid = t.tgrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname = $1 AND t.tgname = $2 AND NOT t.tgisinternal LIMIT 1;`,
+      [obj.table, obj.name]
     );
     return res.rows.length > 0;
+  }
+  if (obj.type === 'function' || obj.type === 'function_security') {
+    const res = await client.query(
+      `SELECT p.prosecdef, pg_get_userbyid(p.proowner) as owner
+       FROM pg_proc p
+       JOIN pg_namespace n ON p.pronamespace = n.oid
+       WHERE n.nspname = 'public' AND p.proname = $1 LIMIT 1;`,
+      [obj.name]
+    );
+    if (res.rows.length === 0) return false;
+    const row = res.rows[0];
+    if (obj.securityDefiner !== undefined && row.prosecdef !== obj.securityDefiner) {
+      return false;
+    }
+    if (obj.owner !== undefined) {
+      const roleExists = await client.query(
+        `SELECT 1 FROM pg_roles WHERE rolname = $1 LIMIT 1;`,
+        [obj.owner]
+      );
+      if (roleExists.rows.length > 0 && row.owner !== obj.owner) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (obj.type === 'table_privilege') {
+    if (obj.role && obj.table) {
+      const roleExists = await client.query(
+        `SELECT 1 FROM pg_roles WHERE rolname = $1 LIMIT 1;`,
+        [obj.role]
+      );
+      if (roleExists.rows.length > 0) {
+        if (obj.privilege) {
+          const res = await client.query(
+            `SELECT has_table_privilege($1, $2, $3) as has_priv;`,
+            [obj.role, `public.${obj.table}`, obj.privilege]
+          );
+          if (!res.rows[0]?.has_priv) return false;
+        }
+        if (obj.disallowedPrivilege) {
+          const res = await client.query(
+            `SELECT has_table_privilege($1, $2, $3) as has_priv;`,
+            [obj.role, `public.${obj.table}`, obj.disallowedPrivilege]
+          );
+          if (res.rows[0]?.has_priv) return false;
+        }
+      }
+    }
+    return true;
   }
   return false;
 }
@@ -215,7 +277,7 @@ export async function runMigrations(customClient?: any) {
         if (exists) {
           passedCount++;
         } else {
-          missingObjects.push(`${guarantee.type} ${guarantee.table ? guarantee.table + '.' : ''}${guarantee.name}`);
+          missingObjects.push(`${guarantee.type} ${guarantee.table ? guarantee.table + '.' : ''}${guarantee.name || guarantee.role || ''}`);
         }
       }
 

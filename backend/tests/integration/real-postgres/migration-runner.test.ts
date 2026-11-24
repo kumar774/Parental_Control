@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getVerifiedRealPostgresConnection, VerifiedDbConnection } from './real-postgres-harness';
@@ -149,7 +150,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testDbName = 'auth001_role_migrator_cli_test';
     await createDisposableDatabase(testDbName);
 
-    const migratorPass = process.env.CI_MIGRATOR_PASS || 'MigratorTestPass123!';
+    const migratorPass = process.env.CI_MIGRATOR_PASS || crypto.randomBytes(32).toString('hex');
     // Configure role privileges for the migration test
     await mainConn.pool.query(`ALTER ROLE parental_migrator WITH LOGIN PASSWORD '${migratorPass}';`);
     await mainConn.pool.query(`GRANT ALL ON DATABASE ${testDbName} TO parental_migrator;`);
@@ -263,6 +264,140 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
           AND table_name IN ('system_app_settings', 'pairing_sessions', 'parent_consents');
       `);
       assert.equal(postCheck.rows.length, 3);
+    } finally {
+      await testPool.end();
+      await dropDisposableDatabase(testDbName);
+    }
+  });
+
+  it('4a. Partial state test (incomplete 0001): fails closed when security-definer / ownership postconditions fail', async () => {
+    const testDbName = 'auth001_partial_0001_test';
+    const testDbUrl = await createDisposableDatabase(testDbName);
+
+    const testPool = new Pool({ connectionString: testDbUrl });
+    try {
+      // 0000 is applied
+      await testPool.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        );
+        INSERT INTO public.schema_migrations (name) VALUES ('0000_fast_yellow_claw.sql');
+      `);
+
+      // Create function WITHOUT security definer (insecure/partial state)
+      await testPool.query(`
+        CREATE OR REPLACE FUNCTION public.prune_archived_audit_logs(
+          p_verification_id uuid,
+          p_batch_ids uuid[],
+          p_archive_checksum text,
+          p_manifest_hash text
+        ) RETURNS integer
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+          RETURN 0;
+        END;
+        $$;
+      `);
+
+      let threw = false;
+      let stderrOutput = '';
+      try {
+        execSync('npm run db:migrate', {
+          cwd: backendDir,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDbUrl,
+          },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err: any) {
+        threw = true;
+        stderrOutput = err.stderr || err.stdout || err.message;
+      }
+
+      assert.ok(threw, 'Migration runner MUST fail on insecure partial 0001 function');
+      assert.ok(
+        stderrOutput.includes('[Migration Runner FATAL] Incomplete schema detected for 0001_audit_prune_function.sql'),
+        `Expected fatal incomplete schema error, got: ${stderrOutput}`
+      );
+
+      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0001_audit_prune_function.sql';");
+      assert.equal(res.rows.length, 0, 'Incomplete security migration must never be recorded in schema_migrations');
+    } finally {
+      await testPool.end();
+      await dropDisposableDatabase(testDbName);
+    }
+  });
+
+  it('4b. Partial state test (incomplete 0005): fails closed when trigger invariant postcondition is missing', async () => {
+    const testDbName = 'auth001_partial_0005_test';
+    const testDbUrl = await createDisposableDatabase(testDbName);
+
+    const testPool = new Pool({ connectionString: testDbUrl });
+    try {
+      await testPool.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        );
+      `);
+      const pre0005Files = [
+        '0000_fast_yellow_claw.sql',
+        '0001_audit_prune_function.sql',
+        '0002_admin_dashboard_hybrid.sql',
+        '0003_admin_control_audit_severity.sql',
+        '0004_parental_admin_user_status_update.sql',
+      ];
+      for (const name of pre0005Files) {
+        await testPool.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [name]);
+      }
+
+      // Partially create 0005: create admin_users with is_protected column, function, and index,
+      // but omit the critical invariant trigger trg_protect_superadmin
+      await testPool.query(`
+        CREATE TABLE IF NOT EXISTS public.admin_users (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          email VARCHAR(255) NOT NULL,
+          is_protected BOOLEAN DEFAULT false NOT NULL
+        );
+        CREATE UNIQUE INDEX idx_admin_users_single_protected ON public.admin_users (is_protected) WHERE is_protected = true;
+        CREATE OR REPLACE FUNCTION protect_superadmin_invariant() RETURNS TRIGGER AS $$
+        BEGIN
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      `);
+
+      let threw = false;
+      let stderrOutput = '';
+      try {
+        execSync('npm run db:migrate', {
+          cwd: backendDir,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDbUrl,
+          },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err: any) {
+        threw = true;
+        stderrOutput = err.stderr || err.stdout || err.message;
+      }
+
+      assert.ok(threw, 'Migration runner MUST fail on partial 0005 schema missing invariant trigger');
+      assert.ok(
+        stderrOutput.includes('[Migration Runner FATAL] Incomplete schema detected for 0005_protected_superadmin.sql'),
+        `Expected fatal incomplete schema error, got: ${stderrOutput}`
+      );
+
+      const res = await testPool.query("SELECT * FROM public.schema_migrations WHERE name = '0005_protected_superadmin.sql';");
+      assert.equal(res.rows.length, 0, 'Incomplete 0005 migration must never be recorded in schema_migrations');
     } finally {
       await testPool.end();
       await dropDisposableDatabase(testDbName);

@@ -2,6 +2,7 @@ package com.parentalcontrol.child.ui.pairing
 
 import android.graphics.Bitmap
 import android.widget.Toast
+import com.parentalcontrol.child.network.AckOutcome
 import com.parentalcontrol.child.network.PairAckRetryManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -151,11 +152,21 @@ fun ConnectToParentScreen(
                     // Safely attempt immediate credential receipt acknowledgment
                     for (attempt in 1..3) {
                         try {
-                            val ackSuccess = ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)
-                            if (ackSuccess) {
-                                storage.clearPendingPairAck()
-                                PairAckRetryManager.cancelBackgroundRetry(context)
-                                break
+                            when (ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)) {
+                                is AckOutcome.Success -> {
+                                    storage.clearPendingPairAck()
+                                    PairAckRetryManager.cancelBackgroundRetry(context)
+                                    break
+                                }
+                                is AckOutcome.PermanentFailure -> {
+                                    // Stale/invalid token: clear pending ACK and do not keep retrying
+                                    storage.clearPendingPairAck()
+                                    PairAckRetryManager.cancelBackgroundRetry(context)
+                                    break
+                                }
+                                is AckOutcome.TransientFailure -> {
+                                    // Transient failure: backoff slightly and retry up to 3 attempts
+                                }
                             }
                         } catch (_: Exception) {}
                         if (attempt < 3) delay(500L)

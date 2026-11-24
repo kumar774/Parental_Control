@@ -1,6 +1,7 @@
 package com.parentalcontrol.child.network
 
 import com.parentalcontrol.child.storage.DeviceStorage
+import com.parentalcontrol.child.storage.PairingStatus
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,35 +31,141 @@ class PairAckRetryManagerTest {
     }
 
     @Test
-    fun testFailedAckRetainsPendingMarkerForNextRestart() = runBlocking {
-        storage.savePendingPairAck("sess-fail-1", "token-fail-1")
-        assertNotNull(storage.getPendingPairAck())
-
-        // Simulating failed ACK (network error or server 5xx)
-        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
-            false
-        }
-        assertFalse(success)
-
-        // Pending ACK must NOT be cleared when ACK failed
-        val pending = storage.getPendingPairAck()
-        assertNotNull(pending)
-        assertEquals("sess-fail-1", pending?.first)
-        assertEquals("token-fail-1", pending?.second)
-    }
-
-    @Test
     fun testSuccessfulAckClearsPendingMarker() = runBlocking {
         storage.savePendingPairAck("sess-ok-1", "token-ok-1")
         assertNotNull(storage.getPendingPairAck())
 
-        // Simulating successful ACK (server 200 OK)
+        // Simulating successful typed ACK (HTTP 200 OK)
         val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
-            true
+            AckOutcome.Success
         }
         assertTrue(success)
 
         // Pending ACK MUST be cleared after successful 2xx response
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testTransientFailure408RetainsPendingAckAndRetries() = runBlocking {
+        storage.savePendingPairAck("sess-trans-408", "token-trans-408")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(408, "Request Timeout")
+        }
+        assertFalse(success)
+
+        val pending = storage.getPendingPairAck()
+        assertNotNull(pending)
+        assertEquals("sess-trans-408", pending?.first)
+        assertEquals("token-trans-408", pending?.second)
+    }
+
+    @Test
+    fun testTransientFailure429RetainsPendingAckAndRetries() = runBlocking {
+        storage.savePendingPairAck("sess-trans-429", "token-trans-429")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(429, "Too Many Requests")
+        }
+        assertFalse(success)
+
+        val pending = storage.getPendingPairAck()
+        assertNotNull(pending)
+        assertEquals("sess-trans-429", pending?.first)
+    }
+
+    @Test
+    fun testTransientFailure503RetainsPendingAckAndRetries() = runBlocking {
+        storage.savePendingPairAck("sess-trans-503", "token-trans-503")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(503, "Service Unavailable")
+        }
+        assertFalse(success)
+
+        val pending = storage.getPendingPairAck()
+        assertNotNull(pending)
+        assertEquals("sess-trans-503", pending?.first)
+    }
+
+    @Test
+    fun testTransientNetworkExceptionRetainsPendingAckAndRetries() = runBlocking {
+        storage.savePendingPairAck("sess-trans-net", "token-trans-net")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(null, "SocketTimeoutException")
+        }
+        assertFalse(success)
+
+        val pending = storage.getPendingPairAck()
+        assertNotNull(pending)
+        assertEquals("sess-trans-net", pending?.first)
+    }
+
+    @Test
+    fun testPermanentFailure401ClearsPendingAckSafely() = runBlocking {
+        storage.savePendingPairAck("sess-perm-401", "token-perm-401")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.PermanentFailure(401, "Unauthorized / Invalid Polling Token")
+        }
+        assertFalse(success)
+
+        // Permanent failure MUST clear the stale pending ACK to prevent infinite useless loops
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testPermanentFailure404ClearsPendingAckSafely() = runBlocking {
+        storage.savePendingPairAck("sess-perm-404", "token-perm-404")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.PermanentFailure(404, "Session Not Found")
+        }
+        assertFalse(success)
+
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testPermanentFailure410ExpiredTokenClearsPendingAckSafely() = runBlocking {
+        storage.savePendingPairAck("sess-perm-410", "token-perm-410")
+        assertNotNull(storage.getPendingPairAck())
+
+        val success = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.PermanentFailure(410, "Pairing Session Expired")
+        }
+        assertFalse(success)
+
+        assertNull(storage.getPendingPairAck())
+    }
+
+    @Test
+    fun testUnpairCleanupClearsSessionAndPendingAck() {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = "dev-123",
+            deviceToken = "tok-123",
+            parentId = "par-123",
+            childName = "Child Phone",
+            sessionId = "sess-unpair-1",
+            pollingToken = "poll-unpair-1"
+        )
+        assertTrue(storage.isPaired())
+        assertNotNull(storage.getPendingPairAck())
+
+        // Execute unpair cleanup
+        storage.clearPairingSession()
+        storage.clearPendingPairAck()
+
+        assertFalse(storage.isPaired())
+        assertEquals(PairingStatus.UNPAIRED, storage.getSession().status)
+        assertNull(storage.getSession().deviceId)
         assertNull(storage.getPendingPairAck())
     }
 
