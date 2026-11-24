@@ -580,16 +580,29 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     const newRefreshToken = crypto.randomBytes(32).toString('hex');
     const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
 
-    await db
-      .update(childDeviceTokens)
-      .set({
+    // Atomic one-time rotation: invalidate previous refresh token with 'rotated' reason
+    // and insert new active token record. If the old token is ever reused, replay detection will trigger.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(childDeviceTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: new Date(),
+          revocationReason: 'rotated',
+          lastUsedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(childDeviceTokens.id, tokenRecord.id));
+
+      await tx.insert(childDeviceTokens).values({
+        deviceId: tokenRecord.deviceId,
+        parentId: tokenRecord.parentId,
         refreshTokenHash: newRefreshTokenHash,
         currentJti: newJti,
-        lastUsedAt: new Date(),
-        updatedAt: new Date(),
+        isRevoked: false,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      })
-      .where(eq(childDeviceTokens.id, tokenRecord.id));
+      });
+    });
 
     return reply.status(200).send({
       statusCode: 200,
