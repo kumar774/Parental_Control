@@ -662,6 +662,14 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.post('/unpair', { preHandler: [requireChildDeviceAuth] }, async (request, reply) => {
     const device = request.childDevice!;
 
+    if (device.isUnpaired) {
+      return reply.status(200).send({
+        statusCode: 200,
+        message: 'Device already unpaired',
+        deviceId: device.id,
+      });
+    }
+
     await db.transaction(async (tx) => {
       // 1. Revoke all credentials for device
       await tx

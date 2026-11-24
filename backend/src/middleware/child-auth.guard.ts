@@ -54,14 +54,29 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     });
   }
 
-  // 1. Verify child device exists and is not unpaired
+  const isUnpairRoute = request.url.endsWith('/unpair');
+
+  // 1. Verify child device exists
   const [device] = await db
     .select()
     .from(childDevices)
-    .where(and(eq(childDevices.id, decoded.deviceId), eq(childDevices.isUnpaired, false)))
+    .where(eq(childDevices.id, decoded.deviceId))
     .limit(1);
 
   if (!device) {
+    return reply.status(401).send({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Child device not found',
+    });
+  }
+
+  if (device.isUnpaired) {
+    if (isUnpairRoute) {
+      // Idempotent unpair: pass through to unpair handler
+      request.childDevice = device;
+      return;
+    }
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
@@ -76,13 +91,26 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     .where(
       and(
         eq(childDeviceTokens.deviceId, decoded.deviceId),
-        eq(childDeviceTokens.currentJti, decoded.jti),
-        eq(childDeviceTokens.isRevoked, false)
+        eq(childDeviceTokens.currentJti, decoded.jti)
       )
     )
     .limit(1);
 
   if (!tokenRecord) {
+    return reply.status(401).send({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Device credentials have been revoked or rotated',
+    });
+  }
+
+  if (tokenRecord.isRevoked) {
+    if (isUnpairRoute && tokenRecord.revocationReason === 'child_unpair') {
+      // Idempotent unpair retry: pass through to unpair handler
+      request.childDevice = device;
+      request.childTokenRecord = tokenRecord;
+      return;
+    }
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
