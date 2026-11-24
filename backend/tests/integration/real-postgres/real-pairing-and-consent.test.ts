@@ -80,7 +80,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(res.statusCode, 200);
     const json = JSON.parse(res.body);
     assert.equal(json.statusCode, 200);
-    assert.equal(json.consent.consentType, 'parental_supervision');
+    assert.equal(json.consentType, 'parental_supervision');
 
     // Verify row exists in real database
     const [row] = await conn.db
