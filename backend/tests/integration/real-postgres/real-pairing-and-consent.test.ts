@@ -430,8 +430,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     });
     assert.equal(heartbeat1.statusCode, 200);
     const hb1Json = JSON.parse(heartbeat1.body);
-    assert.equal(hb1Json.success, true);
-    assert.equal(hb1Json.batteryPct, 88);
+    assert.equal(hb1Json.status, 'ok');
+    const [dbDev1] = await conn.db.select().from(childDevices).where(eq(childDevices.id, deviceId)).limit(1);
+    assert.equal(dbDev1.batteryPct, 88);
 
     // 4. Token rotation: Refresh token rotates atomically
     const refreshRes = await app.inject({
