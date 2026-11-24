@@ -148,13 +148,68 @@ class FastifyRestClient(
         }
     }
 
-    suspend fun loginWithGoogle(idToken: String): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
+    suspend fun loginWithGoogle(idToken: String): Result<GoogleAuthResult> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = JSONObject().apply {
                 put("idToken", idToken)
             }.toString()
 
             val response = executePost("/api/v1/auth/google", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val requiresProfile = json.optBoolean("requiresProfileCompletion", false)
+                if (requiresProfile) {
+                    val email = json.optString("email", "")
+                    val fullName = json.optString("fullName", "")
+                    val completionToken = json.optString("completionToken", "")
+                    return@withContext Result.success(
+                        GoogleAuthResult.RequiresProfileCompletion(
+                            email = email,
+                            fullName = fullName,
+                            completionToken = completionToken
+                        )
+                    )
+                }
+
+                val userJson = json.getJSONObject("user")
+                val token = json.getString("accessToken")
+                val refToken = json.getString("refreshToken")
+
+                val user = AuthUserDto(
+                    id = userJson.getString("id"),
+                    email = userJson.getString("email"),
+                    fullName = userJson.optString("fullName", "Parent"),
+                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
+                    isGuest = userJson.optBoolean("isGuest", false)
+                )
+
+                accessToken = token
+                refreshToken = refToken
+                Result.success(GoogleAuthResult.Success(AuthResponseDto(user, token, refToken)))
+            } else {
+                val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
+                val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
+                    ?: "Google authentication failed (HTTP ${response.statusCode})"
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun completeGoogleProfile(
+        completionToken: String,
+        fullName: String,
+        password: String
+    ): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("completionToken", completionToken)
+                put("fullName", fullName.trim())
+                put("password", password)
+            }.toString()
+
+            val response = executePost("/api/v1/auth/google/complete-profile", jsonBody, null)
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val userJson = json.getJSONObject("user")
@@ -175,7 +230,7 @@ class FastifyRestClient(
             } else {
                 val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
                 val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
-                    ?: "Google authentication failed (HTTP ${response.statusCode})"
+                    ?: "Failed to complete Google profile (HTTP ${response.statusCode})"
                 Result.failure(Exception(msg))
             }
         } catch (e: Exception) {

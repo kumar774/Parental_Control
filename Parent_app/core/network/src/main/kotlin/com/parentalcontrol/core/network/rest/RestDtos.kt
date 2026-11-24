@@ -33,6 +33,15 @@ data class AuthResponseDto(
     val message: String? = null
 )
 
+sealed class GoogleAuthResult {
+    data class Success(val authResponse: AuthResponseDto) : GoogleAuthResult()
+    data class RequiresProfileCompletion(
+        val email: String,
+        val fullName: String,
+        val completionToken: String
+    ) : GoogleAuthResult()
+}
+
 data class TokenRefreshRequestDto(
     val refreshToken: String
 )

@@ -137,6 +137,11 @@ fun ConnectToParentScreen(
                         parentId = pId,
                         childName = pollResult.childName ?: "Child Phone"
                     )
+                    // Explicitly acknowledge credential receipt to invalidate single-use polling token on server
+                    try {
+                        ChildRestClient.instance.acknowledgePairReceipt(currentSessionId, currentPollingToken)
+                    } catch (_: Exception) {}
+
                     successMessage = "Connected to Parent!"
                     delay(500L)
                     onPairingSuccess(pollResult.deviceId, pollResult.childName ?: "Child Phone")

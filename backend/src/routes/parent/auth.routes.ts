@@ -108,6 +108,12 @@ const googleAuthSchema = z.object({
   fullName: z.string().optional(),
 });
 
+const googleCompleteProfileSchema = z.object({
+  completionToken: z.string().min(10, 'completionToken is required'),
+  fullName: z.string().min(1, 'Full name is required').max(100),
+  password: z.string().min(8, 'Password is required'),
+});
+
 export { GoogleTokenClaims };
 
 export function parseGoogleIdToken(token: string): GoogleTokenClaims | null {
@@ -546,35 +552,94 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         });
       }
 
-      // Link googleId and verify email if not already verified
-      if (!user.googleId && googleId) {
-        await db
-          .update(parentUsers)
-          .set({
+      // Check if existing user has incomplete profile or missing password
+      const needsProfileCompletion = !user.passwordHash || !user.fullName || user.fullName.trim().length === 0;
+      if (needsProfileCompletion) {
+        if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+          const completionToken = jwt.sign(
+            {
+              googleId,
+              email: normalizedEmail,
+              purpose: 'google_profile_completion',
+            },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+          );
+          return reply.status(200).send({
+            statusCode: 200,
+            requiresProfileCompletion: true,
+            email: normalizedEmail,
+            fullName: user.fullName || claims.name || '',
             googleId,
-            emailVerified: true,
-            updatedAt: sql`NOW()`,
-          })
-          .where(eq(parentUsers.id, user.id));
-      } else if (!user.emailVerified) {
-        await db
+            completionToken,
+            message: 'Please complete your full name and password to complete registration.',
+          });
+        }
+
+        const pwCheck = validateParentPassword(parsed.data.password);
+        if (!pwCheck.valid) {
+          return reply.status(400).send({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: pwCheck.message || 'Password does not meet complexity requirements',
+          });
+        }
+        const passwordHash = await hashPassword(parsed.data.password);
+        const derivedFullName = parsed.data.fullName.trim();
+
+        const [updatedUser] = await db
           .update(parentUsers)
           .set({
+            fullName: derivedFullName,
+            passwordHash,
+            googleId: googleId || user.googleId,
             emailVerified: true,
             updatedAt: sql`NOW()`,
           })
-          .where(eq(parentUsers.id, user.id));
+          .where(eq(parentUsers.id, user.id))
+          .returning();
+        user = updatedUser;
+      } else {
+        // Link googleId and verify email if not already verified
+        if (!user.googleId && googleId) {
+          await db
+            .update(parentUsers)
+            .set({
+              googleId,
+              emailVerified: true,
+              updatedAt: sql`NOW()`,
+            })
+            .where(eq(parentUsers.id, user.id));
+        } else if (!user.emailVerified) {
+          await db
+            .update(parentUsers)
+            .set({
+              emailVerified: true,
+              updatedAt: sql`NOW()`,
+            })
+            .where(eq(parentUsers.id, user.id));
+        }
       }
     } else {
       // Provision new parent account via Google OAuth
       // Requires profile setup (full name and compliant password) for new user accounts
       if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+        const completionToken = jwt.sign(
+          {
+            googleId,
+            email: normalizedEmail,
+            purpose: 'google_profile_completion',
+          },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: '15m' }
+        );
         return reply.status(200).send({
           statusCode: 200,
           requiresProfileCompletion: true,
           email: normalizedEmail,
           fullName: claims.name || '',
           googleId,
+          completionToken,
           message: 'Google identity verified. Please provide full name and password to complete registration.',
         });
       }
@@ -630,6 +695,130 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       tokenHash,
       familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Auth)',
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    return reply.send({
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: resolvedFullName,
+        familyCardNo: derivedFamilyCard,
+        phone: user.phone,
+        isGuest: false,
+        status: user.status,
+      },
+      accessToken: token,
+      refreshToken: rawRefreshToken,
+      expiresIn: 900,
+    });
+  });
+
+  /**
+   * POST /google/complete-profile
+   * Completes registration or profile setup for a Google-authenticated user.
+   * Requires a valid completionToken signed by the backend and a compliant password.
+   */
+  app.post('/google/complete-profile', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
+    const parsed = googleCompleteProfileSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid completion payload',
+      });
+    }
+
+    let tokenPayload: any;
+    try {
+      tokenPayload = jwt.verify(parsed.data.completionToken, env.JWT_ACCESS_SECRET);
+      if (tokenPayload.purpose !== 'google_profile_completion') {
+        throw new Error('Invalid token purpose');
+      }
+    } catch {
+      return reply.status(401).send({
+        statusCode: 401,
+        code: 'INVALID_COMPLETION_TOKEN',
+        error: 'Unauthorized',
+        message: 'Completion token is invalid or expired. Please sign in with Google again.',
+      });
+    }
+
+    const normalizedEmail = (tokenPayload.email as string).toLowerCase().trim();
+    const googleId = tokenPayload.googleId as string;
+
+    const pwCheck = validateParentPassword(parsed.data.password);
+    if (!pwCheck.valid) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: pwCheck.message || 'Password does not meet complexity requirements',
+      });
+    }
+    const passwordHash = await hashPassword(parsed.data.password);
+    const derivedFullName = parsed.data.fullName.trim();
+
+    // Check if user already exists
+    const [existing] = await db
+      .select()
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    let user = existing;
+    if (user) {
+      const [updated] = await db
+        .update(parentUsers)
+        .set({
+          fullName: derivedFullName,
+          passwordHash,
+          googleId: googleId || user.googleId,
+          emailVerified: true,
+          updatedAt: sql`NOW()`,
+        })
+        .where(eq(parentUsers.id, user.id))
+        .returning();
+      user = updated;
+    } else {
+      const [created] = await db
+        .insert(parentUsers)
+        .values({
+          email: normalizedEmail,
+          fullName: derivedFullName,
+          googleId: googleId || undefined,
+          authProvider: 'google',
+          emailVerified: true,
+          status: 'active',
+          passwordHash,
+        })
+        .returning();
+      user = created;
+    }
+
+    if (!user) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to complete profile',
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashRefreshToken(rawRefreshToken);
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
+    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+    await db.insert(parentRefreshTokens).values({
+      parentId: user.id,
+      tokenHash,
+      familyCardNo: derivedFamilyCard,
+      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     });

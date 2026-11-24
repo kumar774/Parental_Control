@@ -135,6 +135,25 @@ class ChildRestClient(
     }
 
     /**
+     * Acknowledge receipt of credentials after local persistence.
+     * Calls POST /api/v1/child/pair-ack/:sessionId with x-polling-token header.
+     * Retry-safe and idempotent.
+     */
+    suspend fun acknowledgePairReceipt(
+        sessionId: String,
+        pollingToken: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val path = "/api/v1/child/pair-ack/$sessionId"
+        try {
+            val extraHeaders = mapOf("x-polling-token" to pollingToken)
+            val response = executeRequestWithFailover(path, "POST", "{}", extraHeaders = extraHeaders)
+            response.code in 200..299
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * Submit pairing request to Backend when Child inputs Parent's pairing code.
      * Calls POST /api/v1/child/pair.
      * Rejects missing or empty tokens — never returns fabricated tokens.

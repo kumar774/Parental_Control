@@ -139,39 +139,91 @@ import kotlinx.coroutines.launch
  * Section C: 9-Digit numeric manual pairing code (XXX - XXX - XXX) fetched from POST /api/v1/devices/pair-code
  *            with countdown timer and single-use expiry, and manual entry dialog.
  */
-internal fun extractPairingCode(raw: String): String {
+sealed class ChildQrValidationResult {
+    data class Valid(val code: String, val sessionId: String?, val expiresAt: String?) : ChildQrValidationResult()
+    data class Expired(val code: String, val expiresAt: String) : ChildQrValidationResult()
+    data class Invalid(val reason: String) : ChildQrValidationResult()
+}
+
+/**
+ * Validates the typed Child QR Contract.
+ * Rejects wrong version, wrong type, missing UUID sessionId, non-9-digit codes, or expired timestamps.
+ */
+internal fun parseChildQrContract(
+    raw: String,
+    nowMs: Long = System.currentTimeMillis()
+): ChildQrValidationResult {
     val trimmed = raw.trim()
-    // 1. JSON QR Contract: {"version":1,"type":"child_pair","sessionId":"...","code":"123456789","expiresAt":"..."}
     if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        // Fast & JVM test-compatible regex extraction for code/pairingCode
-        val jsonCodeMatch = Regex("""\"(?:code|pairingCode)\"\s*:\s*\"?([0-9]{9})\"?""").find(trimmed)
-        if (jsonCodeMatch != null) {
-            return jsonCodeMatch.groupValues[1]
+        // 1. Version check
+        val versionMatch = Regex("""\"version\"\s*:\s*([0-9]+)""").find(trimmed)
+        val version = versionMatch?.groupValues?.get(1)?.toIntOrNull()
+        if (version != 1) {
+            return ChildQrValidationResult.Invalid("Unsupported QR version: ${version ?: "missing"}")
         }
-        try {
-            val json = JSONObject(trimmed)
-            if (json.has("code")) {
-                val code = json.getString("code").filter { it.isDigit() }
-                if (code.length == 9) return code
+
+        // 2. Type check
+        val typeMatch = Regex("""\"type\"\s*:\s*\"([^\"]+)\"""").find(trimmed)
+        val type = typeMatch?.groupValues?.get(1)
+        if (type != "child_pair") {
+            return ChildQrValidationResult.Invalid("Invalid QR type: ${type ?: "missing"}")
+        }
+
+        // 3. SessionId check (UUID format)
+        val sessionMatch = Regex("""\"sessionId\"\s*:\s*\"([0-9a-fA-F\-]{36})\"""").find(trimmed)
+        val sessionId = sessionMatch?.groupValues?.get(1)
+        if (sessionId == null) {
+            return ChildQrValidationResult.Invalid("Missing or invalid sessionId in QR")
+        }
+
+        // 4. Code check (9 digits)
+        val codeMatch = Regex("""\"(?:code|pairingCode)\"\s*:\s*\"?([0-9]{9})\"?""").find(trimmed)
+        val code = codeMatch?.groupValues?.get(1)
+        if (code == null) {
+            return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR")
+        }
+
+        // 5. Expiry check
+        val expiresMatch = Regex("""\"expiresAt\"\s*:\s*\"([^\"]+)\"""").find(trimmed)
+        val expiresAt = expiresMatch?.groupValues?.get(1)
+        if (expiresAt != null) {
+            val expiryMs = try {
+                java.time.Instant.parse(expiresAt).toEpochMilli()
+            } catch (_: Exception) {
+                null
             }
-            if (json.has("pairingCode")) {
-                val code = json.getString("pairingCode").filter { it.isDigit() }
-                if (code.length == 9) return code
+            if (expiryMs != null && expiryMs < nowMs) {
+                return ChildQrValidationResult.Expired(code = code, expiresAt = expiresAt)
             }
-        } catch (_: Throwable) {}
+        }
+
+        return ChildQrValidationResult.Valid(code = code, sessionId = sessionId, expiresAt = expiresAt)
     }
-    // 2. Colon-delimited scheme: pc-pair:123456789 or pcpair:123456789
+
+    // Colon-delimited scheme: pc-pair:123456789 or pcpair:123456789
     val parts = trimmed.split(":")
     if (parts.size >= 2 && (parts[0].equals("pc-pair", ignoreCase = true) || parts[0].equals("pcpair", ignoreCase = true))) {
         val code = parts[1].filter { it.isDigit() }
-        if (code.length == 9) return code
+        if (code.length == 9) {
+            return ChildQrValidationResult.Valid(code = code, sessionId = null, expiresAt = null)
+        }
     }
-    // 3. Plain numeric 9-digit code
+
+    // Plain numeric 9-digit code
     val digitsOnly = trimmed.filter { it.isDigit() }
-    if (digitsOnly.length in 6..16) {
-        return digitsOnly
+    if (digitsOnly.length == 9) {
+        return ChildQrValidationResult.Valid(code = digitsOnly, sessionId = null, expiresAt = null)
     }
-    return trimmed
+
+    return ChildQrValidationResult.Invalid("Invalid pairing QR format")
+}
+
+internal fun extractPairingCode(raw: String): String {
+    return when (val res = parseChildQrContract(raw)) {
+        is ChildQrValidationResult.Valid -> res.code
+        is ChildQrValidationResult.Expired -> res.code
+        is ChildQrValidationResult.Invalid -> raw.filter { it.isDigit() }.takeIf { it.length in 6..16 } ?: raw.trim()
+    }
 }
 
 fun formatNineDigitCode(code: String): String {
@@ -437,33 +489,42 @@ fun DevicePairingScreen(
                         }
                     },
                     onQrCodeDetected = { rawQr ->
-                        val code = extractPairingCode(rawQr)
-                        Toast.makeText(context, "Pairing with code $code...", Toast.LENGTH_SHORT).show()
-                        scope.launch {
-                            val result = FastifyRestClient.shared.confirmPairing(code)
-                            if (result.isSuccess) {
-                                val dev = result.getOrNull()!!
-                                childDao.insertOrUpdate(
-                                    ChildDeviceEntity(
-                                        id = dev.id,
-                                        deviceName = dev.deviceName,
-                                        childName = dev.childName.ifBlank { dev.deviceName },
-                                        childAge = 10,
-                                        avatarUrl = null,
-                                        isLocked = false,
-                                        batteryPercent = 100,
-                                        isCharging = false,
-                                        isOnline = true,
-                                        activeApp = null,
-                                        lastKnownLat = null,
-                                        lastKnownLng = null,
-                                        lastSeenAt = System.currentTimeMillis()
-                                    )
-                                )
-                                onPairingSuccess(dev.childName, dev.deviceName)
-                            } else {
-                                val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
-                                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                        when (val qrResult = parseChildQrContract(rawQr)) {
+                            is ChildQrValidationResult.Valid -> {
+                                Toast.makeText(context, "Pairing with code ${qrResult.code}...", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    val result = FastifyRestClient.shared.confirmPairing(qrResult.code)
+                                    if (result.isSuccess) {
+                                        val dev = result.getOrNull()!!
+                                        childDao.insertOrUpdate(
+                                            ChildDeviceEntity(
+                                                id = dev.id,
+                                                deviceName = dev.deviceName,
+                                                childName = dev.childName.ifBlank { dev.deviceName },
+                                                childAge = 10,
+                                                avatarUrl = null,
+                                                isLocked = false,
+                                                batteryPercent = 100,
+                                                isCharging = false,
+                                                isOnline = true,
+                                                activeApp = null,
+                                                lastKnownLat = null,
+                                                lastKnownLng = null,
+                                                lastSeenAt = System.currentTimeMillis()
+                                            )
+                                        )
+                                        onPairingSuccess(dev.childName, dev.deviceName)
+                                    } else {
+                                        val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
+                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                            is ChildQrValidationResult.Expired -> {
+                                Toast.makeText(context, "QR code has expired. Please refresh Child App.", Toast.LENGTH_LONG).show()
+                            }
+                            is ChildQrValidationResult.Invalid -> {
+                                Toast.makeText(context, qrResult.reason, Toast.LENGTH_SHORT).show()
                             }
                         }
                     },

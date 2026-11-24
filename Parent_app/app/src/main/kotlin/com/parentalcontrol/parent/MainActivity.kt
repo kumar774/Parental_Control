@@ -78,8 +78,12 @@ import com.parentalcontrol.core.designsystem.theme.Space8
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.parent.ui.auth.ForgotPasswordScreen
+import com.parentalcontrol.parent.ui.auth.GoogleProfileCompletionDialog
 import com.parentalcontrol.parent.ui.auth.LoginScreen
 import com.parentalcontrol.parent.ui.auth.RegisterScreen
+import com.parentalcontrol.parent.auth.GoogleAuthHelper
+import com.parentalcontrol.core.network.rest.AppSettingsDto
+import com.parentalcontrol.core.network.rest.GoogleAuthResult
 import com.parentalcontrol.parent.ui.dashboard.ActivityAuditHubScreen
 import com.parentalcontrol.parent.ui.dashboard.DashboardScreen
 import com.parentalcontrol.parent.ui.dashboard.FamilyPinManagementScreen
@@ -344,6 +348,12 @@ fun ParentAppMainContent(
     var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
     var isRetryingConnection by remember { mutableStateOf(false) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
+    var remoteAppSettings by remember { mutableStateOf<AppSettingsDto?>(null) }
+
+    LaunchedEffect(Unit) {
+        val settingsRes = FastifyRestClient.shared.getAppSettings()
+        remoteAppSettings = settingsRes.getOrNull()
+    }
 
     val sessionRestorationManager = remember {
         SessionRestorationManager(
@@ -560,6 +570,9 @@ fun ParentAppMainContent(
     // Phase 10 Modal states (Completing 26 Modals)
     var showUpgradePremiumModal by remember { mutableStateOf(false) }
     var showVipDiscountModal by remember { mutableStateOf(false) }
+
+    // Google Identity Profile Completion state
+    var googleCompletionPendingData by remember { mutableStateOf<GoogleAuthResult.RequiresProfileCompletion?>(null) }
     var showVoucherRedemptionModal by remember { mutableStateOf(false) }
     var showBindPhoneModal by remember { mutableStateOf(false) }
     var showStreamQuotaExhaustedModal by remember { mutableStateOf(false) }
@@ -888,18 +901,38 @@ fun ParentAppMainContent(
                             }
                         },
                         onGoogleSignInClick = {
-                            toastMessage = "Connecting with Google Identity Services…"
-                            toastType = ToastType.INFO
                             scope.launch {
-                                val res = FastifyRestClient.shared.loginWithGoogle("mock-google-id-token-${System.currentTimeMillis()}")
+                                toastMessage = "Connecting with Google Identity Services…"
+                                toastType = ToastType.INFO
+                                val tokenRes = GoogleAuthHelper.getGoogleIdToken(
+                                    context = context,
+                                    googleClientId = remoteAppSettings?.googleClientId
+                                )
+                                if (tokenRes.isFailure) {
+                                    val err = tokenRes.exceptionOrNull()
+                                    if (err !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                                        toastMessage = err?.message ?: "Google sign-in was cancelled"
+                                        toastType = ToastType.WARNING
+                                    }
+                                    return@launch
+                                }
+                                val idToken = tokenRes.getOrNull()!!
+                                val res = FastifyRestClient.shared.loginWithGoogle(idToken)
                                 if (res.isSuccess) {
-                                    val user = res.getOrNull()!!
-                                    mmkv.accessToken = user.accessToken
-                                    mmkv.refreshToken = user.refreshToken
-                                    mmkv.userEmail = user.user.email
-                                    toastMessage = "Welcome, ${user.user.fullName}!"
-                                    toastType = ToastType.SUCCESS
-                                    navigateToAuthenticatedRoot()
+                                    when (val result = res.getOrNull()!!) {
+                                        is GoogleAuthResult.Success -> {
+                                            val user = result.authResponse
+                                            mmkv.accessToken = user.accessToken
+                                            mmkv.refreshToken = user.refreshToken
+                                            mmkv.userEmail = user.user.email
+                                            toastMessage = "Welcome, ${user.user.fullName}!"
+                                            toastType = ToastType.SUCCESS
+                                            navigateToAuthenticatedRoot()
+                                        }
+                                        is GoogleAuthResult.RequiresProfileCompletion -> {
+                                            googleCompletionPendingData = result
+                                        }
+                                    }
                                 } else {
                                     toastMessage = res.exceptionOrNull()?.message ?: "Google sign-in failed"
                                     toastType = ToastType.ERROR
@@ -933,18 +966,38 @@ fun ParentAppMainContent(
                             currentScreen = AppScreen.NATIVE_LEGAL
                         },
                         onGoogleSignUpClick = {
-                            toastMessage = "Connecting with Google Identity Services…"
-                            toastType = ToastType.INFO
                             scope.launch {
-                                val res = FastifyRestClient.shared.loginWithGoogle("mock-google-id-token-${System.currentTimeMillis()}")
+                                toastMessage = "Connecting with Google Identity Services…"
+                                toastType = ToastType.INFO
+                                val tokenRes = GoogleAuthHelper.getGoogleIdToken(
+                                    context = context,
+                                    googleClientId = remoteAppSettings?.googleClientId
+                                )
+                                if (tokenRes.isFailure) {
+                                    val err = tokenRes.exceptionOrNull()
+                                    if (err !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                                        toastMessage = err?.message ?: "Google sign-up was cancelled"
+                                        toastType = ToastType.WARNING
+                                    }
+                                    return@launch
+                                }
+                                val idToken = tokenRes.getOrNull()!!
+                                val res = FastifyRestClient.shared.loginWithGoogle(idToken)
                                 if (res.isSuccess) {
-                                    val user = res.getOrNull()!!
-                                    mmkv.accessToken = user.accessToken
-                                    mmkv.refreshToken = user.refreshToken
-                                    mmkv.userEmail = user.user.email
-                                    toastMessage = "Account created with Google!"
-                                    toastType = ToastType.SUCCESS
-                                    navigateToAuthenticatedRoot()
+                                    when (val result = res.getOrNull()!!) {
+                                        is GoogleAuthResult.Success -> {
+                                            val user = result.authResponse
+                                            mmkv.accessToken = user.accessToken
+                                            mmkv.refreshToken = user.refreshToken
+                                            mmkv.userEmail = user.user.email
+                                            toastMessage = "Account created with Google!"
+                                            toastType = ToastType.SUCCESS
+                                            navigateToAuthenticatedRoot()
+                                        }
+                                        is GoogleAuthResult.RequiresProfileCompletion -> {
+                                            googleCompletionPendingData = result
+                                        }
+                                    }
                                 } else {
                                     toastMessage = res.exceptionOrNull()?.message ?: "Google sign-up failed"
                                     toastType = ToastType.ERROR
@@ -2307,6 +2360,25 @@ fun ParentAppMainContent(
                 onViewPlansClick = {
                     showUpgradePremiumModal = false
                     currentScreen = AppScreen.SUBSCRIPTION_PLANS
+                }
+            )
+        }
+
+        // Google Profile Completion Dialog
+        googleCompletionPendingData?.let { compData ->
+            GoogleProfileCompletionDialog(
+                completionData = compData,
+                onSuccess = { authRes ->
+                    googleCompletionPendingData = null
+                    mmkv.accessToken = authRes.accessToken
+                    mmkv.refreshToken = authRes.refreshToken
+                    mmkv.userEmail = authRes.user.email
+                    toastMessage = "Welcome, ${authRes.user.fullName}!"
+                    toastType = ToastType.SUCCESS
+                    navigateToAuthenticatedRoot()
+                },
+                onDismiss = {
+                    googleCompletionPendingData = null
                 }
             )
         }

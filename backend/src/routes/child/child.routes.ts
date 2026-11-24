@@ -138,42 +138,79 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
 
-    // Check expiry
-    if (new Date(session.expiresAt).getTime() < Date.now()) {
-      if (session.status === 'pending') {
+    // 1. Pending session: enforce pairing code enrollment expiry
+    if (session.status === 'pending') {
+      if (new Date(session.expiresAt).getTime() < Date.now()) {
         await db
           .update(pairingSessions)
           .set({ status: 'expired' })
           .where(eq(pairingSessions.id, session.id));
+        return reply.status(200).send({
+          statusCode: 200,
+          status: 'expired',
+          message: 'Pairing code enrollment window has expired',
+        });
       }
-      return reply.status(200).send({
-        statusCode: 200,
-        status: 'expired',
-        message: 'Pairing session has expired',
-      });
-    }
-
-    if (session.status === 'pending') {
       return reply.status(200).send({
         statusCode: 200,
         status: 'pending',
       });
     }
 
+    // 2. Paired session: allow credential retrieval within bounded 24-hour delivery window
     if (session.status === 'paired' && session.childDeviceId && session.parentId) {
-      // Idempotent credential retrieval: return existing issued token or mint and store once
-      let deviceToken = session.issuedDeviceToken;
-      if (!deviceToken) {
-        deviceToken = jwt.sign(
-          { deviceId: session.childDeviceId, parentId: session.parentId, role: 'child' },
+      const pairedReferenceTime = session.claimedAt ? new Date(session.claimedAt).getTime() : new Date(session.createdAt).getTime();
+      const DELIVERY_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours bounded credential delivery window
+      if (Date.now() - pairedReferenceTime > DELIVERY_WINDOW_MS) {
+        return reply.status(200).send({
+          statusCode: 200,
+          status: 'expired',
+          message: 'Credential delivery window has expired. Please re-pair the device.',
+        });
+      }
+
+      // Concurrency-safe atomic credential issuance:
+      // PostgreSQL row lock (FOR UPDATE) guarantees concurrent polling requests mint & return exactly one token
+      const deviceToken = await db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select()
+          .from(pairingSessions)
+          .where(
+            and(
+              eq(pairingSessions.id, session.id),
+              eq(pairingSessions.pollingToken, pollingTokenHeader)
+            )
+          )
+          .for('update');
+
+        if (!locked) return null;
+        if (locked.issuedDeviceToken) {
+          return locked.issuedDeviceToken;
+        }
+
+        const mintedToken = jwt.sign(
+          { deviceId: locked.childDeviceId, parentId: locked.parentId, role: 'child' },
           env.JWT_ACCESS_SECRET,
           { expiresIn: '365d' }
         );
 
-        await db
+        await tx
           .update(pairingSessions)
-          .set({ issuedDeviceToken: deviceToken, claimedAt: new Date() })
-          .where(eq(pairingSessions.id, session.id));
+          .set({
+            issuedDeviceToken: mintedToken,
+            claimedAt: locked.claimedAt || new Date(),
+          })
+          .where(eq(pairingSessions.id, locked.id));
+
+        return mintedToken;
+      });
+
+      if (!deviceToken) {
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to atomically issue device credentials',
+        });
       }
 
       return reply.status(200).send({
@@ -195,8 +232,8 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
   /**
    * POST /api/v1/child/pair-ack/:sessionId
-   * Explicit acknowledgment from Child App confirming receipt of credentials.
-   * Clears pollingToken to close the delivery window.
+   * Explicit, retry-safe acknowledgment from Child App confirming durable receipt of credentials.
+   * Clears pollingToken to close the delivery window once credentials are confirmed stored locally.
    */
   app.post('/pair-ack/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
@@ -210,24 +247,44 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
 
-    const [updated] = await db
-      .update(pairingSessions)
-      .set({ pollingToken: null })
-      .where(
-        and(
-          eq(pairingSessions.id, sessionId),
-          eq(pairingSessions.pollingToken, pollingTokenHeader)
-        )
-      )
-      .returning();
+    const [existing] = await db
+      .select({
+        id: pairingSessions.id,
+        status: pairingSessions.status,
+        pollingToken: pairingSessions.pollingToken,
+      })
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId))
+      .limit(1);
 
-    if (!updated) {
+    if (!existing) {
       return reply.status(404).send({
         statusCode: 404,
         error: 'Not Found',
-        message: 'Invalid session or token already acknowledged',
+        message: 'Pairing session not found',
       });
     }
+
+    // Idempotent retry safety: if already acknowledged and pollingToken cleared, return success
+    if (existing.status === 'paired' && existing.pollingToken === null) {
+      return reply.status(200).send({
+        statusCode: 200,
+        message: 'Credential receipt already acknowledged',
+      });
+    }
+
+    if (existing.pollingToken !== pollingTokenHeader) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid polling token',
+      });
+    }
+
+    await db
+      .update(pairingSessions)
+      .set({ pollingToken: null })
+      .where(eq(pairingSessions.id, sessionId));
 
     return reply.status(200).send({
       statusCode: 200,

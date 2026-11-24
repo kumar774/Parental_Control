@@ -68,33 +68,43 @@ export const adminSettingsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     }
 
     const admin = request.adminUser!;
-    const updated = await updateAppSettings(parsed.data, admin.id);
 
+    // Atomic transaction: Settings update and required audit log are committed together.
+    // If the audit write fails, settings update rolls back completely.
     try {
-      await db.insert(adminControlAuditLogs).values({
-        adminId: admin.id,
-        action: 'APP_SETTINGS_UPDATE',
-        targetType: 'SYSTEM_SETTINGS',
-        targetId: null,
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'] as string,
-        severity: 'info',
-        metadata: {
-          changedFields: Object.keys(parsed.data),
-          googleAuthEnabled: updated.googleAuthEnabled,
-          childAppDownloadUrl: updated.childAppDownloadUrl,
-          childAppLatestVersion: updated.childAppLatestVersion,
-        },
+      const updated = await db.transaction(async (tx) => {
+        const settings = await updateAppSettings(parsed.data, admin.id, tx);
+        await tx.insert(adminControlAuditLogs).values({
+          adminId: admin.id,
+          action: 'APP_SETTINGS_UPDATE',
+          targetType: 'SYSTEM_SETTINGS',
+          targetId: null,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'] as string,
+          severity: 'info',
+          metadata: {
+            changedFields: Object.keys(parsed.data),
+            googleAuthEnabled: settings.googleAuthEnabled,
+            childAppDownloadUrl: settings.childAppDownloadUrl,
+            childAppLatestVersion: settings.childAppLatestVersion,
+          },
+        });
+        return settings;
       });
-    } catch {
-      // Non-fatal audit log failure
-    }
 
-    return reply.send({
-      statusCode: 200,
-      message: 'Application settings updated successfully',
-      settings: updated,
-    });
+      return reply.send({
+        statusCode: 200,
+        message: 'Application settings updated successfully',
+        settings: updated,
+      });
+    } catch (err: any) {
+      request.log.error({ err }, 'Failed to atomically update application settings and audit log');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: err.message || 'Failed to update application settings with required audit logging',
+      });
+    }
   });
 
   /**

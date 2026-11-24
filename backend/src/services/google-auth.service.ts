@@ -106,62 +106,67 @@ export async function verifyGoogleIdToken(
     throw new GoogleAuthVerificationError('Configured Google Client ID (audience) is mandatory for token verification', 400);
   }
 
-  if (testVerifier) {
-    return await testVerifier(token, expectedClientId);
-  }
-
-  // Parse header without verification to extract key ID (kid) and algorithm
-  const decodedHeader = jwt.decode(token, { complete: true });
-  if (!decodedHeader || typeof decodedHeader !== 'object' || !decodedHeader.header) {
-    throw new GoogleAuthVerificationError('Invalid token format: cannot decode JWT header', 400);
-  }
-
-  const { kid, alg } = decodedHeader.header;
-  if (!kid) {
-    throw new GoogleAuthVerificationError('Google token header is missing kid', 400);
-  }
-  if (alg !== 'RS256') {
-    throw new GoogleAuthVerificationError(`Unsupported signature algorithm: ${alg}. Expected RS256.`, 400);
-  }
-
-  const keys = await fetchGooglePublicKeys();
-  const matchedKey = keys.find((k) => k.kid === kid);
-  if (!matchedKey) {
-    throw new GoogleAuthVerificationError('Unknown signing key ID (kid) for Google token', 400);
-  }
-
-  // Convert JWK to crypto KeyObject
-  let publicKey: crypto.KeyObject;
-  try {
-    publicKey = crypto.createPublicKey({
-      key: matchedKey as any,
-      format: 'jwk',
-    });
-  } catch (err: any) {
-    throw new GoogleAuthVerificationError(`Failed to construct public key from JWK: ${err.message}`, 500);
-  }
-
-  // Cryptographically verify signature and standard claims
   let payload: any;
-  try {
-    payload = jwt.verify(token, publicKey.export({ type: 'spki', format: 'pem' }), {
-      algorithms: ['RS256'],
-    });
-  } catch (err: any) {
-    if (err.name === 'TokenExpiredError') {
-      throw new GoogleAuthVerificationError('Google ID token has expired', 401);
+  if (testVerifier) {
+    payload = await testVerifier(token, expectedClientId);
+  } else {
+    // Parse header without verification to extract key ID (kid) and algorithm
+    const decodedHeader = jwt.decode(token, { complete: true });
+    if (!decodedHeader || typeof decodedHeader !== 'object' || !decodedHeader.header) {
+      throw new GoogleAuthVerificationError('Invalid token format: cannot decode JWT header', 400);
     }
-    throw new GoogleAuthVerificationError(`Google token cryptographic signature verification failed: ${err.message}`, 401);
+
+    const { kid, alg } = decodedHeader.header;
+    if (!kid) {
+      throw new GoogleAuthVerificationError('Google token header is missing kid', 400);
+    }
+    if (alg !== 'RS256') {
+      throw new GoogleAuthVerificationError(`Unsupported signature algorithm: ${alg}. Expected RS256.`, 400);
+    }
+
+    const keys = await fetchGooglePublicKeys();
+    const matchedKey = keys.find((k) => k.kid === kid);
+    if (!matchedKey) {
+      throw new GoogleAuthVerificationError('Unknown signing key ID (kid) for Google token', 400);
+    }
+
+    // Convert JWK to crypto KeyObject
+    let publicKey: crypto.KeyObject;
+    try {
+      publicKey = crypto.createPublicKey({
+        key: matchedKey as any,
+        format: 'jwk',
+      });
+    } catch (err: any) {
+      throw new GoogleAuthVerificationError(`Failed to construct public key from JWK: ${err.message}`, 500);
+    }
+
+    // Cryptographically verify signature and standard claims
+    try {
+      payload = jwt.verify(token, publicKey.export({ type: 'spki', format: 'pem' }), {
+        algorithms: ['RS256'],
+      });
+    } catch (err: any) {
+      if (err.name === 'TokenExpiredError') {
+        throw new GoogleAuthVerificationError('Google ID token has expired', 401);
+      }
+      throw new GoogleAuthVerificationError(`Google token cryptographic signature verification failed: ${err.message}`, 401);
+    }
   }
 
   if (!payload || typeof payload !== 'object') {
     throw new GoogleAuthVerificationError('Invalid token payload', 400);
   }
 
+  // Expiry validation
+  if (payload.exp && Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+    throw new GoogleAuthVerificationError('Google ID token has expired', 401);
+  }
+
   // Issuer validation
   if (!payload.iss || !VALID_ISSUERS.includes(payload.iss)) {
     throw new GoogleAuthVerificationError(
-      `Invalid token issuer '${payload.iss}'. Expected one of ${VALID_ISSUERS.join(', ')}`,
+      `Invalid Google token issuer '${payload.iss}'. Expected one of ${VALID_ISSUERS.join(', ')}`,
       401
     );
   }
@@ -173,7 +178,7 @@ export async function verifyGoogleIdToken(
 
   if (!audMatches) {
     throw new GoogleAuthVerificationError(
-      `Token audience mismatch. Token was not issued for this application client ID.`,
+      `Google ID token audience mismatch (token was issued for a different client)`,
       401
     );
   }
@@ -192,8 +197,8 @@ export async function verifyGoogleIdToken(
   const isEmailVerified = payload.email_verified === true || payload.email_verified === 'true';
   if (!isEmailVerified) {
     throw new GoogleAuthVerificationError(
-      'Google account email is not verified. A verified Google email is required.',
-      403,
+      'Google account email is not verified',
+      401,
       'EMAIL_NOT_VERIFIED'
     );
   }
