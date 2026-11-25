@@ -267,7 +267,7 @@ export async function getVerifiedRoleConnection(
     Symbol.for('parental-control.real-postgres.preflight')
   ];
 
-  if (!databaseUrl || !expectedDbName || !expectedDbPort || !runId || !owner || !serverId || preflightRunId !== runId) {
+  if (!databaseUrl || !expectedDbName || !expectedDbPort || !runId || !owner || preflightRunId !== runId) {
     throw new Error(
       '[Real PostgreSQL Gate FATAL] Required explicit test identity and successful preflight are missing.'
     );

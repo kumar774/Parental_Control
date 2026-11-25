@@ -26,3 +26,10 @@ Add a fail-closed process preflight before importing app modules, require explic
 - A subsequent full real-PostgreSQL run passed explicit target preflight and connected as `parental_migrator`, but failed closed on the same disposable database because 7 of 14 guaranteed objects for migration `0009_pairing_and_app_settings.sql` were present. The remaining suite could not use the incomplete schema. Summary: 181 tests, 11 passed, 34 failed, 136 cancelled. No result is accepted as a passing PostgreSQL suite.
 - Mailpit-dependent email checks were also not valid: Windows localhost ports 1025/8025 were occupied by an unrelated local mock service, so the suite did not use the WSL Mailpit instance. The temporary Mailpit process started for this attempt has been stopped.
 - Application-row impact in the original event remains unknown. The isolated run's failures and cleanup are separate from the original development database incident.
+
+## Fresh isolated integration run (2026-11-25)
+
+- Created a new, separately marked database on the WSL PostgreSQL 18.6 cluster after the partial-schema failure. The runner's live preflight verified loopback port 55433, test database name, owner, roles, run marker, and server identifier before migration.
+- All 14 versioned migrations applied successfully under `parental_migrator`. The full suite result was 133 passed, 1 failed, 36 cancelled. The failure was an `Unexpected end of file` syntax error in the unstaged `migration-runner.test.ts` working copy; remaining categories continued and passed. This working-copy edit was preserved.
+- Three role-permission subgroups initially failed because `getVerifiedRoleConnection` referenced undefined `serverId`. The harness check was corrected to rely on the already verified preflight run marker plus database owner/comment/port/name. A focused rerun of `real-role-permissions.test.ts` passed all 40 tests.
+- The full suite has not been rerun after that harness correction. Email E2E tests passed through the existing local Mailpit-compatible mock service; this does not establish behavior against the Mailpit release binary.
