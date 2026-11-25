@@ -53,7 +53,7 @@ for (const [name, changes] of [
 }
 
 test('rejects mismatched runtime database, role, port, server, owner and run marker', async () => {
-  const fields = ['database_name', 'role_name', 'port', 'server_id', 'database_owner', 'database_comment', 'migration_role_superuser', 'can_set_migration_role'];
+  const fields = ['database_name', 'role_name', 'port', 'server_id', 'database_owner', 'database_comment', 'migration_role_superuser', 'is_migration_role', 'can_set_migration_role'];
   for (const field of fields) {
     const actual = {
       database_name: valid.AUTH001_TEST_DATABASE_NAME,
@@ -63,6 +63,7 @@ test('rejects mismatched runtime database, role, port, server, owner and run mar
       database_owner: valid.AUTH001_TEST_DATABASE_OWNER,
       database_comment: `codex-test-run:${runId}`,
       migration_role_superuser: false,
+      is_migration_role: false,
       can_set_migration_role: true,
     };
     actual[field] = field === 'port' ? 5432 : 'wrong';
@@ -84,9 +85,33 @@ test('rejects roles that can connect to protected databases', async () => {
           database_owner: valid.AUTH001_TEST_DATABASE_OWNER,
           database_comment: `codex-test-run:${runId}`,
           migration_role_superuser: false,
+          is_migration_role: false,
           can_set_migration_role: true,
         }] }
       : { rows: [{ datname: 'parental_control_admin_db' }] };
   } };
   await assert.rejects(() => verifyPostgresTarget(valid, client), /protected database/);
+});
+
+test('accepts the explicitly authorized non-superuser when it is itself the migration role', async () => {
+  const sameRole = { ...valid, AUTH001_TEST_MIGRATOR_ROLE: valid.AUTH001_TEST_DATABASE_ROLE };
+  let queryCount = 0;
+  const client = { query: async () => {
+    queryCount += 1;
+    return queryCount === 1
+      ? { rows: [{
+          database_name: valid.AUTH001_TEST_DATABASE_NAME,
+          role_name: valid.AUTH001_TEST_DATABASE_ROLE,
+          port: 5433,
+          server_id: valid.AUTH001_TEST_SERVER_ID,
+          database_owner: valid.AUTH001_TEST_DATABASE_OWNER,
+          database_comment: `codex-test-run:${runId}`,
+          migration_role_superuser: false,
+          is_migration_role: true,
+          can_set_migration_role: false,
+        }] }
+      : { rows: [] };
+  } };
+  const expected = await verifyPostgresTarget(sameRole, client);
+  assert.equal(expected.migratorRole, sameRole.AUTH001_TEST_DATABASE_ROLE);
 });

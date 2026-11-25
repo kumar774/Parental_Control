@@ -199,54 +199,27 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     }
   });
 
-  it('2. Migration under dedicated disposable role: executes npm run db:migrate and verifies ownership', async () => {
+  it('2. Migration under dedicated parental_migrator role: executes npm run db:migrate and verifies ownership', async () => {
     const testDbName = newTestDatabaseName('role_migrator_cli');
-    const tempMigratorRole = `auth001_mig_${runId.replaceAll('-', '').slice(0, 8)}_${crypto.randomBytes(4).toString('hex')}`;
-    await createDisposableDatabase(testDbName);
-
-    const migratorPass = crypto.randomBytes(32).toString('hex');
-    // Create dedicated ephemeral migrator role without modifying shared cluster roles
-    await mainConn.pool.query(
-      `CREATE ROLE ${quoteIdentifier(tempMigratorRole)} WITH LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`
-    );
-    createdTestRoles.add(tempMigratorRole);
-    await mainConn.pool.query(`GRANT ALL ON DATABASE ${quoteIdentifier(testDbName)} TO ${quoteIdentifier(tempMigratorRole)};`);
-    await mainConn.pool.query(`GRANT parental_audit_pruner TO ${quoteIdentifier(tempMigratorRole)} WITH ADMIN OPTION;`);
-
-    const adminTestUrl = createTestDbUrl(testDbName);
-    const adminTestPool = createTestPool(adminTestUrl);
-    try {
-      await adminTestPool.query(`ALTER SCHEMA public OWNER TO ${quoteIdentifier(tempMigratorRole)};`);
-      await adminTestPool.query(`GRANT ALL ON SCHEMA public TO ${quoteIdentifier(tempMigratorRole)};`);
-    } finally {
-      await adminTestPool.end();
-    }
-
-    const migratorTestUrl = createTestDbUrl(testDbName, tempMigratorRole, migratorPass);
+    const testDbUrl = await createDisposableDatabase(testDbName);
 
     try {
-      const output = runMigrationCli(migratorTestUrl, { encoding: 'utf8' });
+      const output = runMigrationCli(testDbUrl, { encoding: 'utf8' });
 
-      assert.ok(output.includes(`as user: '${tempMigratorRole}'`));
+      assert.ok(output.includes("as user: 'parental_migrator'"));
       assert.ok(output.includes('[Migration Runner] Complete: 14 migration(s) applied successfully'));
 
       // Verify tracking
-      const migratorPool = createTestPool(migratorTestUrl);
+      const migratorClient = await mainConn.pool.connect();
       try {
-        const res = await migratorPool.query('SELECT count(*)::int AS count FROM public.schema_migrations;');
+        await migratorClient.query('SET ROLE parental_migrator;');
+        const res = await migratorClient.query('SELECT count(*)::int AS count FROM public.schema_migrations;');
         assert.equal(res.rows[0].count, 14);
       } finally {
-        await migratorPool.end();
+        await migratorClient.query('RESET ROLE;').catch(() => {});
+        migratorClient.release();
       }
     } finally {
-      try {
-        await mainConn.pool.query(`REVOKE ALL ON DATABASE ${quoteIdentifier(testDbName)} FROM ${quoteIdentifier(tempMigratorRole)};`);
-        await mainConn.pool.query(`REVOKE parental_audit_pruner FROM ${quoteIdentifier(tempMigratorRole)};`);
-        await mainConn.pool.query(`DROP ROLE ${quoteIdentifier(tempMigratorRole)};`);
-        createdTestRoles.delete(tempMigratorRole);
-      } catch (cleanupError) {
-        console.error('[Migration Runner Test] Temporary role cleanup will be retried in suite teardown:', cleanupError);
-      }
       await dropDisposableDatabase(testDbName);
     }
   });
@@ -258,7 +231,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const testPool = createTestPool(testDbUrl);
     try {
       // 1. Pre-apply migrations 0000 through 0008 manually to simulate pre-0009 production database
-      await testPool.query(`
+      const migrationClient = await testPool.connect();
+      try {
+        await migrationClient.query('GRANT CREATE ON SCHEMA public TO parental_migrator;');
+        await migrationClient.query('ALTER SCHEMA public OWNER TO parental_migrator;');
+        await migrationClient.query('SET ROLE parental_migrator;');
+        await migrationClient.query(`
         CREATE TABLE IF NOT EXISTS public.schema_migrations (
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL UNIQUE,
@@ -280,8 +258,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
 
       for (const file of pre0009Files) {
         const sql = fs.readFileSync(path.join(drizzleDir, file), 'utf8');
-        await testPool.query(sql);
-        await testPool.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [file]);
+        await migrationClient.query(sql);
+        await migrationClient.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [file]);
+      }
+        await migrationClient.query('RESET ROLE;');
+      } finally {
+        migrationClient.release();
       }
 
       // Assert 0009 and 0010 tables do NOT exist yet
@@ -556,13 +538,24 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       }
 
       // Partially create 0009 schema: create system_app_settings table, but omit pairing_sessions table
-      await testPool.query(`
+      const partialClient = await testPool.connect();
+      try {
+        await partialClient.query('GRANT CREATE ON SCHEMA public TO parental_migrator;');
+        await partialClient.query('SET ROLE parental_migrator;');
+        await partialClient.query(`
         CREATE TABLE public.system_app_settings (
-          id VARCHAR(64) PRIMARY KEY,
+          id VARCHAR(32) PRIMARY KEY,
           google_auth_enabled BOOLEAN NOT NULL DEFAULT true,
-          child_app_download_url TEXT NOT NULL DEFAULT 'https://example.com/download/child.apk'
+          google_client_id TEXT,
+          child_app_download_url TEXT NOT NULL DEFAULT 'https://example.com/download/child.apk',
+          child_app_latest_version TEXT NOT NULL DEFAULT '1.0.0',
+          child_app_min_version TEXT NOT NULL DEFAULT '1.0.0'
         );
       `);
+        await partialClient.query('RESET ROLE;');
+      } finally {
+        partialClient.release();
+      }
 
       // Close test pool before running external migrator process
       await testPool.end();
@@ -694,12 +687,20 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
 
       // Partially create 0003 schema: create admin_control_audit_logs with severity column,
       // but omit constraint admin_control_audit_severity_check and index idx_admin_control_audit_severity_created
-      await testPool.query(`
+      const fixtureClient = await testPool.connect();
+      try {
+        await fixtureClient.query('GRANT CREATE ON SCHEMA public TO parental_migrator;');
+        await fixtureClient.query('SET ROLE parental_migrator;');
+        await fixtureClient.query(`
         CREATE TABLE public.admin_control_audit_logs (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           severity VARCHAR(32)
         );
       `);
+        await fixtureClient.query('RESET ROLE;');
+      } finally {
+        fixtureClient.release();
+      }
 
       // Close test pool before running external migrator process
       await testPool.end();
@@ -814,8 +815,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         await testPool.query('INSERT INTO public.schema_migrations (name) VALUES ($1);', [name]);
       }
 
-      // Create tables and constraint/index for 0003, but intentionally GRANT DELETE to parental_admin
-      await testPool.query(`
+      // Create tables and constraint/index for 0003, then intentionally GRANT DELETE to parental_admin
+      const fixtureClient = await testPool.connect();
+      try {
+        await fixtureClient.query('GRANT CREATE ON SCHEMA public TO parental_migrator;');
+        await fixtureClient.query('SET ROLE parental_migrator;');
+        await fixtureClient.query(`
         CREATE TABLE public.admin_control_audit_logs (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           severity VARCHAR(32) NOT NULL DEFAULT 'info',
@@ -828,9 +833,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
         CREATE TABLE IF NOT EXISTS public.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
         CREATE TABLE IF NOT EXISTS public.child_devices (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
 
-        -- Insecure state: grant DELETE to parental_admin which violates 0003 guarantee
-        GRANT DELETE ON public.admin_control_audit_logs TO parental_admin;
       `);
+        await fixtureClient.query('RESET ROLE;');
+      } finally {
+        fixtureClient.release();
+      }
+      await testPool.query('GRANT DELETE ON public.admin_control_audit_logs TO parental_admin;');
 
       // Close test pool before running external migrator process
       await testPool.end();

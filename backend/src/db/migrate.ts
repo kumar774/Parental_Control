@@ -407,6 +407,17 @@ export async function runMigrations(customClient?: any) {
       if (protectedDb.rows.length) throw new Error('[Migration Runner] Test role can connect to a protected database.');
 
       if (expectedRole !== migrationRole) {
+        const schemaRes = await client.query(`
+          SELECT pg_get_userbyid(nspowner) AS owner
+          FROM pg_namespace WHERE nspname = 'public'
+        `);
+        const schemaOwner = schemaRes.rows[0]?.owner;
+        if (schemaOwner !== migrationRole
+          && schemaOwner !== 'pg_database_owner'
+          && schemaOwner !== expectedRole) {
+          throw new Error('[Migration Runner] Public schema owner is outside the explicitly authorized test roles.');
+        }
+
         const trackingTable = await client.query(`
           SELECT pg_get_userbyid(c.relowner) AS owner
           FROM pg_class c
@@ -414,33 +425,30 @@ export async function runMigrations(customClient?: any) {
           WHERE n.nspname = 'public' AND c.relname = 'schema_migrations' AND c.relkind = 'r'
         `);
         const trackingOwner = trackingTable.rows[0]?.owner;
-        if (trackingOwner && trackingOwner !== migrationRole) {
-          if (trackingOwner !== expectedRole) {
-            throw new Error('[Migration Runner] schema_migrations owner is outside the explicitly authorized test roles.');
-          }
-          await client.query(`ALTER TABLE public.schema_migrations OWNER TO "${migrationRole}"`);
-          const trackingSequence = await client.query(`
-            SELECT pg_get_userbyid(c.relowner) AS owner
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = 'public' AND c.relname = 'schema_migrations_id_seq' AND c.relkind = 'S'
-          `);
-          if (trackingSequence.rows[0]?.owner === expectedRole) {
-            await client.query(`ALTER SEQUENCE public.schema_migrations_id_seq OWNER TO "${migrationRole}"`);
-          } else if (trackingSequence.rows[0]?.owner && trackingSequence.rows[0].owner !== migrationRole) {
-            throw new Error('[Migration Runner] schema_migrations sequence owner is outside the explicitly authorized test roles.');
-          }
+        if (trackingOwner && trackingOwner !== migrationRole && trackingOwner !== expectedRole) {
+          throw new Error('[Migration Runner] schema_migrations owner is outside the explicitly authorized test roles.');
+        }
+        const trackingSequence = await client.query(`
+          SELECT pg_get_userbyid(c.relowner) AS owner
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'schema_migrations_id_seq' AND c.relkind = 'S'
+        `);
+        const sequenceOwner = trackingSequence.rows[0]?.owner;
+        if (sequenceOwner && sequenceOwner !== migrationRole && sequenceOwner !== expectedRole) {
+          throw new Error('[Migration Runner] schema_migrations sequence owner is outside the explicitly authorized test roles.');
         }
 
-        const schemaRes = await client.query(`
-          SELECT pg_get_userbyid(nspowner) AS owner
-          FROM pg_namespace WHERE nspname = 'public'
-        `);
-        const schemaOwner = schemaRes.rows[0]?.owner;
         if (schemaOwner !== migrationRole) {
-          if (schemaOwner !== 'pg_database_owner' && schemaOwner !== expectedRole) {
-            throw new Error('[Migration Runner] Public schema owner is outside the explicitly authorized test roles.');
-          }
+          await client.query(`GRANT CREATE ON SCHEMA public TO "${migrationRole}"`);
+        }
+        if (trackingOwner && trackingOwner !== migrationRole) {
+          await client.query(`ALTER TABLE public.schema_migrations OWNER TO "${migrationRole}"`);
+        }
+        if (sequenceOwner && sequenceOwner !== migrationRole) {
+          await client.query(`ALTER SEQUENCE public.schema_migrations_id_seq OWNER TO "${migrationRole}"`);
+        }
+        if (schemaOwner !== migrationRole) {
           await client.query(`ALTER SCHEMA public OWNER TO "${migrationRole}"`);
         }
         await client.query(`SET ROLE "${migrationRole}"`);

@@ -78,6 +78,7 @@ export async function verifyPostgresTarget(env, client) {
            (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) AS database_owner,
            (SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()) AS database_comment,
            (SELECT rolsuper FROM pg_roles WHERE rolname = $1) AS migration_role_superuser,
+           current_user = $1 AS is_migration_role,
            pg_has_role(current_user, $1, 'SET') AS can_set_migration_role
   `, [expected.migratorRole]);
   const actual = result.rows[0];
@@ -87,8 +88,9 @@ export async function verifyPostgresTarget(env, client) {
   if (String(actual.server_id) !== expected.serverId) throw new Error('Connected PostgreSQL server identity does not match the isolated test instance.');
   if (actual.database_owner !== expected.owner) throw new Error('Test database owner does not match the explicit owner role.');
   if (actual.database_comment !== `codex-test-run:${expected.runId}`) throw new Error('Database is not marked as owned by this explicit test run.');
-  if (actual.migration_role_superuser !== false || actual.can_set_migration_role !== true) {
-    throw new Error('The explicitly authorized migration role must exist, be non-superuser, and be settable by the test role.');
+  if (actual.migration_role_superuser !== false
+    || (actual.is_migration_role !== true && actual.can_set_migration_role !== true)) {
+    throw new Error('The explicitly authorized migration role must exist, be non-superuser, and either be the test role or settable by it.');
   }
 
   const protectedDb = await client.query(`
