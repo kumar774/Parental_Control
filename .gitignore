@@ -28,7 +28,6 @@ test-results/
 playwright-report/
 blob-report/
 proof/
-Screen/
 *.zip
 
 # Node.js (backend & Admin_panel)
