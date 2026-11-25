@@ -8,21 +8,12 @@ plugins {
 
 val configuredGuardianApiOrigin = providers.gradleProperty("GUARDIAN_API_BASE_URL")
     .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orNull?.trimEnd('/').orEmpty()
-val proofMode = providers.gradleProperty("proofMode").orNull == "true"
-val guardianApiOrigin = if (proofMode && configuredGuardianApiOrigin.isEmpty()) {
-  "https://api.invalid"
-} else configuredGuardianApiOrigin
+val guardianApiOrigin = configuredGuardianApiOrigin
 if (guardianApiOrigin.isNotEmpty()) {
   val origin = URI(guardianApiOrigin)
   require(origin.scheme == "https" && !origin.host.isNullOrBlank() && origin.userInfo == null &&
       origin.path.isNullOrEmpty() && origin.query == null && origin.fragment == null) {
     "GUARDIAN_API_BASE_URL must be an HTTPS origin."
-  }
-}
-if (proofMode) {
-  val proofHost = URI(guardianApiOrigin).host.orEmpty().lowercase()
-  require(proofHost == "api.invalid" || proofHost.endsWith(".invalid") || proofHost.endsWith(".test")) {
-    "Proof builds may only target .invalid or .test hosts."
   }
 }
 
@@ -43,14 +34,12 @@ android {
   buildTypes {
     release {
       buildConfigField("String", "API_ORIGIN", "\"$guardianApiOrigin\"")
-      buildConfigField("boolean", "PROOF_MODE", "false")
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     debug {
       buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://127.0.0.1:3000" }}\"")
-      buildConfigField("boolean", "PROOF_MODE", proofMode.toString())
-      applicationIdSuffix = if (proofMode) ".debug.proof" else ".debug"
+      applicationIdSuffix = ".debug"
       isDebuggable = true
     }
   }

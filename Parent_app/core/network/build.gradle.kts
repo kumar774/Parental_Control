@@ -10,21 +10,14 @@ android {
   compileSdk = 36
 
   buildFeatures { buildConfig = true }
-  val proofMode = providers.gradleProperty("proofMode").orNull == "true"
   val configuredEndpoint = providers.gradleProperty("GUARDIAN_API_BASE_URL")
     .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orElse("").get().trimEnd('/')
-  val endpoint = if (proofMode && configuredEndpoint.isEmpty()) "https://api.invalid" else configuredEndpoint
+  val endpoint = configuredEndpoint
   if (endpoint.isNotEmpty()) {
     val uri = URI(endpoint)
     require(uri.scheme == "https" && uri.host != null && uri.userInfo == null &&
       uri.rawQuery == null && uri.rawFragment == null && uri.path.isNullOrEmpty()) {
       "GUARDIAN_API_BASE_URL must be an HTTPS origin."
-    }
-  }
-  if (proofMode) {
-    val proofHost = URI(endpoint).host.orEmpty().lowercase()
-    require(proofHost == "api.invalid" || proofHost.endsWith(".invalid") || proofHost.endsWith(".test")) {
-      "Proof builds may only target .invalid or .test hosts."
     }
   }
   buildTypes {

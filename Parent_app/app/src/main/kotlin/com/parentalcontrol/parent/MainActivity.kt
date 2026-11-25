@@ -195,7 +195,7 @@ import com.parentalcontrol.parent.ui.modals.AvatarImageCropperBottomSheet
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG && BuildConfig.PROOF_MODE) {
+        if (BuildConfig.DEBUG) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)

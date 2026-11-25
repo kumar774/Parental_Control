@@ -25,8 +25,7 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG && BuildConfig.PROOF_MODE) {
-            // Screenshot capture is allowed only in the isolated, test-only proof package.
+        if (BuildConfig.DEBUG) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)

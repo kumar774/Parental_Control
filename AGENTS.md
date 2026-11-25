@@ -1,9 +1,9 @@
-# Android device testing rule
+# Android Device Testing & Safety Rules
 
-- Install and run mobile APK tests only on the user's Android phone through its Tailscale wireless ADB connection.
-- Do not create, launch, or use an Android emulator or AVD for this repository.
-- Use proof/debug APKs for device tests; never install unsigned release packages.
-- Keep testing inside the app. Do not open or inspect notifications, messages, contacts, photos, or other personal content.
-- App screenshots are allowed for requested proof. If a notification or personal content is visible, do not inspect it; discard that capture and retake after the screen is clear. Never open the notification shade.
-- Report an install-only result separately from an app-runtime result.
-- Build phone-test APKs with a safe configured API target; never point a phone build at an emulator-only gateway or the protected development service.
+- **Physical Device Only:** Install and run mobile APK tests only on the user's Android phone through its Tailscale wireless ADB connection.
+- **No Emulators:** Do not create, launch, or use an Android emulator or AVD for this repository.
+- **Normal Debug APKs Only:** Build and test only standard debug APKs (`com.parentalcontrol.parent.debug` and `com.parentalcontrol.child.debug`). Never create or install separate proof APKs, proof packages (`.debug.proof`), or unsigned release packages.
+- **Database Safety:** Use the existing development backend and PostgreSQL database (`parental_control_admin_db`) for normal application testing. Never run destructive test suites, `DROP`, `TRUNCATE`, or destructive migrations against the development database.
+- **User Privacy:** Keep testing strictly inside the application. Do not open or inspect notifications, messages, contacts, photos, or other personal content. Never pull down the notification shade.
+- **Proof & Evidence:** Capture and save genuine physical device screenshots and verification logs into `Project Work Proof/` before reporting completion.
+- **Git & PR Safety:** Perform all development locally on branch `feat/onboarding-auth-pairing` and push verified changes to GitHub. Never merge, close, or approve PR #10.

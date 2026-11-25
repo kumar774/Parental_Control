@@ -4,8 +4,6 @@ plugins {
   alias(libs.plugins.kotlin.serialization)
 }
 
-val proofMode = providers.gradleProperty("proofMode").orNull == "true"
-
 android {
   namespace = "com.parentalcontrol.parent"
   compileSdk = 36
@@ -19,11 +17,9 @@ android {
 
   buildTypes {
     debug {
-      applicationIdSuffix = if (proofMode) ".debug.proof" else ".debug"
-      buildConfigField("boolean", "PROOF_MODE", proofMode.toString())
+      applicationIdSuffix = ".debug"
     }
     release {
-      buildConfigField("boolean", "PROOF_MODE", "false")
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
