@@ -283,16 +283,21 @@ export async function startChild(input: z.infer<typeof enrollmentInput>, code?: 
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.installationId}, 0))`);
     let [paired] = await tx.select({id:childDevices.id}).from(childDevices)
       .where(and(eq(childDevices.installationId,input.installationId),eq(childDevices.isUnpaired,false))).limit(1);
+    let retiredExpiredSessionId: string | undefined;
     if (paired) {
       const [abandoned] = await tx.select().from(pairingSessions)
         .where(and(eq(pairingSessions.childDeviceId, paired.id), eq(pairingSessions.status, 'paired'), isNull(pairingSessions.acknowledgedAt)))
         .for('update');
       if (abandoned && isDeliveryExpired(abandoned)) {
         await retireExpiredUnacknowledgedSession(tx, abandoned);
+        retiredExpiredSessionId = abandoned.id;
         paired = undefined;
       }
     }
     const [prior] = await tx.select().from(pairingSessions).where(eq(pairingSessions.requestHash,requestHash)).for('update');
+    if (prior && prior.id === retiredExpiredSessionId) {
+      return { __reject: { statusCode: 410, message: 'Enrollment delivery window expired', errorCode: 'ENROLLMENT_DELIVERY_EXPIRED' } };
+    }
     if (prior && isDeliveryExpired(prior)) {
       await retireExpiredUnacknowledgedSession(tx, prior);
       return { __reject: { statusCode: 410, message: 'Enrollment delivery window expired', errorCode: 'ENROLLMENT_DELIVERY_EXPIRED' } };

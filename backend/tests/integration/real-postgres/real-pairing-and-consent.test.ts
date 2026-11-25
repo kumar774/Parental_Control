@@ -100,6 +100,62 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     return JSON.parse(delivery.body);
   }
 
+  async function createExpiredUnacknowledgedEnrollment(expireBeforeReturn = true) {
+    const inst = installation();
+    const codeRes = await app.inject({
+      method: 'POST', url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    assert.equal(codeRes.statusCode, 200, codeRes.body);
+    const { code, sessionId } = JSON.parse(codeRes.body);
+
+    const childRes = await app.inject({
+      method: 'POST', url: '/api/v1/child/pair',
+      payload: { ...inst, pairingCode: code },
+    });
+    assert.equal(childRes.statusCode, 200, childRes.body);
+    const pending = JSON.parse(childRes.body);
+    await confirmChild(sessionId, pending.pollingToken);
+
+    const parentRes = await app.inject({
+      method: 'POST', url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId, code },
+    });
+    assert.equal(parentRes.statusCode, 200, parentRes.body);
+
+    const deliveryRes = await app.inject({
+      method: 'GET', url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': pending.pollingToken },
+    });
+    assert.equal(deliveryRes.statusCode, 200, deliveryRes.body);
+    const delivery = JSON.parse(deliveryRes.body);
+    assert.equal(delivery.status, 'paired');
+    assert.ok(delivery.deviceToken);
+    assert.ok(delivery.deviceId);
+
+    if (expireBeforeReturn) {
+      await conn.db.update(pairingSessions)
+        .set({ claimedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+        .where(eq(pairingSessions.id, sessionId));
+    }
+
+    return { inst, code, sessionId, pollingToken: pending.pollingToken, ...delivery };
+  }
+
+  async function assertExpiredEnrollmentRetired(sessionId: string, deviceId: string) {
+    const [session] = await conn.db.select().from(pairingSessions).where(eq(pairingSessions.id, sessionId));
+    assert.equal(session.status, 'expired');
+    assert.equal(session.pollingToken, null);
+    assert.equal(session.issuedDeviceToken, null);
+    const [device] = await conn.db.select().from(childDevices).where(eq(childDevices.id, deviceId));
+    assert.equal(device.isUnpaired, true);
+    const tokens = await conn.db.select().from(childDeviceTokens).where(eq(childDeviceTokens.deviceId, deviceId));
+    assert.ok(tokens.length > 0);
+    assert.ok(tokens.every(token => token.isRevoked && token.revocationReason === 'enrollment_expired'));
+  }
+
   it('1. Parental Consent persistence writes to real database', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -2227,5 +2283,99 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(sawRetryAfter, true, 'D5: 429 must include Retry-After header');
 
     await conn.db.delete(childDevices).where(eq(childDevices.id, expDeviceId)).catch(() => {});
+  });
+
+  it('15. Expiry retirement commits independently through each enrollment entry point on genuine PostgreSQL', async () => {
+    // Each fixture is a separate unacknowledged paired enrollment. No test relies on
+    // another expiry endpoint to perform cleanup before its own response is checked.
+    const consentRes = await app.inject({
+      method: 'POST', url: '/api/v1/parent/consent',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { consentType: 'parental_supervision', policyVersion: 'v1.0' },
+    });
+    assert.equal(consentRes.statusCode, 200, consentRes.body);
+
+    const previewFixture = await createExpiredUnacknowledgedEnrollment();
+    const previewRes = await app.inject({
+      method: 'POST', url: '/api/v1/devices/qr-preview',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: previewFixture.sessionId, code: previewFixture.code },
+    });
+    assert.equal(previewRes.statusCode, 410, previewRes.body);
+    assert.equal(JSON.parse(previewRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+    await assertExpiredEnrollmentRetired(previewFixture.sessionId, previewFixture.deviceId);
+
+    const startFixture = await createExpiredUnacknowledgedEnrollment();
+    const startRes = await app.inject({
+      method: 'POST', url: '/api/v1/child/pair',
+      payload: { ...startFixture.inst, pairingCode: startFixture.code },
+    });
+    assert.equal(startRes.statusCode, 410, startRes.body);
+    assert.equal(JSON.parse(startRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+    await assertExpiredEnrollmentRetired(startFixture.sessionId, startFixture.deviceId);
+
+    const approveFixture = await createExpiredUnacknowledgedEnrollment();
+    const approveRes = await app.inject({
+      method: 'POST', url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: approveFixture.sessionId, code: approveFixture.code },
+    });
+    assert.equal(approveRes.statusCode, 410, approveRes.body);
+    assert.equal(JSON.parse(approveRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+    await assertExpiredEnrollmentRetired(approveFixture.sessionId, approveFixture.deviceId);
+
+    const cancelFixture = await createExpiredUnacknowledgedEnrollment();
+    const cancelRes = await app.inject({
+      method: 'POST', url: '/api/v1/devices/pair-cancel',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: cancelFixture.sessionId },
+    });
+    assert.equal(cancelRes.statusCode, 409, cancelRes.body);
+    assert.equal(JSON.parse(cancelRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+    await assertExpiredEnrollmentRetired(cancelFixture.sessionId, cancelFixture.deviceId);
+
+    const childSessionFixture = await createExpiredUnacknowledgedEnrollment();
+    const childSessionRes = await app.inject({
+      method: 'GET', url: `/api/v1/child/pair-status/${childSessionFixture.sessionId}`,
+      headers: { 'x-polling-token': childSessionFixture.pollingToken },
+    });
+    assert.equal(childSessionRes.statusCode, 200, childSessionRes.body);
+    assert.equal(JSON.parse(childSessionRes.body).status, 'expired');
+    await assertExpiredEnrollmentRetired(childSessionFixture.sessionId, childSessionFixture.deviceId);
+
+    const deviceAckFixture = await createExpiredUnacknowledgedEnrollment();
+    const deviceAckRes = await app.inject({
+      method: 'POST', url: '/api/v1/child/setup/ack',
+      headers: { authorization: `Bearer ${deviceAckFixture.deviceToken}` },
+      payload: { sessionId: deviceAckFixture.sessionId },
+    });
+    assert.equal(deviceAckRes.statusCode, 410, deviceAckRes.body);
+    assert.equal(JSON.parse(deviceAckRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+    await assertExpiredEnrollmentRetired(deviceAckFixture.sessionId, deviceAckFixture.deviceId);
+
+    // A completed, acknowledged association is not retired even when claimed_at is old.
+    const completed = await createExpiredUnacknowledgedEnrollment(false);
+    const receiptRes = await app.inject({
+      method: 'POST', url: `/api/v1/child/pair-ack/${completed.sessionId}`,
+      headers: { 'x-polling-token': completed.pollingToken },
+    });
+    assert.equal(receiptRes.statusCode, 200, receiptRes.body);
+    await conn.db.update(pairingSessions)
+      .set({ claimedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(pairingSessions.id, completed.sessionId));
+    const stillComplete = await app.inject({
+      method: 'POST', url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: completed.sessionId, code: completed.code },
+    });
+    assert.equal(stillComplete.statusCode, 200, stillComplete.body);
+    const [completedSession] = await conn.db.select().from(pairingSessions).where(eq(pairingSessions.id, completed.sessionId));
+    assert.equal(completedSession.status, 'paired');
+    assert.ok(completedSession.acknowledgedAt);
+    const [completedDevice] = await conn.db.select().from(childDevices).where(eq(childDevices.id, completed.deviceId));
+    assert.equal(completedDevice.isUnpaired, false);
+    const completedTokens = await conn.db.select().from(childDeviceTokens).where(eq(childDeviceTokens.deviceId, completed.deviceId));
+    assert.ok(completedTokens.length > 0);
+    assert.ok(completedTokens.every(token => !token.isRevoked));
   });
 });

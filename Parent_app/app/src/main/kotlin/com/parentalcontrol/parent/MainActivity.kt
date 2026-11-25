@@ -3,6 +3,8 @@ package com.parentalcontrol.parent
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
+import com.parentalcontrol.parent.BuildConfig
 import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -193,6 +195,11 @@ import com.parentalcontrol.parent.ui.modals.AvatarImageCropperBottomSheet
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG && BuildConfig.PROOF_MODE) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         enableEdgeToEdge()
         setContent {
             LiquidGlassTheme(darkTheme = true) {

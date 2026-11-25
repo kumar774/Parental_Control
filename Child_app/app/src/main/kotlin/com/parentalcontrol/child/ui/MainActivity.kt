@@ -25,11 +25,11 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!BuildConfig.DEBUG) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            // Debug screenshots use synthetic data; production and release builds stay capture-protected.
+        if (BuildConfig.DEBUG && BuildConfig.PROOF_MODE) {
+            // Screenshot capture is allowed only in the isolated, test-only proof package.
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
         val storage = DeviceStorage.getInstance(applicationContext)
         setContent {
