@@ -547,53 +547,123 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
     if (showCancelConfirm) {
         AlertDialog(
             onDismissRequest = { showCancelConfirm = false },
-            title = { Text("Cancel pending pairing?") },
-            text = { Text("This will invalidate the current binding code so it cannot be used to pair a device.") },
+            containerColor = ParentBg,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    "Cancel pending pairing?",
+                    color = ParentTextDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    "This will invalidate the current binding code so it cannot be used to pair a device.",
+                    color = ParentTextMuted,
+                    fontSize = 14.sp
+                )
+            },
             dismissButton = {
-                TextButton({ showCancelConfirm = false }) { Text("Keep active") }
+                TextButton({ showCancelConfirm = false }) {
+                    Text("Keep active", color = ParentTextMuted, fontWeight = FontWeight.Medium)
+                }
             },
             confirmButton = {
-                Button({
-                    showCancelConfirm = false
-                    cancelCurrentEnrollment()
-                }) { Text("Cancel pairing") }
+                Button(
+                    onClick = {
+                        showCancelConfirm = false
+                        cancelCurrentEnrollment()
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Cancel pairing", fontWeight = FontWeight.SemiBold)
+                }
             }
         )
     }
     pendingApproval?.let { info ->
         AlertDialog(
             onDismissRequest = { pendingApproval = null },
-            title = { Text("Approve device connection?") },
+            containerColor = ParentBg,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    "Approve device connection?",
+                    color = ParentTextDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Reported device model: ${info.deviceModel?.takeIf { it.isNotBlank() } ?: "Not reported yet"}")
-                    Text("Binding code: ${formatNineDigitCode(info.code)}")
-                    Text("Enrollment session: ${info.sessionId.take(8)}…")
-                    Text("Confirm that you are setting up this child's phone in front of you. After you approve, the Child App must also confirm your account before pairing completes.")
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Reported device model: ${info.deviceModel?.takeIf { it.isNotBlank() } ?: "Unknown"}",
+                        color = ParentTextDark,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "Binding code: ${formatNineDigitCode(info.code)}",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "Enrollment session: ${info.sessionId.take(8)}…",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "Confirm that you are setting up this child's phone in front of you. After you approve, the Child App must also confirm your account before pairing completes.",
+                        color = ParentTextDark,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
                 }
             },
             dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton({ pendingApproval = null }) { Text("Close") }
-                    TextButton({ rejectChildRequest(info.sessionId, info.code) }, enabled = !busy) {
-                        Text("Reject", color = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton({ pendingApproval = null }) {
+                        Text("Close", color = ParentTextMuted, fontWeight = FontWeight.Medium)
+                    }
+                    TextButton(
+                        onClick = { rejectChildRequest(info.sessionId, info.code) },
+                        enabled = !busy
+                    ) {
+                        Text("Reject", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
                     }
                 }
             },
             confirmButton = {
-                Button({
-                    pendingApproval = null
-                    busy = true
-                    scope.launch {
-                        client.confirmPairing(info.code, info.sessionId).onSuccess {
-                            session = info.sessionId
-                            code = info.code
-                            message = null
-                        }.onFailure { message = it.message }
-                        busy = false
-                        if (message == null) checkStatus()
-                    }
-                }, enabled = !busy) { Text("Approve") }
+                Button(
+                    onClick = {
+                        pendingApproval = null
+                        busy = true
+                        scope.launch {
+                            client.confirmPairing(info.code, info.sessionId).onSuccess {
+                                session = info.sessionId
+                                code = info.code
+                                message = null
+                            }.onFailure { message = it.message }
+                            busy = false
+                            if (message == null) checkStatus()
+                        }
+                    },
+                    enabled = !busy,
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ParentPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = ParentPurple.copy(alpha = 0.45f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Text("Approve", fontWeight = FontWeight.SemiBold)
+                }
             }
         )
     }

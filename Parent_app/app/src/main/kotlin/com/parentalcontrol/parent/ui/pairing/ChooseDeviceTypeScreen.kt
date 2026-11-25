@@ -226,10 +226,20 @@ internal fun OutlinedPurpleCapsuleButton(
             .fillMaxWidth()
             .height(52.dp),
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.2.dp, ParentPurple),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = ParentPurple)
+        border = BorderStroke(1.5.dp, if (enabled) ParentPurple else ParentPurple.copy(alpha = 0.45f)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = ParentPurple,
+            disabledContainerColor = Color.Transparent,
+            disabledContentColor = ParentPurple.copy(alpha = 0.45f)
+        )
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) ParentPurple else ParentPurple.copy(alpha = 0.45f)
+        )
     }
 }
 

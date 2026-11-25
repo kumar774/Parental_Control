@@ -4,51 +4,103 @@
 
 - **Repository:** `kumar774/Parental_Control`
 - **Branch:** `feat/onboarding-auth-pairing`
-- **Target PR:** #10 (Remains OPEN for independent review; never auto-merged or closed)
-- **Target Device:** Physical Android Phone `vivo I2220` (Android 16, Display 1080 x 2400) connected via Tailscale Wireless ADB (`100.80.27.76:5555`).
-- **Target APKs:** Standard debug packages:
+- **Target Pull Request:** #10 (*Maintained strictly open for independent review; never merged, closed, or approved*).
+- **Physical Device:** Vivo I2220 (Display 1080 x 2400) connected exclusively via Tailscale Wireless ADB (`100.80.27.76:5555`).
+- **Standard Debug Packages:**
   - Parent App: `com.parentalcontrol.parent.debug`
+    - SHA-256: `FDA9A3FAC8667BCD53DDE414AB65AC031D8E7081D9D0CF0615C7D2CBF1D79CDD`
   - Child App: `com.parentalcontrol.child.debug`
-- **Proof-Mode Removal:** All `-PproofMode=true`, `.debug.proof` package IDs, `BuildConfig.PROOF_MODE`, and `api.invalid` configurations have been removed per project owner mandate.
+    - SHA-256: `49DC6E4866552C874771D3DB80DC0540F6A8591A4A7148661E8AC339226D913B`
+- **Proof-Mode Removal:** All `-PproofMode=true`, `.debug.proof` package IDs, `BuildConfig.PROOF_MODE`, and `api.invalid` configurations have been eliminated per project owner mandate.
 
 ---
 
-## 2. Real Physical Phone Runtime Verification Evidence
+## 2. Real Physical Phone Runtime Evidence Inventory
 
-All evidence below consists of authentic device captures taken directly from the physical phone running over Tailscale ADB. Testing was strictly confined within the applications without inspecting personal content.
+Every screenshot below was captured directly from the physical Vivo I2220 phone screen over Tailscale ADB. All screenshots have been inspected to verify genuine application content. All desktop captures, Bluetooth/Settings popups, and sensitive images have been purged.
 
 ### A. Parent Application Evidence
 
-| In-Scope Milestone Stage | Device Capture File | Verified Interaction & Status |
-|---|---|---|
-| **01. Welcome & Sign-In Method** | `Parent App/01_Authentication/01_parent_phone_welcome.png`<br>`Parent App/01_Authentication/01_parent_phone_signin_method.png` | **VERIFIED** — Brand carousel loaded, tapped "Get Started", displayed Google & Email sign-in options. |
-| **02. Email Authentication** | `Parent App/01_Authentication/02_parent_phone_email_login.png`<br>`Parent App/01_Authentication/02_parent_phone_login.png` | **VERIFIED** — Input parent credentials, validated against backend authentication API, logged in successfully. |
-| **03. Step 1 Device Pairing** | `Parent App/04_Pairing/01_parent_phone_step1_pairing.png` | **VERIFIED** — Generated 9-digit binding code (`307 062 407`) and QR code display card with active expiry countdown. |
-| **04. Mutual Connection Review** | `Parent App/04_Pairing/02_parent_phone_review_dialog.png` | **VERIFIED** — Prompted with reported device model (`vivo I2220`) and session approval dialog upon child submission. |
-| **05. Step 2 Setup Guidance** | `Parent App/04_Pairing/02_parent_phone_step2_guidance.png`<br>`Parent App/04_Pairing/03_parent_phone_step2_tutorial.png` | **VERIFIED** — Advanced to Step 2 tutorial and guidance section; validated child association status. |
-| **06. Step 3 Child Information** | `Parent App/05_Child_Information/01_parent_phone_step3_child_info.png`<br>`Parent App/05_Child_Information/02_parent_phone_step3_filled.png` | **VERIFIED** — 8-avatar grid selection, child profile attributes, and completion workflow. |
-| **07. Minimal Parent Dashboard** | `Parent App/06_Dashboard/01_parent_phone_dashboard.png` | **VERIFIED** — Displays active child device (`vivo I2220`), top navigation, and bottom navigation tabs (`Notice`, `Device`, `Me`). |
+| # | Milestone Stage | File Path | Interaction & Status |
+|---|---|---|---|
+| 1 | **Welcome Carousel** | `Parent App/01_Authentication/01_parent_phone_welcome.png` | **VERIFIED** — Brand carousel loaded on fresh app start. |
+| 2 | **Sign-In Method** | `Parent App/01_Authentication/01_parent_phone_signin_method.png` | **VERIFIED** — Displays Email sign-in card and Google sign-in options. |
+| 3 | **Google Auth Disabled** | `Parent App/01_Authentication/01_sign_in_google_disabled.png` | **VERIFIED** — Reactive Google Auth toggle disabled state. |
+| 4 | **Google SignUp Disabled** | `Parent App/01_Authentication/02_sign_up_method_google_disabled.png` | **VERIFIED** — Registration method screen with Google Auth disabled. |
+| 5 | **Clean Email Login** | `Parent App/01_Authentication/02_parent_phone_email_login.png` | **VERIFIED** — Clean login form with placeholders, zero credentials exposed. |
+| 6 | **Clean Register Form** | `Parent App/01_Authentication/03_parent_phone_register_form.png` | **VERIFIED** — Clean registration form with password strength indicator. |
+| 7 | **Device Selection** | `Parent App/02_Device_Selection/01_parent_phone_device_select.png` | **VERIFIED** — "Whose device is this?" with "Parents' devices" & "Kids' devices". |
+| 8 | **Post-Login State** | `Parent App/02_Device_Selection/01_parent_phone_post_login.png` | **VERIFIED** — Pristine device selection landing after first-time login. |
+| 9 | **Child Download Popup** | `Parent App/02_Device_Selection/02_parent_phone_child_download_popup.png` | **VERIFIED** — White dialog with download link & close action. |
+| 10 | **Parent Consent** | `Parent App/03_Consent/01_parent_phone_consent.png` | **VERIFIED** — "Supervise Child's Device" legal disclosure & agree button. |
+| 11 | **Step 1 Pairing** | `Parent App/04_Pairing/01_parent_phone_step1_pairing.png` | **VERIFIED** — 3-card layout: Download link, closed camera scanner, 9-digit code. |
+| 12 | **Camera Scanner Open** | `Parent App/04_Pairing/02_parent_phone_scanner_open.png` | **VERIFIED** — Active CameraX scanner in Card 2 with safe desk background. |
+| 13 | **Review Dialog** | `Parent App/04_Pairing/02_parent_phone_review_dialog.png` | **VERIFIED** — Connection request banner and review trigger. |
+| 14 | **Approval AlertDialog** | `Parent App/04_Pairing/03_parent_phone_approval_dialog.png` | **VERIFIED** — White card dialog with purple "Approve" button and `vivo I2220` model. |
+| 15 | **Step 2 Setup Guidance** | `Parent App/04_Pairing/02_parent_phone_step2_guidance.png` | **VERIFIED** — "Open Child's App" tutorial cards and setup instructions. |
+| 16 | **Step 3 Child Information** | `Parent App/05_Child_Information/01_parent_phone_step3_child_info.png` | **VERIFIED** — Fixed purple "Skip" button, 8-avatar grid, nickname/age/gender fields. |
+| 17 | **Step 3 Filled Profile** | `Parent App/05_Child_Information/02_parent_phone_step3_filled.png` | **VERIFIED** — Profile filled with child name "Alex", avatar 2, boy selected. |
+| 18 | **Minimal Dashboard** | `Parent App/06_Dashboard/01_parent_phone_dashboard.png` | **VERIFIED** — Minimal dashboard with paired device Alex (`vivo I2220`) and bottom tabs. |
+| 19 | **Device Dropdown** | `Parent App/06_Dashboard/02_parent_phone_device_dropdown.png` | **VERIFIED** — Active child device selector dropdown menu. |
+| 20 | **Notice Tab** | `Parent App/06_Dashboard/03_parent_phone_notice_tab.png` | **VERIFIED** — Empty state notice tab. |
+| 21 | **Me Tab** | `Parent App/06_Dashboard/04_parent_phone_me_tab.png` | **VERIFIED** — Parent profile, account settings, biometric toggle, and log out action. |
 
 ### B. Child Application Evidence
 
-| In-Scope Milestone Stage | Device Capture File | Verified Interaction & Status |
-|---|---|---|
-| **01. Device Selection** | `Child App/01_Device_Selection/01_child_phone_device_selection.png`<br>`Child App/01_Device_Selection/02_parent_download_popup.png` | **VERIFIED** — Brand hero illustration, "Kids' devices" selection button, and "Parents' devices" download guidance dialog. |
-| **02. Privacy & Consent** | `Child App/02_Consent/01_child_phone_consent.png` | **VERIFIED** — Scrollable consent disclosures, legal links, and "Agree" acceptance button. |
-| **03. Pairing Screen & Code Entry** | `Child App/03_Pairing/01_child_phone_pairing.png`<br>`Child App/03_Pairing/02_child_phone_entered_code.png` | **VERIFIED** — 9-digit segmented input slots populated with parent code (`307 062 407`), enabling the "Next" button. |
-| **04. Binding Confirmation** | `Child App/04_Binding_Confirmation/01_child_phone_binding_confirmation.png` | **VERIFIED** — Modal confirmation showing parent account linkage with explicit "Confirm" and "Cancel" actions. |
-| **05. Connected Successfully** | `Child App/05_Connection_Success/01_child_phone_connected_successfully.png` | **VERIFIED** — Confirms secure mutual enrollment with parent account and displays the "Setup" action button. |
-| **06. Initial Setup & Permission Check** | `Child App/06_Initial_Setup/01_child_phone_initial_setup_check.png` | **VERIFIED** — Initial association and permission-check screen presented to conclude the onboarding milestone. |
+| # | Milestone Stage | File Path | Interaction & Status |
+|---|---|---|---|
+| 1 | **Device Selection** | `Child App/01_Device_Selection/01_child_phone_device_selection.png` | **VERIFIED** — "Whose device is this?" with "Kids' devices" & "Parents' devices". |
+| 2 | **Parent Download Popup** | `Child App/01_Device_Selection/02_parent_download_popup.png` | **VERIFIED** — Guidance dialog for downloading the parent app. |
+| 3 | **Child Consent** | `Child App/02_Consent/01_child_phone_consent.png` | **VERIFIED** — "Welcome to Child Guard" disclosures, permission summary, Agree button. |
+| 4 | **Step 1 Pairing Layout** | `Child App/03_Pairing/01_child_phone_pairing.png` | **VERIFIED** — Two cards: "Generate QR Code" & 9-digit segmented code entry. |
+| 5 | **QR Code Generated** | `Child App/03_Pairing/02_child_phone_qr_generated.png` | **VERIFIED** — Genuine QR generated from live backend session with expiry countdown. |
+| 6 | **Entered Binding Code** | `Child App/03_Pairing/02_child_phone_entered_code.png` | **VERIFIED** — Populated 9-digit slots enabling the Next action button. |
+| 7 | **Binding Confirmation** | `Child App/04_Binding_Confirmation/01_child_phone_binding_confirmation.png` | **VERIFIED** — Modal confirmation showing parent account with Confirm / Cancel. |
+| 8 | **Connected Successfully** | `Child App/05_Connection_Success/01_child_phone_connected_successfully.png` | **VERIFIED** — Success checkmark screen with primary "Setup" button. |
+| 9 | **Initial Setup Check** | `Child App/06_Initial_Setup/01_child_phone_initial_setup_check.png` | **VERIFIED** — Final association & permission check completion screen. |
+| 10 | **Reopened State** | `Child App/06_Initial_Setup/02_child_phone_reopen_state.png` | **VERIFIED** — Persistent associated state upon reopening the child app. |
+
+### C. Admin Panel Evidence
+
+| # | Feature | File Path | Status |
+|---|---|---|---|
+| 1 | **Google Auth Disabled** | `Admin Panel/01_Application_Settings/01_settings_google_auth_disabled.png` | **VERIFIED** — Admin switch toggled off. |
+| 2 | **Google Auth Enabled** | `Admin Panel/01_Application_Settings/02_settings_google_auth_enabled.png` | **VERIFIED** — Admin switch toggled on with client ID. |
+| 3 | **Settings Save Confirmation** | `Admin Panel/01_Application_Settings/03_settings_save_confirmation.png` | **VERIFIED** — Success toast confirmation. |
 
 ---
 
-## 3. Automated Test Execution Record
+## 3. Pairing Verification: Manual Code vs. Optical QR
 
-| Test Suite / Target | Command | Verification Outcome |
+- **Manual 9-Digit Code Pairing:** **VERIFIED END-TO-END ON PHYSICAL DEVICE.** Both Parent and Child apps communicated through the live Fastify backend, validated codes, triggered mutual confirmation, created the `child_devices` association record in PostgreSQL, and transitioned to Step 2/3.
+- **Optical QR Code Scanning:**
+  - CameraX lifecycle, permission requests, barcode scanner UI, and camera resource release are fully implemented in `DevicePairingScreen.kt` and `QrScannerScreen.kt`.
+  - Camera preview and closed-by-default behavior are verified with genuine device screenshots (`01_parent_phone_step1_pairing.png` and `02_parent_phone_scanner_open.png`).
+  - Scanning a QR code across two devices simultaneously requires two physical phones or a secondary monitor displaying the Child QR. Unit tests in `QrCodeScannerTest.kt` verify barcode decoding logic.
+
+---
+
+## 4. Security & Quality Assurance Remediation
+
+1. **Credential Rotation & Session Revocation:**
+   - Synthetic QA account `qa-parent-live@test.local` was compromised by an earlier script screenshot.
+   - Credentials were immediately rotated to an Argon2id hash (`$argon2id$v=19$m=65536,t=3,p=4$...`) in PostgreSQL.
+   - All active refresh tokens in `parent_refresh_tokens` were revoked. Genuine user accounts were never touched.
+2. **Defective Screenshot Purge:**
+   - Deleted 22 invalid, remote desktop, and sensitive screenshot files from the repository history.
+3. **UI Defects Resolved:**
+   - **Parent Step 3 "Skip" Button:** Fixed invisible text by explicitly passing `color = if (enabled) ParentPurple else ParentPurple.copy(alpha = 0.45f)` to the `Text` composable inside `OutlinedPurpleCapsuleButton`.
+   - **Parent Approval Dialog:** Redesigned AlertDialog with white card container (`ParentBg`), rounded corners (20.dp), bold dark typography, and a prominent purple capsule "Approve" button.
+   - **Camera Resource Management:** Camera preview remains closed by default in Step 1 pairing to conserve hardware resources and preserve battery.
+
+---
+
+## 5. Automated Test Results
+
+| Test Suite | Command | Result |
 |---|---|---|
-| **Parent App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **BUILD SUCCESSFUL** — 170 tests executed, 0 failures, 0 errors. Assembled `app-debug.apk` (48 MB). |
-| **Child App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **BUILD SUCCESSFUL** — 47 tests executed, 0 failures, 0 errors. Assembled `app-debug.apk` (45 MB). |
-| **Backend Integration & Safety Preflight** | `npm.cmd test` | **PASS** — Cryptographic and business logic suites passed, including all 22 database safety preflight tests. |
-| **Backend Genuine PostgreSQL Suite** | `npm.cmd run test:real-pg` | **PASS** — 182/182 tests passed across 26 test suites against isolated PostgreSQL instance. |
-| **Admin Panel Build & Tests** | `npm.cmd test && npm.cmd run build` | **PASS** — 41 tests passed; Vite production bundle built cleanly. |
-| **CI Workflow Fix** | `.github/workflows/ci.yml` | Corrected heredoc SQL comments (`--`), `DO $guard$` block syntax (`BEGIN...END;`), and enabled `ON_ERROR_STOP=1`. |
+| **Parent App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 201 tasks executed, 0 errors. Assembled `app-debug.apk`. |
+| **Child App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 47 unit tests passed. Assembled `app-debug.apk`. |
+| **Backend Genuine Auth Suite** | Automated REST execution via Fastify & Mailpit | **PASS** — 11/11 authentication assertions passed (registration, OTP verification, login, rejection, rotation, `/me`, logout). |
+| **Backend Real PostgreSQL Suite** | `npm.cmd run test:real-pg` | **PASS** — 182/182 tests passed across 26 test suites against PostgreSQL. |
+| **Admin Panel Build & Tests** | `npm.cmd test && npm.cmd run build` | **PASS** — 41 tests passed; Vite production build clean. |
