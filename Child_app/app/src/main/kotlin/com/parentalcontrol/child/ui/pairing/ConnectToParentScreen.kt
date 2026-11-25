@@ -32,7 +32,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -42,10 +41,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,12 +56,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,14 +71,20 @@ import com.parentalcontrol.child.storage.DeviceStorage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 /**
- * FlashGet Kids Style Screen 3: Pure Pairing Screen
- * Contains ONLY:
- * 1. 9-Digit code entry boxes (where Child enters Parent code)
- * 2. Pairing QR code (where Parent scans Child phone)
- * Zero camera scanner, zero tab clutter!
+ * Supported child pairing modes.
+ */
+enum class ChildPairingMode {
+    MANUAL_CODE, // Default: Child enters 9-digit code displayed on Parent App
+    QR_CODE      // Child displays QR code for Parent App camera to scan
+}
+
+/**
+ * FlashGet Kids Style Pure Pairing Screen:
+ * Supports both pairing contracts:
+ * 1. Manual Code Entry: Enter 9-digit code from Parent App (Default mode - zero unnecessary QR sessions created).
+ * 2. Child Pairing QR: Displays QR code for Parent App to scan (Lazily fetched ONLY when selected).
  */
 @Composable
 fun ConnectToParentScreen(
@@ -94,37 +97,74 @@ fun ConnectToParentScreen(
     val storage = remember { DeviceStorage.getInstance(context) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    // Active mode: Defaults to MANUAL_CODE so opening screen never creates unused QR sessions
+    var selectedMode by remember { mutableStateOf(ChildPairingMode.MANUAL_CODE) }
+
     // State for 9-digit code entry
     var inputCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
 
-    // State for child QR code and server-issued pairing session
+    // State for child QR code and server-issued pairing session (lazy)
     var childCode by remember { mutableStateOf<String?>(null) }
     var sessionId by remember { mutableStateOf<String?>(null) }
     var pollingToken by remember { mutableStateOf<String?>(null) }
     var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isQrLoading by remember { mutableStateOf(false) }
+    var qrErrorMessage by remember { mutableStateOf<String?>(null) }
+    var qrExpiresAtMillis by remember { mutableStateOf<Long?>(null) }
+    var sessionCreated by remember { mutableStateOf(false) }
 
-    // Fetch genuine server-issued pairing session on mount
-    LaunchedEffect(Unit) {
-        val sessionResult = ChildRestClient.instance.createPairSession()
-        if (sessionResult.success && sessionResult.sessionId != null && sessionResult.pairingCode != null) {
-            sessionId = sessionResult.sessionId
-            childCode = sessionResult.pairingCode
-            pollingToken = sessionResult.pollingToken
-            val payload = sessionResult.qrPayload ?: "pc-pair:${sessionResult.pairingCode}"
-            qrBitmap = QrCodeGenerator.generateQrBitmap(payload, sizePx = 480)
+    // Function to lazily fetch or renew QR pairing session
+    fun fetchQrSession(forceRenew: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!forceRenew && sessionCreated && sessionId != null && (qrExpiresAtMillis == null || now < qrExpiresAtMillis!!)) {
+            // Already have an active valid unexpired session: reuse without duplicate creation
+            return
+        }
+
+        isQrLoading = true
+        qrErrorMessage = null
+
+        scope.launch {
+            try {
+                val sessionResult = ChildRestClient.instance.createPairSession()
+                isQrLoading = false
+                if (sessionResult.success && sessionResult.sessionId != null && sessionResult.pairingCode != null) {
+                    sessionId = sessionResult.sessionId
+                    childCode = sessionResult.pairingCode
+                    pollingToken = sessionResult.pollingToken
+                    sessionCreated = true
+                    val expirySeconds = 900L
+                    qrExpiresAtMillis = System.currentTimeMillis() + (expirySeconds * 1000L)
+                    val payload = sessionResult.qrPayload ?: "pc-pair:${sessionResult.pairingCode}"
+                    qrBitmap = QrCodeGenerator.generateQrBitmap(payload, sizePx = 480)
+                } else {
+                    qrErrorMessage = sessionResult.message ?: "Failed to generate pairing QR code. Please check your connection."
+                }
+            } catch (e: Exception) {
+                isQrLoading = false
+                qrErrorMessage = "Network error: ${e.localizedMessage ?: "Could not connect to server"}"
+            }
+        }
+    }
+
+    // Lazy initialization: ONLY fetch QR session when user selects QR Code mode
+    LaunchedEffect(selectedMode) {
+        if (selectedMode == ChildPairingMode.QR_CODE) {
+            fetchQrSession(forceRenew = false)
         }
     }
 
     // Check and retry any pending unacknowledged pairing session receipt
     LaunchedEffect(Unit) {
-        com.parentalcontrol.child.network.PairAckRetryManager.retryPendingAckIfNeeded(storage)
+        PairAckRetryManager.retryPendingAckIfNeeded(storage)
     }
 
-    // Background polling: If Parent scans this Child's QR code on Parent App
-    LaunchedEffect(sessionId, pollingToken) {
+    // Background polling: ACTIVE ONLY while in QR_CODE mode with valid session credentials
+    LaunchedEffect(selectedMode, sessionId, pollingToken) {
+        if (selectedMode != ChildPairingMode.QR_CODE) return@LaunchedEffect
         val currentSessionId = sessionId ?: return@LaunchedEffect
         val currentPollingToken = pollingToken ?: return@LaunchedEffect
 
@@ -160,13 +200,12 @@ fun ConnectToParentScreen(
                                     break
                                 }
                                 is AckOutcome.PermanentFailure -> {
-                                    // Permanent rejection: mark repair immediately and do not route to paired home
                                     storage.markPairingRequiresRepair()
                                     PairAckRetryManager.cancelBackgroundRetry(context)
                                     break
                                 }
                                 is AckOutcome.TransientFailure -> {
-                                    // Transient failure: backoff slightly and retry up to 3 attempts
+                                    // Transient failure: retry with delay
                                 }
                             }
                         } catch (_: Exception) {}
@@ -240,7 +279,7 @@ fun ConnectToParentScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top App Bar: Back arrow on left, Options on right
+        // Top App Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -256,7 +295,7 @@ fun ConnectToParentScreen(
                 )
             }
             IconButton(onClick = {
-                Toast.makeText(context, "Pairing Guide: Enter code from Parent App", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Pairing Guide: Enter code or scan QR code", Toast.LENGTH_SHORT).show()
             }) {
                 Icon(
                     imageVector = Icons.Default.MoreHoriz,
@@ -267,160 +306,344 @@ fun ConnectToParentScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // SECTION 1: PAIRING QR CODE (UPAR - For Parent App to scan this child device)
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .border(1.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (qrBitmap != null) {
-                Image(
-                    bitmap = qrBitmap!!.asImageBitmap(),
-                    contentDescription = "Child Pairing QR Code",
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                CircularProgressIndicator(color = FlashGetPurple, modifier = Modifier.size(32.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "Show this QR code to the Parent App to scan",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF1E293B),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Divider with "OR"
+        // Mode Selector (Segmented Tab Bar)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 40.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFF1F5F9))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+            // Tab 1: Enter Parent Code (Default)
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(1.dp)
-                    .background(Color(0xFFE2E8F0))
-            )
-            Text(
-                text = "  OR ENTER 9-DIGIT CODE  ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8),
-                letterSpacing = 1.sp
-            )
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (selectedMode == ChildPairingMode.MANUAL_CODE) Color.White else Color.Transparent)
+                    .clickable {
+                        selectedMode = ChildPairingMode.MANUAL_CODE
+                        errorMessage = null
+                    }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Enter Parent Code",
+                    fontSize = 13.sp,
+                    fontWeight = if (selectedMode == ChildPairingMode.MANUAL_CODE) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selectedMode == ChildPairingMode.MANUAL_CODE) FlashGetPurple else Color(0xFF64748B)
+                )
+            }
+
+            // Tab 2: Show Child QR
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(1.dp)
-                    .background(Color(0xFFE2E8F0))
-            )
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (selectedMode == ChildPairingMode.QR_CODE) Color.White else Color.Transparent)
+                    .clickable {
+                        selectedMode = ChildPairingMode.QR_CODE
+                        errorMessage = null
+                    }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Show Child QR",
+                    fontSize = 13.sp,
+                    fontWeight = if (selectedMode == ChildPairingMode.QR_CODE) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selectedMode == ChildPairingMode.QR_CODE) FlashGetPurple else Color(0xFF64748B)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = "Enter the 9-digit code displayed on the Parent App:",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF475569),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
+        // Content based on selected mode
+        when (selectedMode) {
+            ChildPairingMode.MANUAL_CODE -> {
+                // FLOW A: Manual 9-digit code entry (zero QR sessions created)
+                FlashGetCodeHeroIllustration()
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-        // SECTION 2: 9-DIGIT CODE ENTRY BOX (NICHE)
-        NineDigitInputWidget(
-            code = inputCode,
-            onCodeChange = { newCode ->
-                if (newCode.length <= 9 && newCode.all { it.isDigit() }) {
-                    inputCode = newCode
-                    errorMessage = null
-                    if (newCode.length == 9) {
-                        submitEnteredCode(newCode)
+                Text(
+                    text = "Enter the 9-digit code displayed on the Parent App:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF475569),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                NineDigitInputWidget(
+                    code = inputCode,
+                    onCodeChange = { newCode ->
+                        if (newCode.length <= 9 && newCode.all { it.isDigit() }) {
+                            inputCode = newCode
+                            errorMessage = null
+                            if (newCode.length == 9) {
+                                submitEnteredCode(newCode)
+                            }
+                        }
+                    },
+                    enabled = !isLoading
+                )
+
+                if (isLoading) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = FlashGetPurple,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Verifying code with parent…", color = FlashGetPurple, fontSize = 13.sp)
                     }
                 }
-            },
-            enabled = !isLoading
-        )
 
-        // Status / Error / Success Messages
-        if (isLoading) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = FlashGetPurple,
-                    strokeWidth = 2.dp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Verifying code with parent…", color = FlashGetPurple, fontSize = 13.sp)
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = Color(0xFFE53E3E),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                }
+
+                if (successMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = successMessage!!,
+                        color = Color(0xFF00B894),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = { submitEnteredCode(inputCode) },
+                    enabled = inputCode.length == 9 && !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FlashGetPurple,
+                        disabledContainerColor = Color(0xFFE2E8F0)
+                    )
+                ) {
+                    Text(
+                        text = "Connect to Parent",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (inputCode.length == 9 && !isLoading) Color.White else Color(0xFF94A3B8)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = {
+                        selectedMode = ChildPairingMode.QR_CODE
+                        errorMessage = null
+                    }
+                ) {
+                    Text(
+                        text = "Or show QR code for Parent to scan",
+                        color = FlashGetPurple,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
-        }
 
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = errorMessage!!,
-                color = Color(0xFFE53E3E),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-        }
+            ChildPairingMode.QR_CODE -> {
+                // FLOW B: Child QR Code display (Lazily fetched)
+                Text(
+                    text = "Scan with Parent App Camera",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B),
+                    textAlign = TextAlign.Center
+                )
 
-        if (successMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = successMessage!!,
-                color = Color(0xFF00B894),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-        }
+                Spacer(modifier = Modifier.height(6.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Open the Parent App and scan this code to link devices",
+                    fontSize = 13.sp,
+                    color = Color(0xFF64748B),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
 
-        // Connect Button
-        Button(
-            onClick = { submitEnteredCode(inputCode) },
-            enabled = inputCode.length == 9 && !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = FlashGetPurple,
-                disabledContainerColor = Color(0xFFE2E8F0)
-            )
-        ) {
-            Text(
-                text = "Connect to Parent",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (inputCode.length == 9 && !isLoading) Color.White else Color(0xFF94A3B8)
-            )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // QR Container Card
+                Box(
+                    modifier = Modifier
+                        .size(240.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .border(1.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(20.dp))
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        isQrLoading -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(color = FlashGetPurple, modifier = Modifier.size(36.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Generating pairing code…",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+
+                        qrErrorMessage != null -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Error",
+                                    tint = Color(0xFFE53E3E),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = qrErrorMessage!!,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFE53E3E),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedButton(
+                                    onClick = { fetchQrSession(forceRenew = true) },
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Retry", fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        qrBitmap != null -> {
+                            Image(
+                                bitmap = qrBitmap!!.asImageBitmap(),
+                                contentDescription = "Child Pairing QR Code",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                        else -> {
+                            CircularProgressIndicator(color = FlashGetPurple, modifier = Modifier.size(32.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Display the 9-digit code formatted as XXX - XXX - XXX
+                if (childCode != null) {
+                    val formatted = if (childCode!!.length == 9) {
+                        "${childCode!!.substring(0, 3)} - ${childCode!!.substring(3, 6)} - ${childCode!!.substring(6, 9)}"
+                    } else {
+                        childCode!!
+                    }
+                    Text(
+                        text = "Pairing Code: $formatted",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B),
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Valid for 15 minutes",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { fetchQrSession(forceRenew = true) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Renew QR Code",
+                            tint = FlashGetPurple,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = Color(0xFFE53E3E),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                TextButton(
+                    onClick = {
+                        selectedMode = ChildPairingMode.MANUAL_CODE
+                        errorMessage = null
+                    }
+                ) {
+                    Text(
+                        text = "Or enter 9-digit Parent Code instead",
+                        color = FlashGetPurple,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

@@ -2,12 +2,13 @@ import crypto from 'node:crypto';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { db } from '../../db/index';
 import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '../../db/schema/parental-control';
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { requireChildDeviceAuth, ChildDeviceJwtPayload } from '../../middleware/child-auth.guard';
+import { sha256, encryptSecret, decryptSecret, constantTimeCompare } from '../../utils/crypto-vault';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -50,7 +51,8 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.post('/pair-session', { preHandler: [childPairSessionRateLimiter] }, async (request, reply) => {
     const parsed = childPairSessionSchema.safeParse(request.body || {});
     const rawCode = crypto.randomInt(100000000, 1000000000).toString();
-    const pollingToken = crypto.randomBytes(32).toString('hex');
+    const rawPollingToken = crypto.randomBytes(32).toString('hex');
+    const pollingTokenHash = sha256(rawPollingToken);
     const expiresInSeconds = 900; // 15 minutes
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
@@ -60,7 +62,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         parentId: null, // Unknown until Parent scans and confirms
         pairingCode: rawCode,
         qrPayload: '',
-        pollingToken,
+        pollingToken: pollingTokenHash,
         status: 'pending',
         deviceModel: parsed.success ? parsed.data.deviceModel : null,
         expiresAt,
@@ -96,7 +98,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       pairingCode: rawCode,
       qrPayload,
       qrContract,
-      pollingToken,
+      pollingToken: rawPollingToken,
       expiresInSeconds,
       expiresAt: expiresAt.toISOString(),
     });
@@ -106,7 +108,8 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
    * GET /api/v1/child/pair-status/:sessionId
    * Child polls this endpoint to check if parent scanned QR code.
    * Requires scoped x-polling-token header to prevent unauthenticated metadata disclosure.
-   * One-time retrieval: pollingToken is cleared upon successful credential delivery.
+   * Compares against SHA-256 hashed polling token using constant-time comparison.
+   * Temporary credentials delivered at rest are protected with AEAD (AES-256-GCM) encryption.
    */
   app.get('/pair-status/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
@@ -120,18 +123,28 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
 
+    const incomingHash = sha256(pollingTokenHeader);
+
     const [session] = await db
       .select()
       .from(pairingSessions)
       .where(
         and(
           eq(pairingSessions.id, sessionId),
-          eq(pairingSessions.pollingToken, pollingTokenHeader)
+          or(
+            eq(pairingSessions.pollingToken, incomingHash),
+            eq(pairingSessions.pollingToken, pollingTokenHeader)
+          )
         )
       )
       .limit(1);
 
-    if (!session) {
+    if (
+      !session ||
+      !session.pollingToken ||
+      (!constantTimeCompare(session.pollingToken, incomingHash) &&
+        !constantTimeCompare(session.pollingToken, pollingTokenHeader))
+    ) {
       return reply.status(404).send({
         statusCode: 404,
         error: 'Not Found',
@@ -179,7 +192,10 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .where(
             and(
               eq(pairingSessions.id, session.id),
-              eq(pairingSessions.pollingToken, pollingTokenHeader)
+              or(
+                eq(pairingSessions.pollingToken, incomingHash),
+                eq(pairingSessions.pollingToken, pollingTokenHeader)
+              )
             )
           )
           .for('update');
@@ -187,9 +203,15 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         if (!locked) return null;
         if (locked.issuedDeviceToken) {
           try {
-            return JSON.parse(locked.issuedDeviceToken) as { deviceToken: string; refreshToken: string };
+            let decrypted: string;
+            if (locked.issuedDeviceToken.startsWith('v1:')) {
+              decrypted = decryptSecret(locked.issuedDeviceToken);
+            } else {
+              decrypted = locked.issuedDeviceToken;
+            }
+            return JSON.parse(decrypted) as { deviceToken: string; refreshToken: string };
           } catch {
-            return { deviceToken: locked.issuedDeviceToken, refreshToken: '' };
+            return null;
           }
         }
 
@@ -216,11 +238,12 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           deviceToken: mintedToken,
           refreshToken: rawRefreshToken,
         });
+        const encryptedDelivery = encryptSecret(deliveryPayload);
 
         await tx
           .update(pairingSessions)
           .set({
-            issuedDeviceToken: deliveryPayload,
+            issuedDeviceToken: encryptedDelivery,
             claimedAt: locked.claimedAt || new Date(),
           })
           .where(eq(pairingSessions.id, locked.id));
@@ -232,7 +255,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         return reply.status(500).send({
           statusCode: 500,
           error: 'Internal Server Error',
-          message: 'Failed to atomically issue device credentials',
+          message: 'Failed to securely retrieve or issue device credentials',
         });
       }
 
@@ -257,7 +280,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   /**
    * POST /api/v1/child/pair-ack/:sessionId
    * Explicit, retry-safe acknowledgment from Child App confirming durable receipt of credentials.
-   * Clears pollingToken and securely erases raw issuedDeviceToken to close delivery window.
+   * Clears pollingToken and securely erases raw/encrypted issuedDeviceToken to close delivery window.
    */
   app.post('/pair-ack/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
@@ -270,6 +293,8 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         message: 'Missing x-polling-token header',
       });
     }
+
+    const incomingHash = sha256(pollingTokenHeader);
 
     const [existing] = await db
       .select({
@@ -297,7 +322,12 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       });
     }
 
-    if (existing.pollingToken !== pollingTokenHeader) {
+    const isValid =
+      existing.pollingToken &&
+      (constantTimeCompare(existing.pollingToken, incomingHash) ||
+        constantTimeCompare(existing.pollingToken, pollingTokenHeader));
+
+    if (!isValid) {
       return reply.status(401).send({
         statusCode: 401,
         error: 'Unauthorized',

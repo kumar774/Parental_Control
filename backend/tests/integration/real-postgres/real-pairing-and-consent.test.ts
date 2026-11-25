@@ -1014,15 +1014,220 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     });
     assert.equal(crossDeleteRes.statusCode, 403, 'Cross-parent deletion must return 403 Forbidden');
 
-    // 4c. Polling token for Session 1 cannot read Session 2
+    // 4c. Cross-session tenant isolation: Genuine polling token for Session A cannot read Session B
+    // Create an independent Session A to obtain an authentic, active polling token
+    const sessionARes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair-session',
+      payload: { deviceModel: 'Session A Device' },
+    });
+    assert.equal(sessionARes.statusCode, 200);
+    const sessionAJson = JSON.parse(sessionARes.body);
+    const genuinePollingTokenA = sessionAJson.pollingToken;
+
+    // Attempt to access Flow 2 (Session B) using Session A's genuine polling token
     const crossPollRes = await app.inject({
       method: 'GET',
       url: `/api/v1/child/pair-status/${flow2SessionId}`,
-      headers: { 'x-polling-token': 'wrong-or-other-session-polling-token' },
+      headers: { 'x-polling-token': genuinePollingTokenA },
     });
-    assert.equal(crossPollRes.statusCode, 404, 'Mismatched polling token must be rejected with 404');
+    assert.equal(crossPollRes.statusCode, 404, 'Genuine polling token for Session A must NOT authorize reading Session B (404)');
+
+    // Arbitrary invalid polling token must also be rejected
+    const invalidPollRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${flow2SessionId}`,
+      headers: { 'x-polling-token': 'invalid-polling-token-00000000000000000000000000000000' },
+    });
+    assert.equal(invalidPollRes.statusCode, 404, 'Arbitrary invalid polling token must be rejected with 404');
 
     // Cleanup Parent B
     await conn.db.delete(parentUsers).where(eq(parentUsers.id, parentBId)).catch(() => {});
+  });
+
+  // ===================================================================================================
+  // 8. Device Credential Protection At Rest (AEAD Encryption, SHA-256 Hashed Polling Tokens, Tamper Detection)
+  // ===================================================================================================
+  it('8. Credential protection at rest: hashed polling tokens, AEAD encrypted delivery payload, tamper safety, and ACK erasure', async () => {
+    await conn.pool.query('DELETE FROM parent_rate_limits;');
+
+    // 1. Create a Child pairing session
+    const createSessionRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair-session',
+      payload: { deviceModel: 'Vault Test Phone' },
+    });
+    assert.equal(createSessionRes.statusCode, 200);
+    const sessionJson = JSON.parse(createSessionRes.body);
+    const { sessionId, pairingCode, pollingToken: rawPollingToken } = sessionJson;
+
+    assert.ok(sessionId, 'Must return session ID');
+    assert.ok(rawPollingToken, 'Must return raw polling token to client');
+
+    // VERIFY DATABASE AT REST: Raw polling token must NOT be stored in the database!
+    const [dbSessionInitial] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId))
+      .limit(1);
+
+    assert.ok(dbSessionInitial, 'Session record must exist in DB');
+    assert.notEqual(dbSessionInitial.pollingToken, rawPollingToken, 'SECURITY CHECK: Raw polling token must NEVER be stored in DB');
+    const expectedTokenHash = crypto.createHash('sha256').update(rawPollingToken).digest('hex');
+    assert.equal(dbSessionInitial.pollingToken, expectedTokenHash, 'SECURITY CHECK: Database must store SHA-256 hash of polling token');
+    assert.equal(dbSessionInitial.issuedDeviceToken, null, 'issuedDeviceToken must be null before confirmation');
+
+    // 2. Rejection of incorrect polling token
+    const badTokenPoll = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': 'wrong-token-abc1234567890123456789012345678901234567890' },
+    });
+    assert.equal(badTokenPoll.statusCode, 404, 'Wrong polling token must return 404');
+
+    // 3. Parent confirms pairing
+    const confirmRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        sessionId,
+        code: pairingCode,
+        childName: 'Vault Child',
+        deviceName: 'Vault Phone',
+      },
+    });
+    assert.equal(confirmRes.statusCode, 200);
+    const confirmJson = JSON.parse(confirmRes.body);
+    assert.ok(confirmJson.deviceId, 'Must confirm pairing and return deviceId');
+    // Ensure parent API does NOT receive any child credentials
+    assert.equal(confirmJson.deviceToken, undefined, 'SECURITY CHECK: Parent API must NEVER receive child access token');
+    assert.equal(confirmJson.refreshToken, undefined, 'SECURITY CHECK: Parent API must NEVER receive child refresh token');
+
+    // 4. Child polls for credentials using authentic polling token
+    const pollCredsRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': rawPollingToken },
+    });
+    assert.equal(pollCredsRes.statusCode, 200);
+    const credsJson = JSON.parse(pollCredsRes.body);
+    assert.equal(credsJson.status, 'paired');
+    assert.ok(credsJson.deviceToken, 'Must deliver device token');
+    assert.ok(credsJson.refreshToken, 'Must deliver refresh token');
+
+    // VERIFY DATABASE AT REST: Credentials stored in DB must be AEAD (AES-256-GCM) encrypted!
+    const [dbSessionPaired] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId))
+      .limit(1);
+
+    assert.ok(dbSessionPaired.issuedDeviceToken, 'issuedDeviceToken must be populated in DB');
+    assert.ok(
+      dbSessionPaired.issuedDeviceToken.startsWith('v1:'),
+      'SECURITY CHECK: issuedDeviceToken must be envelope encrypted with v1: AES-256-GCM format'
+    );
+    assert.ok(
+      !dbSessionPaired.issuedDeviceToken.includes(credsJson.deviceToken),
+      'SECURITY CHECK: Raw JWT access token must NEVER be persisted in plaintext in pairing_sessions'
+    );
+    assert.ok(
+      !dbSessionPaired.issuedDeviceToken.includes(credsJson.refreshToken),
+      'SECURITY CHECK: Raw refresh token must NEVER be persisted in plaintext in pairing_sessions'
+    );
+    assert.throws(
+      () => JSON.parse(dbSessionPaired.issuedDeviceToken!),
+      'SECURITY CHECK: issuedDeviceToken must NOT be raw JSON plaintext'
+    );
+
+    // 5. Concurrency test: Simultaneous polling calls must return identical credentials and not issue extra credentials
+    const [concurrent1, concurrent2] = await Promise.all([
+      app.inject({
+        method: 'GET',
+        url: `/api/v1/child/pair-status/${sessionId}`,
+        headers: { 'x-polling-token': rawPollingToken },
+      }),
+      app.inject({
+        method: 'GET',
+        url: `/api/v1/child/pair-status/${sessionId}`,
+        headers: { 'x-polling-token': rawPollingToken },
+      }),
+    ]);
+    assert.equal(concurrent1.statusCode, 200);
+    assert.equal(concurrent2.statusCode, 200);
+    assert.equal(JSON.parse(concurrent1.body).deviceToken, credsJson.deviceToken);
+    assert.equal(JSON.parse(concurrent2.body).deviceToken, credsJson.deviceToken);
+
+    const tokenRecords = await conn.db
+      .select()
+      .from(childDeviceTokens)
+      .where(eq(childDeviceTokens.deviceId, credsJson.deviceId));
+    assert.equal(tokenRecords.length, 1, 'Exactly one active refresh token record must exist in child_device_tokens');
+
+    // 6. Corrupted / Tampered payload failure safety
+    // Create a paired session with corrupted ciphertext
+    const tamperedSessionId = crypto.randomUUID();
+    const tamperedCode = crypto.randomInt(100000000, 1000000000).toString();
+    const tamperedRawToken = crypto.randomBytes(32).toString('hex');
+    const tamperedHash = crypto.createHash('sha256').update(tamperedRawToken).digest('hex');
+
+    await conn.db.insert(pairingSessions).values({
+      id: tamperedSessionId,
+      parentId: testParentId,
+      pairingCode: tamperedCode,
+      qrPayload: `pc-pair:${tamperedCode}`,
+      pollingToken: tamperedHash,
+      status: 'paired',
+      childDeviceId: credsJson.deviceId,
+      issuedDeviceToken: 'v1:badiv1234567:badauth1234567890:badciphertext000000',
+      expiresAt: new Date(Date.now() + 900000),
+    });
+
+    const tamperedPollRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${tamperedSessionId}`,
+      headers: { 'x-polling-token': tamperedRawToken },
+    });
+    // Server must handle decrypt failure safely and fail closed with 500 without crashing
+    assert.equal(tamperedPollRes.statusCode, 500, 'Tampered or corrupted ciphertext must fail safely with 500');
+
+    // 7. ACK Erases Delivery Credentials and Invalidate Polling Credential
+    const ackRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${sessionId}`,
+      headers: { 'x-polling-token': rawPollingToken },
+    });
+    assert.equal(ackRes.statusCode, 200);
+    assert.match(JSON.parse(ackRes.body).message, /acknowledged/i);
+
+    // Verify DB erasure
+    const [dbSessionAcked] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, sessionId))
+      .limit(1);
+
+    assert.equal(dbSessionAcked.pollingToken, null, 'SECURITY CHECK: pollingToken must be wiped to null after ACK');
+    assert.equal(dbSessionAcked.issuedDeviceToken, null, 'SECURITY CHECK: issuedDeviceToken must be wiped to null after ACK');
+
+    // 8. Idempotent retry safety: subsequent ACK with same token returns 200
+    const retryAckRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${sessionId}`,
+      headers: { 'x-polling-token': rawPollingToken },
+    });
+    assert.equal(retryAckRes.statusCode, 200, 'ACK retry must be idempotent and succeed');
+
+    // 9. Subsequent polling after ACK must be rejected (polling token invalidated)
+    const postAckPoll = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': rawPollingToken },
+    });
+    assert.equal(postAckPoll.statusCode, 404, 'Polling after ACK must return 404 because pollingToken was invalidated');
+
+    // Cleanup
+    await conn.db.delete(pairingSessions).where(eq(pairingSessions.id, tamperedSessionId)).catch(() => {});
   });
 });
