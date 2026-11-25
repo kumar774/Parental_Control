@@ -1,6 +1,7 @@
 package com.parentalcontrol.child.ui.pairing
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -170,6 +172,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
     Column(
         Modifier
             .fillMaxSize()
+            .background(Color.White)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
@@ -191,14 +194,19 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     modifier = Modifier.size(24.dp)
                 )
             }
-            IconButton(onClick = { /* options */ }) {
+            IconButton(onClick = { showAcquireHelp = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreHoriz,
                     contentDescription = "Options",
-                    tint = FlashGetPurple,
+                    tint = BrandPurple,
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+
+        // Phone + "123 XXX 789" badge illustration matching 3rd screen
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            PairingHeroIllustration()
         }
 
         // Subtitle matching 3rd screen
@@ -210,10 +218,11 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
         )
 
         // Card 1: Generate QR Code
-        Card(
+        OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
@@ -224,7 +233,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.QrCode, null, tint = FlashGetPurple, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.QrCode, null, tint = BrandPurple, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Generate QR code", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -253,30 +262,32 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     Button(
                         onClick = { start(null) },
                         enabled = !busy && attempt?.code == null,
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        shape = RoundedCornerShape(23.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
                     ) {
-                        Text(if (attempt == null) "Generate QR code" else "Retry")
+                        Text(if (attempt == null) "Generate QR code" else "Retry", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
 
-        // Card 2: Enter Parent Binding Code
-        Card(
+        // Card 2: Enter Parent Binding Code (9-digit underline slots XXX XXX XXX)
+        OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.VpnKey, null, tint = FlashGetPurple, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.VpnKey, null, tint = BrandPurple, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Enter parent binding code", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -285,18 +296,61 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     fontSize = 13.sp,
                     color = Color(0xFF64748B)
                 )
-                OutlinedTextField(
-                    value = code.chunked(3).joinToString(" "),
-                    onValueChange = {
-                        val normalized = it.replace(" ", "")
-                        if (normalized.length <= 9 && normalized.all { c -> c in '0'..'9' }) code = normalized
+
+                BasicTextField(
+                    value = code,
+                    onValueChange = { raw ->
+                        val normalized = raw.filter { c -> c in '0'..'9' }.take(9)
+                        code = normalized
                     },
-                    label = { Text("Binding code") },
-                    singleLine = true,
                     enabled = !busy && attempt == null,
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    decorationBox = {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            for (i in 0 until 9) {
+                                if (i == 3 || i == 6) {
+                                    Spacer(Modifier.width(12.dp))
+                                } else if (i > 0) {
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                val char = code.getOrNull(i)?.toString().orEmpty()
+                                val isActive = i == code.length
+                                Column(
+                                    modifier = Modifier.width(26.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = char.ifEmpty { " " },
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E293B),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(2.dp)
+                                            .background(
+                                                when {
+                                                    char.isNotEmpty() -> BrandPurple
+                                                    isActive -> BrandPurple.copy(alpha = 0.65f)
+                                                    else -> Color(0xFFCBD5E1)
+                                                }
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
                 )
 
                 TextButton(
@@ -306,16 +360,20 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     Text(
                         text = "How to acquire a binding code?",
                         fontSize = 13.sp,
-                        color = FlashGetPurple
+                        color = BrandPurple
                     )
                 }
 
                 Button(
                     onClick = { start(code) },
                     enabled = !busy && code.length == 9 && (attempt == null || attempt?.code == code && attempt?.sessionId == null),
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BrandPurple,
+                        disabledContainerColor = BrandPurple.copy(alpha = 0.45f),
+                        disabledContentColor = Color.White
+                    )
                 ) {
                     Text("Next", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -384,14 +442,14 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                             modifier = Modifier
                                 .size(64.dp, 90.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(FlashGetPurple.copy(alpha = 0.12f))
-                                .border(2.dp, FlashGetPurple, RoundedCornerShape(12.dp)),
+                                .background(BrandPurple.copy(alpha = 0.12f))
+                                .border(2.dp, BrandPurple, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Link,
                                 contentDescription = null,
-                                tint = FlashGetPurple,
+                                tint = BrandPurple,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -418,7 +476,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                         text = current.maskedEmail ?: "",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = FlashGetPurple
+                        color = BrandPurple
                     )
 
                     if (error.isNotBlank()) {
@@ -435,9 +493,18 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                             .fillMaxWidth()
                             .height(48.dp),
                         shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
                     ) {
                         Text("Confirm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    TextButton(
+                        onClick = { decide(false) },
+                        enabled = !busy
+                    ) {
+                        Text("Cancel", color = Color(0xFF64748B), fontSize = 14.sp)
                     }
                 }
             }
@@ -471,5 +538,66 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun PairingHeroIllustration() {
+    Box(
+        modifier = Modifier.size(190.dp, 136.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Purple phone outline
+        Box(
+            modifier = Modifier
+                .size(86.dp, 126.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(BrandPurple.copy(alpha = 0.14f))
+                .border(2.5.dp, BrandPurple, RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .size(22.dp, 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(BrandPurple.copy(alpha = 0.5f))
+            )
+        }
+
+        // Yellow "123 XXX 789" badge across center
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xFFFDCB6E))
+                .border(1.5.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "123 XXX 789",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 1.sp
+            )
+        }
+
+        // Circular link chain badge at bottom right
+        Box(
+            modifier = Modifier
+                .offset(x = 28.dp, y = 48.dp)
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(2.dp, Color(0xFFE2E8F0), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Link,
+                contentDescription = null,
+                tint = BrandPurple,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }

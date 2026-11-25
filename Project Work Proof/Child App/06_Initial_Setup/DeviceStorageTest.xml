@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.parentalcontrol.child.storage.DeviceStorageTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-11-25T10:23:46.266Z" hostname="KUMAR-SHIVA" time="0.103">
+  <properties/>
+  <testcase name="testClearPairingSessionResetsToUnpaired" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.007"/>
+  <testcase name="testCorruptNonUuidParentIdTriggersRepairState" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.019"/>
+  <testcase name="consentAndPendingEnrollmentSurviveStorageRecreation" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.011"/>
+  <testcase name="testPendingPairAckPersistenceAndClear" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.01"/>
+  <testcase name="testMissingRefreshTokenTriggersRepairState" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="testLegacySetupStartedBooleanMigratesToStartedStage" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.01"/>
+  <testcase name="testClearPairingSessionRetainsPendingUnpairUntilConfirmed" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.002"/>
+  <testcase name="testCorruptNonUuidDeviceIdTriggersRepairState" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="enrollmentCannotStartBeforeConsent" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.004"/>
+  <testcase name="testBlankRefreshTokenTriggersRepairState" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.003"/>
+  <testcase name="testSavePairingSessionWithPendingAckAtomic" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.002"/>
+  <testcase name="testSavePairingSessionPersistsCorrectlyWithValidUUIDs" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.002"/>
+  <testcase name="testPendingUnpairPersistenceAndClear" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="testMissingDeviceTokenTriggersRepairState" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="credentialPersistenceAtomicallyReplacesPendingChallengeWithReceipt" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="testUpdateTokensPersistsNewTokens" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <testcase name="testSetupStageLifecycleAndRestartRestoration" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.017"/>
+  <testcase name="testInitialStateIsUnpaired" classname="com.parentalcontrol.child.storage.DeviceStorageTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

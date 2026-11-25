@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * FlashGet Kids Style Screen 2: Statutory Terms & Consent Disclosure
+ * Child Guard consent for the initial device association.
  */
 @Composable
 fun KidConsentScreen(
@@ -71,129 +71,126 @@ fun KidConsentScreen(
             .background(Color.White)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top navigation bar
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color(0xFF2D3436),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            IconButton(onClick = { /* extra options */ }) {
-                Icon(
-                    imageVector = Icons.Default.MoreHoriz,
-                    contentDescription = "Options",
-                    tint = FlashGetPurple,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Document / Magnifier Hero Graphic
-        ConsentHeroIllustration()
-
-        Spacer(modifier = Modifier.height(36.dp))
-
-        // Title
-        Text(
-            text = "Welcome to FlashGet Kids",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "You confirm that as the guardian or legal agent of the device, have installed the App for your child, and agree and authorize our products to obtain the data and information of your child's device.",
-            fontSize = 14.sp,
-            color = Color(0xFF475569),
-            lineHeight = 22.sp,
-            textAlign = TextAlign.Start
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val termsPolicyText = buildAnnotatedString {
-            append("Before you continue to use our services, you have read and fully understood our ")
-            pushStringAnnotation(tag = "terms", annotation = "Terms of Service")
-            withStyle(
-                style = SpanStyle(
-                    color = FlashGetPurple,
-                    fontWeight = FontWeight.SemiBold,
-                    textDecoration = TextDecoration.Underline
-                )
+            // Top navigation bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                append("Terms of Service")
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color(0xFF2D3436),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(onClick = { policy = "Terms of Service" }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreHoriz,
+                        contentDescription = "Options",
+                        tint = BrandPurple,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
-            pop()
-            append(" and ")
-            pushStringAnnotation(tag = "privacy", annotation = "Privacy Policy")
-            withStyle(
-                style = SpanStyle(
-                    color = FlashGetPurple,
-                    fontWeight = FontWeight.SemiBold,
-                    textDecoration = TextDecoration.Underline
-                )
-            ) {
-                append("Privacy Policy")
-            }
-            pop()
-            append(". You expressly undertake to comply with the applicable laws and regulations in your territory during the use of the application.")
-        }
 
-        ClickableText(
-            text = termsPolicyText,
-            style = TextStyle(
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Document / Magnifier Hero Graphic
+            ConsentHeroIllustration()
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Title
+            Text(
+                text = "Welcome to Child Guard",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "A parent or legal guardian may set up this device. By agreeing, you authorize an initial connection with the Parent App account you choose. Both apps must confirm before the association is completed.",
                 fontSize = 14.sp,
                 color = Color(0xFF475569),
                 lineHeight = 22.sp,
                 textAlign = TextAlign.Start
-            ),
-            onClick = { offset ->
-                termsPolicyText.getStringAnnotations(tag = "terms", start = offset, end = offset)
-                    .firstOrNull()?.let { policy = "Terms of Service" }
-                termsPolicyText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
-                    .firstOrNull()?.let { policy = "Privacy Policy" }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val termsPolicyText = buildAnnotatedString {
+                append("Please review our ")
+                pushStringAnnotation(tag = "terms", annotation = "Terms of Service")
+                withStyle(
+                    style = SpanStyle(
+                        color = BrandPurple,
+                        fontWeight = FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                ) {
+                    append("Terms of Service")
+                }
+                pop()
+                append(" and ")
+                pushStringAnnotation(tag = "privacy", annotation = "Privacy Policy")
+                withStyle(
+                    style = SpanStyle(
+                        color = BrandPurple,
+                        fontWeight = FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                ) {
+                    append("Privacy Policy")
+                }
+                pop()
+                append(" before continuing. During setup, the app sends the installation identifier, device model, consent policy version and consent time needed to create this connection. Association credentials are stored securely on this device. This setup does not activate device monitoring or request camera, microphone, location, contacts, accessibility or device-admin access.")
             }
-        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            ClickableText(
+                text = termsPolicyText,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    color = Color(0xFF475569),
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.Start
+                ),
+                onClick = { offset ->
+                    termsPolicyText.getStringAnnotations(tag = "terms", start = offset, end = offset)
+                        .firstOrNull()?.let { policy = "Terms of Service" }
+                    termsPolicyText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
+                        .firstOrNull()?.let { policy = "Privacy Policy" }
+                }
+            )
 
-        Text(
-            text = "You understand that illegal surveillance and recording activities without lawful authorization may be considered criminal acts and subject to legal liability.",
-            fontSize = 14.sp,
-            color = Color(0xFF475569),
-            lineHeight = 22.sp,
-            textAlign = TextAlign.Start
-        )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
-        Spacer(modifier = Modifier.height(36.dp))
-
-        // Agree Button (Purple Capsule)
+        // Bottom-aligned Agree Button (Purple Capsule)
         Button(
             onClick = onAgreeClick,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 24.dp)
                 .height(54.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = FlashGetPurple,
+                containerColor = BrandPurple,
                 contentColor = Color.White
             )
         ) {
@@ -203,8 +200,6 @@ fun KidConsentScreen(
                 fontWeight = FontWeight.Bold
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

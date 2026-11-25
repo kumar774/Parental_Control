@@ -365,9 +365,89 @@ export async function checkObjectExists(client: any, obj: ObjectGuarantee): Prom
 }
 
 export async function runMigrations(customClient?: any) {
+  if (process.env.NODE_ENV === 'test') {
+    const expectedRunId = process.env.AUTH001_TEST_DATABASE_RUN_ID;
+    const verifiedRunId = (process as NodeJS.Process & { [key: symbol]: string | undefined })[
+      Symbol.for('parental-control.real-postgres.preflight')
+    ];
+    if (!expectedRunId || verifiedRunId !== expectedRunId) {
+      throw new Error('[Migration Runner] Test-mode migrations require a successful real-postgres safety preflight.');
+    }
+  }
   const client = customClient || await pool.connect();
   const appliedFiles: string[] = [];
+  let testMigrationRoleChanged = false;
   try {
+    if (process.env.NODE_ENV === 'test') {
+      const expectedRunId = process.env.AUTH001_TEST_DATABASE_RUN_ID!;
+      const expectedName = process.env.AUTH001_TEST_DATABASE_NAME!;
+      const expectedPort = Number(process.env.AUTH001_TEST_DATABASE_PORT);
+      const expectedRole = process.env.AUTH001_TEST_DATABASE_ROLE!;
+      const migrationRole = process.env.AUTH001_TEST_MIGRATOR_ROLE!;
+      const expectedOwner = process.env.AUTH001_TEST_DATABASE_OWNER!;
+      const identity = await client.query(`
+        SELECT current_database() AS database_name,
+               current_user AS role_name,
+               inet_server_port() AS port,
+               (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) AS database_owner,
+               (SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()) AS database_comment
+      `);
+      const target = identity.rows[0];
+      if (target?.database_name !== expectedName || target?.role_name !== expectedRole
+        || Number(target?.port) !== expectedPort || target?.database_owner !== expectedOwner
+        || target?.database_comment !== `codex-test-run:${expectedRunId}`) {
+        throw new Error('[Migration Runner] Runtime test database identity does not match the verified disposable target.');
+      }
+      const protectedDb = await client.query(`
+        SELECT datname FROM pg_database
+        WHERE lower(datname) = ANY($1::text[])
+          AND has_database_privilege(current_user, datname, 'CONNECT')
+        LIMIT 1
+      `, [['parental_control_db', 'parental_control_admin_db', 'parental_control_prod_db', 'postgres', 'template0', 'template1']]);
+      if (protectedDb.rows.length) throw new Error('[Migration Runner] Test role can connect to a protected database.');
+
+      if (expectedRole !== migrationRole) {
+        const trackingTable = await client.query(`
+          SELECT pg_get_userbyid(c.relowner) AS owner
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'schema_migrations' AND c.relkind = 'r'
+        `);
+        const trackingOwner = trackingTable.rows[0]?.owner;
+        if (trackingOwner && trackingOwner !== migrationRole) {
+          if (trackingOwner !== expectedRole) {
+            throw new Error('[Migration Runner] schema_migrations owner is outside the explicitly authorized test roles.');
+          }
+          await client.query(`ALTER TABLE public.schema_migrations OWNER TO "${migrationRole}"`);
+          const trackingSequence = await client.query(`
+            SELECT pg_get_userbyid(c.relowner) AS owner
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = 'schema_migrations_id_seq' AND c.relkind = 'S'
+          `);
+          if (trackingSequence.rows[0]?.owner === expectedRole) {
+            await client.query(`ALTER SEQUENCE public.schema_migrations_id_seq OWNER TO "${migrationRole}"`);
+          } else if (trackingSequence.rows[0]?.owner && trackingSequence.rows[0].owner !== migrationRole) {
+            throw new Error('[Migration Runner] schema_migrations sequence owner is outside the explicitly authorized test roles.');
+          }
+        }
+
+        const schemaRes = await client.query(`
+          SELECT pg_get_userbyid(nspowner) AS owner
+          FROM pg_namespace WHERE nspname = 'public'
+        `);
+        const schemaOwner = schemaRes.rows[0]?.owner;
+        if (schemaOwner !== migrationRole) {
+          if (schemaOwner !== 'pg_database_owner' && schemaOwner !== expectedRole) {
+            throw new Error('[Migration Runner] Public schema owner is outside the explicitly authorized test roles.');
+          }
+          await client.query(`ALTER SCHEMA public OWNER TO "${migrationRole}"`);
+        }
+        await client.query(`SET ROLE "${migrationRole}"`);
+        testMigrationRoleChanged = true;
+      }
+    }
+
     const metaRes = await client.query('SELECT current_database(), current_user, version();');
     const { current_database, current_user } = metaRes.rows[0];
 
@@ -504,6 +584,7 @@ export async function runMigrations(customClient?: any) {
 
     return { appliedCount, appliedFiles };
   } finally {
+    if (testMigrationRoleChanged) await client.query('RESET ROLE');
     if (!customClient) {
       client.release();
     }

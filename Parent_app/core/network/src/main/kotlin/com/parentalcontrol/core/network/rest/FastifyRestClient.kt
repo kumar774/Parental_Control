@@ -606,7 +606,51 @@ class FastifyRestClient(
         }
     }
 
-    suspend fun rejectPairing(sessionId: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun previewQrPairing(sessionId: String, code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to preview QR pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        val cleanCode = code.trim()
+        if (!cleanCode.matches(Regex("[0-9]{9}"))) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid 9-digit pairing code: $code"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("sessionId", trimmedId)
+                put("code", cleanCode)
+            }.toString()
+            val response = executePost("/api/v1/devices/qr-preview", body, token)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = PairingStatusDto(
+                    status = json.getString("status"),
+                    sessionId = json.getString("sessionId"),
+                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" },
+                    childConfirmed = json.optBoolean("childConfirmed", false),
+                    parentApproved = json.optBoolean("parentApproved", false),
+                    expiresAt = json.optString("expiresAt").takeIf { it.isNotBlank() && it != "null" }
+                )
+                Result.success(dto)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to inspect QR pairing")
+                } catch (_: Exception) {
+                    "Unable to inspect QR pairing (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun rejectPairing(sessionId: String, code: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to reject pairing"))
@@ -617,7 +661,10 @@ class FastifyRestClient(
             return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
         }
         try {
-            val body = JSONObject().put("sessionId", trimmedId).toString()
+            val body = JSONObject().apply {
+                put("sessionId", trimmedId)
+                code?.trim()?.takeIf { it.matches(Regex("[0-9]{9}")) }?.let { put("code", it) }
+            }.toString()
             val response = executePost("/api/v1/devices/pair-reject", body, token)
             if (response.statusCode in 200..299) {
                 Result.success(Unit)

@@ -8,6 +8,7 @@ plugins {
 
 val guardianApiOrigin = providers.gradleProperty("GUARDIAN_API_BASE_URL")
     .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orNull?.trimEnd('/').orEmpty()
+val proofMode = providers.gradleProperty("proofMode").orNull == "true"
 if (guardianApiOrigin.isNotEmpty()) {
   val origin = URI(guardianApiOrigin)
   require(origin.scheme == "https" && !origin.host.isNullOrBlank() && origin.userInfo == null &&
@@ -38,7 +39,7 @@ android {
     }
     debug {
       buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://127.0.0.1:3000" }}\"")
-      applicationIdSuffix = ".debug"
+      applicationIdSuffix = if (proofMode) ".debug.proof" else ".debug"
       isDebuggable = true
     }
   }

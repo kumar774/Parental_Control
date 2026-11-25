@@ -343,12 +343,12 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
         }
     }
 
-    fun rejectChildRequest(targetSessionId: String) {
+    fun rejectChildRequest(targetSessionId: String, targetCode: String?) {
         if (busy) return
         busy = true
         message = null
         scope.launch {
-            client.rejectPairing(targetSessionId).onSuccess {
+            client.rejectPairing(targetSessionId, targetCode).onSuccess {
                 pendingApproval = null
                 if (session == targetSessionId) {
                     status = "canceled"
@@ -373,27 +373,59 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
     }
     androidx.activity.compose.BackHandler(enabled = scanning) { scanning = false }
 
-    SetupPage("Add New Device", onNavigateBack) {
-        Text("Step 01 of 03   Bind child's device")
-        SetupCard("Download Child App") {
-            Text("Scan this download QR with the child's phone or open the official link.")
+    SetupPage(
+        title = "Add New Device",
+        onBack = onNavigateBack,
+        step = 1,
+        bottomBar = {
+            if (busy) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ParentPurple, modifier = Modifier.size(28.dp))
+                }
+            }
+            PurpleCapsuleButton(
+                text = "Check binding status",
+                enabled = !busy && session != null,
+                onClick = { checkStatus() }
+            )
+        }
+    ) {
+        StepHeading("01", "Bind child's device")
+        SetupCard {
+            Text(
+                "Please use your child's device to scan the QR code or access the link below in a browser to download and install the child's app.",
+                color = ParentTextDark,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
             DownloadLink(true)
         }
         SetupCard("Scan Child QR") {
-            Text("On the child's phone, choose Generate QR Code.")
+            Text(
+                "On the child's phone, choose Generate QR Code.",
+                color = ParentTextMuted,
+                fontSize = 14.sp
+            )
             if (scanning) {
                 LiveCameraQrScanner(onQrCodeDetected = { raw ->
                     scanning = false
                     when (val qr = parseChildQrContract(raw)) {
                         is ChildQrValidationResult.Valid -> {
+                            busy = true
                             scope.launch {
-                                val model = client.checkPairingStatus(qr.sessionId).getOrNull()?.deviceName
-                                pendingApproval = PendingApprovalInfo(
-                                    sessionId = qr.sessionId,
-                                    code = qr.code,
-                                    deviceModel = model,
-                                    isChildInitiated = true
-                                )
+                                client.previewQrPairing(qr.sessionId, qr.code)
+                                    .onSuccess { preview ->
+                                        pendingApproval = PendingApprovalInfo(
+                                            sessionId = preview.sessionId,
+                                            code = qr.code,
+                                            deviceModel = preview.deviceName,
+                                            isChildInitiated = true
+                                        )
+                                    }
+                                    .onFailure { err ->
+                                        message = err.message ?: "Unable to verify Child QR."
+                                    }
+                                busy = false
                             }
                         }
                         is ChildQrValidationResult.Invalid -> message = "This is not a valid Child App pairing QR."
@@ -401,33 +433,71 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
                     }
                 }, isFlashOn = false, modifier = Modifier.fillMaxWidth().height(240.dp),
                     onError = { scanning = false; message = "Camera unavailable. Try again or use the binding code." })
-                TextButton({ scanning = false }) { Text("Close scanner") }
+                TextButton({ scanning = false }) { Text("Close scanner", color = ParentPurple) }
             } else {
-                OutlinedButton({
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scanning = true
-                    else permission.launch(Manifest.permission.CAMERA)
-                }, enabled = !busy) { Text("Scan QR Code") }
+                OutlinedPurpleCapsuleButton(
+                    text = "Scan QR Code",
+                    enabled = !busy,
+                    onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scanning = true
+                        else permission.launch(Manifest.permission.CAMERA)
+                    }
+                )
                 if (denied) {
-                    Text("Allow camera access to scan, or enter the binding code on the child's phone.")
-                    TextButton({ context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:${context.packageName}"))) }) { Text("Open app settings") }
+                    Text(
+                        "Allow camera access to scan, or enter the binding code on the child's phone.",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    TextButton({
+                        context.startActivity(
+                            Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                        )
+                    }) { Text("Open app settings", color = ParentPurple) }
                 }
             }
         }
-        SetupCard("Parent binding code") {
-            Text("Enter this code in the Child App.")
+        SetupCard {
+            Text(
+                "Open the child's app and enter the binding code below to bind the child's device to your account.",
+                color = ParentTextDark,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
             code?.let { value ->
-                Text(formatNineDigitCode(value), style = MaterialTheme.typography.headlineSmall)
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    color = ParentSurfaceMuted
+                ) {
+                    Text(
+                        text = formatNineDigitCode(value).replace(" - ", " "),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ParentTextDark,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
+                    )
+                }
                 if (now < expires) {
-                    Text("Expires in ${(expires - now + 999) / 1000} seconds")
+                    Text(
+                        "Expires in ${(expires - now + 999) / 1000} seconds",
+                        color = ParentTextMuted,
+                        fontSize = 12.sp
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton({
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Binding code", value))
-                        }) { Text("Copy code") }
+                            Toast.makeText(context, "Binding code copied", Toast.LENGTH_SHORT).show()
+                        }) { Text("Copy code", color = ParentPurple) }
                         if (status !in setOf("expired", "canceled", "paired")) {
                             TextButton({ issueOrResume(regenerate = true) }, enabled = !busy) {
-                                Text("Regenerate code")
+                                Text("Regenerate code", color = ParentPurple)
                             }
                         }
                     }
@@ -435,11 +505,15 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
             }
             if (session != null && status !in setOf("expired", "canceled", "paired")) {
                 TextButton({ showCancelConfirm = true }, enabled = !busy) {
-                    Text("Cancel pairing")
+                    Text("Cancel pairing", color = MaterialTheme.colorScheme.error)
                 }
             }
             if (session == null || status in setOf("expired", "canceled") || (expires > 0 && now >= expires)) {
-                OutlinedButton({ issueOrResume(regenerate = false) }, enabled = !busy) { Text("Get binding code") }
+                OutlinedPurpleCapsuleButton(
+                    text = "Get binding code",
+                    enabled = !busy,
+                    onClick = { issueOrResume(regenerate = false) }
+                )
             }
         }
         val description = when (status) {
@@ -451,20 +525,24 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
             "canceled" -> "This enrollment was canceled."
             else -> null
         }
-        description?.let { Text(it) }
-        if (status == "waiting_for_parent" && session != null && code != null) {
-            Button({
-                pendingApproval = PendingApprovalInfo(
-                    sessionId = session!!,
-                    code = code!!,
-                    deviceModel = reportedDeviceModel,
-                    isChildInitiated = true
-                )
-            }, enabled = !busy) { Text("Review connection") }
+        description?.let {
+            Text(it, color = ParentTextDark, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
-        message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button({ checkStatus() }, enabled = !busy && session != null) { Text("Check binding status") }
-        if (busy) CircularProgressIndicator()
+        if (status == "waiting_for_parent" && session != null && code != null) {
+            PurpleCapsuleButton(
+                text = "Review connection",
+                enabled = !busy,
+                onClick = {
+                    pendingApproval = PendingApprovalInfo(
+                        sessionId = session!!,
+                        code = code!!,
+                        deviceModel = reportedDeviceModel,
+                        isChildInitiated = true
+                    )
+                }
+            )
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
     }
     if (showCancelConfirm) {
         AlertDialog(
@@ -497,7 +575,7 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton({ pendingApproval = null }) { Text("Close") }
-                    TextButton({ rejectChildRequest(info.sessionId) }, enabled = !busy) {
+                    TextButton({ rejectChildRequest(info.sessionId, info.code) }, enabled = !busy) {
                         Text("Reject", color = MaterialTheme.colorScheme.error)
                     }
                 }

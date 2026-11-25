@@ -22,7 +22,22 @@ const childPairAttemptRateLimiter = createParentRateLimiter({
   prefix: 'rl:child_pair_attempt',
 });
 
+const childPairStatusRateLimiter = createParentRateLimiter({
+  windowSeconds: 60,
+  maxRequests: 60,
+  prefix: 'rl:child_pair_status',
+});
+
 export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
+  app.setErrorHandler((err: any, _request, reply) => {
+    const statusCode = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
+    return reply.status(statusCode).send({
+      statusCode,
+      error: statusCode === 404 ? 'Not Found' : statusCode === 409 ? 'Conflict' : statusCode === 410 ? 'Gone' : statusCode === 403 ? 'Forbidden' : statusCode === 400 ? 'Bad Request' : 'Error',
+      ...(err.errorCode ? { code: err.errorCode } : {}),
+      message: err.message || 'Child enrollment request failed',
+    });
+  });
   app.post('/pair-session', { preHandler: [childPairSessionRateLimiter] }, async (request, reply) => {
     const input = enrollmentInput.safeParse(request.body);
     if (!input.success) return reply.code(400).send({message:'Valid installation and current consent required'});
@@ -39,7 +54,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     app.route<{Params:{sessionId:string}}>({
       method: action === 'status' ? 'GET' : 'POST',
       url: '/pair-' + action + '/:sessionId',
-      preHandler: action === 'status' ? [] : [childPairSessionRateLimiter],
+      preHandler: action === 'status' ? [childPairStatusRateLimiter] : [childPairSessionRateLimiter],
       handler: async (request, reply) => {
         const token = request.headers['x-polling-token'];
         if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return reply.code(401).send({message:'Invalid pairing credential'});
@@ -81,6 +96,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       return reply.status(400).send({
         statusCode: 400,
         error: 'Bad Request',
+          code: 'INVALID_REFRESH_REQUEST',
         message: parsed.error.errors[0]?.message || 'Invalid refresh token payload',
       });
     }
@@ -99,7 +115,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .limit(1);
 
         if (!tokenRecord) {
-          return { error: 'Invalid or already rotated refresh token', status: 401 };
+          return { error: 'Invalid or already rotated refresh token', status: 401, code: 'REFRESH_TOKEN_INVALID' };
         }
 
         // Replay / Revocation check
@@ -125,6 +141,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
               ? 'Refresh token was already rotated concurrently'
               : 'Refresh token has been revoked or expired',
             status: 401,
+            code: isRecentRotation ? 'REFRESH_TOKEN_ROTATION_RACE' : 'REFRESH_TOKEN_REVOKED',
           };
         }
 
@@ -136,7 +153,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .limit(1);
 
         if (!device || device.isUnpaired) {
-          return { error: 'Device has been unpaired from parent account', status: 401 };
+          return { error: 'Device has been unpaired from parent account', status: 401, code: 'ASSOCIATION_REVOKED' };
         }
 
         // Verify parent state
@@ -147,7 +164,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .limit(1);
 
         if (!parent || parent.status !== 'active') {
-          return { error: 'Parent account is suspended or inactive', status: 403 };
+          return { error: 'Parent account is suspended or inactive', status: 403, code: 'PARENT_INACTIVE' };
         }
 
         // Conditional update ensures exactly 1 row transitioned from isRevoked = false to true
@@ -169,7 +186,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .returning({ id: childDeviceTokens.id });
 
         if (!updated || updated.length === 0) {
-          return { error: 'Refresh token was already rotated concurrently', status: 401 };
+          return { error: 'Refresh token was already rotated concurrently', status: 401, code: 'REFRESH_TOKEN_ROTATION_RACE' };
         }
 
         // Single active refresh token guarantee: revoke any other active tokens for this device
@@ -220,6 +237,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         return reply.status(code).send({
           statusCode: code,
           error: code === 403 ? 'Forbidden' : 'Unauthorized',
+          code: result.code,
           message: result.error,
         });
       }

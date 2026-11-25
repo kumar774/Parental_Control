@@ -757,6 +757,10 @@ class NetworkAndWebSocketSyncUnitTest {
                     200,
                     """{"status":"canceled","sessionId":"$sessionId"}"""
                 )
+                fullUrl.endsWith("/api/v1/devices/qr-preview") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"waiting_for_parent","sessionId":"$sessionId","deviceModel":"Vivo I2220","childConfirmed":false,"parentApproved":false,"expiresAt":"2026-12-01T00:00:00.000Z"}"""
+                )
                 fullUrl.endsWith("/api/v1/devices/pair-reject") -> FastifyRestClient.HttpResponse(
                     200,
                     """{"status":"canceled","rejected":true,"sessionId":"$sessionId"}"""
@@ -790,8 +794,13 @@ class NetworkAndWebSocketSyncUnitTest {
         assertTrue(client.cancelPairing(sessionId).isSuccess)
         assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-cancel"))
 
-        assertTrue(client.rejectPairing(sessionId).isSuccess)
+        val previewRes = client.previewQrPairing(sessionId, "987654321").getOrThrow()
+        assertEquals("Vivo I2220", previewRes.deviceName)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/qr-preview"))
+
+        assertTrue(client.rejectPairing(sessionId, "987654321").isSuccess)
         assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-reject"))
+        assertTrue(capturedBodies.last()?.contains("\"code\":\"987654321\"") == true)
 
         assertTrue(client.cancelPairing("not-a-uuid").isFailure)
         assertTrue(client.rejectPairing("not-a-uuid").isFailure)

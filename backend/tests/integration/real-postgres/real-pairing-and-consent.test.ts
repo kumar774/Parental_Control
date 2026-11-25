@@ -2053,7 +2053,179 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       payload: { sessionId: sessionId2 },
     });
     assert.equal(cancelCompleted.statusCode, 409);
+    assert.equal(JSON.parse(cancelCompleted.body).code, 'ENROLLMENT_ALREADY_COMPLETED');
 
     await conn.db.delete(childDevices).where(eq(childDevices.id, creds2.deviceId)).catch(() => {});
+  });
+
+  it('14. Phase D1-D6: QR preview, unassigned QR dismiss, expiry cleanup commit-before-reject, regeneration of partial/finalizing, polling 429, and structured error codes', async () => {
+    await conn.db.execute(sql`DELETE FROM parent_rate_limits`);
+
+    // D1: Fresh unassigned Child QR preview works for authenticated parent without silently approving or leaking pollingToken
+    const qrRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair-session',
+      payload: { ...installation(), deviceModel: 'Xiaomi 14' },
+    });
+    assert.equal(qrRes.statusCode, 200);
+    const qrJson = JSON.parse(qrRes.body);
+    const previewRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/qr-preview',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: qrJson.sessionId, code: qrJson.pairingCode },
+    });
+    assert.equal(previewRes.statusCode, 200, previewRes.body);
+    const previewJson = JSON.parse(previewRes.body);
+    assert.equal(previewJson.sessionId, qrJson.sessionId);
+    assert.equal(previewJson.deviceModel, 'Xiaomi 14');
+    assert.equal(previewJson.parentApproved, false);
+    assert.equal(previewJson.pollingToken, undefined);
+    assert.equal(previewJson.deviceToken, undefined);
+
+    // D2: Dismissing unassigned QR via /pair-reject with { sessionId, code } returns 200 dismissed (never 404)
+    const dismissRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-reject',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: qrJson.sessionId, code: qrJson.pairingCode },
+    });
+    assert.equal(dismissRes.statusCode, 200);
+    assert.equal(JSON.parse(dismissRes.body).status, 'dismissed');
+    assert.equal(JSON.parse(dismissRes.body).rejected, false);
+
+    // D3: Transaction commit-before-reject on expiry cleanup (verify DB state AFTER HTTP 410)
+    const expCodeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    const { code: expCode, sessionId: expSessionId } = JSON.parse(expCodeRes.body);
+    const expInst = installation();
+    const expChildRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...expInst, pairingCode: expCode, deviceModel: 'D3 Cleanup Phone' },
+    });
+    const expPolling = JSON.parse(expChildRes.body).pollingToken;
+    await confirmChild(expSessionId, expPolling);
+    const expApprove = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: expSessionId, code: expCode },
+    });
+    const expDeviceId = JSON.parse(expApprove.body).deviceId;
+    const expCreds = JSON.parse((await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${expSessionId}`,
+      headers: { 'x-polling-token': expPolling },
+    })).body);
+    // Simulate delivery window expiration (>24h)
+    await conn.db.update(pairingSessions)
+      .set({ claimedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(pairingSessions.id, expSessionId));
+
+    // Call /pair-ack -> returns 410 ENROLLMENT_DELIVERY_EXPIRED, AND cleanup MUST be committed in DB!
+    const expAckRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${expSessionId}`,
+      headers: { 'x-polling-token': expPolling },
+    });
+    assert.equal(expAckRes.statusCode, 410);
+    assert.equal(JSON.parse(expAckRes.body).code, 'ENROLLMENT_DELIVERY_EXPIRED');
+
+    const [dbExpSession] = await conn.db.select().from(pairingSessions).where(eq(pairingSessions.id, expSessionId));
+    assert.equal(dbExpSession.status, 'expired', 'D3: expired session must be committed to DB');
+    assert.equal(dbExpSession.pollingToken, null);
+    assert.equal(dbExpSession.issuedDeviceToken, null);
+    const [dbExpDevice] = await conn.db.select().from(childDevices).where(eq(childDevices.id, expDeviceId));
+    assert.equal(dbExpDevice.isUnpaired, true, 'D3: unacknowledged device must be retired in DB');
+    const [dbExpToken] = await conn.db.select().from(childDeviceTokens).where(eq(childDeviceTokens.deviceId, expDeviceId));
+    assert.equal(dbExpToken.isRevoked, true, 'D3: token must be revoked in DB');
+    assert.equal(dbExpToken.revocationReason, 'enrollment_expired');
+
+    // D6: Expired JWT returns CHILD_TOKEN_EXPIRED; revoked/unpaired device token returns ASSOCIATION_REVOKED
+    const expiredJwt = jwt.sign(
+      { deviceId: expDeviceId, parentId: testParentId, role: 'child', jti: crypto.randomUUID() },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: -10 }
+    );
+    const expiredJwtRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/child/setup',
+      headers: { authorization: `Bearer ${expiredJwt}` },
+    });
+    assert.equal(expiredJwtRes.statusCode, 401);
+    assert.equal(JSON.parse(expiredJwtRes.body).code, 'CHILD_TOKEN_EXPIRED');
+
+    const revokedJwtRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/child/setup',
+      headers: { authorization: `Bearer ${expCreds.deviceToken}` },
+    });
+    assert.equal(revokedJwtRes.statusCode, 401);
+    assert.equal(JSON.parse(revokedJwtRes.body).code, 'ASSOCIATION_REVOKED');
+
+    // D4: Explicit regeneration cancels partially approved session so it can never finalize
+    const d4CodeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    const { code: d4Code, sessionId: d4SessionId } = JSON.parse(d4CodeRes.body);
+    const d4ChildRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: d4Code, deviceModel: 'D4 Partial' },
+    });
+    const d4Polling = JSON.parse(d4ChildRes.body).pollingToken;
+    // Parent approves first -> status is now waiting_for_child_confirmation (parentApproved=true)
+    const d4Approve = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: d4SessionId, code: d4Code },
+    });
+    assert.equal(JSON.parse(d4Approve.body).status, 'waiting_for_child_confirmation');
+    // Parent regenerates -> supersedes d4SessionId
+    const d4Regen = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    assert.equal(d4Regen.statusCode, 200);
+    // Child can no longer confirm superseded d4SessionId
+    const d4LateConfirm = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-confirm/${d4SessionId}`,
+      headers: { 'x-polling-token': d4Polling },
+    });
+    assert.equal(d4LateConfirm.statusCode, 409);
+    assert.equal(JSON.parse(d4LateConfirm.body).code, 'ENROLLMENT_CANCELED');
+
+    // D5: Polling rate limit (60 req / 60s) returns 429 with Retry-After header
+    const d5SessionId = JSON.parse(d4Regen.body).sessionId;
+    let saw429 = false;
+    let sawRetryAfter = false;
+    for (let i = 0; i < 62; i++) {
+      const r = await app.inject({
+        method: 'GET',
+        url: `/api/v1/devices/pair-status/${d5SessionId}`,
+        headers: { authorization: `Bearer ${testParentAccessToken}` },
+      });
+      if (r.statusCode === 429) {
+        saw429 = true;
+        sawRetryAfter = Boolean(r.headers['retry-after']);
+        break;
+      }
+    }
+    assert.equal(saw429, true, 'D5: Polling abuse must trigger 429');
+    assert.equal(sawRetryAfter, true, 'D5: 429 must include Retry-After header');
+
+    await conn.db.delete(childDevices).where(eq(childDevices.id, expDeviceId)).catch(() => {});
   });
 });

@@ -258,7 +258,7 @@ class ChildRestClientTest {
                 "/api/v1/child/pair-ack/33333333-3333-4333-8333-333333333333" ->
                     ChildRestClient.HttpResponse(410, """{"error":"expired"}""")
                 "/api/v1/child/setup/ack" ->
-                    if (bearerToken == "access-1") ChildRestClient.HttpResponse(401, """{"error":"expired_jwt"}""")
+                    if (bearerToken == "access-1") ChildRestClient.HttpResponse(401, """{"code":"CHILD_TOKEN_EXPIRED","error":"expired_jwt"}""")
                     else ChildRestClient.HttpResponse(
                         200,
                         """{"status":"acknowledged","deviceId":"11111111-1111-4111-8111-111111111111","parentId":"22222222-2222-4222-8222-222222222222"}"""
@@ -289,8 +289,8 @@ class ChildRestClientTest {
             val client = ChildRestClient("https://test.invalid")
             client.requestOverride = { path, _, _, _, _ ->
                 when (path) {
-                    "/api/v1/child/refresh-token" -> ChildRestClient.HttpResponse(401, """{"error":"revoked"}""")
-                    else -> ChildRestClient.HttpResponse(code, """{"error":"terminal"}""")
+                    "/api/v1/child/refresh-token" -> ChildRestClient.HttpResponse(401, """{"code":"ASSOCIATION_REVOKED","error":"revoked"}""")
+                    else -> ChildRestClient.HttpResponse(code, """{"code":"ASSOCIATION_REVOKED","error":"terminal"}""")
                 }
             }
             val first = PairAckRetryManager.retryPendingAckIfNeeded(storage) { s, t ->
@@ -325,12 +325,18 @@ class ChildRestClientTest {
         assertEquals("rate_limited", rl.status)
         assertEquals(12L, rl.retryAfterSeconds)
 
-        // verifyAssociation distinguishes transient 503 from 403 revoked
+        // Generic authorization failures remain ambiguous; only the explicit revocation code is terminal.
         client.requestOverride = { _, _, _, _, _ -> ChildRestClient.HttpResponse(503, "{}") }
         assertTrue(client.verifyAssociation(storage) is AssociationCheckOutcome.TransientError)
         assertTrue(storage.isPaired()) // MUST NOT erase pairing on transient error!
 
         client.requestOverride = { _, _, _, _, _ -> ChildRestClient.HttpResponse(403, "{}") }
+        assertTrue(client.verifyAssociation(storage) is AssociationCheckOutcome.TransientError)
+        assertTrue(storage.isPaired())
+
+        client.requestOverride = { _, _, _, _, _ ->
+            ChildRestClient.HttpResponse(401, """{"code":"ASSOCIATION_REVOKED"}""")
+        }
         assertTrue(client.verifyAssociation(storage) is AssociationCheckOutcome.RevokedOrInvalid)
     }
 

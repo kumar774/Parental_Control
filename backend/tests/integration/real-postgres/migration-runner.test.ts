@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -18,6 +18,46 @@ const { Pool } = pg;
 describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integration Suite', { timeout: 600000 }, () => {
   let mainConn: VerifiedDbConnection;
   const createdTestDbs: string[] = [];
+  const createdTestRoles = new Set<string>();
+  const runId = process.env.AUTH001_TEST_DATABASE_RUN_ID!;
+
+  function quoteIdentifier(value: string): string {
+    if (!/^[a-z_][a-z0-9_]{0,62}$/.test(value)) throw new Error('Unsafe test database identifier.');
+    return `"${value}"`;
+  }
+
+  function newTestDatabaseName(label: string): string {
+    if (!/^[a-z0-9_]+$/.test(label)) throw new Error('Unsafe test database label.');
+    const name = `auth001_${runId.replaceAll('-', '').slice(0, 10)}_${label}_${crypto.randomBytes(4).toString('hex')}_test`;
+    if (name.length > 63) throw new Error('Generated test database name is too long.');
+    return name;
+  }
+
+  function runMigrationCli(databaseUrl: string, options: { encoding: BufferEncoding; stdio?: 'pipe' } = { encoding: 'utf8' }): string | Buffer {
+    const target = new URL(databaseUrl);
+    const targetDb = decodeURIComponent(target.pathname.slice(1));
+    const targetRole = decodeURIComponent(target.username);
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: 'test',
+      DATABASE_URL: databaseUrl,
+      AUTH001_TEST_DATABASE_NAME: targetDb,
+      AUTH001_TEST_DATABASE_PORT: String(mainConn.port),
+      AUTH001_TEST_DATABASE_ROLE: targetRole,
+      AUTH001_TEST_MIGRATOR_ROLE: targetRole === process.env.AUTH001_TEST_DATABASE_ROLE
+        ? process.env.AUTH001_TEST_MIGRATOR_ROLE
+        : targetRole,
+      AUTH001_TEST_DATABASE_OWNER: process.env.AUTH001_TEST_DATABASE_OWNER,
+      AUTH001_TEST_DATABASE_RUN_ID: runId,
+      AUTH001_TEST_SERVER_ID: process.env.AUTH001_TEST_SERVER_ID,
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+    };
+    return execFileSync(process.execPath, [
+      '--import', 'tsx',
+      '--import', './tests/integration/real-postgres/preflight-entry.mjs',
+      './src/db/migrate.ts',
+    ], { cwd: backendDir, env, encoding: options.encoding, stdio: options.stdio });
+  }
 
   before(async () => {
     mainConn = await getVerifiedRealPostgresConnection();
@@ -26,12 +66,10 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   after(async () => {
     // Clean up any remaining disposable test databases
     if (mainConn) {
-      for (const dbName of createdTestDbs) {
-        try {
-          await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
-        } catch {
-          // ignore cleanup errors during teardown
-        }
+      for (const dbName of [...createdTestDbs]) await dropDisposableDatabase(dbName);
+      for (const roleName of createdTestRoles) {
+        await mainConn.pool.query(`REVOKE parental_audit_pruner FROM ${quoteIdentifier(roleName)}`).catch(() => {});
+        await mainConn.pool.query('DROP ROLE ' + quoteIdentifier(roleName));
       }
       await mainConn.pool.end();
     }
@@ -59,23 +97,26 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   }
 
   async function createDisposableDatabase(dbName: string): Promise<string> {
-    assert.match(dbName, /auth001_.*_test/i, 'Database name must follow disposable test pattern');
+    assert.match(dbName, new RegExp(`^auth001_${runId.replaceAll('-', '').slice(0, 10)}_[a-z0-9_]+_[a-f0-9]{8}_test$`));
+    await mainConn.pool.query(`CREATE DATABASE ${quoteIdentifier(dbName)} TEMPLATE template0;`);
     createdTestDbs.push(dbName);
-    try {
-      await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
-    } catch {
-      // ignore
-    }
-    await mainConn.pool.query(`CREATE DATABASE ${dbName};`);
+    await mainConn.pool.query(`COMMENT ON DATABASE ${quoteIdentifier(dbName)} IS 'codex-test-run:${runId}'`);
     return createTestDbUrl(dbName);
   }
 
   async function dropDisposableDatabase(dbName: string) {
-    try {
-      await mainConn.pool.query(`DROP DATABASE IF EXISTS ${dbName} (FORCE);`);
-    } catch {
-      // ignore cleanup errors
+    if (!createdTestDbs.includes(dbName)) throw new Error('Refusing cleanup for a database not created by this test run.');
+    const identity = await mainConn.pool.query(`
+      SELECT pg_get_userbyid(datdba) AS owner,
+             shobj_description(oid, 'pg_database') AS comment
+      FROM pg_database WHERE datname = $1
+    `, [dbName]);
+    if (identity.rows.length !== 1
+      || identity.rows[0].owner !== process.env.AUTH001_TEST_DATABASE_OWNER
+      || identity.rows[0].comment !== `codex-test-run:${runId}`) {
+      throw new Error('Refusing to clean up a database whose owner or run marker does not match this test run.');
     }
+    await mainConn.pool.query(`DROP DATABASE ${quoteIdentifier(dbName)} WITH (FORCE);`);
     const idx = createdTestDbs.indexOf(dbName);
     if (idx !== -1) {
       createdTestDbs.splice(idx, 1);
@@ -83,19 +124,12 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   }
 
   it('1. Clean-install test: executes npm run db:migrate on empty database, verifies schema_migrations and all tables', async () => {
-    const testDbName = 'auth001_clean_install_cli_test';
+    const testDbName = newTestDatabaseName('clean_install_cli');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     try {
       // Execute the actual CLI command as required by PR instructions
-      const output = execSync('npm run db:migrate', {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          DATABASE_URL: testDbUrl,
-        },
-        encoding: 'utf8',
-      });
+      const output = runMigrationCli(testDbUrl, { encoding: 'utf8' });
 
       assert.ok(output.includes('[Migration Runner] Discovered 14 versioned migration scripts'));
       assert.ok(output.includes('[Migration Runner] Complete: 14 migration(s) applied successfully'));
@@ -166,23 +200,24 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('2. Migration under dedicated disposable role: executes npm run db:migrate and verifies ownership', async () => {
-    const testDbName = 'auth001_role_migrator_cli_test';
-    const tempMigratorRole = `auth001_temp_migrator_${Date.now()}`;
+    const testDbName = newTestDatabaseName('role_migrator_cli');
+    const tempMigratorRole = `auth001_mig_${runId.replaceAll('-', '').slice(0, 8)}_${crypto.randomBytes(4).toString('hex')}`;
     await createDisposableDatabase(testDbName);
 
-    const migratorPass = process.env.CI_MIGRATOR_PASS || crypto.randomBytes(32).toString('hex');
+    const migratorPass = crypto.randomBytes(32).toString('hex');
     // Create dedicated ephemeral migrator role without modifying shared cluster roles
     await mainConn.pool.query(
-      `CREATE ROLE ${tempMigratorRole} WITH LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`
+      `CREATE ROLE ${quoteIdentifier(tempMigratorRole)} WITH LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;`
     );
-    await mainConn.pool.query(`GRANT ALL ON DATABASE ${testDbName} TO ${tempMigratorRole};`);
-    await mainConn.pool.query(`GRANT parental_audit_pruner TO ${tempMigratorRole} WITH ADMIN OPTION;`);
+    createdTestRoles.add(tempMigratorRole);
+    await mainConn.pool.query(`GRANT ALL ON DATABASE ${quoteIdentifier(testDbName)} TO ${quoteIdentifier(tempMigratorRole)};`);
+    await mainConn.pool.query(`GRANT parental_audit_pruner TO ${quoteIdentifier(tempMigratorRole)} WITH ADMIN OPTION;`);
 
     const adminTestUrl = createTestDbUrl(testDbName);
     const adminTestPool = createTestPool(adminTestUrl);
     try {
-      await adminTestPool.query(`ALTER SCHEMA public OWNER TO ${tempMigratorRole};`);
-      await adminTestPool.query(`GRANT ALL ON SCHEMA public TO ${tempMigratorRole};`);
+      await adminTestPool.query(`ALTER SCHEMA public OWNER TO ${quoteIdentifier(tempMigratorRole)};`);
+      await adminTestPool.query(`GRANT ALL ON SCHEMA public TO ${quoteIdentifier(tempMigratorRole)};`);
     } finally {
       await adminTestPool.end();
     }
@@ -190,14 +225,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
     const migratorTestUrl = createTestDbUrl(testDbName, tempMigratorRole, migratorPass);
 
     try {
-      const output = execSync('npm run db:migrate', {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          DATABASE_URL: migratorTestUrl,
-        },
-        encoding: 'utf8',
-      });
+      const output = runMigrationCli(migratorTestUrl, { encoding: 'utf8' });
 
       assert.ok(output.includes(`as user: '${tempMigratorRole}'`));
       assert.ok(output.includes('[Migration Runner] Complete: 14 migration(s) applied successfully'));
@@ -212,16 +240,19 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       }
     } finally {
       try {
-        await mainConn.pool.query(`REVOKE ALL ON DATABASE ${testDbName} FROM ${tempMigratorRole};`);
-        await mainConn.pool.query(`REVOKE parental_audit_pruner FROM ${tempMigratorRole};`);
-        await mainConn.pool.query(`DROP ROLE IF EXISTS ${tempMigratorRole};`);
-      } catch (_e) {}
+        await mainConn.pool.query(`REVOKE ALL ON DATABASE ${quoteIdentifier(testDbName)} FROM ${quoteIdentifier(tempMigratorRole)};`);
+        await mainConn.pool.query(`REVOKE parental_audit_pruner FROM ${quoteIdentifier(tempMigratorRole)};`);
+        await mainConn.pool.query(`DROP ROLE ${quoteIdentifier(tempMigratorRole)};`);
+        createdTestRoles.delete(tempMigratorRole);
+      } catch (cleanupError) {
+        console.error('[Migration Runner Test] Temporary role cleanup will be retried in suite teardown:', cleanupError);
+      }
       await dropDisposableDatabase(testDbName);
     }
   });
 
   it('3. Upgrade test: executes npm run db:migrate on pre-0009 database and applies 0009 and 0010', async () => {
-    const testDbName = 'auth001_upgrade_cli_test';
+    const testDbName = newTestDatabaseName('upgrade_cli');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -266,14 +297,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       await testPool.end();
 
       // 2. Execute npm run db:migrate to perform upgrade
-      const output = execSync('npm run db:migrate', {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          DATABASE_URL: testDbUrl,
-        },
-        encoding: 'utf8',
-      });
+      const output = runMigrationCli(testDbUrl, { encoding: 'utf8' });
 
       assert.ok(output.includes('Applying migration: 0009_pairing_and_app_settings.sql'));
       assert.ok(output.includes('Applying migration: 0010_pairing_security_and_consent.sql'));
@@ -309,7 +333,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('4a. Partial state test (incomplete 0001): fails closed when security-definer / ownership postconditions fail', async () => {
-    const testDbName = 'auth001_partial_0001_test';
+    const testDbName = newTestDatabaseName('partial_0001');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -346,15 +370,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -379,7 +395,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('4c. Negative test (0001 overload/signature): fails closed when function has wrong argument signature', async () => {
-    const testDbName = 'auth001_neg_0001_sig_test';
+    const testDbName = newTestDatabaseName('neg_0001_sig');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -416,15 +432,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -449,7 +457,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('4b. Partial state test (incomplete 0005): fails closed when trigger invariant postcondition is missing', async () => {
-    const testDbName = 'auth001_partial_0005_test';
+    const testDbName = newTestDatabaseName('partial_0005');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -494,15 +502,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -527,7 +527,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('4. Partial state test (incomplete 0009): fails closed and does not record 0009 in schema_migrations', async () => {
-    const testDbName = 'auth001_partial_0009_test';
+    const testDbName = newTestDatabaseName('partial_0009');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -571,15 +571,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -605,7 +597,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('5. Partial state test (incomplete 0010): fails closed and does not record 0010 in schema_migrations', async () => {
-    const testDbName = 'auth001_partial_0010_test';
+    const testDbName = newTestDatabaseName('partial_0010');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -652,15 +644,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -686,7 +670,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('6. Partial state test (incomplete 0003): fails closed and does not record 0003 in schema_migrations', async () => {
-    const testDbName = 'auth001_partial_0003_test';
+    const testDbName = newTestDatabaseName('partial_0003');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -723,15 +707,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -757,7 +733,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('6b. Negative test: fails closed when constraint exists on wrong table with same name', async () => {
-    const testDbName = 'auth001_neg_wrong_table_constraint_test';
+    const testDbName = newTestDatabaseName('neg_wrong_table_constraint');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -797,15 +773,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -830,7 +798,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('6c. Negative test: fails closed when 0003 table privilege revocations are missing', async () => {
-    const testDbName = 'auth001_neg_0003_privs_test';
+    const testDbName = newTestDatabaseName('neg_0003_privs');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     const testPool = createTestPool(testDbUrl);
@@ -870,15 +838,7 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
       let threw = false;
       let stderrOutput = '';
       try {
-        execSync('npm run db:migrate', {
-          cwd: backendDir,
-          env: {
-            ...process.env,
-            DATABASE_URL: testDbUrl,
-          },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        });
+        runMigrationCli(testDbUrl, { encoding: 'utf8', stdio: 'pipe' });
       } catch (err: any) {
         threw = true;
         stderrOutput = err.stderr || err.stdout || err.message;
@@ -903,29 +863,15 @@ describe('Genuine PostgreSQL Clean-Install, Upgrade & Migration Runner Integrati
   });
 
   it('7. Idempotency test: second run on up-to-date database is a clean no-op', async () => {
-    const testDbName = 'auth001_idempotent_test';
+    const testDbName = newTestDatabaseName('idempotent');
     const testDbUrl = await createDisposableDatabase(testDbName);
 
     try {
       // First run: applies 14 migrations
-      execSync('npm run db:migrate', {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          DATABASE_URL: testDbUrl,
-        },
-        encoding: 'utf8',
-      });
+      runMigrationCli(testDbUrl, { encoding: 'utf8' });
 
       // Second run: should be a clean no-op
-      const output = execSync('npm run db:migrate', {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          DATABASE_URL: testDbUrl,
-        },
-        encoding: 'utf8',
-      });
+      const output = runMigrationCli(testDbUrl, { encoding: 'utf8' });
 
       assert.ok(
         output.includes('Database is already up to date. Zero migrations required.') ||

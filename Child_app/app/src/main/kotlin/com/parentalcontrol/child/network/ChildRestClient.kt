@@ -54,7 +54,8 @@ data class RefreshTokenResult(
     val deviceToken: String? = null,
     val refreshToken: String? = null,
     val statusCode: Int = 0,
-    val message: String? = null
+    val message: String? = null,
+    val errorCode: String? = null
 )
 
 sealed class AckOutcome {
@@ -142,6 +143,10 @@ class ChildRestClient(
 
     private fun JSONObject.optionalText(key: String) = if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
 
+    private fun HttpResponse.backendCode(): String? = runCatching {
+        JSONObject(body).optionalText("code")
+    }.getOrNull()
+
     private fun enrollmentMessage(status: Int) = when (status) {
         400, 404 -> "Check the code in the Parent App and try again."
         403 -> "Check guardian consent before pairing."
@@ -178,15 +183,15 @@ class ChildRestClient(
             val session = storage.getSession()
             fun request(token: String?) = executeRequest(path, if (body == null) "GET" else "POST", body, bearerToken = token)
             val response = request(session.deviceToken)
-            if (response.code != 401) return@withLock response
+            if (response.code != 401 || response.backendCode() != "CHILD_TOKEN_EXPIRED") return@withLock response
             val refresh = session.refreshToken?.takeIf { it.isNotBlank() } ?: return@withLock response
             val tokens = refreshDeviceToken(refresh, session.deviceId)
             if (!tokens.success) {
-                return@withLock if (tokens.statusCode in listOf(401, 403, 404, 410)) {
-                    HttpResponse(tokens.statusCode, tokens.message ?: "")
-                } else {
-                    HttpResponse(503, tokens.message ?: "Token refresh temporarily unavailable")
-                }
+                return@withLock HttpResponse(
+                    if (tokens.errorCode == "ASSOCIATION_REVOKED") tokens.statusCode else 503,
+                    tokens.message ?: "Token refresh temporarily unavailable",
+                    errorCode = tokens.errorCode
+                )
             }
             storage.updateTokens(requireNotNull(tokens.deviceToken), requireNotNull(tokens.refreshToken))
             request(tokens.deviceToken)
@@ -211,17 +216,13 @@ class ChildRestClient(
                         AssociationCheckOutcome.RevokedOrInvalid(200, "Device association is no longer valid.")
                     }
                 }
-                401, 403, 404, 410 -> AssociationCheckOutcome.RevokedOrInvalid(
+                else -> if (response.backendCode() == "ASSOCIATION_REVOKED") AssociationCheckOutcome.RevokedOrInvalid(
                     response.code,
-                    "Device pairing was revoked or removed (HTTP ${response.code})."
-                )
-                429 -> AssociationCheckOutcome.TransientError(
-                    429,
-                    "Rate limited while verifying setup. Please wait and retry."
-                )
-                else -> AssociationCheckOutcome.TransientError(
+                    "Device pairing was revoked or removed."
+                ) else AssociationCheckOutcome.TransientError(
                     response.code,
-                    "Could not verify association right now (HTTP ${response.code})."
+                    if (response.code == 429) "Rate limited while verifying setup. Please wait and retry."
+                    else "Could not verify association right now (HTTP ${response.code})."
                 )
             }
         } catch (e: Exception) {
@@ -325,19 +326,18 @@ class ChildRestClient(
                             recovery.code,
                             "Temporary server error during recovery (HTTP ${recovery.code})."
                         )
-                        in listOf(400, 401, 403, 404, 409, 410, 422) -> AckOutcome.PermanentFailure(
+                        else -> if (recovery.backendCode() in setOf("ASSOCIATION_REVOKED", "ENROLLMENT_DELIVERY_EXPIRED")) AckOutcome.PermanentFailure(
                             recovery.code,
-                            "Association revoked or enrollment unrecoverable (HTTP ${recovery.code})."
-                        )
-                        else -> AckOutcome.TransientFailure(
+                            "Association revoked or enrollment delivery expired."
+                        ) else AckOutcome.TransientFailure(
                             recovery.code,
-                            "Unexpected response during recovery (HTTP ${recovery.code})."
+                            "Could not confirm enrollment recovery (HTTP ${recovery.code})."
                         )
                     }
                 }
-                else -> AckOutcome.PermanentFailure(
+                else -> AckOutcome.TransientFailure(
                     first.code,
-                    "Enrollment session rejected (HTTP ${first.code})."
+                    "Unclassified enrollment response (HTTP ${first.code}); stored credentials are retained."
                 )
             }
         } catch (e: Exception) {
@@ -448,7 +448,8 @@ class ChildRestClient(
                 RefreshTokenResult(
                     success = false,
                     statusCode = response.code,
-                    message = "Refresh rejected (HTTP ${response.code})"
+                    message = "Refresh rejected (HTTP ${response.code})",
+                    errorCode = response.backendErrorCode()
                 )
             }
         } catch (e: Exception) {
@@ -507,7 +508,16 @@ class ChildRestClient(
         }
     }
 
-    internal data class HttpResponse(val code: Int, val body: String, val retryAfterSeconds: Long? = null)
+    internal data class HttpResponse(
+        val code: Int,
+        val body: String,
+        val retryAfterSeconds: Long? = null,
+        val errorCode: String? = null
+    ) {
+        fun backendErrorCode(): String? = errorCode ?: runCatching {
+            JSONObject(body).optString("code").takeIf(String::isNotBlank)
+        }.getOrNull()
+    }
 
     internal var requestOverride: ((path: String, method: String, jsonBody: String?, bearerToken: String?, extraHeaders: Map<String, String>) -> HttpResponse)? = null
 

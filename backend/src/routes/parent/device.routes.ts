@@ -10,6 +10,7 @@ import {
   enrollmentStatus,
   getOrCreateParentPairCode,
   isDeliveryExpired,
+  previewChildQr,
   retireExpiredUnacknowledgedSession,
 } from '../../services/enrollment.service';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
@@ -35,6 +36,7 @@ const deviceQuerySchema = z.object({
 });
 
 const approvalLimiter = createParentRateLimiter({windowSeconds:900,maxRequests:30,prefix:'rl:parent_enrollment'});
+const parentPairStatusRateLimiter = createParentRateLimiter({windowSeconds:60,maxRequests:60,prefix:'rl:parent_pair_status'});
 const setupInput = z.object({
   setupStep: z.union([z.literal(3),z.literal(4)]),
   nickname: z.string().trim().min(1).max(100).nullable().optional(),
@@ -44,6 +46,15 @@ const setupInput = z.object({
 }).strict();
 
 export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
+  app.setErrorHandler((err: any, _request, reply) => {
+    const statusCode = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
+    return reply.status(statusCode).send({
+      statusCode,
+      error: statusCode === 404 ? 'Not Found' : statusCode === 409 ? 'Conflict' : statusCode === 410 ? 'Gone' : statusCode === 403 ? 'Forbidden' : statusCode === 400 ? 'Bad Request' : 'Error',
+      ...(err.errorCode ? { code: err.errorCode } : {}),
+      message: err.message || 'Enrollment request failed',
+    });
+  });
   /**
    * GET /api/v1/devices
    * Retrieves paginated list of child devices belonging to the authenticated parent.
@@ -121,19 +132,25 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     return getOrCreateParentPairCode(parentId, body.data.regenerate === true);
   });
 
+  app.post('/qr-preview', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session or code' });
+    return previewChildQr(request.parentUser!.id, parsed.data.sessionId, parsed.data.code);
+  });
+
   app.post('/pair-cancel', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
     const parsed = z.object({ sessionId: z.string().uuid() }).strict().safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ message: 'Invalid session' });
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session' });
     return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, false);
   });
 
   app.post('/pair-reject', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
-    const parsed = z.object({ sessionId: z.string().uuid() }).strict().safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ message: 'Invalid session' });
-    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, true);
+    const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode.optional() }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session' });
+    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, true, parsed.data.code);
   });
 
-  app.get<{Params:{sessionId:string}}>('/pair-status/:sessionId',{preHandler:[requireParentAuth]},async (request,reply) => {
+  app.get<{Params:{sessionId:string}}>('/pair-status/:sessionId',{preHandler:[requireParentAuth,parentPairStatusRateLimiter]},async (request,reply) => {
     if (!z.string().uuid().safeParse(request.params.sessionId).success) return reply.code(400).send({message:'Invalid session'});
     return db.transaction(async tx => {
       let [s] = await tx.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),

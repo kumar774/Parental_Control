@@ -29,6 +29,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'CHILD_TOKEN_MISSING',
       message: 'Missing or malformed Authorization header. Expected Bearer <token>',
     });
   }
@@ -38,11 +39,13 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
   let decoded: ChildDeviceJwtPayload;
   try {
     decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as ChildDeviceJwtPayload;
-  } catch (_e) {
+  } catch (err: any) {
+    const isExpired = err?.name === 'TokenExpiredError';
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
-      message: 'Invalid or expired child access token',
+      code: isExpired ? 'CHILD_TOKEN_EXPIRED' : 'INVALID_CHILD_TOKEN',
+      message: isExpired ? 'Child access token expired' : 'Invalid or expired child access token',
     });
   }
 
@@ -50,6 +53,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'INVALID_CHILD_TOKEN',
       message: 'Malformed child device token claims',
     });
   }
@@ -67,6 +71,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'INVALID_DEVICE',
       message: 'Child device not found',
     });
   }
@@ -80,6 +85,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'ASSOCIATION_REVOKED',
       message: 'Child device not found or has been unpaired',
     });
   }
@@ -100,6 +106,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'ASSOCIATION_REVOKED',
       message: 'Device credentials have been revoked or rotated',
     });
   }
@@ -114,6 +121,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(401).send({
       statusCode: 401,
       error: 'Unauthorized',
+      code: 'ASSOCIATION_REVOKED',
       message: 'Device credentials have been revoked or rotated',
     });
   }
@@ -129,6 +137,7 @@ export async function requireChildDeviceAuth(request: FastifyRequest, reply: Fas
     return reply.status(403).send({
       statusCode: 403,
       error: 'Forbidden',
+      code: 'PARENT_INACTIVE',
       message: 'Parent account is inactive or suspended',
     });
   }

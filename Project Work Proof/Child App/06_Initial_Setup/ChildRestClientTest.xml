@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.parentalcontrol.child.network.ChildRestClientTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-25T10:23:43.962Z" hostname="KUMAR-SHIVA" time="1.73">
+  <properties/>
+  <testcase name="ackRecovery_serverUnavailableAndRateLimitRespectRetryAfterAndPreserveCredentials" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="1.266"/>
+  <testcase name="testRefreshTokenResultModel" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.003"/>
+  <testcase name="testPairStatusResultModel" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.002"/>
+  <testcase name="ackRecovery_processDeathBeforeAckResumesCleanly" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.021"/>
+  <testcase name="releaseAcceptsOnlyHttpsOriginsAndDebugPermitsLocalAdbReverse" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.206"/>
+  <testcase name="ackRecovery_expiredAccessTokenRefreshesAndRecoversWithoutDeletingCredentials" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.07"/>
+  <testcase name="testHeartbeatOutcomeVariants" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.004"/>
+  <testcase name="testPairResultDataModel" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.002"/>
+  <testcase name="ackRecovery_lostAckResponseAndRepeatedAckAreIdempotent" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.01"/>
+  <testcase name="testPairSessionResultModel" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.002"/>
+  <testcase name="testUnpairOutcomeVariants" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.002"/>
+  <testcase name="checkPairStatusAndVerifyAssociation_mapProtocolCodesAccurately" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.025"/>
+  <testcase name="ackRecovery_revokedAssociationOrInvalidSessionTerminatesWithoutEndlessRetry" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.092"/>
+  <testcase name="testAckOutcomeTypedVariants" classname="com.parentalcontrol.child.network.ChildRestClientTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -11,11 +11,15 @@ export interface VerifiedDbConnection {
   port: number;
   currentUser: string;
   serverVersion: string;
+  serverIdentifier: string;
+  databaseOwner: string;
+  runId: string;
 }
 
 const FORBIDDEN_DATABASES = new Set([
   'parental_control_db',
   'parental_control_admin_db',
+  'parental_control_prod_db',
   'postgres',
   'template0',
   'template1',
@@ -27,9 +31,20 @@ const FORBIDDEN_DATABASES = new Set([
  * Throws immediately if isolation conditions or environment bindings are not satisfied.
  */
 export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbConnection> {
+  const runId = process.env.AUTH001_TEST_DATABASE_RUN_ID;
+  const preflightRunId = (process as NodeJS.Process & { [key: symbol]: string | undefined })[
+    Symbol.for('parental-control.real-postgres.preflight')
+  ];
+  if (process.env.NODE_ENV !== 'test' || !runId || preflightRunId !== runId) {
+    throw new Error('[Real PostgreSQL Gate FATAL] Explicit process preflight must pass before importing application test modules.');
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   const expectedDbName = process.env.AUTH001_TEST_DATABASE_NAME;
   const expectedDbPort = process.env.AUTH001_TEST_DATABASE_PORT;
+  const expectedRole = process.env.AUTH001_TEST_DATABASE_ROLE;
+  const expectedOwner = process.env.AUTH001_TEST_DATABASE_OWNER;
+  const expectedServerId = process.env.AUTH001_TEST_SERVER_ID;
 
   if (!databaseUrl) {
     throw new Error(
@@ -37,9 +52,9 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     );
   }
 
-  if (!expectedDbName || !expectedDbPort) {
+  if (!expectedDbName || !expectedDbPort || !expectedRole || !expectedOwner || !expectedServerId) {
     throw new Error(
-      '[Real PostgreSQL Gate FATAL] Explicit AUTH001_TEST_DATABASE_NAME and AUTH001_TEST_DATABASE_PORT environment variables are required.'
+      '[Real PostgreSQL Gate FATAL] Explicit database name, port, role, owner and server identity are required.'
     );
   }
 
@@ -70,6 +85,8 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
   let port = 0;
   let currentUser = '';
   let serverVersion = '';
+  let serverIdentifier = '';
+  let databaseOwner = '';
 
   try {
     const client = await pool.connect();
@@ -79,12 +96,29 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
           current_database() AS db_name,
           inet_server_port() AS port,
           CURRENT_USER AS current_user,
-          version() AS version
+          version() AS version,
+          (SELECT system_identifier::text FROM pg_control_system()) AS server_identifier,
+          (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) AS database_owner,
+          (SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()) AS database_comment
       `);
 
       dbName = res.rows[0]?.db_name;
       port = Number(res.rows[0]?.port || 0);
       currentUser = res.rows[0]?.current_user || '';
+      serverIdentifier = String(res.rows[0]?.server_identifier || '');
+      databaseOwner = res.rows[0]?.database_owner || '';
+      const databaseComment = res.rows[0]?.database_comment || '';
+      if (currentUser !== expectedRole || serverIdentifier !== expectedServerId
+        || databaseOwner !== expectedOwner || databaseComment !== `codex-test-run:${runId}`) {
+        throw new Error('[Real PostgreSQL Gate FATAL] Connected PostgreSQL instance, role, owner or run marker does not match the explicit test target.');
+      }
+      const protectedDb = await client.query(`
+        SELECT datname FROM pg_database
+        WHERE lower(datname) = ANY($1::text[])
+          AND has_database_privilege(current_user, datname, 'CONNECT')
+        LIMIT 1
+      `, [[...FORBIDDEN_DATABASES]]);
+      if (protectedDb.rows.length) throw new Error('[Real PostgreSQL Gate FATAL] Test role can connect to a protected database.');
       serverVersion = res.rows[0]?.version || '';
     } finally {
       client.release();
@@ -118,6 +152,11 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     throw new Error(
       `[Real PostgreSQL Gate FATAL] Database port mismatch: connected to port ${port}, expected port ${expectedPortNum}.`
     );
+  }
+
+  if (currentUser !== expectedRole || serverIdentifier !== expectedServerId || databaseOwner !== expectedOwner) {
+    await pool.end();
+    throw new Error('[Real PostgreSQL Gate FATAL] Runtime database identity does not match the explicit test target.');
   }
 
   // 4. Current User Verification
@@ -195,6 +234,9 @@ export async function getVerifiedRealPostgresConnection(): Promise<VerifiedDbCon
     port,
     currentUser,
     serverVersion,
+    serverIdentifier,
+    databaseOwner,
+    runId,
   };
 }
 
@@ -219,10 +261,15 @@ export async function getVerifiedRoleConnection(
   const databaseUrl = process.env.DATABASE_URL;
   const expectedDbName = process.env.AUTH001_TEST_DATABASE_NAME;
   const expectedDbPort = process.env.AUTH001_TEST_DATABASE_PORT;
+  const runId = process.env.AUTH001_TEST_DATABASE_RUN_ID;
+  const owner = process.env.AUTH001_TEST_DATABASE_OWNER;
+  const preflightRunId = (process as NodeJS.Process & { [key: symbol]: string | undefined })[
+    Symbol.for('parental-control.real-postgres.preflight')
+  ];
 
-  if (!databaseUrl || !expectedDbName || !expectedDbPort) {
+  if (!databaseUrl || !expectedDbName || !expectedDbPort || !runId || !owner || !serverId || preflightRunId !== runId) {
     throw new Error(
-      '[Real PostgreSQL Gate FATAL] Required environment variables (DATABASE_URL, AUTH001_TEST_DATABASE_NAME, AUTH001_TEST_DATABASE_PORT) are missing.'
+      '[Real PostgreSQL Gate FATAL] Required explicit test identity and successful preflight are missing.'
     );
   }
 
@@ -277,11 +324,25 @@ export async function getVerifiedRoleConnection(
         SELECT 
           current_database() AS db_name,
           inet_server_port() AS port,
-          CURRENT_USER AS current_user
+          CURRENT_USER AS current_user,
+          (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) AS database_owner,
+          (SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()) AS database_comment
       `);
       dbName = res.rows[0]?.db_name;
       port = Number(res.rows[0]?.port || 0);
       currentUser = res.rows[0]?.current_user || '';
+      const databaseOwner = res.rows[0]?.database_owner || '';
+      const databaseComment = res.rows[0]?.database_comment || '';
+      if (databaseOwner !== owner || databaseComment !== `codex-test-run:${runId}`) {
+        throw new Error('[Real PostgreSQL Gate FATAL] Role connection reached a database outside the current owned test run.');
+      }
+      const protectedDb = await client.query(`
+        SELECT datname FROM pg_database
+        WHERE lower(datname) = ANY($1::text[])
+          AND has_database_privilege(current_user, datname, 'CONNECT')
+        LIMIT 1
+      `, [[...FORBIDDEN_DATABASES]]);
+      if (protectedDb.rows.length) throw new Error('[Real PostgreSQL Gate FATAL] Role connection can access a protected database.');
     } finally {
       client.release();
     }
@@ -311,6 +372,11 @@ export async function getVerifiedRoleConnection(
     throw new Error(
       `[Real PostgreSQL Gate FATAL] Database identity mismatch: ${dbName}:${port} vs ${expectedDbName}:${expectedDbPort}.`
     );
+  }
+
+  if (currentUser !== roleName) {
+    await pool.end();
+    throw new Error(`[Real PostgreSQL Gate FATAL] Connected user mismatch: expected '${roleName}', got '${currentUser}'.`);
   }
 
   return {

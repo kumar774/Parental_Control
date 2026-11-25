@@ -1,27 +1,46 @@
 package com.parentalcontrol.parent.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.parentalcontrol.core.database.ParentalDatabase
 import com.parentalcontrol.core.network.rest.DeviceDto
 import com.parentalcontrol.core.network.rest.FastifyRestClient
 import com.parentalcontrol.core.network.rest.OnboardingDto
+import com.parentalcontrol.parent.ui.pairing.ParentBg
+import com.parentalcontrol.parent.ui.pairing.ParentBorder
+import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleDeep
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleSoft
+import com.parentalcontrol.parent.ui.pairing.ParentTextDark
+import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
 import com.parentalcontrol.parent.ui.pairing.formatNineDigitCode
 import kotlinx.coroutines.launch
 
@@ -95,17 +114,104 @@ internal fun resolveDashboardState(
     )
 }
 
-private val avatarColors = listOf(0xff8059c8, 0xffb85259, 0xff427896, 0xff528758, 0xff986f32, 0xff557db6, 0xffae5990, 0xff418a84)
+private val avatarBgColors = listOf(
+    0xFFEBE4FF, // 1: Violet hill/sun emblem
+    0xFFFDE2E4, // 2: Coral fox
+    0xFFE8E4FA, // 3: Lavender penguin
+    0xFFFEF3C7, // 4: Amber lion
+    0xFFFFEDD5, // 5: Tiger cub
+    0xFFDBEAFE, // 6: Blue cat
+    0xFFD1FAE5, // 7: Mint frog
+    0xFFE0F2FE  // 8: Sky owl
+)
+
+private val avatarAccentColors = listOf(
+    0xFF7C4DFF,
+    0xFFEF4444,
+    0xFF6366F1,
+    0xFFF59E0B,
+    0xFFF97316,
+    0xFF3B82F6,
+    0xFF10B981,
+    0xFF0284C7
+)
+
 @Composable
 internal fun DeviceAvatar(id: Int, modifier: Modifier = Modifier) {
-    val color = Color(avatarColors[(id - 1).coerceIn(0, 7)])
-    Canvas(modifier.size(48.dp).background(color, CircleShape)) {
+    val idx = (id - 1).coerceIn(0, 7)
+    val bgColor = Color(avatarBgColors[idx])
+    val accent = Color(avatarAccentColors[idx])
+    Canvas(
+        modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(bgColor, CircleShape)
+    ) {
         val w = size.width
-        val eye = w * .06f
-        drawCircle(Color.White, eye, Offset(w*.34f, w*.43f))
-        drawCircle(Color.White, eye, Offset(w*.66f, w*.43f))
-        drawArc(Color.White, 20f, 140f, false, Offset(w*.28f, w*.47f),
-            androidx.compose.ui.geometry.Size(w*.44f,w*.26f), style = Stroke(w*.045f))
+        when (idx) {
+            0 -> {
+                // Scenic emblem avatar
+                drawCircle(Color(0xFFC4B5FD), radius = w * 0.14f, center = Offset(w * 0.34f, w * 0.42f))
+                drawCircle(Color(0xFFFBBF24), radius = w * 0.08f, center = Offset(w * 0.68f, w * 0.36f))
+                drawArc(
+                    color = accent,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(w * 0.10f, w * 0.56f),
+                    size = Size(w * 0.80f, w * 0.65f)
+                )
+            }
+            1, 4, 5 -> {
+                // Pointed-ear character (Fox / Tiger / Cat)
+                drawCircle(accent, radius = w * 0.11f, center = Offset(w * 0.28f, w * 0.28f))
+                drawCircle(accent, radius = w * 0.11f, center = Offset(w * 0.72f, w * 0.28f))
+                drawCircle(accent, radius = w * 0.30f, center = Offset(w * 0.50f, w * 0.54f))
+                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.39f, w * 0.49f))
+                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.61f, w * 0.49f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.03f, center = Offset(w * 0.50f, w * 0.58f))
+                drawArc(
+                    Color.White, 20f, 140f, false,
+                    Offset(w * 0.38f, w * 0.56f), Size(w * 0.24f, w * 0.16f),
+                    style = Stroke(w * 0.04f)
+                )
+            }
+            3 -> {
+                // Mane character (Lion)
+                drawCircle(Color(0xFFFBBF24), radius = w * 0.35f, center = Offset(w * 0.50f, w * 0.52f))
+                drawCircle(Color(0xFFFEF08A), radius = w * 0.24f, center = Offset(w * 0.50f, w * 0.53f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.04f, center = Offset(w * 0.42f, w * 0.49f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.04f, center = Offset(w * 0.58f, w * 0.49f))
+                drawArc(
+                    Color(0xFF1F2937), 20f, 140f, false,
+                    Offset(w * 0.40f, w * 0.53f), Size(w * 0.20f, w * 0.13f),
+                    style = Stroke(w * 0.035f)
+                )
+            }
+            6 -> {
+                // Frog character
+                drawCircle(accent, radius = w * 0.10f, center = Offset(w * 0.34f, w * 0.32f))
+                drawCircle(accent, radius = w * 0.10f, center = Offset(w * 0.66f, w * 0.32f))
+                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.34f, w * 0.32f))
+                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.66f, w * 0.32f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.028f, center = Offset(w * 0.34f, w * 0.32f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.028f, center = Offset(w * 0.66f, w * 0.32f))
+                drawOval(accent, topLeft = Offset(w * 0.20f, w * 0.36f), size = Size(w * 0.60f, w * 0.42f))
+                drawArc(
+                    Color.White, 15f, 150f, false,
+                    Offset(w * 0.34f, w * 0.50f), Size(w * 0.32f, w * 0.16f),
+                    style = Stroke(w * 0.04f)
+                )
+            }
+            else -> {
+                // Penguin / Owl character
+                drawCircle(accent, radius = w * 0.32f, center = Offset(w * 0.50f, w * 0.54f))
+                drawCircle(Color.White, radius = w * 0.22f, center = Offset(w * 0.50f, w * 0.56f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.042f, center = Offset(w * 0.41f, w * 0.51f))
+                drawCircle(Color(0xFF1F2937), radius = w * 0.042f, center = Offset(w * 0.59f, w * 0.51f))
+                drawOval(Color(0xFFF59E0B), topLeft = Offset(w * 0.44f, w * 0.56f), size = Size(w * 0.12f, w * 0.08f))
+            }
+        }
     }
 }
 
@@ -138,6 +244,7 @@ fun PairedDeviceDashboard(
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf(false) }
+
     LaunchedEffect(account, attempt) {
         loading = true
         error = null
@@ -172,68 +279,173 @@ fun PairedDeviceDashboard(
                     }
                 }
             }
-        } catch (e: Exception) { error = e.message }
+        } catch (e: Exception) {
+            error = e.message
+        }
         loading = false
     }
+
     val device = devices.firstOrNull { it.id == selected }
-    Scaffold(bottomBar = {
-        NavigationBar {
-            listOf(Triple("notice","Notice",Icons.Default.Notifications), Triple("home","Device",Icons.Default.Devices),
-                Triple("me","Me",Icons.Default.Person)).forEach { (key,title,icon) ->
-                NavigationBarItem(selected = tab == key, onClick = { onTab(key) }, icon = { Icon(icon, null) }, label = { Text(title) })
-            }
+
+    Scaffold(
+        containerColor = Color(0xFFF8F7FC),
+        bottomBar = {
+            DashboardBottomBar(tab = tab, onTab = onTab)
         }
-    }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(bottom = padding.calculateBottomPadding())
+        ) {
             if (tab == "me") {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Account", style = MaterialTheme.typography.headlineMedium)
-                    Text(account)
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .background(ParentBg)
+                        .statusBarsPadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Account", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = ParentTextDark)
+                    Text(account, fontSize = 14.sp, color = ParentTextMuted)
+                    HorizontalDivider(color = ParentBorder)
                     val mmkv = remember { ParentalDatabase.getInstance().mmkv }
                     var biometric by remember { mutableStateOf(mmkv.isBiometricEnabled) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Biometric unlock", Modifier.weight(1f))
+                        Text("Biometric unlock", Modifier.weight(1f), color = ParentTextDark, fontSize = 15.sp)
                         Switch(biometric, { biometric = it; mmkv.isBiometricEnabled = it })
                     }
-                    TextButton(onTerms) { Text("Terms of Service") }
-                    TextButton(onPrivacy) { Text("Privacy Policy") }
-                    OutlinedButton(onLogout) { Text("Log out") }
+                    TextButton(onTerms) { Text("Terms of Service", color = ParentPurple) }
+                    TextButton(onPrivacy) { Text("Privacy Policy", color = ParentPurple) }
+                    OutlinedButton(
+                        onClick = onLogout,
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.dp, ParentBorder),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Text("Log out", color = MaterialTheme.colorScheme.error)
+                    }
                 }
             } else if (tab == "notice") {
-                Text("No notices yet", Modifier.padding(20.dp))
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .background(ParentBg)
+                        .statusBarsPadding()
+                        .padding(20.dp)
+                ) {
+                    Text("Notice", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = ParentTextDark)
+                    Spacer(Modifier.height(16.dp))
+                    Text("No notices yet", color = ParentTextMuted, fontSize = 15.sp)
+                }
             } else if (loading) {
-                CircularProgressIndicator(Modifier.padding(20.dp))
+                Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ParentPurple)
+                }
             } else if (error != null) {
-                Text(error!!, Modifier.padding(20.dp))
-                TextButton({ attempt++ }) { Text("Retry") }
+                Column(
+                    Modifier.fillMaxSize().statusBarsPadding().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(error!!, color = MaterialTheme.colorScheme.error)
+                    TextButton({ attempt++ }) { Text("Retry", color = ParentPurple) }
+                }
             } else {
                 if (device != null) {
-                    Row(Modifier.fillMaxWidth().background(Color(0xff6243aa)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        DeviceAvatar(device.childAvatarId)
-                        Box(Modifier.weight(1f)) {
-                            Column(Modifier.padding(horizontal = 8.dp)) {
-                                TextButton({ menu = true }) {
-                                    Text(device.nickname ?: device.model ?: device.deviceName, color = Color.White)
-                                    Icon(Icons.Default.ArrowDropDown, "Select device", tint = Color.White)
-                                }
-                                Text(if (device.setupStep in 2..3) "Setup pending" else "Device paired", color = Color.White)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(ParentPurpleDeep, ParentPurple, Color(0xFF9171F8))
+                                )
+                            )
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 18.dp)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                            ) {
+                                DeviceAvatar(device.childAvatarId, Modifier.fillMaxSize())
                             }
-                            DropdownMenu(menu, { menu = false }) {
-                                devices.forEach { item ->
-                                    DropdownMenuItem(text = { Text(item.nickname ?: item.model ?: item.deviceName) },
-                                        onClick = { selected = item.id; storage.edit().putString(account,item.id).apply(); menu = false })
+                            Spacer(Modifier.width(12.dp))
+                            Box(Modifier.weight(1f)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable { menu = true }
+                                    ) {
+                                        Text(
+                                            text = device.nickname ?: device.model ?: device.deviceName,
+                                            color = Color.White,
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.ArrowDropDown,
+                                            contentDescription = "Select device",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.22f)
+                                    ) {
+                                        Text(
+                                            text = if (device.setupStep in 2..3) "Setup pending" else "Device paired",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
+                                DropdownMenu(menu, { menu = false }) {
+                                    devices.forEach { item ->
+                                        DropdownMenuItem(
+                                            text = { Text(item.nickname ?: item.model ?: item.deviceName) },
+                                            onClick = {
+                                                selected = item.id
+                                                storage.edit().putString(account, item.id).apply()
+                                                menu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = { if (consent) onPair() else onConsent() }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add New Device", tint = Color.White)
                             }
                         }
-                        IconButton({ if (consent) onPair() else onConsent() }) { Icon(Icons.Default.Add, "Add New Device", tint = Color.White) }
                     }
                 } else {
-                    Card(Modifier.fillMaxWidth().padding(20.dp)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("No child devices connected yet", style = MaterialTheme.typography.titleMedium)
-                            Text("Connect your child's phone to get started.")
-                            Button(onClick = { if (consent) onPair() else onSelectType() }) {
-                                Text("Add New Device")
+                    Column(Modifier.statusBarsPadding().padding(20.dp)) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = ParentBg,
+                            border = BorderStroke(1.dp, ParentBorder)
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("No child devices connected yet", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
+                                Text("Connect your child's phone to get started.", fontSize = 14.sp, color = ParentTextMuted)
+                                Button(
+                                    onClick = { if (consent) onPair() else onSelectType() },
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
+                                ) {
+                                    Text("Add New Device")
+                                }
                             }
                         }
                     }
@@ -242,14 +454,24 @@ fun PairedDeviceDashboard(
                 pendingEnrollment?.let { pending ->
                     val sessionId = pending.pendingSessionId
                     if (sessionId != null) {
-                        Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = ParentBg,
+                            border = BorderStroke(1.dp, ParentBorder)
+                        ) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Unfinished device pairing", style = MaterialTheme.typography.titleMedium)
+                                Text("Unfinished device pairing", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
                                 val codeText = pending.pendingCode?.let { "Code ${formatNineDigitCode(it)} is waiting to connect." }
                                     ?: "A child device pairing is in progress."
-                                Text(codeText)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Button(onClick = onPair, enabled = !cancellingPending) {
+                                Text(codeText, fontSize = 13.sp, color = ParentTextMuted)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Button(
+                                        onClick = onPair,
+                                        enabled = !cancellingPending,
+                                        shape = RoundedCornerShape(50),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
+                                    ) {
                                         Text("Resume")
                                     }
                                     OutlinedButton(
@@ -264,7 +486,8 @@ fun PairedDeviceDashboard(
                                                 }
                                             }
                                         },
-                                        enabled = !cancellingPending
+                                        enabled = !cancellingPending,
+                                        shape = RoundedCornerShape(50)
                                     ) {
                                         Text(if (cancellingPending) "Canceling..." else "Cancel")
                                     }
@@ -275,15 +498,119 @@ fun PairedDeviceDashboard(
                 }
 
                 pendingSetupDevice?.let { setupDev ->
-                    Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = ParentBg,
+                        border = BorderStroke(1.dp, ParentBorder)
+                    ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Finish device setup", style = MaterialTheme.typography.titleMedium)
-                            Text("${setupDev.nickname ?: setupDev.model ?: setupDev.deviceName} has unfinished setup steps.")
-                            Button(onClick = { onSetup(setupDev) }) {
+                            Text("Finish device setup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
+                            Text(
+                                "${setupDev.nickname ?: setupDev.model ?: setupDev.deviceName} has unfinished setup steps.",
+                                fontSize = 13.sp,
+                                color = ParentTextMuted
+                            )
+                            Button(
+                                onClick = { onSetup(setupDev) },
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
+                            ) {
                                 Text("Continue setup")
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardBottomBar(tab: String, onTab: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+        color = ParentBg,
+        shadowElevation = 8.dp
+    ) {
+        Column {
+            HorizontalDivider(color = ParentBorder, thickness = 0.8.dp)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(68.dp)
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onTab("notice") }
+                        .padding(vertical = 6.dp)
+                ) {
+                    Icon(
+                        if (tab == "notice") Icons.Default.Notifications else Icons.Outlined.Notifications,
+                        contentDescription = "Notice",
+                        tint = if (tab == "notice") ParentPurple else ParentTextMuted
+                    )
+                    Text(
+                        "Notice",
+                        fontSize = 11.sp,
+                        color = if (tab == "notice") ParentPurple else ParentTextMuted,
+                        fontWeight = if (tab == "notice") FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onTab("home") }
+                ) {
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .shadow(6.dp, CircleShape, spotColor = ParentPurple)
+                            .clip(CircleShape)
+                            .background(if (tab == "home") ParentPurple else ParentPurple.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Smartphone,
+                            contentDescription = "Device",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "Device",
+                        fontSize = 11.sp,
+                        color = if (tab == "home") ParentPurple else ParentTextMuted,
+                        fontWeight = if (tab == "home") FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onTab("me") }
+                        .padding(vertical = 6.dp)
+                ) {
+                    Icon(
+                        if (tab == "me") Icons.Default.Person else Icons.Outlined.Person,
+                        contentDescription = "Me",
+                        tint = if (tab == "me") ParentPurple else ParentTextMuted
+                    )
+                    Text(
+                        "Me",
+                        fontSize = 11.sp,
+                        color = if (tab == "me") ParentPurple else ParentTextMuted,
+                        fontWeight = if (tab == "me") FontWeight.SemiBold else FontWeight.Normal
+                    )
                 }
             }
         }

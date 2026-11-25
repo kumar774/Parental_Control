@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.parentalcontrol.child.BuildConfig
 import com.parentalcontrol.child.network.AckRetryResult
 import com.parentalcontrol.child.network.PairAckRetryManager
 import com.parentalcontrol.child.storage.DeviceStorage
@@ -24,7 +25,12 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (!BuildConfig.DEBUG) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            // Debug screenshots use synthetic data; production and release builds stay capture-protected.
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         val storage = DeviceStorage.getInstance(applicationContext)
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = BrandPurple)) {

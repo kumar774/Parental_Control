@@ -87,10 +87,27 @@ fun KidDeviceSelectScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        // Top bar with subtle options menu icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            IconButton(onClick = { showParentDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreHoriz,
+                    contentDescription = "Options",
+                    tint = BrandPurple,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Cute Illustration (Hand holding phone with link & bubbles)
-        FlashGetPhoneHeroIllustration()
+        ChildDeviceHeroIllustration()
 
         Spacer(modifier = Modifier.height(48.dp))
 
@@ -189,7 +206,7 @@ fun KidDeviceSelectScreen(
                     enabled = !fetching,
                     colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
                 ) {
-                    Text(if (fetching) "Checking download?" else "Download Parent App")
+                    Text(if (fetching) "Checking download…" else "Download Parent App")
                 }
             },
             dismissButton = {
@@ -202,10 +219,10 @@ fun KidDeviceSelectScreen(
 }
 
 /**
- * FlashGet Kids Style Hero Illustration
+ * Child Guard Hero Illustration
  */
 @Composable
-private fun FlashGetPhoneHeroIllustration() {
+private fun ChildDeviceHeroIllustration() {
     Box(
         modifier = Modifier
             .size(300.dp, 280.dp),
