@@ -4,8 +4,9 @@
 
 - Repository branch: `feat/onboarding-auth-pairing`
 - Starting repository commit: `5dcd44bc8650c5b79e8ee3416b6238ae2abf09e5`
-- Current implementation revision: WIP checkpoint on `feat/onboarding-auth-pairing`; see the latest branch commit.
-- Tested build variants: Parent `debug`; Child `debug` and isolated `debug.proof`.
+- Current source checkpoint: `a9cd1ae85a564c6d08e1c2270391168e6784d241` on `feat/onboarding-auth-pairing`.
+- APK installation check: Parent and Child isolated proof debug variants installed to the user's I2220 over Tailscale wireless ADB. This was install-only; neither app was launched and no phone screen or app data was inspected.
+- Emulator status: Android SDK `emulator.exe` is absent; no emulator test was run.
 - Capture date: 2026-11-25 (Asia/Calcutta).
 - Device: I2220, Android 16, reported display 1080 x 2400 (physical panel 1260 x 2800).
 - Test identities: no credentials or pairing secrets are included. A Parent welcome capture that displayed device-like sample data and a call-notification capture were removed and are not evidence.
@@ -35,12 +36,14 @@ The two Parent authentication method images in `Parent App/01_Authentication/` w
 |---|---|---|
 | Backend typecheck | `npm.cmd run typecheck` | Exit 0 after the current backend changes. |
 | Backend default suite | `npm.cmd test` | Exit 0; includes the repository's in-memory integration coverage and 21 explicit target-preflight safety tests. This is not PostgreSQL proof. |
-| Backend genuine PostgreSQL suite | `npm.cmd run test:real-pg` | On a fresh, run-marked PostgreSQL 18.6 WSL database, all 14 migrations applied. The full suite reported 133 passed, 1 failed, 36 cancelled. Pairing, parent-auth, dashboard, email, smoke, audit, concurrency and other groups passed. A local unstaged syntax error blocked `migration-runner.test.ts`; the role-permissions harness bug was fixed and its focused rerun passed 40/40. Full-suite rerun remains pending. The email tests used the existing local Mailpit-compatible mock, not a verified Mailpit server. |
-| Parent App | `Parent_app/gradlew.bat :app:testDebugUnitTest :app:assembleDebug` | Exit 0; Gradle reported 116 tasks, all up-to-date. No connected Compose UI test was run. |
-| Child App | `Child_app/gradlew.bat -PproofMode=true :app:testDebugUnitTest :app:assembleDebug` | Exit 0 after D6 and consent-copy edits; 47 unit tests across ChildRestClient, ACK retry manager and storage, 0 failures; isolated proof APK built. XML reports are included in this folder. Release assemble was interrupted after remaining active without output; **NOT VERIFIED**. |
+| Backend genuine PostgreSQL suite | `npm.cmd run test:real-pg` | On a fresh, run-marked PostgreSQL 18.6 WSL database at isolated port 55433, all **14 migration scripts** applied and the full suite passed: **182/182 tests, 26 suites, 0 failed/cancelled**. Email checks used a local Mailpit-compatible mock, not the Mailpit release binary. |
+| Backend default suite | `npm.cmd test` | Latest rerun exited 0: **97/97** regular tests and **22/22** database safety preflight tests. One immediately preceding run was flaky (96/97 regular tests); rerun passed. |
+| Parent App | `Parent_app/gradlew.bat --no-daemon -PproofMode=true testDebugUnitTest assembleDebug assembleRelease` | Exit 0. XML reports: **170 tests, 0 failures/errors/skips**. Debug proof and unsigned release variants assembled. No connected Compose UI test was run. |
+| Child App | `Child_app/gradlew.bat --no-daemon -PproofMode=true testDebugUnitTest assembleDebug assembleRelease` | Exit 0. XML reports: **47 tests, 0 failures/errors/skips**. Debug proof and unsigned release variants assembled. |
+| Android handset install check | SDK `adb.exe -s 100.80.27.76:5555 install -r -t <proof APK>` | Both `com.parentalcontrol.parent.debug.proof` and `com.parentalcontrol.child.debug.proof` installed successfully on `I2220` via Tailscale. Install only; launch, UI, runtime network, pairing and app data were not tested. |
 | Admin Panel | `npm.cmd test`; `npm.cmd run build` | 41 tests passed, 0 failed; production TypeScript/Vite build succeeded. No live browser settings mutation was run. |
 
-The current branch contains a WIP checkpoint; it does not represent final verification. The last known base commit is `5dcd44bc8650c5b79e8ee3416b6238ae2abf09e5`; its successful CI run is https://github.com/kumar774/Parental_Control/actions/runs/45570903761. That CI run does not validate this checkpoint. PR #10 remains open and unmerged.
+The current source checkpoint is `a9cd1ae85a564c6d08e1c2270391168e6784d241`; the earlier successful CI run at `5dcd44bc8650c5b79e8ee3416b6238ae2abf09e5` does not validate it. GitHub Actions run `45625290612` for this checkpoint was **IN PROGRESS** when checked; no combined status checks were listed yet. PR #10 remains open and unmerged. The screenshots already present in this folder document earlier UI captures and are not claimed as captures from the current hardened proof APK build.
 
 ## Evidence not yet collected
 
@@ -49,6 +52,7 @@ The current branch contains a WIP checkpoint; it does not represent final verifi
 - Current Admin Panel browser captures and persisted settings verification.
 - Safe disposable-PostgreSQL API/database/integration evidence, including expiry cleanup, QR preview/rejection, regeneration concurrency and tenant isolation.
 - Manual and QR end-to-end pairing sequence linking both apps to one verified association.
-- Emulator run, release build/security comparison, production Compose UI tests, and final GitHub Actions run.
+- Runtime UI screenshots and per-screen behavior on the current proof APK. The requested phone workflow is install-only unless the user authorizes further device interaction.
+- Production Compose UI tests, live server pairing, and final GitHub Actions run for the current checkpoint.
 
-The Child consent screenshot attempt was deleted because it unexpectedly showed a generated QR; it is not retained as evidence. The handset later showed unrelated personal content, so no further device interaction was performed. No screenshot in this folder is claimed as proof for a state marked **NOT CAPTURED** or **NOT TESTED**.
+The Child consent screenshot attempt was deleted because it unexpectedly showed a generated QR; it is not retained as evidence. The handset later showed unrelated personal content, so no further screen capture or app-data inspection was performed. Later APK work was limited to installation and package-presence checks. No screenshot in this folder is claimed as proof for a state marked **NOT CAPTURED** or **NOT TESTED**.

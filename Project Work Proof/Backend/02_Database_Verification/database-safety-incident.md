@@ -33,3 +33,10 @@ Add a fail-closed process preflight before importing app modules, require explic
 - All 14 versioned migrations applied successfully under `parental_migrator`. The full suite result was 133 passed, 1 failed, 36 cancelled. The failure was an `Unexpected end of file` syntax error in the unstaged `migration-runner.test.ts` working copy; remaining categories continued and passed. This working-copy edit was preserved.
 - Three role-permission subgroups initially failed because `getVerifiedRoleConnection` referenced undefined `serverId`. The harness check was corrected to rely on the already verified preflight run marker plus database owner/comment/port/name. A focused rerun of `real-role-permissions.test.ts` passed all 40 tests.
 - The full suite has not been rerun after that harness correction. Email E2E tests passed through the existing local Mailpit-compatible mock service; this does not establish behavior against the Mailpit release binary.
+
+## Final isolated rerun (2026-11-25)
+
+- A new run-marked PostgreSQL 18.6 database was created on the isolated WSL cluster at loopback port 55433. Target preflight passed before migration execution.
+- All **14 migration scripts** applied. The full real-PostgreSQL suite passed: **182 tests, 26 suites, 182 passed, 0 failed, 0 cancelled**.
+- The original development-database application-row impact remains **unknown**; this isolated passing run does not change that finding.
+- Email E2E coverage used the local Mailpit-compatible mock, not a verified Mailpit release server.
