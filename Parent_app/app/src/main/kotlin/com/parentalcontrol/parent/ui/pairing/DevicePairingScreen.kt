@@ -242,6 +242,13 @@ fun formatNineDigitCode(code: String): String {
     }
 }
 
+internal data class PendingApprovalInfo(
+    val sessionId: String,
+    val code: String,
+    val deviceModel: String? = null,
+    val isChildInitiated: Boolean = false
+)
+
 @Composable
 fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, String) -> Unit,
                         modifier: Modifier = Modifier) {
@@ -253,11 +260,13 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
     var expires by remember { mutableLongStateOf(0L) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var status by remember { mutableStateOf("") }
+    var reportedDeviceModel by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
     var denied by remember { mutableStateOf(false) }
-    var pendingApproval by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pendingApproval by remember { mutableStateOf<PendingApprovalInfo?>(null) }
+    var showCancelConfirm by remember { mutableStateOf(false) }
 
     fun checkStatus() {
         val id = session ?: return
@@ -267,6 +276,9 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
         scope.launch {
             client.checkPairingStatus(id).onSuccess { result ->
                 status = result.status
+                if (!result.deviceName.isNullOrBlank()) {
+                    reportedDeviceModel = result.deviceName
+                }
                 if (result.status == "paired") {
                     val device = result.deviceId
                     if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess)
@@ -278,22 +290,34 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
         }
     }
 
-    fun issueOrResume() {
+    fun issueOrResume(regenerate: Boolean = false) {
         if (busy) return
         busy = true
         message = null
         scope.launch {
             try {
-                val saved = client.getOnboarding().getOrThrow()
-                if (saved.pendingSessionId != null) {
-                    session = saved.pendingSessionId
-                    code = saved.pendingCode
-                    expires = saved.expiresAt?.let { java.time.Instant.parse(it).toEpochMilli() } ?: 0L
-                } else {
-                    val issued = client.generatePairingCode().getOrThrow()
+                if (regenerate) {
+                    val issued = client.generatePairingCode(regenerate = true).getOrThrow()
                     session = issued.sessionId
                     code = issued.pairingCode
                     expires = issued.expiresAtEpochMs
+                    reportedDeviceModel = null
+                } else {
+                    val saved = client.getOnboarding().getOrThrow()
+                    val canResume = saved.pendingSessionId != null &&
+                        saved.pendingStatus !in setOf("expired", "canceled")
+                    if (canResume) {
+                        session = saved.pendingSessionId
+                        code = saved.pendingCode
+                        reportedDeviceModel = saved.pendingDeviceModel
+                        expires = saved.expiresAt?.let { java.time.Instant.parse(it).toEpochMilli() } ?: 0L
+                    } else {
+                        val issued = client.generatePairingCode(regenerate = false).getOrThrow()
+                        session = issued.sessionId
+                        code = issued.pairingCode
+                        expires = issued.expiresAtEpochMs
+                        reportedDeviceModel = null
+                    }
                 }
                 status = ""
             } catch (e: Exception) { message = e.message }
@@ -301,7 +325,44 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
             if (session != null && message == null) checkStatus()
         }
     }
-    LaunchedEffect(Unit) { issueOrResume() }
+
+    fun cancelCurrentEnrollment() {
+        val id = session ?: return
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            client.cancelPairing(id).onSuccess {
+                status = "canceled"
+                code = null
+                expires = 0L
+                reportedDeviceModel = null
+                pendingApproval = null
+            }.onFailure { message = it.message }
+            busy = false
+        }
+    }
+
+    fun rejectChildRequest(targetSessionId: String) {
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            client.rejectPairing(targetSessionId).onSuccess {
+                pendingApproval = null
+                if (session == targetSessionId) {
+                    status = "canceled"
+                    code = null
+                    expires = 0L
+                    reportedDeviceModel = null
+                }
+                message = "Connection request rejected."
+            }.onFailure { message = it.message }
+            busy = false
+        }
+    }
+
+    LaunchedEffect(Unit) { issueOrResume(regenerate = false) }
     LaunchedEffect(expires) {
         now = System.currentTimeMillis()
         while (now < expires) { delay(1000); now = System.currentTimeMillis() }
@@ -324,7 +385,17 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
                 LiveCameraQrScanner(onQrCodeDetected = { raw ->
                     scanning = false
                     when (val qr = parseChildQrContract(raw)) {
-                        is ChildQrValidationResult.Valid -> pendingApproval = qr.sessionId to qr.code
+                        is ChildQrValidationResult.Valid -> {
+                            scope.launch {
+                                val model = client.checkPairingStatus(qr.sessionId).getOrNull()?.deviceName
+                                pendingApproval = PendingApprovalInfo(
+                                    sessionId = qr.sessionId,
+                                    code = qr.code,
+                                    deviceModel = model,
+                                    isChildInitiated = true
+                                )
+                            }
+                        }
                         is ChildQrValidationResult.Invalid -> message = "This is not a valid Child App pairing QR."
                         is ChildQrValidationResult.Expired -> message = "This QR has expired. Generate a new one on the child's phone."
                     }
@@ -349,14 +420,26 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
                 Text(formatNineDigitCode(value), style = MaterialTheme.typography.headlineSmall)
                 if (now < expires) {
                     Text("Expires in ${(expires - now + 999) / 1000} seconds")
-                    TextButton({
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Binding code", value))
-                    }) { Text("Copy code") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton({
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Binding code", value))
+                        }) { Text("Copy code") }
+                        if (status !in setOf("expired", "canceled", "paired")) {
+                            TextButton({ issueOrResume(regenerate = true) }, enabled = !busy) {
+                                Text("Regenerate code")
+                            }
+                        }
+                    }
+                }
+            }
+            if (session != null && status !in setOf("expired", "canceled", "paired")) {
+                TextButton({ showCancelConfirm = true }, enabled = !busy) {
+                    Text("Cancel pairing")
                 }
             }
             if (session == null || status in setOf("expired", "canceled") || (expires > 0 && now >= expires)) {
-                OutlinedButton({ issueOrResume() }, enabled = !busy) { Text("Get binding code") }
+                OutlinedButton({ issueOrResume(regenerate = false) }, enabled = !busy) { Text("Get binding code") }
             }
         }
         val description = when (status) {
@@ -370,29 +453,71 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
         }
         description?.let { Text(it) }
         if (status == "waiting_for_parent" && session != null && code != null) {
-            Button({ pendingApproval = session!! to code!! }, enabled = !busy) { Text("Review connection") }
+            Button({
+                pendingApproval = PendingApprovalInfo(
+                    sessionId = session!!,
+                    code = code!!,
+                    deviceModel = reportedDeviceModel,
+                    isChildInitiated = true
+                )
+            }, enabled = !busy) { Text("Review connection") }
         }
         message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button({ checkStatus() }, enabled = !busy && session != null) { Text("Check binding status") }
         if (busy) CircularProgressIndicator()
     }
-    pendingApproval?.let { (id, candidateCode) ->
-        AlertDialog(onDismissRequest = { pendingApproval = null }, title = { Text("Approve device connection?") },
-            text = { Text("Confirm that you are setting up the child's phone in front of you. The child must also confirm your account.") },
-            dismissButton = { TextButton({ pendingApproval = null }) { Text("Cancel") } },
-            confirmButton = { Button({
-                pendingApproval = null
-                busy = true
-                scope.launch {
-                    client.confirmPairing(candidateCode, id).onSuccess {
-                        session = id
-                        code = candidateCode
-                        message = null
-                    }.onFailure { message = it.message }
-                    busy = false
-                    if (message == null) checkStatus()
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            title = { Text("Cancel pending pairing?") },
+            text = { Text("This will invalidate the current binding code so it cannot be used to pair a device.") },
+            dismissButton = {
+                TextButton({ showCancelConfirm = false }) { Text("Keep active") }
+            },
+            confirmButton = {
+                Button({
+                    showCancelConfirm = false
+                    cancelCurrentEnrollment()
+                }) { Text("Cancel pairing") }
+            }
+        )
+    }
+    pendingApproval?.let { info ->
+        AlertDialog(
+            onDismissRequest = { pendingApproval = null },
+            title = { Text("Approve device connection?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Reported device model: ${info.deviceModel?.takeIf { it.isNotBlank() } ?: "Not reported yet"}")
+                    Text("Binding code: ${formatNineDigitCode(info.code)}")
+                    Text("Enrollment session: ${info.sessionId.take(8)}…")
+                    Text("Confirm that you are setting up this child's phone in front of you. After you approve, the Child App must also confirm your account before pairing completes.")
                 }
-            }) { Text("Approve") } })
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton({ pendingApproval = null }) { Text("Close") }
+                    TextButton({ rejectChildRequest(info.sessionId) }, enabled = !busy) {
+                        Text("Reject", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button({
+                    pendingApproval = null
+                    busy = true
+                    scope.launch {
+                        client.confirmPairing(info.code, info.sessionId).onSuccess {
+                            session = info.sessionId
+                            code = info.code
+                            message = null
+                        }.onFailure { message = it.message }
+                        busy = false
+                        if (message == null) checkStatus()
+                    }
+                }, enabled = !busy) { Text("Approve") }
+            }
+        )
     }
 }
 

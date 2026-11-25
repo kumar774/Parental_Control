@@ -39,13 +39,14 @@ data class PairSessionResult(
 data class PairStatusResult(
     val childConfirmed: Boolean = false,
     val maskedParentEmail: String? = null,
-    val status: String, // "pending", "paired", "expired", "not_found"
+    val status: String, // "pending", "paired", "expired", "canceled", "not_found", "rate_limited", "unauthorized", "error"
     val deviceId: String? = null,
     val deviceToken: String? = null,
     val refreshToken: String? = null,
     val parentId: String? = null,
     val childName: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val retryAfterSeconds: Long? = null
 )
 
 data class RefreshTokenResult(
@@ -58,8 +59,19 @@ data class RefreshTokenResult(
 
 sealed class AckOutcome {
     data object Success : AckOutcome()
-    data class TransientFailure(val statusCode: Int?, val message: String) : AckOutcome()
+    data object AlreadyAcknowledged : AckOutcome()
+    data class TransientFailure(
+        val statusCode: Int?,
+        val message: String,
+        val retryAfterSeconds: Long? = null
+    ) : AckOutcome()
     data class PermanentFailure(val statusCode: Int, val message: String) : AckOutcome()
+}
+
+sealed class AssociationCheckOutcome {
+    data object Associated : AssociationCheckOutcome()
+    data class TransientError(val statusCode: Int?, val message: String) : AssociationCheckOutcome()
+    data class RevokedOrInvalid(val statusCode: Int, val message: String) : AssociationCheckOutcome()
 }
 
 sealed class HeartbeatOutcome {
@@ -167,20 +179,58 @@ class ChildRestClient(
             fun request(token: String?) = executeRequest(path, if (body == null) "GET" else "POST", body, bearerToken = token)
             val response = request(session.deviceToken)
             if (response.code != 401) return@withLock response
-            val tokens = refreshDeviceToken(requireNotNull(session.refreshToken), session.deviceId)
-            if (!tokens.success) return@withLock response
+            val refresh = session.refreshToken?.takeIf { it.isNotBlank() } ?: return@withLock response
+            val tokens = refreshDeviceToken(refresh, session.deviceId)
+            if (!tokens.success) {
+                return@withLock if (tokens.statusCode in listOf(401, 403, 404, 410)) {
+                    HttpResponse(tokens.statusCode, tokens.message ?: "")
+                } else {
+                    HttpResponse(503, tokens.message ?: "Token refresh temporarily unavailable")
+                }
+            }
             storage.updateTokens(requireNotNull(tokens.deviceToken), requireNotNull(tokens.refreshToken))
             request(tokens.deviceToken)
         }
 
-    suspend fun checkAssociation(storage: DeviceStorage): Boolean = withContext(Dispatchers.IO) {
+    suspend fun verifyAssociation(storage: DeviceStorage): AssociationCheckOutcome = withContext(Dispatchers.IO) {
         val session = storage.getSession()
-        val response = authenticated(storage, "/api/v1/child/setup")
-        if (response.code != 200) return@withContext false
-        val json = JSONObject(response.body)
-        json.optString("status") == "associated" && json.optString("deviceId") == session.deviceId &&
-            json.optString("parentId") == session.parentId
+        if (session.deviceToken.isNullOrBlank() || session.deviceId.isNullOrBlank() || session.parentId.isNullOrBlank()) {
+            return@withContext AssociationCheckOutcome.RevokedOrInvalid(401, "Missing device credentials.")
+        }
+        try {
+            val response = authenticated(storage, "/api/v1/child/setup")
+            when (response.code) {
+                200 -> {
+                    val json = JSONObject(response.body)
+                    if (json.optString("status") == "associated" &&
+                        json.optString("deviceId") == session.deviceId &&
+                        json.optString("parentId") == session.parentId
+                    ) {
+                        AssociationCheckOutcome.Associated
+                    } else {
+                        AssociationCheckOutcome.RevokedOrInvalid(200, "Device association is no longer valid.")
+                    }
+                }
+                401, 403, 404, 410 -> AssociationCheckOutcome.RevokedOrInvalid(
+                    response.code,
+                    "Device pairing was revoked or removed (HTTP ${response.code})."
+                )
+                429 -> AssociationCheckOutcome.TransientError(
+                    429,
+                    "Rate limited while verifying setup. Please wait and retry."
+                )
+                else -> AssociationCheckOutcome.TransientError(
+                    response.code,
+                    "Could not verify association right now (HTTP ${response.code})."
+                )
+            }
+        } catch (e: Exception) {
+            AssociationCheckOutcome.TransientError(null, e.localizedMessage ?: "Network unavailable.")
+        }
     }
+
+    suspend fun checkAssociation(storage: DeviceStorage): Boolean =
+        verifyAssociation(storage) is AssociationCheckOutcome.Associated
 
     /**
      * Check status of a genuine server-issued pairing session using scoped polling token.
@@ -212,7 +262,19 @@ class ChildRestClient(
                     childName = childName
                 )
             } else {
-                PairStatusResult(status = if (response.code == 410) "expired" else "error", message = enrollmentMessage(response.code))
+                val mappedStatus = when (response.code) {
+                    404 -> "not_found"
+                    410 -> "expired"
+                    409 -> "canceled"
+                    429 -> "rate_limited"
+                    401, 403 -> "unauthorized"
+                    else -> "error"
+                }
+                PairStatusResult(
+                    status = mappedStatus,
+                    message = enrollmentMessage(response.code),
+                    retryAfterSeconds = response.retryAfterSeconds
+                )
             }
         } catch (e: Exception) {
             PairStatusResult(status = "error", message = e.localizedMessage)
@@ -221,8 +283,9 @@ class ChildRestClient(
 
     /**
      * Acknowledge receipt of credentials after local persistence.
-     * Calls POST /api/v1/child/pair-ack/:sessionId with x-polling-token header.
-     * Retry-safe and idempotent with typed AckOutcome.
+     * Calls POST /api/v1/child/pair-ack/:sessionId with x-polling-token header, falling back
+     * to authenticated POST /api/v1/child/setup/ack if the ephemeral pairing token expired/rotated.
+     * Distinguishes transient transport/5xx/429 failures from terminal 4xx rejections.
      */
     suspend fun acknowledgePairReceipt(
         sessionId: String,
@@ -233,21 +296,76 @@ class ChildRestClient(
         try {
             val extraHeaders = mapOf("x-polling-token" to pollingToken)
             val first = executeRequest(path, "POST", "{}", extraHeaders = extraHeaders)
-            val response = if (first.code in listOf(401, 403, 404, 409, 410)) {
-                authenticated(storage, "/api/v1/child/setup/ack", JSONObject().put("sessionId", sessionId).toString())
-            } else first
-            val json = if (response.code == 200) JSONObject(response.body) else JSONObject()
-            val session = storage.getSession()
-            if (json.optString("status") == "acknowledged" && json.optString("deviceId") == session.deviceId &&
-                json.optString("parentId") == session.parentId) {
-                AckOutcome.Success
-            } else {
-                AckOutcome.TransientFailure(response.code, "Could not confirm credential receipt.")
+            when (first.code) {
+                200 -> parseAckSuccess(first, storage)
+                429 -> AckOutcome.TransientFailure(
+                    429,
+                    "Rate limited while confirming connection.",
+                    first.retryAfterSeconds
+                )
+                408, in 500..599 -> AckOutcome.TransientFailure(
+                    first.code,
+                    "Temporary server error (HTTP ${first.code})."
+                )
+                in listOf(401, 403, 404, 409, 410) -> {
+                    // Ephemeral enrollment may be expired/already completed; attempt authenticated recovery
+                    val recovery = authenticated(
+                        storage,
+                        "/api/v1/child/setup/ack",
+                        JSONObject().put("sessionId", sessionId).toString()
+                    )
+                    when (recovery.code) {
+                        200 -> parseAckSuccess(recovery, storage)
+                        429 -> AckOutcome.TransientFailure(
+                            429,
+                            "Rate limited during credential recovery.",
+                            recovery.retryAfterSeconds
+                        )
+                        408, in 500..599 -> AckOutcome.TransientFailure(
+                            recovery.code,
+                            "Temporary server error during recovery (HTTP ${recovery.code})."
+                        )
+                        in listOf(400, 401, 403, 404, 409, 410, 422) -> AckOutcome.PermanentFailure(
+                            recovery.code,
+                            "Association revoked or enrollment unrecoverable (HTTP ${recovery.code})."
+                        )
+                        else -> AckOutcome.TransientFailure(
+                            recovery.code,
+                            "Unexpected response during recovery (HTTP ${recovery.code})."
+                        )
+                    }
+                }
+                else -> AckOutcome.PermanentFailure(
+                    first.code,
+                    "Enrollment session rejected (HTTP ${first.code})."
+                )
             }
         } catch (e: Exception) {
             AckOutcome.TransientFailure(
                 null,
                 "Network transport failure: ${e.message ?: "Unknown network error"}"
+            )
+        }
+    }
+
+    private fun parseAckSuccess(response: HttpResponse, storage: DeviceStorage): AckOutcome {
+        val json = JSONObject(response.body)
+        val session = storage.getSession()
+        val ackStatus = json.optString("status")
+        val matchesSession = json.optString("deviceId") == session.deviceId &&
+            json.optString("parentId") == session.parentId
+        if (!matchesSession) {
+            return AckOutcome.PermanentFailure(
+                response.code,
+                "Server ACK device identity did not match stored session."
+            )
+        }
+        return when (ackStatus) {
+            "already_acknowledged" -> AckOutcome.AlreadyAcknowledged
+            "acknowledged" -> AckOutcome.Success
+            else -> AckOutcome.PermanentFailure(
+                response.code,
+                "Unexpected ACK status: $ackStatus"
             )
         }
     }
@@ -389,7 +507,9 @@ class ChildRestClient(
         }
     }
 
-    private data class HttpResponse(val code: Int, val body: String)
+    internal data class HttpResponse(val code: Int, val body: String, val retryAfterSeconds: Long? = null)
+
+    internal var requestOverride: ((path: String, method: String, jsonBody: String?, bearerToken: String?, extraHeaders: Map<String, String>) -> HttpResponse)? = null
 
     private fun executeRequest(
         path: String,
@@ -398,6 +518,7 @@ class ChildRestClient(
         bearerToken: String? = null,
         extraHeaders: Map<String, String> = emptyMap()
     ): HttpResponse {
+        requestOverride?.let { return it(path, method, jsonBody, bearerToken, extraHeaders) }
         val endpoint = URL(baseUrl)
         require(isAllowedOrigin(endpoint, com.parentalcontrol.child.BuildConfig.DEBUG))
         return executeHttpRequest(baseUrl.trimEnd('/') + path, method, jsonBody, bearerToken, extraHeaders)
@@ -435,6 +556,7 @@ class ChildRestClient(
         }
 
         val responseCode = conn.responseCode
+        val retryAfterSeconds = conn.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
         val inputStream = if (responseCode in 200..299) conn.inputStream else conn.errorStream
         val responseBody = if (inputStream != null) {
             BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { it.readText() }
@@ -442,7 +564,7 @@ class ChildRestClient(
             ""
         }
         conn.disconnect()
-        return HttpResponse(responseCode, responseBody)
+        return HttpResponse(responseCode, responseBody, retryAfterSeconds)
     }
 
 }

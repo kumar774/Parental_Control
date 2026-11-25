@@ -1,7 +1,17 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { eq, and, or, gt, isNull, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
-import { authorizedParent, approveParent, bindingCode, consentFor, enrollmentStatus, issueSession } from '../../services/enrollment.service';
+import {
+  approveParent,
+  bindingCode,
+  cancelParentEnrollment,
+  consentFor,
+  deliveryWindow,
+  enrollmentStatus,
+  getOrCreateParentPairCode,
+  isDeliveryExpired,
+  retireExpiredUnacknowledgedSession,
+} from '../../services/enrollment.service';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { db } from '../../db/index';
 import { childDevices, pairingSessions, parentConsents, childDeviceTokens } from '../../db/schema/parental-control';
@@ -100,45 +110,52 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     });
   });
 
-  app.post('/pair-code', {preHandler:[requireParentAuth,approvalLimiter]}, async request => {
+  app.post('/pair-code', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
     const parentId = request.parentUser!.id;
-    const body = z.object({ regenerate: z.boolean().optional() }).safeParse(request.body || {});
-    const forceRegenerate = body.success && body.data.regenerate === true;
-    return db.transaction(async tx => {
-      await authorizedParent(tx,parentId);
-      if (!forceRegenerate) {
-        const [existing] = await tx.select().from(pairingSessions).where(and(
-          eq(pairingSessions.parentId, parentId),
-          eq(pairingSessions.status, 'pending'),
-          gt(pairingSessions.expiresAt, new Date()),
-          isNull(pairingSessions.installationId)
-        )).orderBy(desc(pairingSessions.createdAt)).limit(1);
-        if (existing) {
-          return {
-            code: existing.pairingCode,
-            sessionId: existing.id,
-            expiresAt: existing.expiresAt,
-            expiresInSeconds: Math.ceil((existing.expiresAt.getTime() - Date.now()) / 1000),
-          };
-        }
-      } else {
-        await tx.update(pairingSessions).set({ status: 'canceled' }).where(and(
-          eq(pairingSessions.parentId, parentId),
-          eq(pairingSessions.status, 'pending'),
-          isNull(pairingSessions.installationId)
-        ));
-      }
-      const s = await issueSession(tx,parentId);
-      return {code:s.pairingCode,sessionId:s.id,expiresAt:s.expiresAt,expiresInSeconds:Math.ceil((s.expiresAt.getTime()-Date.now())/1000)};
-    });
+    const rawBody = request.body ?? {};
+    if (typeof rawBody !== 'object' || rawBody === null || Array.isArray(rawBody)) {
+      return reply.code(400).send({ message: 'Invalid pair-code request' });
+    }
+    const body = z.object({ regenerate: z.boolean().optional() }).safeParse(rawBody);
+    if (!body.success) return reply.code(400).send({ message: 'Invalid pair-code request' });
+    return getOrCreateParentPairCode(parentId, body.data.regenerate === true);
+  });
+
+  app.post('/pair-cancel', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid() }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ message: 'Invalid session' });
+    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, false);
+  });
+
+  app.post('/pair-reject', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid() }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ message: 'Invalid session' });
+    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, true);
   });
 
   app.get<{Params:{sessionId:string}}>('/pair-status/:sessionId',{preHandler:[requireParentAuth]},async (request,reply) => {
     if (!z.string().uuid().safeParse(request.params.sessionId).success) return reply.code(400).send({message:'Invalid session'});
-    const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),
-      eq(pairingSessions.parentId,request.parentUser!.id))).limit(1);
-    if (!s) return reply.code(404).send({message:'Enrollment unavailable'});
-    return {status:enrollmentStatus(s,true),sessionId:s.id,deviceId:s.childDeviceId,deviceModel:s.deviceModel,expiresAt:s.expiresAt};
+    return db.transaction(async tx => {
+      let [s] = await tx.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),
+        eq(pairingSessions.parentId,request.parentUser!.id))).for('update');
+      if (!s) return reply.code(404).send({message:'Enrollment unavailable'});
+      if (s.status === 'pending' && s.expiresAt.getTime() <= Date.now()) {
+        const [expired] = await tx.update(pairingSessions).set({ status: 'expired' }).where(eq(pairingSessions.id, s.id)).returning();
+        if (expired) s = expired;
+      } else if (isDeliveryExpired(s)) {
+        s = await retireExpiredUnacknowledgedSession(tx, s);
+      }
+      return {
+        status: enrollmentStatus(s, true),
+        sessionId: s.id,
+        deviceId: s.status === 'paired' ? s.childDeviceId : null,
+        deviceModel: s.deviceModel,
+        childConfirmed: s.childConfirmed,
+        parentApproved: s.parentApproved,
+        expiresAt: s.expiresAt,
+        deliveryExpiresAt: s.claimedAt ? new Date(s.claimedAt.getTime() + deliveryWindow) : null,
+      };
+    });
   });
 
   app.post('/pair-confirm',{preHandler:[requireParentAuth,approvalLimiter]},async (request,reply) => {
@@ -152,10 +169,17 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const [consent] = await db.select({id:parentConsents.id}).from(parentConsents).where(consentFor(parentId)).limit(1);
     const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.parentId,parentId),or(
       and(eq(pairingSessions.status,'pending'),gt(pairingSessions.expiresAt,new Date())),
-      and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-86400000)),
+      and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-deliveryWindow)),
           sql`${pairingSessions.installationId} IS NOT NULL`))))
       .orderBy(sql`CASE WHEN ${pairingSessions.status} = 'paired' THEN 0 WHEN ${pairingSessions.installationId} IS NOT NULL THEN 1 ELSE 2 END`,desc(pairingSessions.createdAt)).limit(1);
-    return {consentAccepted:Boolean(consent),pendingSessionId:s?.id??null,pendingCode:s?.pairingCode??null,expiresAt:s?.expiresAt??null};
+    return {
+      consentAccepted: Boolean(consent),
+      pendingSessionId: s?.id ?? null,
+      pendingCode: s?.pairingCode ?? null,
+      pendingStatus: s ? enrollmentStatus(s, true) : null,
+      pendingDeviceModel: s?.deviceModel ?? null,
+      expiresAt: s?.expiresAt ?? null,
+    };
   });
 
   app.put<{Params:{deviceId:string}}>('/:deviceId/setup',{preHandler:[requireParentAuth]},async (request,reply) => {

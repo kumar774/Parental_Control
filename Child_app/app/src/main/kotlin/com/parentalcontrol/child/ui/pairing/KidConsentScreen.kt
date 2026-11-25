@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Child Guard Screen 2: Statutory Terms & Consent Disclosure
+ * FlashGet Kids Style Screen 2: Statutory Terms & Consent Disclosure
  */
 @Composable
 fun KidConsentScreen(
@@ -110,7 +110,7 @@ fun KidConsentScreen(
 
         // Title
         Text(
-            text = "Welcome to Child Guard",
+            text = "Welcome to FlashGet Kids",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF1E293B),

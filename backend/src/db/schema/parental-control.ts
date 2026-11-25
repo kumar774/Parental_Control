@@ -299,6 +299,9 @@ export const pairingSessions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex('pairing_sessions_one_active_manual_code_per_parent')
+      .on(table.parentId)
+      .where(sql`${table.parentId} IS NOT NULL AND ${table.installationId} IS NULL AND ${table.status} = 'pending'`),
     index('idx_pairing_sessions_code').on(table.pairingCode),
     index('idx_pairing_sessions_parent').on(table.parentId),
     index('idx_pairing_sessions_expires').on(table.expiresAt),

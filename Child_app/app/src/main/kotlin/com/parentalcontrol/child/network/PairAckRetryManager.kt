@@ -11,12 +11,14 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.parentalcontrol.child.service.ChildMonitoringService
 import com.parentalcontrol.child.storage.DeviceStorage
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
 
 sealed class AckRetryResult {
     data object NonePending : AckRetryResult()
     data object Confirmed : AckRetryResult()
-    data class TransientPending(val message: String) : AckRetryResult()
+    data class TransientPending(val message: String, val retryAfterSeconds: Long? = null) : AckRetryResult()
     data class TerminalFailure(val statusCode: Int, val message: String) : AckRetryResult()
 }
 
@@ -177,8 +179,10 @@ object PairAckRetryManager {
         } catch (_: Exception) {}
     }
 
+    private val ackMutex = Mutex()
+
     /**
-     * Fast-path retry called on app start / resume.
+     * Fast-path retry called on app start / resume and coordinated with PairAckWorker.
      * Returns typed AckRetryResult and ensures local state is kept strictly consistent.
      */
     suspend fun retryPendingAckIfNeeded(
@@ -187,16 +191,16 @@ object PairAckRetryManager {
         ackRequester: suspend (sessionId: String, pollingToken: String) -> AckOutcome = { s, t ->
             ChildRestClient.instance.acknowledgePairReceipt(s, t, storage)
         }
-    ): AckRetryResult {
+    ): AckRetryResult = ackMutex.withLock {
         val pending = storage.getPendingPairAck() ?: run {
             context?.let { cancelBackgroundRetry(it) }
-            return AckRetryResult.NonePending
+            return@withLock AckRetryResult.NonePending
         }
         val (sessionId, pollingToken) = pending
         Log.i(TAG, "Fast-path retrying pending ACK for session $sessionId")
 
-        return when (val outcome = ackRequester(sessionId, pollingToken)) {
-            is AckOutcome.Success -> {
+        return@withLock when (val outcome = ackRequester(sessionId, pollingToken)) {
+            is AckOutcome.Success, is AckOutcome.AlreadyAcknowledged -> {
                 storage.clearPendingPairAck()
                 context?.let { cancelBackgroundRetry(it) }
                 Log.i(TAG, "Successfully confirmed and cleared pending ACK for session $sessionId")
@@ -205,7 +209,7 @@ object PairAckRetryManager {
             is AckOutcome.TransientFailure -> {
                 Log.w(TAG, "Transient failure during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; scheduling background retry")
                 context?.let { scheduleBackgroundRetry(it) }
-                AckRetryResult.TransientPending(outcome.message)
+                AckRetryResult.TransientPending(outcome.message, outcome.retryAfterSeconds)
             }
             is AckOutcome.PermanentFailure -> {
                 Log.e(TAG, "Permanent rejection during ACK for session $sessionId (${outcome.statusCode}): ${outcome.message}; resetting local credentials to PAIRING_REQUIRES_REPAIR")

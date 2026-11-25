@@ -737,4 +737,63 @@ class NetworkAndWebSocketSyncUnitTest {
         assertEquals("Invalid email or password", err?.message)
         assertFalse("Login failure must NOT trigger onSessionExpired", sessionExpiredCalled)
     }
+
+    @Test
+    fun testPairing_CancelRejectRegenerateAndMetadataParsing() = runBlocking {
+        val sessionId = "11111111-1111-4111-8111-111111111111"
+        val capturedPaths = mutableListOf<String>()
+        val capturedBodies = mutableListOf<String?>()
+
+        val client = FastifyRestClient(accessToken = "parent-token")
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, _, body ->
+            capturedPaths.add("$method $fullUrl")
+            capturedBodies.add(body)
+            when {
+                fullUrl.endsWith("/api/v1/devices/pair-code") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"code":"987654321","sessionId":"$sessionId","expiresAt":"2026-12-01T00:00:00.000Z","expiresInSeconds":600}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-cancel") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"canceled","sessionId":"$sessionId"}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-reject") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"canceled","rejected":true,"sessionId":"$sessionId"}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-status/$sessionId") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"waiting_for_parent","sessionId":"$sessionId","deviceId":null,"deviceModel":"Pixel 8","childConfirmed":false,"parentApproved":false,"expiresAt":"2026-12-01T00:00:00.000Z","deliveryExpiresAt":null}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/onboarding") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"consentAccepted":true,"pendingSessionId":"$sessionId","pendingCode":"987654321","pendingStatus":"waiting_for_parent","pendingDeviceModel":"Pixel 8","expiresAt":"2026-12-01T00:00:00.000Z"}"""
+                )
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val regenRes = client.generatePairingCode(regenerate = true)
+        assertTrue(regenRes.isSuccess)
+        assertTrue(capturedBodies.last()?.contains("\"regenerate\":true") == true)
+
+        val statusRes = client.checkPairingStatus(sessionId).getOrThrow()
+        assertEquals("waiting_for_parent", statusRes.status)
+        assertEquals("Pixel 8", statusRes.deviceName)
+        assertFalse(statusRes.parentApproved)
+
+        val onboardingRes = client.getOnboarding().getOrThrow()
+        assertTrue(onboardingRes.consentAccepted)
+        assertEquals("waiting_for_parent", onboardingRes.pendingStatus)
+        assertEquals("Pixel 8", onboardingRes.pendingDeviceModel)
+
+        assertTrue(client.cancelPairing(sessionId).isSuccess)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-cancel"))
+
+        assertTrue(client.rejectPairing(sessionId).isSuccess)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-reject"))
+
+        assertTrue(client.cancelPairing("not-a-uuid").isFailure)
+        assertTrue(client.rejectPairing("not-a-uuid").isFailure)
+    }
 }

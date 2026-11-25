@@ -76,7 +76,11 @@ data class PairingStatusDto(
     val sessionId: String,
     val deviceId: String? = null,
     val childName: String? = null,
-    val deviceName: String? = null
+    val deviceName: String? = null,
+    val childConfirmed: Boolean = false,
+    val parentApproved: Boolean = false,
+    val expiresAt: String? = null,
+    val deliveryExpiresAt: String? = null
 )
 
 data class AppSettingsDto(
@@ -433,4 +437,11 @@ class InvalidRefreshPayloadException(
 class SessionExpiredException(val code: String = "USER_NOT_FOUND") : AuthException(401, "Session expired: $code")
 
 
-data class OnboardingDto(val consentAccepted: Boolean, val pendingSessionId: String?, val pendingCode: String?, val expiresAt: String?)
+data class OnboardingDto(
+    val consentAccepted: Boolean,
+    val pendingSessionId: String?,
+    val pendingCode: String?,
+    val expiresAt: String?,
+    val pendingStatus: String? = null,
+    val pendingDeviceModel: String? = null
+)

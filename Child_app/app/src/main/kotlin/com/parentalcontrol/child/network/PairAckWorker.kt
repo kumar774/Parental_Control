@@ -18,31 +18,25 @@ class PairAckWorker(
 
     override suspend fun doWork(): Result {
         val storage = DeviceStorage.getInstance(applicationContext)
-        val pending = storage.getPendingPairAck() ?: return Result.success()
-        val (sessionId, pollingToken) = pending
-
-        Log.i(TAG, "Executing reliable background ACK retry for session $sessionId")
+        if (storage.getPendingPairAck() == null) return Result.success()
 
         return try {
-            when (val outcome = ChildRestClient.instance.acknowledgePairReceipt(sessionId, pollingToken, storage)) {
-                is AckOutcome.Success -> {
-                    storage.clearPendingPairAck()
-                    Log.i(TAG, "Background ACK delivered and cleared for session $sessionId")
+            when (val result = PairAckRetryManager.retryPendingAckIfNeeded(applicationContext, storage)) {
+                is AckRetryResult.NonePending, is AckRetryResult.Confirmed -> {
+                    Log.i(TAG, "Background ACK delivered and cleared")
                     Result.success()
                 }
-                is AckOutcome.TransientFailure -> {
-                    Log.w(TAG, "Transient failure (${outcome.statusCode}) during ACK for session $sessionId: ${outcome.message}. Scheduling retry with backoff")
+                is AckRetryResult.TransientPending -> {
+                    Log.w(TAG, "Transient failure during background ACK: ${result.message}. Scheduling retry with backoff")
                     Result.retry()
                 }
-                is AckOutcome.PermanentFailure -> {
-                    Log.e(TAG, "Permanent rejection (${outcome.statusCode}) for session $sessionId: ${outcome.message}. Resetting local pairing credentials to PAIRING_REQUIRES_REPAIR.")
-                    storage.markPairingRequiresRepair()
-                    PairAckRetryManager.cancelBackgroundRetry(applicationContext)
+                is AckRetryResult.TerminalFailure -> {
+                    Log.e(TAG, "Permanent rejection (${result.statusCode}): ${result.message}. Local credentials reset to PAIRING_REQUIRES_REPAIR.")
                     Result.failure()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Background ACK network failure for session $sessionId: ${e.message}")
+            Log.e(TAG, "Background ACK network failure: ${e.message}")
             Result.retry()
         }
     }

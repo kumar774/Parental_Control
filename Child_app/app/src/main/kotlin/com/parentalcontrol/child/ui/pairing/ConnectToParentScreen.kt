@@ -133,10 +133,20 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                         }
                     }
                 }
-                "expired", "canceled" -> {
+                "expired", "canceled", "not_found", "unauthorized" -> {
                     clear()
-                    error = if (status.status == "expired") "This pairing attempt expired. Start again." else "Pairing canceled."
+                    error = when (status.status) {
+                        "expired" -> "This pairing attempt expired. Start again."
+                        "canceled" -> "Pairing was canceled."
+                        "unauthorized" -> "Pairing session authorization failed. Start again."
+                        else -> "Pairing session is no longer available. Start again."
+                    }
                     return@LaunchedEffect
+                }
+                "rate_limited" -> {
+                    message = "Too many checks. Waiting before retrying…"
+                    delay(((status.retryAfterSeconds ?: 10L).coerceIn(3L, 60L)) * 1000L)
+                    continue
                 }
                 "error" -> message = "Reconnecting to the pairing service…"
                 else -> {

@@ -1597,4 +1597,463 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     // Clean up
     await conn.db.delete(childDevices).where(eq(childDevices.id, deviceId)).catch(() => {});
   });
+
+  it('11. Abandoned enrollment & credential-delivery recovery lifecycle (all 9 scenarios)', async () => {
+    // (8) Create an existing paired & acknowledged device first — must NEVER be auto-deleted
+    const existingInstall = installation();
+    const existingInit = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    const existingCode = JSON.parse(existingInit.body).code;
+    const existingPairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...existingInstall, pairingCode: existingCode, deviceModel: 'Existing Pixel' },
+    });
+    const existingCreds = await completeManual(existingPairRes);
+
+    // Helper to reach mutual approval ('finalizing' before child retrieves credentials)
+    async function reachFinalizing(inst: ReturnType<typeof installation>) {
+      const codeRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/devices/pair-code',
+        headers: { authorization: `Bearer ${testParentAccessToken}` },
+        payload: { regenerate: true },
+      });
+      assert.equal(codeRes.statusCode, 200);
+      const { code, sessionId } = JSON.parse(codeRes.body);
+      const childRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/child/pair',
+        payload: { ...inst, pairingCode: code },
+      });
+      assert.equal(childRes.statusCode, 200);
+      const childJson = JSON.parse(childRes.body);
+      await confirmChild(sessionId, childJson.pollingToken);
+      const parentConfirm = await app.inject({
+        method: 'POST',
+        url: '/api/v1/devices/pair-confirm',
+        headers: { authorization: `Bearer ${testParentAccessToken}` },
+        payload: { sessionId, code },
+      });
+      assert.equal(parentConfirm.statusCode, 200);
+      assert.equal(JSON.parse(parentConfirm.body).status, 'finalizing');
+      return { sessionId, pollingToken: childJson.pollingToken, code, deviceId: JSON.parse(parentConfirm.body).deviceId };
+    }
+
+    // (1) Approved by both sides, child never retrieves credentials -> stays finalizing, excluded from /devices
+    const inst1 = installation();
+    const fin1 = await reachFinalizing(inst1);
+    const parentStatus1 = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/pair-status/${fin1.sessionId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(parentStatus1.statusCode, 200);
+    assert.equal(JSON.parse(parentStatus1.body).status, 'finalizing');
+    const list1 = JSON.parse((await app.inject({
+      method: 'GET',
+      url: '/api/v1/devices',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    })).body);
+    assert.ok(!list1.devices.some((d: any) => d.id === fin1.deviceId), 'Unacknowledged device must not appear in /devices');
+
+    // (2) Child retrieves credentials but fails before local persistence -> retry returns identical tokens
+    const pollA = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${fin1.sessionId}`,
+      headers: { 'x-polling-token': fin1.pollingToken },
+    });
+    const pollB = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${fin1.sessionId}`,
+      headers: { 'x-polling-token': fin1.pollingToken },
+    });
+    assert.equal(pollA.statusCode, 200);
+    assert.equal(pollB.statusCode, 200);
+    const credsA = JSON.parse(pollA.body);
+    const credsB = JSON.parse(pollB.body);
+    assert.equal(credsA.deviceToken, credsB.deviceToken);
+    assert.equal(credsA.refreshToken, credsB.refreshToken);
+
+    // (3) ACK succeeds but response lost -> retry pair-ack returns 200 idempotently
+    const ack1 = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${fin1.sessionId}`,
+      headers: { 'x-polling-token': fin1.pollingToken },
+    });
+    assert.equal(ack1.statusCode, 200);
+    const ack1Retry = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${fin1.sessionId}`,
+      headers: { 'x-polling-token': fin1.pollingToken },
+    });
+    assert.equal(ack1Retry.statusCode, 200);
+    assert.equal(JSON.parse(ack1Retry.body).status, 'acknowledged');
+
+    // (4) Credentials saved locally, ACK interrupted -> authenticated /setup/ack completes ACK
+    const inst2 = installation();
+    const fin2 = await reachFinalizing(inst2);
+    const creds2 = JSON.parse((await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${fin2.sessionId}`,
+      headers: { 'x-polling-token': fin2.pollingToken },
+    })).body);
+    const setupAckRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/setup/ack',
+      headers: { authorization: `Bearer ${creds2.deviceToken}` },
+      payload: { sessionId: fin2.sessionId },
+    });
+    assert.equal(setupAckRes.statusCode, 200);
+    assert.equal(JSON.parse(setupAckRes.body).status, 'acknowledged');
+    // Idempotent /setup/ack retry also succeeds
+    const setupAckRetry = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/setup/ack',
+      headers: { authorization: `Bearer ${creds2.deviceToken}` },
+      payload: { sessionId: fin2.sessionId },
+    });
+    assert.equal(setupAckRetry.statusCode, 200);
+
+    // (5) Delivery window expires (>24h without ACK) -> retired deterministically, Parent no longer stuck in finalizing
+    const inst3 = installation();
+    const fin3 = await reachFinalizing(inst3);
+    const creds3 = JSON.parse((await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${fin3.sessionId}`,
+      headers: { 'x-polling-token': fin3.pollingToken },
+    })).body);
+    // Simulate 25h elapsed since claimedAt
+    await conn.db.update(pairingSessions)
+      .set({ claimedAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(pairingSessions.id, fin3.sessionId));
+
+    const parentExpiredRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/pair-status/${fin3.sessionId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(parentExpiredRes.statusCode, 200);
+    assert.equal(JSON.parse(parentExpiredRes.body).status, 'expired');
+    assert.equal(JSON.parse(parentExpiredRes.body).deviceId, null);
+
+    // Retired credentials must be rejected with 401 on /setup/ack
+    const expiredSetupAck = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/setup/ack',
+      headers: { authorization: `Bearer ${creds3.deviceToken}` },
+      payload: { sessionId: fin3.sessionId },
+    });
+    assert.equal(expiredSetupAck.statusCode, 401);
+
+    // (7) New enrollment for the SAME installationId after abandoned-session retirement succeeds (not blocked!)
+    const freshCodeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    const freshCode = JSON.parse(freshCodeRes.body).code;
+    const reEnrollRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...inst3, requestId: crypto.randomUUID(), pairingCode: freshCode },
+    });
+    assert.equal(reEnrollRes.statusCode, 200, reEnrollRes.body);
+    const reEnrollCreds = await completeManual(reEnrollRes);
+
+    // (6) & (9) Legitimate recovery of incomplete enrollment + concurrent recovery cannot duplicate devices
+    await conn.db.execute(sql`DELETE FROM parent_rate_limits`);
+    const inst4 = installation();
+    const fin4 = await reachFinalizing(inst4);
+    // Different installationId must NOT recover or receive credentials
+    const wrongInstRecover = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...inst4, installationId: crypto.randomUUID(), pairingCode: fin4.code },
+    });
+    assert.equal(wrongInstRecover.statusCode, 409);
+
+    // Concurrent recovery calls with same (installationId, requestId) and pair-status
+    const concurrentRecover = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        app.inject({
+          method: 'POST',
+          url: '/api/v1/child/pair',
+          payload: { ...inst4, pairingCode: fin4.code },
+        })
+      )
+    );
+    assert.ok(concurrentRecover.every((r: any) => r.statusCode === 200));
+    const recoveredSessionIds = new Set(concurrentRecover.map((r: any) => JSON.parse(r.body).sessionId));
+    assert.equal(recoveredSessionIds.size, 1);
+
+    const concurrentPolls = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        app.inject({
+          method: 'GET',
+          url: `/api/v1/child/pair-status/${fin4.sessionId}`,
+          headers: { 'x-polling-token': fin4.pollingToken },
+        })
+      )
+    );
+    assert.ok(concurrentPolls.every((r: any) => r.statusCode === 200));
+    const fin4Creds = JSON.parse(concurrentPolls[0].body);
+    assert.ok(concurrentPolls.every((r: any) => JSON.parse(r.body).deviceId === fin4Creds.deviceId));
+    const [devRows] = await conn.db.select({ count: count() }).from(childDevices)
+      .where(and(eq(childDevices.installationId, inst4.installationId), eq(childDevices.isUnpaired, false)));
+    assert.equal(devRows.count, 1, 'Concurrent recovery must not duplicate child_devices');
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${fin4.sessionId}`,
+      headers: { 'x-polling-token': fin4.pollingToken },
+    });
+
+    // (8) Verify existing paired device was NEVER affected
+    const existingCheck = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${existingCreds.deviceId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(existingCheck.statusCode, 200);
+
+    // Cleanup
+    for (const did of [existingCreds.deviceId, fin1.deviceId, fin2.deviceId, reEnrollCreds.deviceId, fin4Creds.deviceId]) {
+      await conn.db.delete(childDevices).where(eq(childDevices.id, did)).catch(() => {});
+    }
+  });
+
+  it('12. Stable binding-code concurrency & regeneration (all 7 scenarios)', async () => {
+    // Clear any existing pending manual codes for testParentId
+    await conn.db.update(pairingSessions)
+      .set({ status: 'canceled' })
+      .where(and(eq(pairingSessions.parentId, testParentId), eq(pairingSessions.status, 'pending')));
+
+    // (3) Malformed pair-code payloads rejected with 400
+    const bad1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: 'yes' },
+    });
+    assert.equal(bad1.statusCode, 400);
+    const bad2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: 123 },
+    });
+    assert.equal(bad2.statusCode, 400);
+
+    // (1) & (2) 10 concurrent /pair-code requests return exact same sessionId & code, and DB has only 1 active manual row
+    const concurrentCodes = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        app.inject({
+          method: 'POST',
+          url: '/api/v1/devices/pair-code',
+          headers: { authorization: `Bearer ${testParentAccessToken}` },
+        })
+      )
+    );
+    assert.ok(concurrentCodes.every((r: any) => r.statusCode === 200));
+    const codeSet = new Set(concurrentCodes.map((r: any) => JSON.parse(r.body).code));
+    const sessionSet = new Set(concurrentCodes.map((r: any) => JSON.parse(r.body).sessionId));
+    assert.equal(codeSet.size, 1, 'Concurrent /pair-code calls must return identical code');
+    assert.equal(sessionSet.size, 1, 'Concurrent /pair-code calls must return identical sessionId');
+    const firstCode = JSON.parse(concurrentCodes[0].body).code;
+    const firstSessionId = JSON.parse(concurrentCodes[0].body).sessionId;
+
+    const [activeManualCount] = await conn.db.select({ count: count() }).from(pairingSessions)
+      .where(and(
+        eq(pairingSessions.parentId, testParentId),
+        eq(pairingSessions.status, 'pending'),
+        sql`${pairingSessions.installationId} IS NULL`
+      ));
+    assert.equal(activeManualCount.count, 1);
+
+    // (6) Parent logout / re-login (new JWT) during valid enrollment still retrieves same code/sessionId
+    const newParentToken = jwt.sign(
+      { userId: testParentId, email: testParentEmail, role: 'parent', emailVerified: true },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const afterRelogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${newParentToken}` },
+    });
+    assert.equal(afterRelogin.statusCode, 200);
+    assert.equal(JSON.parse(afterRelogin.body).sessionId, firstSessionId);
+    assert.equal(JSON.parse(afterRelogin.body).code, firstCode);
+
+    // (4) Explicit regeneration invalidates previous code and issues a new one
+    const regenRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    assert.equal(regenRes.statusCode, 200);
+    const regenJson = JSON.parse(regenRes.body);
+    assert.notEqual(regenJson.sessionId, firstSessionId);
+    assert.notEqual(regenJson.code, firstCode);
+
+    // Old invalidated code cannot be used by child
+    const useOldCode = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: firstCode },
+    });
+    assert.equal(useOldCode.statusCode, 409);
+
+    // (5) Expired code renewal: expire the current code, then /pair-code issues a fresh one
+    await conn.db.update(pairingSessions)
+      .set({ expiresAt: new Date(Date.now() - 60000) })
+      .where(eq(pairingSessions.id, regenJson.sessionId));
+    const renewedRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(renewedRes.statusCode, 200);
+    const renewedJson = JSON.parse(renewedRes.body);
+    assert.notEqual(renewedJson.sessionId, regenJson.sessionId);
+
+    // (7) Adding another child after pairing; consumed code never authorizes a second device
+    const child1Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: renewedJson.code, deviceModel: 'Child 1' },
+    });
+    const child1Creds = await completeManual(child1Res);
+
+    // Consumed code cannot authorize a second device
+    const secondAttemptSameCode = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: renewedJson.code, deviceModel: 'Child 2 Rogue' },
+    });
+    assert.equal(secondAttemptSameCode.statusCode, 400);
+
+    // Parent can generate a new code and pair child 2
+    const code2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(code2Res.statusCode, 200);
+    const code2 = JSON.parse(code2Res.body).code;
+    const child2Res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: code2, deviceModel: 'Child 2' },
+    });
+    const child2Creds = await completeManual(child2Res);
+    assert.notEqual(child1Creds.deviceId, child2Creds.deviceId);
+
+    // Cleanup
+    await conn.db.delete(childDevices).where(eq(childDevices.id, child1Creds.deviceId)).catch(() => {});
+    await conn.db.delete(childDevices).where(eq(childDevices.id, child2Creds.deviceId)).catch(() => {});
+  });
+
+  it('13. Parent cancel, reject, and deviceModel metadata (Tasks 4 & 7)', async () => {
+    const codeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    const { code, sessionId } = JSON.parse(codeRes.body);
+
+    // Reject before any child connects returns 409
+    const rejectEmpty = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-reject',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId },
+    });
+    assert.equal(rejectEmpty.statusCode, 409);
+
+    // Child connects with deviceModel
+    const childRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: code, deviceModel: 'Samsung Galaxy A55' },
+    });
+    assert.equal(childRes.statusCode, 200);
+    const { pollingToken } = JSON.parse(childRes.body);
+
+    // Parent pair-status exposes deviceModel & approval flags
+    const parentStatus = JSON.parse((await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/pair-status/${sessionId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    })).body);
+    assert.equal(parentStatus.deviceModel, 'Samsung Galaxy A55');
+    assert.equal(parentStatus.status, 'waiting_for_parent');
+    assert.equal(parentStatus.parentApproved, false);
+    assert.equal(parentStatus.childConfirmed, false);
+
+    // Parent rejects child request
+    const rejectRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-reject',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId },
+    });
+    assert.equal(rejectRes.statusCode, 200);
+    assert.equal(JSON.parse(rejectRes.body).status, 'canceled');
+    assert.equal(JSON.parse(rejectRes.body).rejected, true);
+
+    // Child receives explicit 'canceled' status
+    const childStatus = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': pollingToken },
+    });
+    assert.equal(childStatus.statusCode, 200);
+    assert.equal(JSON.parse(childStatus.body).status, 'canceled');
+
+    // Canceled session can NEVER finalize later
+    const lateParentConfirm = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId, code },
+    });
+    assert.equal(lateParentConfirm.statusCode, 409);
+    const lateChildConfirm = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-confirm/${sessionId}`,
+      headers: { 'x-polling-token': pollingToken },
+    });
+    assert.equal(lateChildConfirm.statusCode, 409);
+
+    // Cannot cancel an already-completed device via pair-cancel
+    const codeRes2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    const { code: code2, sessionId: sessionId2 } = JSON.parse(codeRes2.body);
+    const childRes2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: { ...installation(), pairingCode: code2, deviceModel: 'Pixel 9' },
+    });
+    const creds2 = await completeManual(childRes2);
+    const cancelCompleted = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-cancel',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId: sessionId2 },
+    });
+    assert.equal(cancelCompleted.statusCode, 409);
+
+    await conn.db.delete(childDevices).where(eq(childDevices.id, creds2.deviceId)).catch(() => {});
+  });
 });

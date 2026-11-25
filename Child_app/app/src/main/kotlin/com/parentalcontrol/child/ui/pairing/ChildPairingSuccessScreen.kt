@@ -29,8 +29,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.parentalcontrol.child.network.AssociationCheckOutcome
 import com.parentalcontrol.child.network.ChildRestClient
 import com.parentalcontrol.child.storage.DeviceStorage
+import com.parentalcontrol.child.storage.SetupStage
 import kotlinx.coroutines.CancellationException
 
 @Composable
@@ -84,22 +86,45 @@ fun ChildPairingSuccessScreen(onSetup: () -> Unit) {
  * Does NOT start background monitoring services or telemetry.
  */
 @Composable
-fun InitialSetupScreen(storage: DeviceStorage) {
+fun InitialSetupScreen(
+    storage: DeviceStorage,
+    initialStage: SetupStage = SetupStage.STARTED,
+    onStageChanged: (SetupStage) -> Unit = { storage.setupStage = it },
+    onRevoked: (String) -> Unit = {}
+) {
     val context = LocalContext.current
     var retry by remember { mutableIntStateOf(0) }
-    var passed by remember { mutableStateOf<Boolean?>(null) }
+    var passed by remember { mutableStateOf<Boolean?>(if (initialStage == SetupStage.COMPLETED) true else null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(retry) {
+    LaunchedEffect(retry, initialStage) {
+        if (initialStage == SetupStage.COMPLETED && retry == 0) {
+            passed = true
+            return@LaunchedEffect
+        }
         passed = null
+        errorMessage = null
         val internet = ContextCompat.checkSelfPermission(context, Manifest.permission.INTERNET) ==
             PackageManager.PERMISSION_GRANTED
-        passed = try {
-            internet && storage.isPaired() && storage.getPendingPairAck() == null &&
-                ChildRestClient.instance.checkAssociation(storage)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
+        if (!internet || !storage.isPaired() || storage.getPendingPairAck() != null) {
+            onStageChanged(SetupStage.TEMPORARY_FAILURE)
+            errorMessage = "Check your internet connection and ask your guardian to verify the device association."
+            passed = false
+            return@LaunchedEffect
+        }
+        when (val outcome = ChildRestClient.instance.verifyAssociation(storage)) {
+            is AssociationCheckOutcome.Associated -> {
+                onStageChanged(SetupStage.COMPLETED)
+                passed = true
+            }
+            is AssociationCheckOutcome.TransientError -> {
+                onStageChanged(SetupStage.TEMPORARY_FAILURE)
+                errorMessage = outcome.message
+                passed = false
+            }
+            is AssociationCheckOutcome.RevokedOrInvalid -> {
+                onRevoked(outcome.message)
+            }
         }
     }
 
@@ -145,7 +170,7 @@ fun InitialSetupScreen(storage: DeviceStorage) {
                     color = Color(0xFFE53935)
                 )
                 Text(
-                    text = "Check your internet connection and ask your guardian to verify the device association.",
+                    text = errorMessage ?: "Check your internet connection and ask your guardian to verify the device association.",
                     textAlign = TextAlign.Center,
                     color = Color(0xFF64748B),
                     fontSize = 15.sp,

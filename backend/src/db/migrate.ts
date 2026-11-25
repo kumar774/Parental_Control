@@ -185,6 +185,9 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'column', table: 'system_app_settings', name: 'pairing_code_expiry_seconds' },
     { type: 'column', table: 'system_app_settings', name: 'parent_app_download_url' },
   ],
+  '0013_enrollment_lifecycle_and_concurrency.sql': [
+    { type: 'index', table: 'pairing_sessions', name: 'pairing_sessions_one_active_manual_code_per_parent' },
+  ],
 };
 
 export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {

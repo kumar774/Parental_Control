@@ -301,6 +301,7 @@ fun ParentAppMainContent(
     var lastPairedChildName by remember { mutableStateOf("Child") }
     var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
     var setupDeviceId by rememberSaveable { mutableStateOf("") }
+    var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(true) }
 
     // Persistent Screen Backstack History
     val screenBackstack = rememberSaveable(
@@ -412,6 +413,7 @@ fun ParentAppMainContent(
     fun navigateToAuthenticatedRoot() {
         isSessionAuthenticated = true
         navManager.hasAuthenticatedSession = true
+        allowAutoResumeOnboarding = true
         sessionRestorationManager.markSessionVerified()
         navManager.navigateToAuthenticatedRoot()
     }
@@ -426,6 +428,12 @@ fun ParentAppMainContent(
         isSessionAuthenticated = false
         navManager.hasAuthenticatedSession = false
         sessionRestorationManager.markSessionInvalidated()
+        activeChildId = ""
+        activeChildName = "Child"
+        lastPairedChildName = "Child"
+        lastPairedDeviceName = ""
+        setupDeviceId = ""
+        allowAutoResumeOnboarding = true
         mmkv.clearSession()
         FastifyRestClient.shared.accessToken = null
         FastifyRestClient.shared.refreshToken = null
@@ -1006,6 +1014,7 @@ fun ParentAppMainContent(
                 AppScreen.DEVICE_PAIRING -> {
                     DevicePairingScreen(
                         onNavigateBack = {
+                            allowAutoResumeOnboarding = false
                             currentScreen = AppScreen.MAIN_SHELL
                         },
                         onPairingSuccess = { id, model ->
@@ -1526,7 +1535,11 @@ fun ParentAppMainContent(
                 // Phase 10 Screens (Completing all 66 screens)
                 AppScreen.PAIRING_SUCCESS -> {
                     com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
-                        setupDeviceId, lastPairedDeviceName, 2, { currentScreen = AppScreen.MAIN_SHELL },
+                        setupDeviceId, lastPairedDeviceName, 2,
+                        {
+                            allowAutoResumeOnboarding = false
+                            currentScreen = AppScreen.MAIN_SHELL
+                        },
                         { currentScreen = AppScreen.CHILD_PROFILE_EDIT })
                 }
 
@@ -1774,7 +1787,9 @@ fun ParentAppMainContent(
                             },
                             onLogout = { showLogoutConfirmModal = true },
                             onTerms = { selectedLegalDocType = "terms"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
-                            onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL }
+                            onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
+                            allowAutoResumeOnboarding = allowAutoResumeOnboarding,
+                            onAutoResumeConsumed = { allowAutoResumeOnboarding = false }
                         )
                     }
                 }

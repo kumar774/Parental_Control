@@ -442,5 +442,16 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       assert.equal(res.statusCode, 401);
       await app.close();
     });
+
+    it('rejects unauthenticated pair-cancel, pair-reject, and child setup/ack with 401', async () => {
+      const app = await buildApp();
+      const r1 = await app.inject({ method: 'POST', url: '/api/v1/devices/pair-cancel', payload: { sessionId: '00000000-0000-0000-0000-000000000000' } });
+      const r2 = await app.inject({ method: 'POST', url: '/api/v1/devices/pair-reject', payload: { sessionId: '00000000-0000-0000-0000-000000000000' } });
+      const r3 = await app.inject({ method: 'POST', url: '/api/v1/child/setup/ack', payload: { sessionId: '00000000-0000-0000-0000-000000000000' } });
+      assert.equal(r1.statusCode, 401);
+      assert.equal(r2.statusCode, 401);
+      assert.equal(r3.statusCode, 401);
+      await app.close();
+    });
   });
 });

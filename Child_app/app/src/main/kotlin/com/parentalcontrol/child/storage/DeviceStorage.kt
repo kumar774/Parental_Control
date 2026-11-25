@@ -23,6 +23,13 @@ enum class PairingStatus {
     PAIRING_REQUIRES_REPAIR
 }
 
+enum class SetupStage {
+    NOT_STARTED,
+    STARTED,
+    COMPLETED,
+    TEMPORARY_FAILURE
+}
+
 data class PendingUnpair(
     val deviceId: String,
     val deviceToken: String,
@@ -56,9 +63,36 @@ class DeviceStorage internal constructor(
     val hasConsent: Boolean get() = prefs.getString("policy", null) == POLICY_VERSION &&
         acceptedAt != null && installationId != null
 
+    var setupStage: SetupStage
+        get() {
+            val raw = prefs.getString(KEY_SETUP_STAGE, null)
+            if (raw != null) {
+                return try {
+                    SetupStage.valueOf(raw)
+                } catch (_: Exception) {
+                    SetupStage.NOT_STARTED
+                }
+            }
+            return if (prefs.getBoolean("setupStarted", false)) SetupStage.STARTED else SetupStage.NOT_STARTED
+        }
+        set(value) {
+            check(
+                prefs.edit()
+                    .putString(KEY_SETUP_STAGE, value.name)
+                    .putBoolean("setupStarted", value != SetupStage.NOT_STARTED)
+                    .commit()
+            )
+        }
+
     var setupStarted: Boolean
-        get() = prefs.getBoolean("setupStarted", false)
-        set(value) { check(prefs.edit().putBoolean("setupStarted", value).commit()) }
+        get() = setupStage != SetupStage.NOT_STARTED
+        set(value) {
+            setupStage = if (value) {
+                if (setupStage == SetupStage.NOT_STARTED) SetupStage.STARTED else setupStage
+            } else {
+                SetupStage.NOT_STARTED
+            }
+        }
 
     fun enrollment(): Enrollment? {
         val id = prefs.getString("requestId", null) ?: return null
@@ -93,7 +127,7 @@ class DeviceStorage internal constructor(
         childName: String,
         refreshToken: String? = null
     ) {
-        val editor = prefs.edit().removeEnrollment().remove("setupStarted")
+        val editor = prefs.edit().removeEnrollment().remove("setupStarted").remove(KEY_SETUP_STAGE)
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
@@ -170,7 +204,7 @@ class DeviceStorage internal constructor(
         pollingToken: String,
         refreshToken: String? = null
     ) {
-        val editor = prefs.edit().removeEnrollment().remove("setupStarted")
+        val editor = prefs.edit().removeEnrollment().remove("setupStarted").remove(KEY_SETUP_STAGE)
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
@@ -187,7 +221,8 @@ class DeviceStorage internal constructor(
     }
 
     fun clearPairingSession() {
-        prefs.edit().removeEnrollment().remove("setupStarted").remove("policy").remove("acceptedAt")
+        prefs.edit().removeEnrollment().remove("setupStarted").remove(KEY_SETUP_STAGE)
+            .remove("policy").remove("acceptedAt")
             .remove(KEY_DEVICE_ID)
             .remove(KEY_DEVICE_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
@@ -206,7 +241,8 @@ class DeviceStorage internal constructor(
      * remain falsely paired.
      */
     fun markPairingRequiresRepair() {
-        prefs.edit().removeEnrollment().remove("setupStarted").remove("policy").remove("acceptedAt")
+        prefs.edit().removeEnrollment().remove("setupStarted").remove(KEY_SETUP_STAGE)
+            .remove("policy").remove("acceptedAt")
             .remove(KEY_DEVICE_ID)
             .remove(KEY_DEVICE_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
@@ -285,6 +321,7 @@ class DeviceStorage internal constructor(
         const val KEY_PARENT_ID = "parent_id"
         const val KEY_CHILD_NAME = "child_name"
         const val KEY_STATUS = "pairing_status"
+        const val KEY_SETUP_STAGE = "setup_stage"
         const val KEY_PAIRED_AT = "paired_at_epoch_ms"
         const val KEY_PENDING_ACK_SESSION_ID = "pending_ack_session_id"
         const val KEY_PENDING_ACK_POLLING_TOKEN = "pending_ack_polling_token"

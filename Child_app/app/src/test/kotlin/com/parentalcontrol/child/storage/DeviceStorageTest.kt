@@ -289,6 +289,76 @@ class DeviceStorageTest {
         assertTrue(deviceStorage.isPaired())
     }
 
+    @Test
+    fun testSetupStageLifecycleAndRestartRestoration() {
+        // 1. Unpaired default state
+        assertFalse(deviceStorage.isPaired())
+        assertEquals(SetupStage.NOT_STARTED, deviceStorage.setupStage)
+        assertFalse(deviceStorage.setupStarted)
+
+        // 2. Pending enrollment persisted across restart
+        deviceStorage.acceptPolicy()
+        deviceStorage.saveEnrollment(Enrollment("req-1", "123456789", sessionId = "sess-1", pollingToken = "poll-1"))
+        val afterEnrollmentRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertEquals("sess-1", afterEnrollmentRestart.enrollment()?.sessionId)
+
+        // 3. Credential ACK pending + Paired (setup not started)
+        afterEnrollmentRestart.savePairingSessionWithPendingAck(
+            deviceId = validDeviceId,
+            deviceToken = "tok-1",
+            parentId = validParentId,
+            childName = "Kid",
+            sessionId = "sess-1",
+            pollingToken = "poll-1",
+            refreshToken = "ref-1"
+        )
+        val afterAckRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertNotNull(afterAckRestart.getPendingPairAck())
+        assertTrue(afterAckRestart.isPaired())
+        assertEquals(SetupStage.NOT_STARTED, afterAckRestart.setupStage)
+
+        // 4. ACK cleared -> stays on SetupStage.NOT_STARTED across restart until Setup button clicked
+        afterAckRestart.clearPendingPairAck()
+        val afterSuccessRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertNull(afterSuccessRestart.getPendingPairAck())
+        assertTrue(afterSuccessRestart.isPaired())
+        assertEquals(SetupStage.NOT_STARTED, afterSuccessRestart.setupStage)
+
+        // 5. Explicit Setup click -> STARTED persisted and restored across restart
+        afterSuccessRestart.setupStage = SetupStage.STARTED
+        val afterStartedRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertTrue(afterStartedRestart.isPaired())
+        assertEquals(SetupStage.STARTED, afterStartedRestart.setupStage)
+        assertTrue(afterStartedRestart.setupStarted)
+
+        // 6. Temporary verification failure -> preserves pairing across restart
+        afterStartedRestart.setupStage = SetupStage.TEMPORARY_FAILURE
+        val afterTempFailureRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertTrue(afterTempFailureRestart.isPaired())
+        assertEquals(SetupStage.TEMPORARY_FAILURE, afterTempFailureRestart.setupStage)
+
+        // 7. Initial setup completed -> terminal state restored across restart
+        afterTempFailureRestart.setupStage = SetupStage.COMPLETED
+        val afterCompletedRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertTrue(afterCompletedRestart.isPaired())
+        assertEquals(SetupStage.COMPLETED, afterCompletedRestart.setupStage)
+
+        // 8. Confirmed invalid/revoked association -> PAIRING_REQUIRES_REPAIR, setupStage reset
+        afterCompletedRestart.markPairingRequiresRepair()
+        val afterRevokedRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertFalse(afterRevokedRestart.isPaired())
+        assertEquals(PairingStatus.PAIRING_REQUIRES_REPAIR, afterRevokedRestart.getSession().status)
+        assertEquals(SetupStage.NOT_STARTED, afterRevokedRestart.setupStage)
+    }
+
+    @Test
+    fun testLegacySetupStartedBooleanMigratesToStartedStage() {
+        mockSharedPreferences.edit().putBoolean("setupStarted", true).commit()
+        val restored = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertEquals(SetupStage.STARTED, restored.setupStage)
+        assertTrue(restored.setupStarted)
+    }
+
     // In-memory SharedPreferences test implementation
     private class MockSharedPreferences : SharedPreferences {
         private val data = ConcurrentHashMap<String, Any>()

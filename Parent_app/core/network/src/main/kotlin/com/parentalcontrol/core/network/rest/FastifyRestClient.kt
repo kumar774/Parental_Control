@@ -459,13 +459,14 @@ class FastifyRestClient(
         }
     }
 
-    suspend fun generatePairingCode(): Result<PairingCodeResponseDto> = withContext(Dispatchers.IO) {
+    suspend fun generatePairingCode(regenerate: Boolean = false): Result<PairingCodeResponseDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to generate pairing code"))
         }
         try {
-            val response = executePost("/api/v1/devices/pair-code", "{}", token)
+            val body = if (regenerate) JSONObject().put("regenerate", true).toString() else "{}"
+            val response = executePost("/api/v1/devices/pair-code", body, token)
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val code = json.getString("code")
@@ -557,7 +558,11 @@ class FastifyRestClient(
                     sessionId = json.getString("sessionId").also { require(it == sessionId) },
                     deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null,
                     childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null,
-                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" }
+                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" },
+                    childConfirmed = json.optBoolean("childConfirmed", false),
+                    parentApproved = json.optBoolean("parentApproved", false),
+                    expiresAt = json.optString("expiresAt").takeIf { it.isNotBlank() && it != "null" },
+                    deliveryExpiresAt = json.optString("deliveryExpiresAt").takeIf { it.isNotBlank() && it != "null" }
                 )
                 Result.success(dto)
             } else {
@@ -573,13 +578,76 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun cancelPairing(sessionId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to cancel pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        try {
+            val body = JSONObject().put("sessionId", trimmedId).toString()
+            val response = executePost("/api/v1/devices/pair-cancel", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(Unit)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to cancel pairing")
+                } catch (_: Exception) {
+                    "Unable to cancel pairing (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun rejectPairing(sessionId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to reject pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        try {
+            val body = JSONObject().put("sessionId", trimmedId).toString()
+            val response = executePost("/api/v1/devices/pair-reject", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(Unit)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to reject pairing request")
+                } catch (_: Exception) {
+                    "Unable to reject pairing request (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun getOnboarding(): Result<OnboardingDto> = withContext(Dispatchers.IO) {
         runCatching {
             val response = executeGet("/api/v1/devices/onboarding", accessToken)
             check(response.statusCode in 200..299) { "Could not load account setup." }
             val obj = JSONObject(response.body)
-            fun optional(key: String) = if (obj.isNull(key)) null else obj.getString(key)
-            OnboardingDto(obj.getBoolean("consentAccepted"), optional("pendingSessionId"), optional("pendingCode"), optional("expiresAt"))
+            fun optional(key: String) = if (!obj.has(key) || obj.isNull(key)) null else obj.getString(key)
+            OnboardingDto(
+                consentAccepted = obj.getBoolean("consentAccepted"),
+                pendingSessionId = optional("pendingSessionId"),
+                pendingCode = optional("pendingCode"),
+                expiresAt = optional("expiresAt"),
+                pendingStatus = optional("pendingStatus"),
+                pendingDeviceModel = optional("pendingDeviceModel")
+            )
         }
     }
 

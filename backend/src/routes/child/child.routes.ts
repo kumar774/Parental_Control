@@ -8,7 +8,7 @@ import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '.
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { requireChildDeviceAuth, ChildDeviceJwtPayload } from '../../middleware/child-auth.guard';
-import { enrollmentInput, bindingCode, startChild, childSession } from '../../services/enrollment.service';
+import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth } from '../../services/enrollment.service';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -55,12 +55,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     const body = z.object({sessionId:z.string().uuid()}).safeParse(request.body);
     if (!body.success) return reply.code(400).send({message:'Invalid session'});
     const device = request.childDevice!;
-    const [receipt] = await db.update(pairingSessions).set({acknowledgedAt:new Date(),pollingToken:null,issuedDeviceToken:null})
-      .where(and(eq(pairingSessions.id,body.data.sessionId),eq(pairingSessions.status,'paired'),
-        eq(pairingSessions.childDeviceId,device.id),eq(pairingSessions.parentId,device.parentId)))
-      .returning({sessionId:pairingSessions.id});
-    if (!receipt) return reply.code(404).send({message:'Receipt unavailable'});
-    return {status:'acknowledged',deviceId:device.id,parentId:device.parentId};
+    return ackChildWithDeviceAuth(device.id, device.parentId, body.data.sessionId);
   });
 
   app.get('/setup', {preHandler:[requireChildDeviceAuth]}, async request => ({
