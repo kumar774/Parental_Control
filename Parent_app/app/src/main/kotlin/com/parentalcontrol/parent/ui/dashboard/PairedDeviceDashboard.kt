@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -162,19 +163,27 @@ internal fun DeviceAvatar(id: Int, modifier: Modifier = Modifier) {
                     size = Size(w * 0.80f, w * 0.65f)
                 )
             }
-            1, 4, 5 -> {
-                // Pointed-ear character (Fox / Tiger / Cat)
-                drawCircle(accent, radius = w * 0.11f, center = Offset(w * 0.28f, w * 0.28f))
-                drawCircle(accent, radius = w * 0.11f, center = Offset(w * 0.72f, w * 0.28f))
-                drawCircle(accent, radius = w * 0.30f, center = Offset(w * 0.50f, w * 0.54f))
-                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.39f, w * 0.49f))
-                drawCircle(Color.White, radius = w * 0.055f, center = Offset(w * 0.61f, w * 0.49f))
-                drawCircle(Color(0xFF1F2937), radius = w * 0.03f, center = Offset(w * 0.50f, w * 0.58f))
-                drawArc(
-                    Color.White, 20f, 140f, false,
-                    Offset(w * 0.38f, w * 0.56f), Size(w * 0.24f, w * 0.16f),
-                    style = Stroke(w * 0.04f)
-                )
+            1 -> {
+                // Fox: pointed ears, contrasting muzzle and triangular nose.
+                drawPath(Path().apply { moveTo(w * .12f, w * .42f); lineTo(w * .18f, w * .08f); lineTo(w * .42f, w * .29f); close() }, accent)
+                drawPath(Path().apply { moveTo(w * .58f, w * .29f); lineTo(w * .82f, w * .08f); lineTo(w * .88f, w * .42f); close() }, accent)
+                drawCircle(accent, w * .34f, Offset(w * .50f, w * .53f))
+                drawCircle(Color(0xFFFFE4E6), w * .19f, Offset(w * .50f, w * .63f))
+                drawCircle(Color.White, w * .055f, Offset(w * .38f, w * .48f))
+                drawCircle(Color.White, w * .055f, Offset(w * .62f, w * .48f))
+                drawCircle(Color(0xFF1F2937), w * .028f, Offset(w * .38f, w * .48f))
+                drawCircle(Color(0xFF1F2937), w * .028f, Offset(w * .62f, w * .48f))
+                drawPath(Path().apply { moveTo(w * .46f, w * .60f); lineTo(w * .54f, w * .60f); lineTo(w * .50f, w * .66f); close() }, Color(0xFF7F1D1D))
+            }
+            2 -> {
+                // Penguin: dark body, white belly and a small orange beak.
+                drawOval(Color(0xFF334155), Offset(w * .20f, w * .12f), Size(w * .60f, w * .80f))
+                drawOval(Color.White, Offset(w * .30f, w * .48f), Size(w * .40f, w * .38f))
+                drawCircle(Color.White, w * .075f, Offset(w * .39f, w * .39f))
+                drawCircle(Color.White, w * .075f, Offset(w * .61f, w * .39f))
+                drawCircle(Color(0xFF0F172A), w * .032f, Offset(w * .40f, w * .39f))
+                drawCircle(Color(0xFF0F172A), w * .032f, Offset(w * .60f, w * .39f))
+                drawPath(Path().apply { moveTo(w * .44f, w * .49f); lineTo(w * .56f, w * .49f); lineTo(w * .50f, w * .58f); close() }, Color(0xFFF59E0B))
             }
             3 -> {
                 // Mane character (Lion)
@@ -187,6 +196,32 @@ internal fun DeviceAvatar(id: Int, modifier: Modifier = Modifier) {
                     Offset(w * 0.40f, w * 0.53f), Size(w * 0.20f, w * 0.13f),
                     style = Stroke(w * 0.035f)
                 )
+            }
+            4 -> {
+                // Tiger: orange head with dark forehead and cheek stripes.
+                drawCircle(accent, w * .34f, Offset(w * .5f, w * .53f))
+                drawCircle(Color(0xFFFFEDD5), w * .16f, Offset(w * .5f, w * .65f))
+                drawPath(Path().apply { moveTo(w * .34f, w * .27f); lineTo(w * .42f, w * .43f); lineTo(w * .31f, w * .41f); close() }, Color(0xFF7C2D12))
+                drawPath(Path().apply { moveTo(w * .66f, w * .27f); lineTo(w * .58f, w * .43f); lineTo(w * .69f, w * .41f); close() }, Color(0xFF7C2D12))
+                drawLine(Color(0xFF7C2D12), Offset(w * .5f, w * .22f), Offset(w * .5f, w * .39f), w * .055f)
+                drawLine(Color(0xFF7C2D12), Offset(w * .36f, w * .30f), Offset(w * .44f, w * .42f), w * .04f)
+                drawLine(Color(0xFF7C2D12), Offset(w * .64f, w * .30f), Offset(w * .56f, w * .42f), w * .04f)
+                drawCircle(Color(0xFF1F2937), w * .03f, Offset(w * .40f, w * .51f))
+                drawCircle(Color(0xFF1F2937), w * .03f, Offset(w * .60f, w * .51f))
+                drawCircle(Color(0xFF7C2D12), w * .03f, Offset(w * .5f, w * .63f))
+            }
+            5 -> {
+                // Cat: angular ears, whiskers and a pink nose.
+                drawPath(Path().apply { moveTo(w * .13f, w * .43f); lineTo(w * .20f, w * .12f); lineTo(w * .43f, w * .31f); close() }, accent)
+                drawPath(Path().apply { moveTo(w * .57f, w * .31f); lineTo(w * .80f, w * .12f); lineTo(w * .87f, w * .43f); close() }, accent)
+                drawRoundRect(accent, Offset(w * .18f, w * .30f), Size(w * .64f, w * .58f), CornerRadius(w * .28f, w * .28f))
+                drawCircle(Color.White, w * .05f, Offset(w * .39f, w * .49f))
+                drawCircle(Color.White, w * .05f, Offset(w * .61f, w * .49f))
+                drawCircle(Color(0xFF1F2937), w * .026f, Offset(w * .39f, w * .49f))
+                drawCircle(Color(0xFF1F2937), w * .026f, Offset(w * .61f, w * .49f))
+                drawPath(Path().apply { moveTo(w * .47f, w * .58f); lineTo(w * .53f, w * .58f); lineTo(w * .50f, w * .62f); close() }, Color(0xFFDB2777))
+                drawLine(Color.White, Offset(w * .26f, w * .62f), Offset(w * .42f, w * .64f), w * .018f)
+                drawLine(Color.White, Offset(w * .74f, w * .62f), Offset(w * .58f, w * .64f), w * .018f)
             }
             6 -> {
                 // Frog character
@@ -204,12 +239,15 @@ internal fun DeviceAvatar(id: Int, modifier: Modifier = Modifier) {
                 )
             }
             else -> {
-                // Penguin / Owl character
-                drawCircle(accent, radius = w * 0.32f, center = Offset(w * 0.50f, w * 0.54f))
-                drawCircle(Color.White, radius = w * 0.22f, center = Offset(w * 0.50f, w * 0.56f))
-                drawCircle(Color(0xFF1F2937), radius = w * 0.042f, center = Offset(w * 0.41f, w * 0.51f))
-                drawCircle(Color(0xFF1F2937), radius = w * 0.042f, center = Offset(w * 0.59f, w * 0.51f))
-                drawOval(Color(0xFFF59E0B), topLeft = Offset(w * 0.44f, w * 0.56f), size = Size(w * 0.12f, w * 0.08f))
+                // Owl: feather tufts, ringed eyes and a diamond-shaped beak.
+                drawPath(Path().apply { moveTo(w * .17f, w * .36f); lineTo(w * .24f, w * .12f); lineTo(w * .42f, w * .29f); close() }, accent)
+                drawPath(Path().apply { moveTo(w * .58f, w * .29f); lineTo(w * .76f, w * .12f); lineTo(w * .83f, w * .36f); close() }, accent)
+                drawOval(accent, Offset(w * .18f, w * .25f), Size(w * .64f, w * .67f))
+                drawCircle(Color.White, w * .18f, Offset(w * .39f, w * .48f))
+                drawCircle(Color.White, w * .18f, Offset(w * .61f, w * .48f))
+                drawCircle(Color(0xFF1F2937), w * .07f, Offset(w * .39f, w * .48f))
+                drawCircle(Color(0xFF1F2937), w * .07f, Offset(w * .61f, w * .48f))
+                drawPath(Path().apply { moveTo(w * .45f, w * .61f); lineTo(w * .55f, w * .61f); lineTo(w * .5f, w * .72f); close() }, Color(0xFFF59E0B))
             }
         }
     }

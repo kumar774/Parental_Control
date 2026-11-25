@@ -147,7 +147,11 @@ fun PairedDeviceSetup(deviceId: String, model: String, step: Int, onBack: () -> 
             PurpleCapsuleButton(
                 text = "Open child's app",
                 onClick = {
-                    val launch = listOf("com.parentalcontrol.child", "com.parentalcontrol.child.debug")
+                    val launch = listOf(
+                        "com.parentalcontrol.child",
+                        "com.parentalcontrol.child.debug",
+                        "com.parentalcontrol.child.debug.proof"
+                    )
                         .firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
                     if (launch == null || runCatching { context.startActivity(launch) }.isFailure) {
                         openGuide = true
