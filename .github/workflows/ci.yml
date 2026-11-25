@@ -49,21 +49,26 @@ jobs:
           ADMIN_PASS=$(openssl rand -hex 24)
           ARCHIVE_PASS=$(openssl rand -hex 24)
           ATTESTATION_PASS=$(openssl rand -hex 24)
+          TEST_ADMIN_PASS=$(openssl rand -hex 24)
+          TEST_RUN_ID=$(node -e "console.log(require('crypto').randomUUID())")
 
           # Mask all generated credentials in runner logs
           echo "::add-mask::$MIGRATOR_PASS"
           echo "::add-mask::$ADMIN_PASS"
           echo "::add-mask::$ARCHIVE_PASS"
           echo "::add-mask::$ATTESTATION_PASS"
+          echo "::add-mask::$TEST_ADMIN_PASS"
 
           # Export to GITHUB_ENV for use across subsequent job steps
           echo "CI_MIGRATOR_PASS=$MIGRATOR_PASS" >> $GITHUB_ENV
           echo "CI_ADMIN_PASS=$ADMIN_PASS" >> $GITHUB_ENV
           echo "CI_ARCHIVE_PASS=$ARCHIVE_PASS" >> $GITHUB_ENV
           echo "CI_ATTESTATION_PASS=$ATTESTATION_PASS" >> $GITHUB_ENV
+          echo "CI_TEST_ADMIN_PASS=$TEST_ADMIN_PASS" >> $GITHUB_ENV
+          echo "AUTH001_TEST_DATABASE_RUN_ID=$TEST_RUN_ID" >> $GITHUB_ENV
 
           # Ephemeral loopback connection URL using container trust-authentication (no hardcoded password)
-          echo "DATABASE_URL=postgres://ci_test_user@127.0.0.1:5432/auth001_ci_disposable_test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgres://auth001_test_admin:$TEST_ADMIN_PASS@127.0.0.1:5432/auth001_ci_disposable_test" >> $GITHUB_ENV
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -83,15 +88,6 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
-      - name: Run Cryptographic Unit & Mock Tests
-        working-directory: backend
-        env:
-          NODE_ENV: test
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
-        run: npm run test
-
       - name: Bootstrap Section 8.6 Roles (Superuser Step)
         working-directory: backend
         run: |
@@ -101,6 +97,22 @@ jobs:
             -v archive_password="$CI_ARCHIVE_PASS" \
             -v attestation_password="$CI_ATTESTATION_PASS" \
             -f drizzle/bootstrap_roles.sql
+
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -v test_admin_password="$CI_TEST_ADMIN_PASS" <<'SQL'
+          CREATE ROLE auth001_test_admin LOGIN CREATEDB CREATEROLE PASSWORD :'test_admin_password';
+          GRANT pg_monitor TO auth001_test_admin;
+          GRANT parental_audit_pruner TO auth001_test_admin WITH ADMIN OPTION;
+          GRANT parental_migrator TO auth001_test_admin WITH ADMIN OPTION;
+          REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+          ALTER DATABASE auth001_ci_disposable_test OWNER TO auth001_test_admin;
+          SQL
+
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -c "COMMENT ON DATABASE auth001_ci_disposable_test IS 'codex-test-run:$AUTH001_TEST_DATABASE_RUN_ID';"
+
+          SERVER_ID=$(psql -h 127.0.0.1 -p 5432 -U auth001_test_admin -d auth001_ci_disposable_test -Atc 'SELECT system_identifier::text FROM pg_control_system()')
+          echo "AUTH001_TEST_SERVER_ID=$SERVER_ID" >> $GITHUB_ENV
 
       - name: Apply AUTH-001 Migrations as parental_migrator (Section 8.6)
         working-directory: backend
@@ -121,6 +133,16 @@ jobs:
         working-directory: backend
         run: |
           psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "REVOKE parental_audit_pruner FROM parental_migrator;"
+          psql -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO auth001_test_admin; GRANT ALL ON SCHEMA public TO auth001_test_admin;"
+
+      - name: Run Cryptographic Unit & Mock Tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+        run: npm run test
 
       - name: Run Genuine PostgreSQL Integration Test Suite (No pg-mem)
         working-directory: backend
@@ -129,6 +151,11 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           AUTH001_TEST_DATABASE_NAME: auth001_ci_disposable_test
           AUTH001_TEST_DATABASE_PORT: "5432"
+          AUTH001_TEST_DATABASE_ROLE: auth001_test_admin
+          AUTH001_TEST_MIGRATOR_ROLE: parental_migrator
+          AUTH001_TEST_DATABASE_OWNER: auth001_test_admin
+          AUTH001_TEST_DATABASE_RUN_ID: ${{ env.AUTH001_TEST_DATABASE_RUN_ID }}
+          AUTH001_TEST_SERVER_ID: ${{ env.AUTH001_TEST_SERVER_ID }}
           AUTH001_ADMIN_ROLE_PASSWORD: ${{ env.CI_ADMIN_PASS }}
           AUTH001_ARCHIVE_ROLE_PASSWORD: ${{ env.CI_ARCHIVE_PASS }}
           AUTH001_ATTESTATION_ROLE_PASSWORD: ${{ env.CI_ATTESTATION_PASS }}
@@ -217,3 +244,4 @@ jobs:
       - name: Build Child Android Debug APK
         working-directory: Child_app
         run: ./gradlew assembleDebug
+
