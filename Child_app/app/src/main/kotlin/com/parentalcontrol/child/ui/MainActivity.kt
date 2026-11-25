@@ -1,136 +1,78 @@
 package com.parentalcontrol.child.ui
 
-import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import com.parentalcontrol.child.network.AckRetryResult
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.parentalcontrol.child.network.PairAckRetryManager
-import com.parentalcontrol.child.service.ChildMonitoringService
-import com.parentalcontrol.child.storage.DeviceSession
 import com.parentalcontrol.child.storage.DeviceStorage
-import com.parentalcontrol.child.ui.home.ChildHomeScreen
-import com.parentalcontrol.child.ui.pairing.ChildPairingSuccessScreen
-import com.parentalcontrol.child.ui.pairing.ConnectToParentScreen
-import com.parentalcontrol.child.ui.pairing.KidConsentScreen
-import com.parentalcontrol.child.ui.pairing.KidDeviceSelectScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.parentalcontrol.child.ui.pairing.*
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
-
-    private lateinit var storage: DeviceStorage
-
-    private val _sessionState = MutableStateFlow<DeviceSession?>(null)
-    val sessionState: StateFlow<DeviceSession?> = _sessionState.asStateFlow()
-
-    private val _isPairedState = MutableStateFlow(false)
-    val isPairedState: StateFlow<Boolean> = _isPairedState.asStateFlow()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (com.parentalcontrol.child.BuildConfig.DEBUG) {
-            com.parentalcontrol.child.network.ChildRestClient.instance.baseUrl =
-                com.parentalcontrol.child.network.ChildRestClient.DEFAULT_BASE_URL
-        } else {
-            com.parentalcontrol.child.network.ChildRestClient.instance.baseUrl =
-                com.parentalcontrol.child.network.ChildRestClient.PROD_BASE_URL
-        }
-        storage = DeviceStorage.getInstance(applicationContext)
-
-        // Initialize reactive states from storage
-        refreshStateFromStorage()
-
-        // Reactive check and retry of pending pairing acknowledgment on startup
-        checkAndRetryPendingAck()
-
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        val storage = DeviceStorage.getInstance(applicationContext)
         setContent {
-            val reactiveSession by sessionState.collectAsState()
-            val isPaired by isPairedState.collectAsState()
-            val currentSession = reactiveSession ?: storage.getSession()
-
-            var onboardingStep by remember { mutableIntStateOf(0) }
-
-            if (isPaired && currentSession != null) {
-                // Milestone scope: terminal pairing success screen
-                // Post-pairing monitoring, heartbeat worker, and background services remain inactive
-                ChildPairingSuccessScreen(
-                    session = currentSession,
-                    onUnpairClick = {
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            PairAckRetryManager.unpair(this@MainActivity, storage)
-                            withContext(Dispatchers.Main) {
-                                refreshStateFromStorage()
-                                onboardingStep = 0
+            MaterialTheme(colorScheme = lightColorScheme(primary = FlashGetPurple)) {
+                var splash by rememberSaveable { mutableStateOf(true) }
+                var step by rememberSaveable { mutableIntStateOf(if (storage.hasConsent) 2 else 0) }
+                var pendingAck by remember { mutableStateOf(storage.getPendingPairAck() != null) }
+                var paired by remember { mutableStateOf(storage.isPaired()) }
+                var setup by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    if (splash) { delay(500); splash = false }
+                }
+                when {
+                    splash -> CenteredStatus("Guardian Kids")
+                    pendingAck -> {
+                        CenteredStatus("Finishing your connection…")
+                        LaunchedEffect(Unit) {
+                            while (storage.getPendingPairAck() != null) {
+                                PairAckRetryManager.retryPendingAckIfNeeded(this@MainActivity, storage)
+                                if (storage.getPendingPairAck() != null) delay(6000)
                             }
+                            paired = storage.isPaired()
+                            pendingAck = false
                         }
                     }
-                )
-            } else {
-                when (onboardingStep) {
-                    0 -> KidDeviceSelectScreen(
-                        onSelectKidDevice = { onboardingStep = 1 }
-                    )
-                    1 -> KidConsentScreen(
-                        onAgreeClick = { onboardingStep = 2 }
-                    )
-                    else -> ConnectToParentScreen(
-                        onNavigateBack = { onboardingStep = 1 },
-                        onPairingSuccess = { _, _ ->
-                            refreshStateFromStorage()
-                        }
-                    )
+                    paired && setup -> {
+                        BackHandler { setup = false }
+                        InitialSetupScreen(storage)
+                    }
+                    paired -> ChildPairingSuccessScreen {
+                        storage.setupStarted = true
+                        setup = true
+                    }
+                    step == 2 && storage.hasConsent -> ConnectToParentScreen(
+                        onNavigateBack = { step = 1 },
+                        onCredentialsStored = { pendingAck = true })
+                    step == 1 -> {
+                        BackHandler { step = 0 }
+                        KidConsentScreen(onAgreeClick = { storage.acceptPolicy(); step = 2 }, onBack = { step = 0 })
+                    }
+                    else -> KidDeviceSelectScreen(onSelectKidDevice = { step = 1 })
                 }
             }
         }
     }
+}
 
-    override fun onResume() {
-        super.onResume()
-        if (::storage.isInitialized) {
-            refreshStateFromStorage()
-            checkAndRetryPendingAck()
-        }
-    }
-
-    /**
-     * Synchronizes reactive StateFlow values with physical storage state.
-     */
-    fun refreshStateFromStorage() {
-        val paired = storage.isPaired()
-        val session = storage.getSession()
-        _isPairedState.value = paired
-        _sessionState.value = session
-    }
-
-    /**
-     * Executes pending ACK retry and atomically updates reactive UI states upon completion.
-     */
-    fun checkAndRetryPendingAck() {
-        if (storage.getPendingPairAck() != null) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val outcome = PairAckRetryManager.retryPendingAckIfNeeded(this@MainActivity, storage)
-                withContext(Dispatchers.Main) {
-                    refreshStateFromStorage()
-                }
-            }
-        }
-    }
-
-    companion object {
-        private const val TAG = "MainActivity"
+@Composable
+private fun CenteredStatus(title: String) {
+    Column(Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
+        CircularProgressIndicator()
     }
 }

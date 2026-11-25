@@ -6,6 +6,17 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
+data class Enrollment(
+    val requestId: String,
+    val code: String?,
+    val sessionId: String? = null,
+    val pollingToken: String? = null,
+    val expiresAt: Long = 0L,
+    val qr: String? = null,
+    val maskedEmail: String? = null,
+    val confirmed: Boolean = false
+)
+
 enum class PairingStatus {
     UNPAIRED,
     PAIRED,
@@ -33,6 +44,44 @@ class DeviceStorage internal constructor(
 ) {
     private val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
+    fun acceptPolicy() {
+        check(prefs.edit().putString("policy", POLICY_VERSION)
+            .putString("acceptedAt", java.time.Instant.now().toString())
+            .putString("installation", installationId ?: java.util.UUID.randomUUID().toString())
+            .commit())
+    }
+
+    val installationId: String? get() = prefs.getString("installation", null)
+    val acceptedAt: String? get() = prefs.getString("acceptedAt", null)
+    val hasConsent: Boolean get() = prefs.getString("policy", null) == POLICY_VERSION &&
+        acceptedAt != null && installationId != null
+
+    var setupStarted: Boolean
+        get() = prefs.getBoolean("setupStarted", false)
+        set(value) { check(prefs.edit().putBoolean("setupStarted", value).commit()) }
+
+    fun enrollment(): Enrollment? {
+        val id = prefs.getString("requestId", null) ?: return null
+        return Enrollment(id, prefs.getString("code", null), prefs.getString("sid", null),
+            prefs.getString("poll", null), prefs.getLong("expiry", 0),
+            prefs.getString("qr", null), prefs.getString("email", null), prefs.getBoolean("confirmed", false))
+    }
+
+    fun saveEnrollment(value: Enrollment) {
+        check(hasConsent)
+        check(prefs.edit().putString("requestId", value.requestId)
+            .putString("code", value.code).putString("sid", value.sessionId)
+            .putString("poll", value.pollingToken).putLong("expiry", value.expiresAt)
+            .putString("qr", value.qr).putString("email", value.maskedEmail)
+            .putBoolean("confirmed", value.confirmed).commit())
+    }
+
+    private fun SharedPreferences.Editor.removeEnrollment() = remove("requestId")
+        .remove("code").remove("sid").remove("poll").remove("expiry").remove("qr")
+        .remove("email").remove("confirmed")
+
+    fun clearEnrollment() { check(prefs.edit().removeEnrollment().commit()) }
+
     fun isValidUuid(value: String?): Boolean {
         return !value.isNullOrBlank() && uuidRegex.matches(value)
     }
@@ -44,7 +93,7 @@ class DeviceStorage internal constructor(
         childName: String,
         refreshToken: String? = null
     ) {
-        val editor = prefs.edit()
+        val editor = prefs.edit().removeEnrollment().remove("setupStarted")
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
@@ -55,7 +104,7 @@ class DeviceStorage internal constructor(
         if (!refreshToken.isNullOrBlank()) {
             editor.putString(KEY_REFRESH_TOKEN, refreshToken)
         }
-        editor.apply()
+        check(editor.commit())
     }
 
     fun updateTokens(deviceToken: String, refreshToken: String? = null) {
@@ -63,7 +112,7 @@ class DeviceStorage internal constructor(
         if (!refreshToken.isNullOrBlank()) {
             editor.putString(KEY_REFRESH_TOKEN, refreshToken)
         }
-        editor.apply()
+        check(editor.commit())
     }
 
     fun getSession(): DeviceSession {
@@ -121,7 +170,7 @@ class DeviceStorage internal constructor(
         pollingToken: String,
         refreshToken: String? = null
     ) {
-        val editor = prefs.edit()
+        val editor = prefs.edit().removeEnrollment().remove("setupStarted")
             .putString(KEY_DEVICE_ID, deviceId)
             .putString(KEY_DEVICE_TOKEN, deviceToken)
             .putString(KEY_PARENT_ID, parentId)
@@ -134,11 +183,11 @@ class DeviceStorage internal constructor(
         if (!refreshToken.isNullOrBlank()) {
             editor.putString(KEY_REFRESH_TOKEN, refreshToken)
         }
-        editor.apply()
+        check(editor.commit())
     }
 
     fun clearPairingSession() {
-        prefs.edit()
+        prefs.edit().removeEnrollment().remove("setupStarted").remove("policy").remove("acceptedAt")
             .remove(KEY_DEVICE_ID)
             .remove(KEY_DEVICE_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
@@ -157,7 +206,7 @@ class DeviceStorage internal constructor(
      * remain falsely paired.
      */
     fun markPairingRequiresRepair() {
-        prefs.edit()
+        prefs.edit().removeEnrollment().remove("setupStarted").remove("policy").remove("acceptedAt")
             .remove(KEY_DEVICE_ID)
             .remove(KEY_DEVICE_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
@@ -182,10 +231,10 @@ class DeviceStorage internal constructor(
     }
 
     fun clearPendingPairAck() {
-        prefs.edit()
+        check(prefs.edit()
             .remove(KEY_PENDING_ACK_SESSION_ID)
             .remove(KEY_PENDING_ACK_POLLING_TOKEN)
-            .apply()
+            .commit())
     }
 
     fun markPendingUnpair(deviceId: String, deviceToken: String, refreshToken: String? = null) {
@@ -197,7 +246,7 @@ class DeviceStorage internal constructor(
         } else {
             editor.remove(KEY_PENDING_UNPAIR_REFRESH_TOKEN)
         }
-        editor.apply()
+        check(editor.commit())
     }
 
     fun getPendingUnpair(): PendingUnpair? {
@@ -226,6 +275,7 @@ class DeviceStorage internal constructor(
     }
 
     companion object {
+        const val POLICY_VERSION = "v1.0"
         private const val TAG = "DeviceStorage"
         private const val PREFS_NAME = "child_device_secure_prefs"
 

@@ -1,6 +1,10 @@
 package com.parentalcontrol.child.ui.pairing
 
 import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.parentalcontrol.child.network.ChildRestClient
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -56,11 +60,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val FlashGetPurple = Color(0xFF6C5CE7)
-val FlashGetLightPurple = Color(0xFFF1F0FF)
+val BrandPurple = Color(0xFF6C5CE7)
+val BrandLightPurple = Color(0xFFF1F0FF)
+val FlashGetPurple = BrandPurple
+val FlashGetLightPurple = BrandLightPurple
 
 /**
- * FlashGet Kids Style Screen 1: Device Role Selection ("Whose device is this?")
+ * Child Guard Screen 1: Device Role Selection ("Whose device is this?")
  */
 @Composable
 fun KidDeviceSelectScreen(
@@ -68,6 +74,8 @@ fun KidDeviceSelectScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var fetching by remember { mutableStateOf(false) }
     var showParentDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -79,28 +87,9 @@ fun KidDeviceSelectScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top right menu
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = 16.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            IconButton(onClick = {
-                Toast.makeText(context, "Parental Control Kids Companion v1.0.0", Toast.LENGTH_SHORT).show()
-            }) {
-                Icon(
-                    imageVector = Icons.Default.MoreHoriz,
-                    contentDescription = "Options",
-                    tint = FlashGetPurple,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // FlashGet Kids Style Cute Illustration (Hand holding phone with link & bubbles)
+        // Cute Illustration (Hand holding phone with link & bubbles)
         FlashGetPhoneHeroIllustration()
 
         Spacer(modifier = Modifier.height(48.dp))
@@ -164,16 +153,17 @@ fun KidDeviceSelectScreen(
     if (showParentDialog) {
         AlertDialog(
             onDismissRequest = { showParentDialog = false },
+            icon = { Icon(Icons.Default.Home, null, tint = FlashGetPurple) },
             title = {
                 Text(
-                    text = "Parent's Device Notice",
+                    text = "Download the Parent App",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B)
                 )
             },
             text = {
                 Text(
-                    text = "This is the Child Companion App designed to run on your child's phone.\n\nTo supervise and control this device, please open or install Parental Control (Parent App) on your phone.",
+                    text = "Use the Parent App on your phone to approve and manage device connections.",
                     color = Color(0xFF475569),
                     fontSize = 14.sp
                 )
@@ -181,18 +171,25 @@ fun KidDeviceSelectScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        showParentDialog = false
-                        // Attempt to launch Parent App if installed
-                        val launchIntent = context.packageManager.getLaunchIntentForPackage("com.parentalcontrol.parent")
-                        if (launchIntent != null) {
-                            context.startActivity(launchIntent)
-                        } else {
-                            Toast.makeText(context, "Parent App is not installed on this device.", Toast.LENGTH_LONG).show()
+                        if (!fetching) {
+                            fetching = true
+                            scope.launch {
+                                try {
+                                    val url = ChildRestClient.instance.parentDownloadUrl()
+                                    if (url != null) {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+                                        showParentDialog = false
+                                    } else Toast.makeText(context, "The download link is unavailable.", Toast.LENGTH_LONG).show()
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "Check your internet connection and installed browser.", Toast.LENGTH_LONG).show()
+                                } finally { fetching = false }
+                            }
                         }
                     },
+                    enabled = !fetching,
                     colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
                 ) {
-                    Text("Open Parent App")
+                    Text(if (fetching) "Checking download?" else "Download Parent App")
                 }
             },
             dismissButton = {

@@ -1,13 +1,15 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { eq, desc } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import { db } from '../../db/index';
 import { parentConsents } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
+import { consentFor, consentType, policyVersion } from '../../services/enrollment.service';
+
 const recordConsentSchema = z.object({
-  consentType: z.string().trim().min(1).max(64).default('parental_supervision'),
-  policyVersion: z.string().trim().min(1).max(32).default('v1.0'),
+  consentType: z.literal(consentType),
+  policyVersion: z.literal(policyVersion),
 });
 
 export const parentConsentRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
@@ -67,7 +69,7 @@ export const parentConsentRoutes: FastifyPluginAsync = async (app: FastifyInstan
     const [latestConsent] = await db
       .select()
       .from(parentConsents)
-      .where(eq(parentConsents.parentId, parent.id))
+      .where(consentFor(parent.id))
       .orderBy(desc(parentConsents.consentedAt))
       .limit(1);
 

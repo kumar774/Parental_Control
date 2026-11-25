@@ -5,13 +5,13 @@ import { buildApp } from '../../src/app';
 import { pool } from '../../src/db/index';
 import { env } from '../../src/config/env';
 import {
-  getAppSettings,
   getAppSettingsStrict,
   getPublicAppSettings,
   updateAppSettings,
   setAppSettingsMockForTest,
   resetAppSettingsForTest,
   DEFAULT_APP_SETTINGS,
+  isTrustedDownloadUrl,
 } from '../../src/services/app-settings.service';
 import {
   verifyGoogleIdToken,
@@ -22,6 +22,7 @@ import { parseGoogleIdToken } from '../../src/routes/parent/auth.routes';
 
 describe('Pairing & App Settings Security Unit Tests', () => {
   beforeEach(async () => {
+    env.MOBILE_DOWNLOAD_ORIGINS = 'https://download.example.com';
     await resetAppSettingsForTest();
     setGoogleTokenVerifierForTest(null);
   });
@@ -33,10 +34,12 @@ describe('Pairing & App Settings Security Unit Tests', () => {
   describe('1. App Settings Service & Public Config', () => {
     it('returns default public app settings when unconfigured', async () => {
       let mockSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: null,
-        childAppDownloadUrl: 'https://download.guardian.io/child-app-latest.apk',
+        childAppDownloadUrl: null,
         childAppLatestVersion: '1.0.0',
         childAppMinVersion: '1.0.0',
         updatedBy: null,
@@ -47,17 +50,27 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       const publicSettings = await getPublicAppSettings();
       assert.equal(publicSettings.googleAuthEnabled, false);
       assert.equal(publicSettings.googleClientId, null);
-      assert.equal(publicSettings.childAppDownloadUrl, 'https://download.guardian.io/child-app-latest.apk');
+      assert.equal(publicSettings.childAppDownloadUrl, null);
       assert.equal(publicSettings.childAppLatestVersion, '1.0.0');
       assert.equal(publicSettings.childAppMinVersion, '1.0.0');
     });
 
+    it('checks distribution origins, credentials and scheme before publishing a download', () => {
+      assert.equal(isTrustedDownloadUrl('https://download.example.com/child.apk'), true);
+      for (const url of ['http://download.example.com/app', 'https://download.example.com.other.test/app',
+        'https://user@download.example.com/app', 'https://download.example.com/app?token=test']) {
+        assert.equal(isTrustedDownloadUrl(url), false);
+      }
+    });
+
     it('updates app settings and reflects in public response', async () => {
       let mockSettings = {
+        ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: null,
-        childAppDownloadUrl: 'https://download.guardian.io/child-app-latest.apk',
+        childAppDownloadUrl: null,
         childAppLatestVersion: '1.0.0',
         childAppMinVersion: '1.0.0',
         updatedBy: null,
@@ -82,7 +95,7 @@ describe('Pairing & App Settings Security Unit Tests', () => {
         {
           googleAuthEnabled: true,
           googleClientId: 'google-client-id-12345.apps.googleusercontent.com',
-          childAppDownloadUrl: 'https://download.guardian.io/child-app-v2.apk',
+          childAppDownloadUrl: 'https://download.example.com/child-app-v2.apk',
           childAppLatestVersion: '2.0.0',
           childAppMinVersion: '1.5.0',
         },
@@ -96,13 +109,15 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       const publicSettings = await getPublicAppSettings();
       assert.equal(publicSettings.googleAuthEnabled, true);
       assert.equal(publicSettings.googleClientId, 'google-client-id-12345.apps.googleusercontent.com');
-      assert.equal(publicSettings.childAppDownloadUrl, 'https://download.guardian.io/child-app-v2.apk');
+      assert.equal(publicSettings.childAppDownloadUrl, 'https://download.example.com/child-app-v2.apk');
     });
 
     it('rejects enabling googleAuthEnabled when googleClientId is missing or empty', async () => {
       setAppSettingsMockForTest(
         async () => ({
-          id: 'default',
+          ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
+        id: 'default',
           googleAuthEnabled: false,
           googleClientId: null,
           childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
@@ -116,7 +131,9 @@ describe('Pairing & App Settings Security Unit Tests', () => {
             throw new Error('Google Client ID is required to enable Google Authentication');
           }
           return {
-            id: 'default',
+            ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
+        id: 'default',
             googleAuthEnabled: true,
             googleClientId: data.googleClientId || null,
             childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
@@ -147,6 +164,8 @@ describe('Pairing & App Settings Security Unit Tests', () => {
 
     it('redacts googleClientId from public config when googleAuthEnabled is false', async () => {
       setAppSettingsMockForTest(async () => ({
+        ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: 'secret-client-id.apps.googleusercontent.com',
@@ -215,6 +234,8 @@ describe('Pairing & App Settings Security Unit Tests', () => {
   describe('2. Public App Config HTTP Endpoint', () => {
     it('GET /api/v1/config/app-settings returns 200 with public settings payload', async () => {
       setAppSettingsMockForTest(async () => ({
+        ...DEFAULT_APP_SETTINGS,
+        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: true,
         googleClientId: 'test-client-id.apps.googleusercontent.com',

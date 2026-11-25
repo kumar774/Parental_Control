@@ -4,12 +4,15 @@ import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { emailService } from '../../services/email/index';
 import { db } from '../../db/index';
 import { adminControlAuditLogs } from '../../db/schema/parental-control';
-import { getAppSettingsStrict, updateAppSettings } from '../../services/app-settings.service';
+import { InvalidAppSettings, getAppSettingsStrict, updateAppSettings } from '../../services/app-settings.service';
 
 const appSettingsConfigSchema = z.object({
   googleAuthEnabled: z.boolean().optional(),
   googleClientId: z.string().trim().nullable().optional(),
-  childAppDownloadUrl: z.string().trim().url('Child App download URL must be a valid URL').optional(),
+  registrationEnabled: z.boolean().optional(),
+  pairingCodeExpirySeconds: z.number().int().min(60).max(3600).optional(),
+  childAppDownloadUrl: z.string().trim().url().nullable().optional(),
+  parentAppDownloadUrl: z.string().trim().url().nullable().optional(),
   childAppLatestVersion: z.string().trim().min(1).optional(),
   childAppMinVersion: z.string().trim().min(1).optional(),
 });
@@ -106,6 +109,7 @@ export const adminSettingsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         settings: updated,
       });
     } catch (err: any) {
+      if (err instanceof InvalidAppSettings) return reply.status(400).send({ message: err.message });
       request.log.error({ err }, 'Failed to atomically update application settings and audit log');
       return reply.status(500).send({
         statusCode: 500,

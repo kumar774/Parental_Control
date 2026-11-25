@@ -48,7 +48,7 @@ class NetworkAndWebSocketSyncUnitTest {
                 fullUrl.endsWith("/api/v1/devices/pair-code") -> {
                     FastifyRestClient.HttpResponse(
                         200,
-                        """{"code":"654321","qrPayload":"pc-pair:654321:1700000000","expiresInSeconds":300}"""
+                        """{"code":"654321987","sessionId":"ff9fa048-909b-42d7-9fc4-eb146db035fb","expiresAt":"2026-12-01T00:00:00Z"}"""
                     )
                 }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
@@ -65,8 +65,8 @@ class NetworkAndWebSocketSyncUnitTest {
         val pairingResult = client.generatePairingCode()
         assertTrue(pairingResult.isSuccess)
         val pairing = pairingResult.getOrThrow()
-        assertEquals(6, pairing.pairingCode.length)
-        assertTrue(pairing.qrPayload.contains("pc-pair"))
+        assertEquals("654321987", pairing.pairingCode)
+        assertEquals("ff9fa048-909b-42d7-9fc4-eb146db035fb", pairing.sessionId)
     }
 
     @Test

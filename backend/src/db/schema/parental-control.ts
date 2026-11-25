@@ -9,6 +9,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -56,6 +57,11 @@ export const childDevices = pgTable(
       .references(() => parentUsers.id, { onDelete: 'cascade' }),
     childName: varchar('child_name', { length: 100 }).notNull(),
     childAvatarId: integer('child_avatar_id'),
+    age: integer('age'),
+    gender: varchar('gender', { length: 16 }),
+    setupStep: integer('setup_step').notNull().default(4),
+    installationId: uuid('installation_id'),
+    pairedAt: timestamp('paired_at', { withTimezone: true }),
     deviceModel: varchar('device_model', { length: 255 }),
     osVersion: varchar('os_version', { length: 100 }),
     appVersion: varchar('app_version', { length: 100 }),
@@ -71,6 +77,7 @@ export const childDevices = pgTable(
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
   (table) => [
+    uniqueIndex('child_devices_active_installation').on(table.installationId).where(sql`${table.isUnpaired} = false`),
     index('idx_child_devices_parent').on(table.parentId),
     index('idx_child_devices_last_seen').on(table.lastSeenAt),
     index('idx_child_devices_unpaired').on(table.isUnpaired),
@@ -248,9 +255,10 @@ export const systemAppSettings = pgTable(
     id: varchar('id', { length: 32 }).primaryKey().default('default'),
     googleAuthEnabled: boolean('google_auth_enabled').notNull().default(false),
     googleClientId: text('google_client_id'),
-    childAppDownloadUrl: text('child_app_download_url')
-      .notNull()
-      .default('https://download.guardian.io/child-app-latest.apk'),
+    childAppDownloadUrl: text('child_app_download_url'),
+    parentAppDownloadUrl: text('parent_app_download_url'),
+    registrationEnabled: boolean('registration_enabled').notNull().default(true),
+    pairingCodeExpirySeconds: integer('pairing_code_expiry_seconds').notNull().default(900),
     childAppLatestVersion: text('child_app_latest_version').notNull().default('1.0.0'),
     childAppMinVersion: text('child_app_min_version').notNull().default('1.0.0'),
     updatedBy: uuid('updated_by').references(() => adminUsers.id, { onDelete: 'set null' }),
@@ -274,6 +282,14 @@ export const pairingSessions = pgTable(
     qrPayload: text('qr_payload').notNull(),
     pollingToken: varchar('polling_token', { length: 64 }),
     issuedDeviceToken: text('issued_device_token'),
+    installationId: uuid('installation_id'),
+    requestHash: varchar('request_hash', { length: 64 }).unique(),
+    policyVersion: varchar('child_policy_version', { length: 32 }),
+    consentedAt: timestamp('child_consented_at', { withTimezone: true }),
+    childConfirmed: boolean('child_confirmed').notNull().default(false),
+    parentApproved: boolean('parent_approved').notNull().default(false),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    ackHash: varchar('ack_hash', { length: 64 }),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     childDeviceId: uuid('child_device_id').references(() => childDevices.id, { onDelete: 'set null' }),
@@ -287,7 +303,7 @@ export const pairingSessions = pgTable(
     index('idx_pairing_sessions_parent').on(table.parentId),
     index('idx_pairing_sessions_expires').on(table.expiresAt),
     index('idx_pairing_sessions_polling_token').on(table.pollingToken),
-    check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'paired', 'expired')`),
+    check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'paired', 'expired', 'canceled')`),
   ]
 );
 

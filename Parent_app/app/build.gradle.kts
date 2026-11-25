@@ -104,6 +104,8 @@ dependencies {
   implementation("androidx.camera:camera-lifecycle:$cameraVersion")
   implementation("androidx.camera:camera-view:$cameraVersion")
 
+  implementation("com.google.zxing:core:3.5.3")
+
   // ML Kit Barcode Scanning
   implementation("com.google.mlkit:barcode-scanning:17.3.0")
   implementation("com.google.guava:guava:33.3.1-android")

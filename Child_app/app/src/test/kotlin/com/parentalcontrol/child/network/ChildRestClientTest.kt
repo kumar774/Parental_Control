@@ -9,9 +9,13 @@ import org.junit.Test
 class ChildRestClientTest {
 
     @Test
-    fun testProductionBaseUrlIsHttps() {
-        assertTrue("Production URL must start with https://", ChildRestClient.PROD_BASE_URL.startsWith("https://"))
-        assertTrue("Candidate hosts must include production URL", ChildRestClient.candidateHosts.contains(ChildRestClient.PROD_BASE_URL))
+    fun releaseAcceptsOnlyHttpsOriginsAndDebugPermitsLocalAdbReverse() {
+        val local = java.net.URL("http://127.0.0.1:3000")
+        assertFalse(ChildRestClient.isAllowedOrigin(local, debug = false))
+        assertTrue(ChildRestClient.isAllowedOrigin(local, debug = true))
+        assertFalse(ChildRestClient.isAllowedOrigin(java.net.URL("http://192.168.1.1"), debug = true))
+        assertFalse(ChildRestClient.isAllowedOrigin(java.net.URL("https://test.invalid/path"), debug = false))
+        assertTrue(ChildRestClient.isAllowedOrigin(java.net.URL("https://test.invalid"), debug = false))
     }
 
     @Test

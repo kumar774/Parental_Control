@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.kotlin.serialization)
@@ -6,6 +8,21 @@ plugins {
 android {
   namespace = "com.parentalcontrol.core.network"
   compileSdk = 36
+
+  buildFeatures { buildConfig = true }
+  val endpoint = providers.gradleProperty("GUARDIAN_API_BASE_URL")
+    .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orElse("").get().trimEnd('/')
+  if (endpoint.isNotEmpty()) {
+    val uri = URI(endpoint)
+    require(uri.scheme == "https" && uri.host != null && uri.userInfo == null &&
+      uri.rawQuery == null && uri.rawFragment == null && uri.path.isNullOrEmpty()) {
+      "GUARDIAN_API_BASE_URL must be an HTTPS origin."
+    }
+  }
+  buildTypes {
+    debug { buildConfigField("String", "API_ORIGIN", "\"${endpoint.ifEmpty { "http://127.0.0.1:3000" }}\"") }
+    release { buildConfigField("String", "API_ORIGIN", "\"$endpoint\"") }
+  }
 
   defaultConfig {
     minSdk = 26

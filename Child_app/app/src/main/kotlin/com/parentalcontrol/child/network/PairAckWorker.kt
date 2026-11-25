@@ -24,7 +24,7 @@ class PairAckWorker(
         Log.i(TAG, "Executing reliable background ACK retry for session $sessionId")
 
         return try {
-            when (val outcome = ChildRestClient.instance.acknowledgePairReceipt(sessionId, pollingToken)) {
+            when (val outcome = ChildRestClient.instance.acknowledgePairReceipt(sessionId, pollingToken, storage)) {
                 is AckOutcome.Success -> {
                     storage.clearPendingPairAck()
                     Log.i(TAG, "Background ACK delivered and cleared for session $sessionId")

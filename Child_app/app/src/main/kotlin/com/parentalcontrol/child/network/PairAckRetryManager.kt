@@ -185,7 +185,7 @@ object PairAckRetryManager {
         context: Context? = null,
         storage: DeviceStorage,
         ackRequester: suspend (sessionId: String, pollingToken: String) -> AckOutcome = { s, t ->
-            ChildRestClient.instance.acknowledgePairReceipt(s, t)
+            ChildRestClient.instance.acknowledgePairReceipt(s, t, storage)
         }
     ): AckRetryResult {
         val pending = storage.getPendingPairAck() ?: run {
@@ -219,7 +219,7 @@ object PairAckRetryManager {
     suspend fun retryPendingAckIfNeeded(
         storage: DeviceStorage,
         ackRequester: suspend (sessionId: String, pollingToken: String) -> AckOutcome = { s, t ->
-            ChildRestClient.instance.acknowledgePairReceipt(s, t)
+            ChildRestClient.instance.acknowledgePairReceipt(s, t, storage)
         }
     ): AckRetryResult = retryPendingAckIfNeeded(null, storage, ackRequester)
 }

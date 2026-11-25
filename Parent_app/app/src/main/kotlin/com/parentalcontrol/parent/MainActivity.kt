@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
@@ -193,27 +194,9 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
-        } ?: AppScreen.SPLASH
-        val startAuth = intent?.getBooleanExtra("EXTRA_IS_AUTHENTICATED", false) ?: false
-        val startOrigin = intent?.getStringExtra("EXTRA_EMAIL_ORIGIN")?.let {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
-        } ?: AppScreen.LOGIN
-        val startRoute = intent?.getStringExtra("EXTRA_START_ROUTE") ?: "home"
-        val startBackstack = intent?.getStringArrayListExtra("EXTRA_BACKSTACK")?.mapNotNull {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
-        }
-
         setContent {
             LiquidGlassTheme(darkTheme = true) {
-                ParentAppMainContent(
-                    initialScreen = startScreen,
-                    initialNavRoute = startRoute,
-                    initialAuthenticated = startAuth,
-                    initialEmailVerificationOrigin = startOrigin,
-                    initialBackstack = startBackstack
-                )
+                ParentAppMainContent()
             }
         }
     }
@@ -316,7 +299,8 @@ fun ParentAppMainContent(
     var activeChildId by remember { mutableStateOf(mmkv.selectedChildId ?: "") }
     var activeChildName by remember { mutableStateOf("Child") }
     var lastPairedChildName by remember { mutableStateOf("Child") }
-    var lastPairedDeviceName by remember { mutableStateOf("Android Phone") }
+    var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
+    var setupDeviceId by rememberSaveable { mutableStateOf("") }
 
     // Persistent Screen Backstack History
     val screenBackstack = rememberSaveable(
@@ -347,7 +331,8 @@ fun ParentAppMainContent(
     var lastBackPressTime by remember { mutableStateOf(0L) }
     var remoteAppSettings by remember { mutableStateOf<AppSettingsDto?>(null) }
 
-    LaunchedEffect(Unit) {
+    var settingsAttempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(settingsAttempt) {
         val settingsRes = FastifyRestClient.shared.getAppSettings()
         remoteAppSettings = settingsRes.getOrNull()
     }
@@ -824,17 +809,14 @@ fun ParentAppMainContent(
 
                 AppScreen.LOGIN -> {
                     LoginScreen(
+                        appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
                             toastType = ToastType.SUCCESS
                             isSessionAuthenticated = true
                             navManager.hasAuthenticatedSession = true
                             sessionRestorationManager.markSessionVerified()
-                            if (childDao.getAllDevicesSync().isEmpty()) {
-                                currentScreen = AppScreen.CHOOSE_DEVICE_TYPE
-                            } else {
-                                navigateToAuthenticatedRoot()
-                            }
+                            navigateToAuthenticatedRoot()
                         },
                         onRegisterClick = {
                             currentScreen = AppScreen.REGISTER
@@ -944,6 +926,7 @@ fun ParentAppMainContent(
 
                 AppScreen.REGISTER -> {
                     RegisterScreen(
+                        appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
                         onRegisterSuccess = {
                             emailVerificationOrigin = AppScreen.REGISTER
                             navManager.emailVerificationOrigin = AppScreen.REGISTER
@@ -1025,10 +1008,9 @@ fun ParentAppMainContent(
                         onNavigateBack = {
                             currentScreen = AppScreen.MAIN_SHELL
                         },
-                        onPairingSuccess = { name, model ->
-                            lastPairedChildName = name
+                        onPairingSuccess = { id, model ->
+                            setupDeviceId = id
                             lastPairedDeviceName = model
-                            activeChildName = name
                             currentScreen = AppScreen.PAIRING_SUCCESS
                         }
                     )
@@ -1543,29 +1525,14 @@ fun ParentAppMainContent(
 
                 // Phase 10 Screens (Completing all 66 screens)
                 AppScreen.PAIRING_SUCCESS -> {
-                    PairingSuccessScreen(
-                        childName = lastPairedChildName,
-                        deviceName = lastPairedDeviceName,
-                        onGoToDashboardClick = { currentScreen = AppScreen.MAIN_SHELL }
-                    )
+                    com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
+                        setupDeviceId, lastPairedDeviceName, 2, { currentScreen = AppScreen.MAIN_SHELL },
+                        { currentScreen = AppScreen.CHILD_PROFILE_EDIT })
                 }
 
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
-                    ChooseDeviceTypeScreen(
-                        onNavigateBack = {
-                            if (childDao.getAllDevicesSync().isEmpty()) {
-                                currentScreen = AppScreen.LOGIN
-                            } else {
-                                currentScreen = AppScreen.MAIN_SHELL
-                            }
-                        },
-                        onSelectParentDevice = {
-                            currentScreen = AppScreen.PARENT_CONSENT
-                        },
-                        onContinueToPairing = {
-                            currentScreen = AppScreen.PARENT_CONSENT
-                        }
-                    )
+                    ChooseDeviceTypeScreen(onNavigateBack = { performLogout() },
+                        onSelectParentDevice = { currentScreen = AppScreen.PARENT_CONSENT })
                 }
 
                 AppScreen.PARENT_CONSENT -> {
@@ -1583,11 +1550,7 @@ fun ParentAppMainContent(
                             selectedLegalDocType = "privacy"
                             legalScreenReturnTarget = AppScreen.PARENT_CONSENT
                             currentScreen = AppScreen.NATIVE_LEGAL
-                        },
-                        onOpenCoppa = {
-                            selectedLegalDocType = "coppa"
-                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
-                            currentScreen = AppScreen.NATIVE_LEGAL
+
                         }
                     )
                 }
@@ -1596,24 +1559,18 @@ fun ParentAppMainContent(
                     // Redirect legacy mock scanner route directly to real DevicePairingScreen
                     DevicePairingScreen(
                         onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onPairingSuccess = { name, model ->
-                            lastPairedChildName = name
+                        onPairingSuccess = { id, model ->
+                            setupDeviceId = id
                             lastPairedDeviceName = model
-                            activeChildName = name
                             currentScreen = AppScreen.PAIRING_SUCCESS
                         }
                     )
                 }
 
                 AppScreen.CHILD_PROFILE_EDIT -> {
-                    ChildProfileEditScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onSaveProfile = { name: String, age: Int ->
-                            toastMessage = "Profile updated: $name, $age yrs"
-                            toastType = ToastType.SUCCESS
-                            currentScreen = AppScreen.MAIN_SHELL
-                        }
-                    )
+                    com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
+                        setupDeviceId, lastPairedDeviceName, 3, { currentScreen = AppScreen.PAIRING_SUCCESS },
+                        { navigateToAuthenticatedRoot() })
                 }
 
                 AppScreen.CHILD_UNINSTALL_GUIDE -> {
@@ -1803,174 +1760,22 @@ fun ParentAppMainContent(
                 }
 
                 AppScreen.MAIN_SHELL -> {
-                    Scaffold(
-                        bottomBar = {
-                            FloatingGlassNavigationBar(
-                                currentRoute = currentNavRoute,
-                                onNavigate = { route ->
-                                    if (route == "instant_lock") {
-                                        showInstantLockModal = true
-                                    } else {
-                                        navManager.selectNavRoute(route)
-                                    }
-                                },
-                                unreadAlertsCount = 0
-                            )
-                        },
-                        containerColor = BgCanvas
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            when (currentNavRoute) {
-                                "home" -> {
-                                    DashboardScreen(
-                                        onInstantLockClick = { showInstantLockModal = true },
-                                        onGrantBonusClick = { showBonusTimeModal = true },
-                                        onLiveAssistClick = {
-                                            currentScreen = AppScreen.SCREEN_MIRROR_VIEWER
-                                        },
-                                        onLocateKidClick = {
-                                            currentScreen = AppScreen.LIVE_LOCATION_MAP
-                                        },
-                                        onSoundSirenClick = {
-                                            currentScreen = AppScreen.FIND_KID_ALARM
-                                        },
-                                        onPairDeviceClick = {
-                                            currentScreen = AppScreen.DEVICE_PAIRING
-                                        }
-                                    )
-                                }
-
-                                "map" -> {
-                                    LiveTrackingHubScreen(
-                                        onViewRouteHistoryClick = {
-                                            currentScreen = AppScreen.LOCATION_HISTORY
-                                        },
-                                        onGeofencesClick = {
-                                            showGeofenceEditorModal = true
-                                        }
-                                    )
-                                }
-
-                                "limits" -> {
-                                    val currentDevId: String = (activeChildId.ifBlank { mmkv.selectedChildId }).orEmpty()
-                                    RulesHubScreen(
-                                        childId = currentDevId,
-                                        onScreenTimeClick = {
-                                            currentScreen = AppScreen.SCREEN_TIME_LIMIT
-                                        },
-                                        onAppLimitsClick = {
-                                            currentScreen = AppScreen.APP_MANAGEMENT
-                                        },
-                                        onWebSafetyClick = {
-                                            currentScreen = AppScreen.WEB_FILTER_CONFIG
-                                        },
-                                        onCallGuardClick = {
-                                            currentScreen = AppScreen.CALL_SMS_LOG
-                                        },
-                                        onMasterPauseChanged = { isPaused ->
-                                            if (currentDevId.isNotBlank()) {
-                                                scope.launch {
-                                                    val mode = if (isPaused) "free" else "standard"
-                                                    val res = FastifyRestClient.shared.switchDeviceMode(currentDevId, mode)
-                                                    res.onSuccess {
-                                                        toastMessage = if (isPaused) "All restrictions paused for today" else "Standard rules restored"
-                                                        toastType = ToastType.INFO
-                                                    }.onFailure { err ->
-                                                        toastMessage = err.message ?: "Failed to update device mode"
-                                                        toastType = ToastType.ERROR
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-
-                                "me", "hub", "family" -> {
-                                    ParentMeScreen(
-                                        onUpgradeClick = {
-                                            currentScreen = AppScreen.SUBSCRIPTION_PLANS
-                                        },
-                                        onMyDevicesClick = {
-                                            currentScreen = AppScreen.CHILD_DEVICE_PICKER
-                                        },
-                                        onPairDeviceClick = {
-                                            currentScreen = AppScreen.DEVICE_PAIRING
-                                        },
-                                        onFamilyPinClick = {
-                                            currentScreen = AppScreen.FAMILY_PIN_MANAGEMENT
-                                        },
-                                        onHelpClick = {
-                                            currentScreen = AppScreen.PARENT_FAQ_HELP
-                                        },
-                                        onFeedbackClick = {
-                                            currentScreen = AppScreen.PARENT_BUG_FEEDBACK
-                                        },
-                                        onAboutClick = {
-                                            selectedLegalDocType = "privacy"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onSignOutClick = {
-                                            showLogoutConfirmModal = true
-                                        }
-                                    )
-                                }
-
-                                "settings" -> {
-                                    FamilySettingsHubScreen(
-                                        onChildrenProfilesClick = {
-                                            currentScreen = AppScreen.CHILD_DEVICE_PICKER
-                                        },
-                                        onCoParentsClick = {
-                                            currentScreen = AppScreen.CO_PARENT_SHARING
-                                        },
-                                        onFamilyPinClick = {
-                                            currentScreen = AppScreen.FAMILY_PIN_MANAGEMENT
-                                        },
-                                        onBiometricLockClick = {
-                                            toastMessage = "Biometric app lock toggle"
-                                            toastType = ToastType.SUCCESS
-                                        },
-                                        onOemGuideClick = {
-                                            currentScreen = AppScreen.CHILD_UNINSTALL_GUIDE
-                                        },
-                                        onFaqClick = {
-                                            currentScreen = AppScreen.PARENT_FAQ_HELP
-                                        },
-                                        onNetworkDiagClick = {
-                                            currentScreen = AppScreen.NETWORK_DIAGNOSTICS
-                                        },
-                                        onPrivacyPolicyClick = {
-                                            selectedLegalDocType = "privacy"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onTermsClick = {
-                                            selectedLegalDocType = "terms"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onSignOutClick = {
-                                            showLogoutConfirmModal = true
-                                        }
-                                    )
-                                }
-
-                                else -> {
-                                    DashboardScreen(
-                                        onInstantLockClick = { showInstantLockModal = true },
-                                        onGrantBonusClick = { showBonusTimeModal = true },
-                                        onLiveAssistClick = {
-                                            currentScreen = AppScreen.SCREEN_MIRROR_VIEWER
-                                        },
-                                        onLocateKidClick = { currentScreen = AppScreen.LIVE_LOCATION_MAP },
-                                        onSoundSirenClick = { currentScreen = AppScreen.FIND_KID_ALARM },
-                                        onPairDeviceClick = { currentScreen = AppScreen.DEVICE_PAIRING }
-                                    )
-                                }
-                            }
-                        }
+                    if (isSessionAuthenticated) {
+                        com.parentalcontrol.parent.ui.dashboard.PairedDeviceDashboard(
+                            account = mmkv.userEmail.orEmpty(), tab = currentNavRoute,
+                            onTab = navManager::selectNavRoute,
+                            onSelectType = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
+                            onPair = { currentScreen = AppScreen.DEVICE_PAIRING },
+                            onConsent = { currentScreen = AppScreen.PARENT_CONSENT },
+                            onSetup = { device ->
+                                setupDeviceId = device.id
+                                lastPairedDeviceName = device.model ?: device.deviceName
+                                currentScreen = if (device.setupStep == 2) AppScreen.PAIRING_SUCCESS else AppScreen.CHILD_PROFILE_EDIT
+                            },
+                            onLogout = { showLogoutConfirmModal = true },
+                            onTerms = { selectedLegalDocType = "terms"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
+                            onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL }
+                        )
                     }
                 }
             }

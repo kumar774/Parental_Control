@@ -35,6 +35,46 @@ class DeviceStorageTest {
     }
 
     @Test
+    fun consentAndPendingEnrollmentSurviveStorageRecreation() {
+        val attempt = Enrollment(UUID.randomUUID().toString(), "012345678")
+        assertFalse(deviceStorage.hasConsent)
+        deviceStorage.acceptPolicy()
+        val installation = deviceStorage.installationId
+        deviceStorage.saveEnrollment(attempt)
+        val restored = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertTrue(restored.hasConsent)
+        assertEquals(installation, restored.installationId)
+        assertNotNull(restored.acceptedAt)
+        assertEquals(attempt, restored.enrollment())
+        assertFalse(restored.isPaired())
+        restored.clearEnrollment()
+        assertNull(deviceStorage.enrollment())
+        assertEquals(installation, deviceStorage.installationId)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun enrollmentCannotStartBeforeConsent() {
+        deviceStorage.saveEnrollment(Enrollment(UUID.randomUUID().toString(), null))
+    }
+
+    @Test
+    fun credentialPersistenceAtomicallyReplacesPendingChallengeWithReceipt() {
+        deviceStorage.acceptPolicy()
+        val challenge = Enrollment(UUID.randomUUID().toString(), null, validDeviceId, "poll")
+        deviceStorage.saveEnrollment(challenge)
+        deviceStorage.savePairingSessionWithPendingAck(validDeviceId, "access", validParentId, "Phone",
+            validDeviceId, "poll", "refresh")
+        val afterRestart = DeviceStorage.createForTesting(mockSharedPreferences)
+        assertNull(afterRestart.enrollment())
+        assertEquals(validDeviceId to "poll", afterRestart.getPendingPairAck())
+        assertEquals(validParentId, afterRestart.getSession().parentId)
+        assertEquals("refresh", afterRestart.getSession().refreshToken)
+        afterRestart.clearPendingPairAck()
+        assertTrue(afterRestart.isPaired())
+        assertNull(afterRestart.getPendingPairAck())
+    }
+
+    @Test
     fun testSavePairingSessionPersistsCorrectlyWithValidUUIDs() {
         deviceStorage.savePairingSession(
             deviceId = validDeviceId,

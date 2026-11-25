@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
@@ -18,7 +18,7 @@ import {
   childDeviceTokens,
 } from '../../../src/db/schema/parental-control';
 import { adminUsers, adminControlAuditLogs } from '../../../src/db/schema/admin-auth';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, count } from 'drizzle-orm';
 import { setGoogleTokenVerifierForTest } from '../../../src/services/google-auth.service';
 import { setAppSettingsMockForTest, resetAppSettingsForTest } from '../../../src/services/app-settings.service';
 
@@ -67,6 +67,38 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       await app.close();
     }
   });
+
+  beforeEach(async () => {
+    await conn.db.execute(sql`DELETE FROM parent_rate_limits`);
+  });
+
+  function installation() {
+    return {installationId:crypto.randomUUID(),requestId:crypto.randomUUID(),policyVersion:'v1.0',consentedAt:new Date().toISOString(),deviceModel:'Test phone'};
+  }
+
+  async function confirmChild(sessionId: string, pollingToken: string) {
+    const res = await app.inject({method:'POST',url:'/api/v1/child/pair-confirm/'+sessionId,headers:{'x-polling-token':pollingToken}});
+    assert.equal(res.statusCode,200,res.body);
+    return JSON.parse(res.body);
+  }
+
+  async function completeManual(res: any) {
+    assert.equal(res.statusCode,200,res.body);
+    const pending = JSON.parse(res.body);
+    assert.equal(pending.status,'waiting_for_parent');
+    assert.match(pending.maskedParentEmail,/\*\*\*@/);
+    assert.equal(pending.deviceToken,undefined);
+    assert.equal((await confirmChild(pending.sessionId,pending.pollingToken)).status,'waiting_for_parent');
+    const approved = await app.inject({method:'POST',url:'/api/v1/devices/pair-confirm',headers:{authorization:'Bearer '+testParentAccessToken},
+      payload:{sessionId:pending.sessionId,code:pending.pairingCode}});
+    assert.equal(approved.statusCode,200,approved.body);
+    assert.equal(JSON.parse(approved.body).status,'finalizing');
+    const delivery = await app.inject({method:'GET',url:'/api/v1/child/pair-status/'+pending.sessionId,headers:{'x-polling-token':pending.pollingToken}});
+    assert.equal(delivery.statusCode,200,delivery.body);
+    const ack = await app.inject({method:'POST',url:'/api/v1/child/pair-ack/'+pending.sessionId,headers:{'x-polling-token':pending.pollingToken}});
+    assert.equal(ack.statusCode,200,ack.body);
+    return JSON.parse(delivery.body);
+  }
 
   it('1. Parental Consent persistence writes to real database', async () => {
     const res = await app.inject({
@@ -238,7 +270,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const sessionRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair-session',
-      payload: { deviceModel: 'Pixel 8' },
+      payload: { ...installation(), deviceModel: 'Pixel 8' },
     });
     assert.equal(sessionRes.statusCode, 200);
     const sessionJson = JSON.parse(sessionRes.body);
@@ -279,8 +311,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
         deviceName: 'Mismatch Phone',
       },
     });
-    assert.equal(mismatchRes.statusCode, 400);
-    assert.match(JSON.parse(mismatchRes.body).message, /mismatch/i);
+    assert.equal(mismatchRes.statusCode, 404);
+    assert.match(JSON.parse(mismatchRes.body).message, /unavailable/i);
 
     // Negative Test: Non-existent sessionId is rejected with 404
     const notFoundRes = await app.inject({
@@ -318,11 +350,15 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     // All successful confirmation responses MUST resolve to the exact same device ID
     const deviceIds = successResponses.map((r: any) => {
       const parsed = JSON.parse(r.body);
-      return parsed.deviceId || parsed.id;
+      return parsed.deviceId !== undefined ? parsed.deviceId : (parsed.id ?? null);
     });
     const uniqueDeviceIds = new Set(deviceIds);
     assert.equal(uniqueDeviceIds.size, 1, 'All successful responses must resolve to the identical device ID');
-    const primaryDeviceId = deviceIds[0];
+    assert.equal(deviceIds[0], null, 'Parent approval alone cannot create a device');
+    const confirmations = await Promise.all(Array.from({length:5},()=>confirmChild(sessionId,pollingToken)));
+    const primaryDeviceId = confirmations[0].deviceId;
+    assert.ok(primaryDeviceId);
+    assert.ok(confirmations.every(c=>c.deviceId===primaryDeviceId));
 
     // Verify in DB that the session is marked paired and exactly ONE child_devices record was created for this session
     const [dbSession] = await conn.db
@@ -380,6 +416,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       headers: { 'x-polling-token': pollingToken },
     });
     assert.equal(ackRetryRes.statusCode, 200);
+    const impostor = await app.inject({method:'POST',url:'/api/v1/child/pair-ack/'+sessionId,
+      headers:{'x-polling-token':crypto.randomBytes(32).toString('hex')}});
+    assert.equal(impostor.statusCode,404);
 
     // Polling after ack is rejected with 404 (session pollingToken is null)
     const postAckPoll = await app.inject({
@@ -407,14 +446,14 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const pairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: {
+      payload: { ...installation(),
         pairingCode,
         childName: 'Lifecycle Child',
         deviceModel: 'Pixel 9 Pro',
       },
     });
     assert.equal(pairRes.statusCode, 200);
-    const pairJson = JSON.parse(pairRes.body);
+    const pairJson = await completeManual(pairRes);
     const deviceId = pairJson.deviceId;
     const initialAccessToken = pairJson.deviceToken;
     const initialRefreshToken = pairJson.refreshToken;
@@ -491,9 +530,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const pairRes2 = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: { pairingCode: code2, childName: 'Unpair Child' },
+      payload: { ...installation(), pairingCode: code2, childName: 'Unpair Child' },
     });
-    const { deviceId: deviceId2, deviceToken: token2 } = JSON.parse(pairRes2.body);
+    const { deviceId: deviceId2, deviceToken: token2 } = await completeManual(pairRes2);
 
     // Verify device is listed under parent
     const devicesList1 = await app.inject({
@@ -563,14 +602,14 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const pairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: {
+      payload: { ...installation(),
         pairingCode,
         childName: 'Concurrency Refresh Child',
         deviceModel: 'Pixel 9 Concurrency',
       },
     });
     assert.equal(pairRes.statusCode, 200);
-    const pairJson = JSON.parse(pairRes.body);
+    const pairJson = await completeManual(pairRes);
     const deviceId = pairJson.deviceId;
     const initialRefreshToken = pairJson.refreshToken;
 
@@ -652,14 +691,14 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const pairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: {
+      payload: { ...installation(),
         pairingCode,
         childName: 'Expired Token Unpair Child',
         deviceModel: 'Samsung Galaxy S24',
       },
     });
     assert.equal(pairRes.statusCode, 200);
-    const { deviceId, refreshToken } = JSON.parse(pairRes.body);
+    const { deviceId, refreshToken } = await completeManual(pairRes);
 
     // 2. Synthesize an expired child access token
     const expiredAccessToken = jwt.sign(
@@ -739,9 +778,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const pairRes3 = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: { pairingCode: code3, childName: 'Parent Removed Child' },
+      payload: { ...installation(), pairingCode: code3, childName: 'Parent Removed Child' },
     });
-    const { deviceId: deviceId3 } = JSON.parse(pairRes3.body);
+    const { deviceId: deviceId3 } = await completeManual(pairRes3);
 
     const parentRemoveRes = await app.inject({
       method: 'DELETE',
@@ -780,7 +819,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const flow1PairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: {
+      payload: { ...installation(),
         pairingCode: flow1Code,
         childName: 'Flow1 Kid',
         deviceModel: 'Flow1 Pixel',
@@ -789,7 +828,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       },
     });
     assert.equal(flow1PairRes.statusCode, 200);
-    const flow1Json = JSON.parse(flow1PairRes.body);
+    const flow1Json = await completeManual(flow1PairRes);
     assert.equal(flow1Json.statusCode, 200);
     assert.ok(flow1Json.deviceId);
     assert.ok(flow1Json.deviceToken);
@@ -804,7 +843,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(flow1Devices.length, 1, 'Exactly one child_devices row must be created for Flow 1');
     const f1Dev = flow1Devices[0];
     assert.equal(f1Dev.parentId, testParentId);
-    assert.equal(f1Dev.childName, 'Flow1 Kid');
+    assert.equal(f1Dev.childName, 'Flow1 Pixel');
     assert.equal(f1Dev.batteryPct, null, 'Initial batteryPct must be null (unverified)');
     assert.equal(f1Dev.accessibilityHealthy, false, 'Initial accessibilityHealthy must be false (unverified)');
     assert.equal(f1Dev.deviceAdminActive, false, 'Initial deviceAdminActive must be false (unverified)');
@@ -826,7 +865,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const flow2SessionRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair-session',
-      payload: { deviceModel: 'Flow2 Galaxy' },
+      payload: { ...installation(), deviceModel: 'Flow2 Galaxy' },
     });
     assert.equal(flow2SessionRes.statusCode, 200);
     const flow2SessionJson = JSON.parse(flow2SessionRes.body);
@@ -848,7 +887,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     });
     assert.equal(flow2ConfirmRes.statusCode, 200);
     const flow2ConfirmJson = JSON.parse(flow2ConfirmRes.body);
-    const flow2DeviceId = flow2ConfirmJson.deviceId || flow2ConfirmJson.id;
+    assert.equal(flow2ConfirmJson.deviceId,null);
+    const flow2DeviceId = (await confirmChild(flow2SessionId,flow2PollingToken)).deviceId;
     assert.ok(flow2DeviceId);
 
     // Child polls session status to receive credentials
@@ -885,7 +925,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const wrongCodeRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: { pairingCode: '999999999', childName: 'Fail Kid' },
+      payload: { ...installation(), pairingCode: '999999999', childName: 'Fail Kid' },
     });
     assert.equal(wrongCodeRes.statusCode, 400);
 
@@ -904,9 +944,9 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const expiredPairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: { pairingCode: expiredManualCode, childName: 'Expired Kid' },
+      payload: { ...installation(), pairingCode: expiredManualCode, childName: 'Expired Kid' },
     });
-    assert.equal(expiredPairRes.statusCode, 400);
+    assert.equal(expiredPairRes.statusCode, 410);
     assert.match(JSON.parse(expiredPairRes.body).message, /expired/i);
 
     // 3c. Expired QR on parent confirm
@@ -930,7 +970,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
         code: expiredQrCode,
       },
     });
-    assert.equal(expiredQrConfirm.statusCode, 400);
+    assert.equal(expiredQrConfirm.statusCode, 410);
     assert.match(JSON.parse(expiredQrConfirm.body).message, /expired/i);
 
     // 3d. Mismatched sessionId and code on parent confirm
@@ -943,7 +983,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
         code: '000000000', // mismatched code
       },
     });
-    assert.equal(mismatchConfirm.statusCode, 400);
+    assert.equal(mismatchConfirm.statusCode, 404);
 
     // 3e. Duplicate confirmation on already-paired session is idempotent and does not create extra device
     const duplicateConfirm = await app.inject({
@@ -967,7 +1007,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const replayPairRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair',
-      payload: { pairingCode: flow1Code, childName: 'Replay Kid' },
+      payload: { ...installation(), pairingCode: flow1Code, childName: 'Replay Kid' },
     });
     assert.equal(replayPairRes.statusCode, 400);
 
@@ -1019,7 +1059,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const sessionARes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair-session',
-      payload: { deviceModel: 'Session A Device' },
+      payload: { ...installation(), deviceModel: 'Session A Device' },
     });
     assert.equal(sessionARes.statusCode, 200);
     const sessionAJson = JSON.parse(sessionARes.body);
@@ -1037,7 +1077,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const invalidPollRes = await app.inject({
       method: 'GET',
       url: `/api/v1/child/pair-status/${flow2SessionId}`,
-      headers: { 'x-polling-token': 'invalid-polling-token-00000000000000000000000000000000' },
+      headers: { 'x-polling-token': crypto.randomBytes(32).toString('hex') },
     });
     assert.equal(invalidPollRes.statusCode, 404, 'Arbitrary invalid polling token must be rejected with 404');
 
@@ -1048,6 +1088,34 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
   // ===================================================================================================
   // 8. Device Credential Protection At Rest (AEAD Encryption, SHA-256 Hashed Polling Tokens, Tamper Detection)
   // ===================================================================================================
+  it('recovers a lost create, rejects missing consent, and keeps canceled or expired enrollment unpaired', async () => {
+    const input = installation();
+    const start = (payload:any) => app.inject({method:'POST',url:'/api/v1/child/pair-session',payload});
+    assert.equal((await start({...input,policyVersion:'obsolete'})).statusCode,400);
+    const [one,two] = await Promise.all([start(input),start(input)]);
+    assert.equal(one.statusCode,200);
+    assert.equal(two.statusCode,200);
+    const first = JSON.parse(one.body);
+    const second = JSON.parse(two.body);
+    assert.equal(first.sessionId,second.sessionId);
+    assert.equal(first.pollingToken,second.pollingToken);
+    assert.ok(!first.qrPayload.includes(first.pollingToken));
+    const headers = {'x-polling-token':first.pollingToken};
+    const cancel = await app.inject({method:'POST',url:'/api/v1/child/pair-cancel/'+first.sessionId,headers});
+    assert.equal(cancel.json().status,'canceled');
+    const afterCancel = await app.inject({method:'POST',url:'/api/v1/devices/pair-confirm',
+      headers:{authorization:'Bearer '+testParentAccessToken},payload:{sessionId:first.sessionId,code:first.pairingCode}});
+    assert.equal(afterCancel.statusCode,409);
+    const renewed = (await start({...input,requestId:crypto.randomUUID()})).json();
+    await conn.db.update(pairingSessions).set({expiresAt:new Date(Date.now()-1000)}).where(eq(pairingSessions.id,renewed.sessionId));
+    const expired = await app.inject({method:'GET',url:'/api/v1/child/pair-status/'+renewed.sessionId,headers:{'x-polling-token':renewed.pollingToken}});
+    assert.equal(expired.json().status,'expired');
+    assert.equal(expired.json().deviceToken,undefined);
+    const devices = await conn.db.select().from(childDevices).where(eq(childDevices.installationId,input.installationId));
+    assert.equal(devices.length,0);
+    await conn.db.delete(pairingSessions).where(eq(pairingSessions.installationId,input.installationId));
+  });
+
   it('8. Credential protection at rest: hashed polling tokens, AEAD encrypted delivery payload, tamper safety, and ACK erasure', async () => {
     await conn.pool.query('DELETE FROM parent_rate_limits;');
 
@@ -1055,7 +1123,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     const createSessionRes = await app.inject({
       method: 'POST',
       url: '/api/v1/child/pair-session',
-      payload: { deviceModel: 'Vault Test Phone' },
+      payload: { ...installation(), deviceModel: 'Vault Test Phone' },
     });
     assert.equal(createSessionRes.statusCode, 200);
     const sessionJson = JSON.parse(createSessionRes.body);
@@ -1077,11 +1145,17 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     assert.equal(dbSessionInitial.pollingToken, expectedTokenHash, 'SECURITY CHECK: Database must store SHA-256 hash of polling token');
     assert.equal(dbSessionInitial.issuedDeviceToken, null, 'issuedDeviceToken must be null before confirmation');
 
+    for (const action of ['status','ack','confirm','cancel']) {
+      const denied = await app.inject({method:action === 'status' ? 'GET' : 'POST',url:'/api/v1/child/pair-'+action+'/'+sessionId,
+        headers:{'x-polling-token':expectedTokenHash}});
+      assert.equal(denied.statusCode,404,'Stored digest must never authorize '+action);
+    }
+
     // 2. Rejection of incorrect polling token
     const badTokenPoll = await app.inject({
       method: 'GET',
       url: `/api/v1/child/pair-status/${sessionId}`,
-      headers: { 'x-polling-token': 'wrong-token-abc1234567890123456789012345678901234567890' },
+      headers: { 'x-polling-token': crypto.randomBytes(32).toString('hex') },
     });
     assert.equal(badTokenPoll.statusCode, 404, 'Wrong polling token must return 404');
 
@@ -1099,7 +1173,8 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
     });
     assert.equal(confirmRes.statusCode, 200);
     const confirmJson = JSON.parse(confirmRes.body);
-    assert.ok(confirmJson.deviceId, 'Must confirm pairing and return deviceId');
+    assert.equal(confirmJson.deviceId,null);
+    await confirmChild(sessionId,rawPollingToken);
     // Ensure parent API does NOT receive any child credentials
     assert.equal(confirmJson.deviceToken, undefined, 'SECURITY CHECK: Parent API must NEVER receive child access token');
     assert.equal(confirmJson.refreshToken, undefined, 'SECURITY CHECK: Parent API must NEVER receive child refresh token');
@@ -1180,6 +1255,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       pollingToken: tamperedHash,
       status: 'paired',
       childDeviceId: credsJson.deviceId,
+      claimedAt: new Date(),
       issuedDeviceToken: 'v1:badiv1234567:badauth1234567890:badciphertext000000',
       expiresAt: new Date(Date.now() + 900000),
     });
@@ -1199,7 +1275,7 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
       headers: { 'x-polling-token': rawPollingToken },
     });
     assert.equal(ackRes.statusCode, 200);
-    assert.match(JSON.parse(ackRes.body).message, /acknowledged/i);
+    assert.equal(JSON.parse(ackRes.body).status, 'acknowledged');
 
     // Verify DB erasure
     const [dbSessionAcked] = await conn.db
@@ -1229,5 +1305,296 @@ describe('Real PostgreSQL Pairing, Consent & Google Auth Integration Tests', () 
 
     // Cleanup
     await conn.db.delete(pairingSessions).where(eq(pairingSessions.id, tamperedSessionId)).catch(() => {});
+  });
+
+  it('9. Stable Pairing Code: Reopening/re-requesting reuses valid pending code unless expired, canceled, or explicitly regenerated', async () => {
+    await conn.db.execute(sql`DELETE FROM parent_rate_limits`).catch(() => {});
+    // Clean up any stale sessions for this parent
+    await conn.db.delete(pairingSessions).where(eq(pairingSessions.parentId, testParentId)).catch(() => {});
+
+    // 1. Initial code generation
+    const res1 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(res1.statusCode, 200);
+    const data1 = JSON.parse(res1.body);
+    assert.ok(data1.code);
+    assert.ok(data1.sessionId);
+
+    // 2. Onboarding endpoint reflects this pending session
+    const onboard1 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/devices/onboarding',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(onboard1.statusCode, 200);
+    const onboardData1 = JSON.parse(onboard1.body);
+    assert.equal(onboardData1.consentAccepted, true);
+    assert.equal(onboardData1.pendingSessionId, data1.sessionId);
+    assert.equal(onboardData1.pendingCode, data1.code);
+
+    // 3. Re-requesting /pair-code without regenerate returns the exact same active code
+    const res2 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(res2.statusCode, 200);
+    const data2 = JSON.parse(res2.body);
+    assert.equal(data2.code, data1.code, 'Active code must remain stable on re-request');
+    assert.equal(data2.sessionId, data1.sessionId, 'SessionId must remain stable on re-request');
+
+    // 4. Explicit regeneration with { regenerate: true } issues a fresh code and cancels old session
+    const res3 = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { regenerate: true },
+    });
+    assert.equal(res3.statusCode, 200);
+    const data3 = JSON.parse(res3.body);
+    assert.ok(data3.code);
+    assert.ok(data3.sessionId);
+    assert.notEqual(data3.sessionId, data1.sessionId, 'Regeneration must produce a new session');
+
+    // Verify old session is marked canceled in database
+    const [oldSession] = await conn.db
+      .select()
+      .from(pairingSessions)
+      .where(eq(pairingSessions.id, data1.sessionId));
+    assert.equal(oldSession.status, 'canceled');
+
+    // Onboarding endpoint now reflects the regenerated session
+    const onboard2 = await app.inject({
+      method: 'GET',
+      url: '/api/v1/devices/onboarding',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(onboard2.statusCode, 200);
+    const onboardData2 = JSON.parse(onboard2.body);
+    assert.equal(onboardData2.pendingSessionId, data3.sessionId);
+    assert.equal(onboardData2.pendingCode, data3.code);
+
+    // Clean up
+    await conn.db.delete(pairingSessions).where(eq(pairingSessions.parentId, testParentId)).catch(() => {});
+  });
+
+  it('10. Child Info Persistence, Step Progression, Ownership Isolation & Independent Device Lifecycle', async () => {
+    await conn.db.execute(sql`DELETE FROM parent_rate_limits`).catch(() => {});
+
+    // 1. Complete enrollment to produce an active paired device
+    const codeRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-code',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(codeRes.statusCode, 200);
+    const { code, sessionId } = JSON.parse(codeRes.body);
+
+    const pairRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/pair',
+      payload: {
+        ...installation(),
+        pairingCode: code,
+        deviceModel: 'Pixel 9 Pro XL',
+      },
+    });
+    assert.equal(pairRes.statusCode, 200);
+    const childPending = JSON.parse(pairRes.body);
+    const pollingToken = childPending.pollingToken;
+
+    // Child confirms first
+    const childConf = await confirmChild(sessionId, pollingToken);
+    assert.equal(childConf.status, 'waiting_for_parent');
+
+    // Parent confirms
+    const parentConf = await app.inject({
+      method: 'POST',
+      url: '/api/v1/devices/pair-confirm',
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { sessionId, code },
+    });
+    assert.equal(parentConf.statusCode, 200);
+    const parentConfData = JSON.parse(parentConf.body);
+    const deviceId = parentConfData.deviceId;
+    assert.ok(deviceId);
+
+    // Retrieve child credentials via pair-status
+    const statusRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/child/pair-status/${sessionId}`,
+      headers: { 'x-polling-token': pollingToken },
+    });
+    assert.equal(statusRes.statusCode, 200);
+    const creds = JSON.parse(statusRes.body);
+
+    // Initial setupStep is 2
+    const initialDevRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${deviceId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(initialDevRes.statusCode, 200);
+    assert.equal(JSON.parse(initialDevRes.body).device.setupStep, 2);
+
+    // 2. Attempting to advance to step 3 before ACK fails with 409 (Waiting for child credential receipt)
+    const prematureStep3 = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { setupStep: 3 },
+    });
+    assert.equal(prematureStep3.statusCode, 409);
+    assert.match(JSON.parse(prematureStep3.body).message, /Waiting for child credential receipt/i);
+
+    // 3. Child sends ACK
+    const ackRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/child/pair-ack/${sessionId}`,
+      headers: { 'x-polling-token': pollingToken },
+    });
+    assert.equal(ackRes.statusCode, 200);
+
+    // 4. Advancing to step 3 now succeeds
+    const step3Res = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { setupStep: 3 },
+    });
+    assert.equal(step3Res.statusCode, 200);
+    assert.equal(JSON.parse(step3Res.body).setupStep, 3);
+
+    // 5. Skipping steps (e.g. from 3 directly to invalid step or skipping)
+    const invalidSkip = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: { setupStep: 2 },
+    });
+    assert.equal(invalidSkip.statusCode, 400);
+
+    // 6. Complete profile setup at step 4
+    const step4Res = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        setupStep: 4,
+        nickname: 'Leo Guardian',
+        age: 11,
+        gender: 'male',
+        childAvatarId: 3,
+      },
+    });
+    assert.equal(step4Res.statusCode, 200);
+    assert.equal(JSON.parse(step4Res.body).setupStep, 4);
+
+    // 7. Verify persistence via single device and device list endpoints
+    const verifyDevRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${deviceId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(verifyDevRes.statusCode, 200);
+    const devData = JSON.parse(verifyDevRes.body).device;
+    assert.equal(devData.childName, 'Leo Guardian');
+    assert.equal(devData.nickname, 'Leo Guardian');
+    assert.equal(devData.age, 11);
+    assert.equal(devData.gender, 'male');
+    assert.equal(devData.childAvatarId, 3);
+    assert.equal(devData.setupStep, 4);
+
+    // 8. Update child profile again when already at step 4 (in-place update, zero device duplication)
+    const updateProfileRes = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+      payload: {
+        setupStep: 4,
+        nickname: 'Leo The Brave',
+        age: 12,
+        gender: 'male',
+        childAvatarId: 7,
+      },
+    });
+    assert.equal(updateProfileRes.statusCode, 200);
+
+    const reVerifyDevRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${deviceId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(reVerifyDevRes.statusCode, 200);
+    const updatedDev = JSON.parse(reVerifyDevRes.body).device;
+    assert.equal(updatedDev.childName, 'Leo The Brave');
+    assert.equal(updatedDev.age, 12);
+    assert.equal(updatedDev.childAvatarId, 7);
+
+    // Verify DB count: strictly ONE device row exists
+    const [devCount] = await conn.db
+      .select({ count: count() })
+      .from(childDevices)
+      .where(eq(childDevices.id, deviceId));
+    assert.equal(devCount.count, 1, 'Device profile updates must not duplicate device rows');
+
+    // 9. Cross-parent ownership check: another parent cannot access or update this device
+    const otherParentId = crypto.randomUUID();
+    await conn.db.insert(parentUsers).values({
+      id: otherParentId,
+      email: `otherparent-${Date.now()}@example.test`,
+      fullName: 'Other Parent',
+      passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$dummyhashforrealpgtest1234567890',
+      status: 'active',
+      emailVerified: true,
+      authProvider: 'email',
+    });
+    const otherParentToken = jwt.sign(
+      { userId: otherParentId, email: 'otherparent@example.test', role: 'parent', emailVerified: true },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const crossAccessRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${deviceId}`,
+      headers: { authorization: `Bearer ${otherParentToken}` },
+    });
+    assert.equal(crossAccessRes.statusCode, 403, 'Cross-parent access must return 403 Forbidden');
+
+    const crossSetupRes = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/devices/${deviceId}/setup`,
+      headers: { authorization: `Bearer ${otherParentToken}` },
+      payload: { setupStep: 4, nickname: 'Hacked' },
+    });
+    assert.equal(crossSetupRes.statusCode, 404, 'Cross-parent setup update must return 404 Device unavailable');
+
+    // 10. Device persistence independent of pairing code expiry: expire all sessions
+    await conn.db.update(pairingSessions).set({ expiresAt: new Date(Date.now() - 60000), status: 'expired' })
+      .where(eq(pairingSessions.childDeviceId, deviceId));
+
+    // Device remains fully active and queryable by parent
+    const persistentDevRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/devices/${deviceId}`,
+      headers: { authorization: `Bearer ${testParentAccessToken}` },
+    });
+    assert.equal(persistentDevRes.statusCode, 200);
+    assert.equal(JSON.parse(persistentDevRes.body).device.childName, 'Leo The Brave');
+
+    // Child can continue heartbeating with active token
+    const hbRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/child/heartbeat',
+      headers: { authorization: `Bearer ${creds.deviceToken}` },
+      payload: { batteryPct: 95, isCharging: true },
+    });
+    assert.equal(hbRes.statusCode, 200);
+
+    // Clean up
+    await conn.db.delete(childDevices).where(eq(childDevices.id, deviceId)).catch(() => {});
   });
 });

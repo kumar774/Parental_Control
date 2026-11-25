@@ -469,16 +469,11 @@ class FastifyRestClient(
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val code = json.getString("code")
-                val expiresInSeconds = json.optLong("expiresInSeconds", 300L)
-                val expiresAtEpochMs = System.currentTimeMillis() + (expiresInSeconds * 1000L)
-                val qr = if (json.has("qrPayload")) {
-                    json.getString("qrPayload")
-                } else {
-                    "pc-pair:$code:$expiresAtEpochMs"
-                }
+                val expiresAtEpochMs = java.time.Instant.parse(json.getString("expiresAt")).toEpochMilli()
+                require(code.matches(Regex("[0-9]{9}"))) { "Invalid binding code from server" }
                 val dto = PairingCodeResponseDto(
                     pairingCode = code,
-                    qrPayload = qr,
+                    sessionId = json.getString("sessionId"),
                     expiresAtEpochMs = expiresAtEpochMs
                 )
                 Result.success(dto)
@@ -497,18 +492,15 @@ class FastifyRestClient(
 
     suspend fun confirmPairing(
         code: String,
-        sessionId: String,
-        childName: String = "Child",
-        deviceName: String = "Android Phone",
-        model: String? = null
-    ): Result<DeviceDto> = withContext(Dispatchers.IO) {
+        sessionId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         val trimmedSessionId = sessionId.trim()
         val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
         if (!uuidRegex.matches(trimmedSessionId)) {
             return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId for pairing confirmation: $sessionId"))
         }
-        val cleanCode = code.trim().filter { it.isDigit() }
-        if (cleanCode.length != 9) {
+        val cleanCode = code.trim()
+        if (!cleanCode.matches(Regex("[0-9]{9}"))) {
             return@withContext Result.failure(IllegalArgumentException("Invalid 9-digit pairing code: $code"))
         }
 
@@ -516,28 +508,10 @@ class FastifyRestClient(
             val jsonBody = JSONObject().apply {
                 put("code", cleanCode)
                 put("sessionId", trimmedSessionId)
-                put("childName", childName)
-                put("deviceName", deviceName)
-                if (!model.isNullOrBlank()) put("model", model)
-                put("osVersion", "Android 14")
-                put("appVersion", "1.0.0")
             }.toString()
-
             val response = executePost("/api/v1/devices/pair-confirm", jsonBody, accessToken)
             if (response.statusCode in 200..299) {
-                val json = JSONObject(response.body)
-                val deviceId = json.getString("deviceId")
-                val rChildName = json.optString("childName", childName)
-                val rDeviceName = json.optString("deviceName", deviceName)
-                val dto = DeviceDto(
-                    id = deviceId,
-                    childName = rChildName,
-                    deviceName = rDeviceName,
-                    model = model,
-                    batteryPct = 100,
-                    isLocked = false
-                )
-                Result.success(dto)
+                Result.success(Unit)
             } else {
                 val msg = try {
                     JSONObject(response.body).optString("message", "Pairing confirmation failed")
@@ -559,29 +533,31 @@ class FastifyRestClient(
                 val dto = AppSettingsDto(
                     googleAuthEnabled = json.optBoolean("googleAuthEnabled", false),
                     googleClientId = if (json.has("googleClientId") && !json.isNull("googleClientId")) json.getString("googleClientId") else null,
-                    childAppDownloadUrl = json.optString("childAppDownloadUrl", "https://download.guardian.io/child-app-latest.apk"),
+                    registrationEnabled = json.optBoolean("registrationEnabled", false),
+                    childAppDownloadUrl = json.optString("childAppDownloadUrl", "").takeIf { runCatching { val uri = java.net.URI(it); uri.scheme == "https" && uri.host != null && uri.userInfo == null }.getOrDefault(false) }.orEmpty(),
                     childAppLatestVersion = json.optString("childAppLatestVersion", "1.0.0"),
                     childAppMinVersion = json.optString("childAppMinVersion", "1.0.0")
                 )
                 Result.success(dto)
             } else {
-                Result.success(AppSettingsDto())
+                Result.failure(Exception("Application settings are unavailable"))
             }
         } catch (e: Exception) {
-            Result.success(AppSettingsDto())
+            Result.failure(Exception("Application settings are unavailable"))
         }
     }
 
-    suspend fun checkPairingStatus(code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+    suspend fun checkPairingStatus(sessionId: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
         try {
-            val response = executeGet("/api/v1/devices/pair-status/${code.trim()}", accessToken)
+            val response = executeGet("/api/v1/devices/pair-status/${java.util.UUID.fromString(sessionId)}", accessToken)
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val dto = PairingStatusDto(
-                    status = json.optString("status", "pending"),
+                    status = json.getString("status"),
+                    sessionId = json.getString("sessionId").also { require(it == sessionId) },
                     deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null,
                     childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null,
-                    deviceName = if (json.has("deviceName") && !json.isNull("deviceName")) json.getString("deviceName") else null
+                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" }
                 )
                 Result.success(dto)
             } else {
@@ -594,6 +570,29 @@ class FastifyRestClient(
             }
         } catch (e: Exception) {
             Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun getOnboarding(): Result<OnboardingDto> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = executeGet("/api/v1/devices/onboarding", accessToken)
+            check(response.statusCode in 200..299) { "Could not load account setup." }
+            val obj = JSONObject(response.body)
+            fun optional(key: String) = if (obj.isNull(key)) null else obj.getString(key)
+            OnboardingDto(obj.getBoolean("consentAccepted"), optional("pendingSessionId"), optional("pendingCode"), optional("expiresAt"))
+        }
+    }
+
+    suspend fun saveSetup(deviceId: String, step: Int, nickname: String? = null, age: Int? = null,
+                          gender: String? = null, avatar: Int? = null): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val body = JSONObject().put("setupStep", step)
+            nickname?.let { body.put("nickname", it) }
+            age?.let { body.put("age", it) }
+            gender?.let { body.put("gender", it) }
+            avatar?.let { body.put("childAvatarId", it) }
+            val response = executePut("/api/v1/devices/${java.util.UUID.fromString(deviceId)}/setup", body.toString(), accessToken)
+            check(response.statusCode in 200..299) { "Could not save device setup. Please try again." }
         }
     }
 
@@ -641,6 +640,9 @@ class FastifyRestClient(
                             childName = obj.optString("childName", "Child"),
                             deviceName = obj.optString("deviceName", "Device"),
                             model = if (obj.has("model") && !obj.isNull("model")) obj.getString("model") else null,
+                            setupStep = obj.optInt("setupStep", 4),
+                            nickname = obj.optString("nickname").takeIf { it.isNotBlank() && it != "null" },
+                            childAvatarId = obj.optInt("childAvatarId", 1),
                             osVersion = if (obj.has("osVersion") && !obj.isNull("osVersion")) obj.getString("osVersion") else null,
                             batteryPct = obj.optInt("batteryPct", 100),
                             isLocked = obj.optBoolean("isLocked", false),

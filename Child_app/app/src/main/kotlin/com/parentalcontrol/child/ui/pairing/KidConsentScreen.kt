@@ -30,24 +30,41 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * FlashGet Kids Style Screen 2: Statutory Terms & Consent Disclosure
+ * Child Guard Screen 2: Statutory Terms & Consent Disclosure
  */
 @Composable
 fun KidConsentScreen(
     onAgreeClick: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var policy by remember { mutableStateOf<String?>(null) }
+    if (policy != null) AlertDialog(
+        onDismissRequest = { policy = null }, title = { Text(policy!!) },
+        text = { Text(if (policy == "Terms of Service")
+            "A parent or legal guardian must authorize the connection. Only link a phone you have permission to enroll. Both devices must approve the association. Your guardian can revoke the connection."
+            else "For enrollment, Guardian stores your device model, device identifier, consent version and date, and the account linked to this phone. Credentials are stored securely on the phone. Enrollment does not collect location, audio, or camera content.") },
+        confirmButton = { TextButton(onClick = { policy = null }) { Text("Close") } })
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -58,19 +75,28 @@ fun KidConsentScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top right menu
+        // Top navigation bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {}) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF2D3436),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            IconButton(onClick = { /* extra options */ }) {
                 Icon(
                     imageVector = Icons.Default.MoreHoriz,
                     contentDescription = "Options",
                     tint = FlashGetPurple,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -84,7 +110,7 @@ fun KidConsentScreen(
 
         // Title
         Text(
-            text = "Welcome to Guardian Kids",
+            text = "Welcome to Child Guard",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF1E293B),
@@ -93,21 +119,58 @@ fun KidConsentScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Legal disclosure paragraphs exactly matching statutory standard
         Text(
             text = "You confirm that as the guardian or legal agent of the device, have installed the App for your child, and agree and authorize our products to obtain the data and information of your child's device.",
             fontSize = 14.sp,
+            color = Color(0xFF475569),
             lineHeight = 22.sp,
-            color = Color(0xFF475569)
+            textAlign = TextAlign.Start
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Before you continue to use our services, you have read and fully understood our Terms of Service and Privacy Policy. You expressly undertake to comply with the applicable laws and regulations in your territory during the use of the application.",
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-            color = Color(0xFF475569)
+        val termsPolicyText = buildAnnotatedString {
+            append("Before you continue to use our services, you have read and fully understood our ")
+            pushStringAnnotation(tag = "terms", annotation = "Terms of Service")
+            withStyle(
+                style = SpanStyle(
+                    color = FlashGetPurple,
+                    fontWeight = FontWeight.SemiBold,
+                    textDecoration = TextDecoration.Underline
+                )
+            ) {
+                append("Terms of Service")
+            }
+            pop()
+            append(" and ")
+            pushStringAnnotation(tag = "privacy", annotation = "Privacy Policy")
+            withStyle(
+                style = SpanStyle(
+                    color = FlashGetPurple,
+                    fontWeight = FontWeight.SemiBold,
+                    textDecoration = TextDecoration.Underline
+                )
+            ) {
+                append("Privacy Policy")
+            }
+            pop()
+            append(". You expressly undertake to comply with the applicable laws and regulations in your territory during the use of the application.")
+        }
+
+        ClickableText(
+            text = termsPolicyText,
+            style = TextStyle(
+                fontSize = 14.sp,
+                color = Color(0xFF475569),
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Start
+            ),
+            onClick = { offset ->
+                termsPolicyText.getStringAnnotations(tag = "terms", start = offset, end = offset)
+                    .firstOrNull()?.let { policy = "Terms of Service" }
+                termsPolicyText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
+                    .firstOrNull()?.let { policy = "Privacy Policy" }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -115,11 +178,11 @@ fun KidConsentScreen(
         Text(
             text = "You understand that illegal surveillance and recording activities without lawful authorization may be considered criminal acts and subject to legal liability.",
             fontSize = 14.sp,
+            color = Color(0xFF475569),
             lineHeight = 22.sp,
-            color = Color(0xFF475569)
+            textAlign = TextAlign.Start
         )
 
-        Spacer(modifier = Modifier.weight(1f, fill = false))
         Spacer(modifier = Modifier.height(36.dp))
 
         // Agree Button (Purple Capsule)

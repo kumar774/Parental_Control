@@ -10,10 +10,95 @@ import {
   Globe,
   Info,
 } from 'lucide-react';
-import { adminApi, AppSettingsResponse } from '../services/admin-api';
+import { adminApi, AppSettingsResponse, UpdateAppSettingsPayload } from '../services/admin-api';
+
+const GOOGLE_CLIENT_ID_REGEX = /^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/;
+
+export function isValidGoogleClientId(id: string): boolean {
+  return GOOGLE_CLIENT_ID_REGEX.test(id.trim());
+}
+
+export function isValidHttpsDownloadUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
+export interface AppSettingsFormValues {
+  googleAuthEnabled: boolean;
+  googleClientId: string;
+  registrationEnabled: boolean;
+  pairingCodeExpirySeconds: string;
+  childAppDownloadUrl: string;
+  parentAppDownloadUrl: string;
+  childAppLatestVersion: string;
+  childAppMinVersion: string;
+}
+
+export function validateAppSettingsForm(
+  values: AppSettingsFormValues
+): { ok: true; payload: UpdateAppSettingsPayload } | { ok: false; error: string } {
+  const trimmedClientId = values.googleClientId.trim();
+  if (values.googleAuthEnabled && !isValidGoogleClientId(trimmedClientId)) {
+    return {
+      ok: false,
+      error: 'A valid Google Web Client ID (*.apps.googleusercontent.com) is required to enable Google Authentication.',
+    };
+  }
+
+  const expiryNum = Number(values.pairingCodeExpirySeconds);
+  if (!Number.isInteger(expiryNum) || expiryNum < 60 || expiryNum > 3600) {
+    return {
+      ok: false,
+      error: 'Binding code lifetime must be an integer between 60 and 3600 seconds.',
+    };
+  }
+
+  if (!isValidHttpsDownloadUrl(values.childAppDownloadUrl)) {
+    return {
+      ok: false,
+      error: 'Child App Download URL must be a valid HTTPS URL without credentials, query parameters, or fragments.',
+    };
+  }
+
+  if (!isValidHttpsDownloadUrl(values.parentAppDownloadUrl)) {
+    return {
+      ok: false,
+      error: 'Parent App Download URL must be a valid HTTPS URL without credentials, query parameters, or fragments.',
+    };
+  }
+
+  const latestVersion = values.childAppLatestVersion.trim();
+  const minVersion = values.childAppMinVersion.trim();
+  if (!latestVersion || !minVersion) {
+    return {
+      ok: false,
+      error: 'Both Latest Production Version and Minimum Supported Version are required.',
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      googleAuthEnabled: values.googleAuthEnabled,
+      googleClientId: trimmedClientId || null,
+      registrationEnabled: values.registrationEnabled,
+      pairingCodeExpirySeconds: expiryNum,
+      parentAppDownloadUrl: values.parentAppDownloadUrl.trim() || null,
+      childAppDownloadUrl: values.childAppDownloadUrl.trim() || null,
+      childAppLatestVersion: latestVersion,
+      childAppMinVersion: minVersion,
+    },
+  };
+}
 
 export const AppSettingsPanel: React.FC = () => {
-  const [, setSettings] = useState<AppSettingsResponse | null>(null);
+  const [settings, setSettings] = useState<AppSettingsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -24,22 +109,35 @@ export const AppSettingsPanel: React.FC = () => {
   const [childAppLatestVersion, setChildAppLatestVersion] = useState<string>('1.0.0');
   const [childAppMinVersion, setChildAppMinVersion] = useState<string>('1.0.0');
 
+  const [parentUrl, setParentUrl] = useState('');
+  const [registration, setRegistration] = useState(false);
+  const [expiry, setExpiry] = useState('');
+
   // Alerts
   const [banner, setBanner] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
+  const syncFormFromSettings = useCallback((data: AppSettingsResponse) => {
+    setSettings(data);
+    setGoogleAuthEnabled(data.googleAuthEnabled || false);
+    setGoogleClientId(data.googleClientId || '');
+    setChildAppDownloadUrl(data.childAppDownloadUrl || '');
+    setParentUrl(data.parentAppDownloadUrl || '');
+    setRegistration(Boolean(data.registrationEnabled));
+    setExpiry(String(data.pairingCodeExpirySeconds ?? ''));
+    setChildAppLatestVersion(data.childAppLatestVersion || '1.0.0');
+    setChildAppMinVersion(data.childAppMinVersion || '1.0.0');
+  }, []);
+
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
+      setSettings(null);
+      setBanner(null);
       const data = await adminApi.getAppSettings();
-      setSettings(data);
-      setGoogleAuthEnabled(data.googleAuthEnabled || false);
-      setGoogleClientId(data.googleClientId || '');
-      setChildAppDownloadUrl(data.childAppDownloadUrl || 'https://download.guardian.io/child-app-latest.apk');
-      setChildAppLatestVersion(data.childAppLatestVersion || '1.0.0');
-      setChildAppMinVersion(data.childAppMinVersion || '1.0.0');
+      syncFormFromSettings(data);
     } catch (err: any) {
       setBanner({
         type: 'error',
@@ -48,7 +146,7 @@ export const AppSettingsPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncFormFromSettings]);
 
   useEffect(() => {
     fetchSettings();
@@ -56,18 +154,28 @@ export const AppSettingsPanel: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setBanner(null);
 
+    const validation = validateAppSettingsForm({
+      googleAuthEnabled,
+      googleClientId,
+      registrationEnabled: registration,
+      pairingCodeExpirySeconds: expiry,
+      childAppDownloadUrl,
+      parentAppDownloadUrl: parentUrl,
+      childAppLatestVersion,
+      childAppMinVersion,
+    });
+
+    if (!validation.ok) {
+      setBanner({ type: 'error', message: validation.error });
+      return;
+    }
+
+    setSaving(true);
     try {
-      const res = await adminApi.updateAppSettings({
-        googleAuthEnabled,
-        googleClientId: googleClientId.trim() ? googleClientId.trim() : null,
-        childAppDownloadUrl: childAppDownloadUrl.trim(),
-        childAppLatestVersion: childAppLatestVersion.trim(),
-        childAppMinVersion: childAppMinVersion.trim(),
-      });
-      setSettings(res.settings);
+      const res = await adminApi.updateAppSettings(validation.payload);
+      syncFormFromSettings(res.settings);
       setBanner({
         type: 'success',
         message: 'Application & mobile client settings saved successfully',
@@ -136,7 +244,20 @@ export const AppSettingsPanel: React.FC = () => {
       )}
 
       {/* FORM */}
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave}>
+        <fieldset disabled={loading || saving || !settings} className="space-y-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+          <label className="flex items-center gap-3 text-sm text-white">
+            <input type="checkbox" checked={registration} onChange={e => setRegistration(e.target.checked)} />
+            Allow new parent accounts
+          </label>
+          <label className="block text-sm text-white">
+            Binding code lifetime (seconds)
+            <input type="number" required min="60" max="3600" value={expiry}
+              onChange={e => setExpiry(e.target.value)}
+              className="ml-3 p-2 rounded bg-slate-800 border border-slate-700" />
+          </label>
+        </div>
         {/* SECTION 1: GOOGLE SIGN-IN */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
@@ -177,6 +298,7 @@ export const AppSettingsPanel: React.FC = () => {
                 onChange={(e) => setGoogleClientId(e.target.value)}
                 placeholder="e.g. 1234567890-abcdef.apps.googleusercontent.com"
                 disabled={!googleAuthEnabled}
+                required={googleAuthEnabled}
                 className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
               />
               <p className="text-xs text-slate-500 mt-1">
@@ -193,7 +315,7 @@ export const AppSettingsPanel: React.FC = () => {
               <Download className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">Child App Distribution & Policies</h3>
+              <h3 className="text-base font-semibold text-white">App Downloads &amp; Versions</h3>
               <p className="text-xs text-slate-400">
                 Configure APK direct download link and minimum supported application versions.
               </p>
@@ -209,10 +331,11 @@ export const AppSettingsPanel: React.FC = () => {
                 <Globe className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
                 <input
                   type="url"
-                  required
+                  aria-label="Child App Download URL"
+                  pattern="https://.*"
+                  title="Must be an HTTPS URL (https://...)"
                   value={childAppDownloadUrl}
                   onChange={(e) => setChildAppDownloadUrl(e.target.value)}
-                  placeholder="https://download.guardian.io/child-app-latest.apk"
                   className="w-full pl-9 pr-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -221,6 +344,12 @@ export const AppSettingsPanel: React.FC = () => {
               </p>
             </div>
 
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Parent App Download URL
+              <input type="url" pattern="https://.*" title="Must be an HTTPS URL (https://...)" value={parentUrl}
+                onChange={e => setParentUrl(e.target.value)}
+                className="mt-1.5 w-full p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white" />
+            </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
@@ -264,6 +393,7 @@ export const AppSettingsPanel: React.FC = () => {
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   );

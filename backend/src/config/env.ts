@@ -40,6 +40,8 @@ export const envSchema = z
       .regex(/^[0-9a-fA-F]+$/, 'IDENTIFIER_RATE_LIMIT_KEY must be a valid hex string')
       .optional(),
 
+    MOBILE_DOWNLOAD_ORIGINS: z.string().default(''),
+
     // Allowed Admin UI Origin
     ADMIN_FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),
 

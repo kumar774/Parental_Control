@@ -1,12 +1,30 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index';
 import { systemAppSettings, SystemAppSettings } from '../db/schema/parental-control';
-import { adminUsers } from '../db/schema/admin-auth';
+import { env } from '../config/env';
+
+export function isTrustedDownloadUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash &&
+      env.MOBILE_DOWNLOAD_ORIGINS.split(',').some(origin => origin.trim() === url.origin);
+  } catch {
+    return false;
+  }
+}
+
+export function validGoogleClientId(id: unknown): id is string {
+  return typeof id === 'string' && /^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(id);
+}
+
+export class InvalidAppSettings extends Error {}
 
 export interface PublicAppSettings {
   googleAuthEnabled: boolean;
   googleClientId: string | null;
-  childAppDownloadUrl: string;
+  registrationEnabled: boolean;
+  childAppDownloadUrl: string | null;
+  parentAppDownloadUrl: string | null;
   childAppLatestVersion: string;
   childAppMinVersion: string;
 }
@@ -14,18 +32,22 @@ export interface PublicAppSettings {
 export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   googleAuthEnabled: false,
   googleClientId: null,
-  childAppDownloadUrl: 'https://download.guardian.io/child-app-latest.apk',
+  registrationEnabled: true,
+  childAppDownloadUrl: null,
+  parentAppDownloadUrl: null,
   childAppLatestVersion: '1.0.0',
   childAppMinVersion: '1.0.0',
 };
 
+type SettingsUpdate = Partial<PublicAppSettings & { pairingCodeExpirySeconds: number }>;
+
 // Explicit test mock hooks for isolated unit testing
 let testMockProvider: (() => Promise<SystemAppSettings>) | null = null;
-let testMockUpdater: ((data: Partial<PublicAppSettings>, adminId?: string | null) => Promise<SystemAppSettings>) | null = null;
+let testMockUpdater: ((data: SettingsUpdate, adminId?: string | null) => Promise<SystemAppSettings>) | null = null;
 
 export function setAppSettingsMockForTest(
   provider: (() => Promise<SystemAppSettings>) | null,
-  updater: ((data: Partial<PublicAppSettings>, adminId?: string | null) => Promise<SystemAppSettings>) | null = null
+  updater: ((data: SettingsUpdate, adminId?: string | null) => Promise<SystemAppSettings>) | null = null
 ) {
   testMockProvider = provider;
   testMockUpdater = updater;
@@ -38,7 +60,6 @@ export async function resetAppSettingsForTest(): Promise<void> {
 
 /**
  * Strict database fetch of application settings.
- * Unlike getAppSettings(), this function does NOT catch database errors or fall back to defaults.
  * Used by admin reads and updates to prevent database outages from being hidden or overwriting stored data with defaults.
  */
 export async function getAppSettingsStrict(executor?: any): Promise<SystemAppSettings> {
@@ -81,131 +102,44 @@ export async function getAppSettingsStrict(executor?: any): Promise<SystemAppSet
     .where(eq(systemAppSettings.id, 'default'))
     .limit(1);
 
-  return reselected || {
-    id: 'default',
-    googleAuthEnabled: false,
-    googleClientId: null,
-    childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
-    childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
-    childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
-    updatedBy: null,
-    updatedAt: new Date(),
-  };
-}
-
-/**
- * Public/auth decision read: Fails closed on database failure (googleAuthEnabled: false)
- * to ensure public unauthenticated endpoints can safely proceed without enabling unverified auth.
- */
-export async function getAppSettings(): Promise<SystemAppSettings> {
-  try {
-    return await getAppSettingsStrict();
-  } catch (err: any) {
-    console.error('[AppSettingsService] Database read failed, failing closed for public auth:', err?.message);
-    return {
-      id: 'default',
-      googleAuthEnabled: false,
-      googleClientId: null,
-      childAppDownloadUrl: DEFAULT_APP_SETTINGS.childAppDownloadUrl,
-      childAppLatestVersion: DEFAULT_APP_SETTINGS.childAppLatestVersion,
-      childAppMinVersion: DEFAULT_APP_SETTINGS.childAppMinVersion,
-      updatedBy: null,
-      updatedAt: new Date(),
-    };
-  }
+  if (!reselected) throw new Error('Application settings unavailable');
+  return reselected;
 }
 
 export async function getPublicAppSettings(): Promise<PublicAppSettings> {
-  const settings = await getAppSettings();
+  const settings = await getAppSettingsStrict();
+  const googleEnabled = settings.googleAuthEnabled && validGoogleClientId(settings.googleClientId);
   return {
-    googleAuthEnabled: settings.googleAuthEnabled,
-    googleClientId: settings.googleAuthEnabled ? settings.googleClientId : null,
-    childAppDownloadUrl: settings.childAppDownloadUrl,
+    googleAuthEnabled: googleEnabled,
+    googleClientId: googleEnabled ? settings.googleClientId : null,
+    registrationEnabled: settings.registrationEnabled,
+    childAppDownloadUrl: settings.childAppDownloadUrl && isTrustedDownloadUrl(settings.childAppDownloadUrl) ? settings.childAppDownloadUrl : null,
+    parentAppDownloadUrl: settings.parentAppDownloadUrl && isTrustedDownloadUrl(settings.parentAppDownloadUrl) ? settings.parentAppDownloadUrl : null,
     childAppLatestVersion: settings.childAppLatestVersion,
     childAppMinVersion: settings.childAppMinVersion,
   };
 }
 
 export async function updateAppSettings(
-  data: Partial<PublicAppSettings>,
+  data: SettingsUpdate,
   adminId?: string | null,
   tx?: any
 ): Promise<SystemAppSettings> {
-  if (testMockUpdater) {
-    return testMockUpdater(data, adminId);
-  }
-
   const executor = tx || db;
-  let validAdminId: string | null = null;
-  if (adminId) {
-    try {
-      const [adminRow] = await executor
-        .select({ id: adminUsers.id })
-        .from(adminUsers)
-        .where(eq(adminUsers.id, adminId))
-        .limit(1);
-      if (adminRow) {
-        validAdminId = adminRow.id;
-      }
-    } catch {
-      validAdminId = null;
-    }
-  }
-
-  // Fetch current settings strictly from DB.
-  // DB read errors MUST throw; never build a partial update from a fabricated default after a DB read error!
   const current = await getAppSettingsStrict(executor);
-
-  const updatePayload: Partial<typeof systemAppSettings.$inferInsert> = {
-    updatedBy: validAdminId,
-    updatedAt: new Date(),
-  };
-
-  if (typeof data.googleAuthEnabled === 'boolean') {
-    if (data.googleAuthEnabled === true) {
-      const clientId = data.googleClientId !== undefined ? data.googleClientId : current.googleClientId;
-      if (!clientId || typeof clientId !== 'string' || clientId.trim().length === 0) {
-        throw new Error('Google Client ID is required to enable Google Authentication');
-      }
+  const clientId = data.googleClientId === undefined ? current.googleClientId : data.googleClientId;
+  if ((data.googleAuthEnabled ?? current.googleAuthEnabled) && !validGoogleClientId(clientId)) {
+    throw new InvalidAppSettings('Google Client ID is required to enable Google Authentication');
+  }
+  for (const url of [data.childAppDownloadUrl, data.parentAppDownloadUrl]) {
+    if (url != null && !isTrustedDownloadUrl(url)) {
+      throw new InvalidAppSettings('Choose an HTTPS download URL on a configured trusted origin');
     }
-    updatePayload.googleAuthEnabled = data.googleAuthEnabled;
   }
-  if (data.googleClientId !== undefined) {
-    updatePayload.googleClientId = data.googleClientId;
-  }
-  if (data.childAppDownloadUrl) {
-    updatePayload.childAppDownloadUrl = data.childAppDownloadUrl.trim();
-  }
-  if (data.childAppLatestVersion) {
-    updatePayload.childAppLatestVersion = data.childAppLatestVersion.trim();
-  }
-  if (data.childAppMinVersion) {
-    updatePayload.childAppMinVersion = data.childAppMinVersion.trim();
-  }
-
-  // Durable write: write to persistent database and return updated record.
-  // DB write failures MUST throw; never silently catch or succeed in memory in production.
-  const [updated] = await executor
-    .insert(systemAppSettings)
-    .values({
-      id: 'default',
-      googleAuthEnabled: updatePayload.googleAuthEnabled ?? current.googleAuthEnabled,
-      googleClientId: updatePayload.googleClientId ?? current.googleClientId,
-      childAppDownloadUrl: updatePayload.childAppDownloadUrl ?? current.childAppDownloadUrl,
-      childAppLatestVersion: updatePayload.childAppLatestVersion ?? current.childAppLatestVersion,
-      childAppMinVersion: updatePayload.childAppMinVersion ?? current.childAppMinVersion,
-      updatedBy: validAdminId,
-      updatedAt: updatePayload.updatedAt,
-    })
-    .onConflictDoUpdate({
-      target: systemAppSettings.id,
-      set: updatePayload,
-    })
-    .returning();
-
-  if (updated) {
-    return updated;
-  }
-
-  throw new Error('Database write failed: unable to persist application settings');
+  if (testMockUpdater) return testMockUpdater(data, adminId);
+  const [updated] = await executor.update(systemAppSettings)
+    .set({ ...data, updatedAt: new Date(), updatedBy: adminId ?? null })
+    .where(eq(systemAppSettings.id, 'default')).returning();
+  if (!updated) throw new Error('Application settings update failed');
+  return updated;
 }

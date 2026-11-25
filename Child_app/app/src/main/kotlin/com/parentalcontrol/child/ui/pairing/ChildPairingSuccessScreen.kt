@@ -1,253 +1,275 @@
 package com.parentalcontrol.child.ui.pairing
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.child.storage.DeviceSession
+import androidx.core.content.ContextCompat
+import com.parentalcontrol.child.network.ChildRestClient
+import com.parentalcontrol.child.storage.DeviceStorage
+import kotlinx.coroutines.CancellationException
 
-private val BrandPurple = Color(0xFF6C5CE7)
-private val BrandIndigo = Color(0xFF4834D4)
-private val SafeGreen = Color(0xFF00B894)
-private val CardBg = Color(0xFFF8FAFC)
-private val BorderColor = Color(0xFFE2E8F0)
-private val TextDark = Color(0xFF0F172A)
-private val TextMuted = Color(0xFF64748B)
+@Composable
+fun ChildPairingSuccessScreen(onSetup: () -> Unit) {
+    SetupPage {
+        Icon(
+            imageVector = Icons.Default.CheckCircle,
+            contentDescription = null,
+            modifier = Modifier.size(96.dp),
+            tint = FlashGetPurple
+        )
+        Text(
+            text = "Connected Successfully!",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1E293B)
+        )
+        Text(
+            text = "Your device is now linked to your parent's account.",
+            textAlign = TextAlign.Center,
+            color = Color(0xFF64748B),
+            fontSize = 15.sp
+        )
+        Text(
+            text = "Check this phone's initial setup when you're ready.",
+            textAlign = TextAlign.Center,
+            color = Color(0xFF64748B),
+            fontSize = 15.sp
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onSetup,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(26.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+        ) {
+            Text("Setup", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
 
 /**
- * Dedicated Child Pairing Success Screen.
- * Displays terminal pairing completion state without activating post-pairing monitoring.
+ * Screen 4: Initial Permission / Setup check matching:
+ * 4th screen Permission check screen server side i think.webp
+ *
+ * Checks legitimate local Android state (INTERNET permission) + backend association
+ * via ChildRestClient.checkAssociation ONLY.
+ * Does NOT request camera/mic/location/accessibility/device-admin permissions.
+ * Does NOT start background monitoring services or telemetry.
  */
 @Composable
-fun ChildPairingSuccessScreen(
-    session: DeviceSession,
-    onUnpairClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Spacer(modifier = Modifier.height(20.dp))
+fun InitialSetupScreen(storage: DeviceStorage) {
+    val context = LocalContext.current
+    var retry by remember { mutableIntStateOf(0) }
+    var passed by remember { mutableStateOf<Boolean?>(null) }
 
-        // Success badge with layered circle effect
+    LaunchedEffect(retry) {
+        passed = null
+        val internet = ContextCompat.checkSelfPermission(context, Manifest.permission.INTERNET) ==
+            PackageManager.PERMISSION_GRANTED
+        passed = try {
+            internet && storage.isPaired() && storage.getPendingPairAck() == null &&
+                ChildRestClient.instance.checkAssociation(storage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    SetupPage {
+        // Phone with gears & security shield illustration
+        PermissionCheckHeroIllustration()
+
+        Spacer(Modifier.height(28.dp))
+
+        when (passed) {
+            null -> {
+                Text(
+                    text = "Checking necessary permissions, DO NOT touch the screen till the process is finished.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF334155),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(Modifier.height(28.dp))
+                StripedProgressBar(modifier = Modifier.padding(horizontal = 24.dp))
+            }
+            true -> {
+                Text(
+                    text = "Initial setup complete",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+                Text(
+                    text = "Your device connection is verified. Additional features can be configured later.",
+                    textAlign = TextAlign.Center,
+                    color = Color(0xFF64748B),
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp
+                )
+            }
+            false -> {
+                Text(
+                    text = "Setup check incomplete",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE53935)
+                )
+                Text(
+                    text = "Check your internet connection and ask your guardian to verify the device association.",
+                    textAlign = TextAlign.Center,
+                    color = Color(0xFF64748B),
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { retry++ },
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                ) {
+                    Text("Retry check", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionCheckHeroIllustration() {
+    Box(
+        modifier = Modifier.size(200.dp, 180.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Purple phone body
         Box(
             modifier = Modifier
-                .size(96.dp)
-                .clip(CircleShape)
-                .background(SafeGreen.copy(alpha = 0.12f)),
+                .size(100.dp, 160.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+                .border(3.dp, FlashGetPurple, RoundedCornerShape(20.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(SafeGreen, Color(0xFF00A381))
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Speaker slot
+                Box(
+                    modifier = Modifier
+                        .size(24.dp, 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(FlashGetPurple.copy(alpha = 0.4f))
+                )
+                Spacer(Modifier.height(24.dp))
+                // Gears inside phone
                 Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Success",
-                    tint = Color.White,
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = FlashGetPurple.copy(alpha = 0.5f),
                     modifier = Modifier.size(36.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Connected to Parent Successfully",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextDark,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Your device is now securely paired with your parent's account.",
-            fontSize = 14.sp,
-            color = TextMuted,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Pairing Details Card
-        Card(
+        // Magnifying glass with lock
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, BorderColor, RoundedCornerShape(16.dp)),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg)
+                .offset(x = 18.dp, y = 20.dp)
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(3.dp, FlashGetPurple, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.PhoneAndroid,
-                            contentDescription = null,
-                            tint = BrandPurple,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Device Name",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextMuted
-                        )
-                    }
-                    Text(
-                        text = session.childName ?: "Child Phone",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextDark
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = SafeGreen,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Pairing Status",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextMuted
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SafeGreen.copy(alpha = 0.12f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "Paired & Verified",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SafeGreen
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Post-pairing status scope notice
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp)),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))
-        ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = Color(0xFF64748B),
-                    modifier = Modifier
-                        .size(18.dp)
-                        .padding(top = 2.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Pairing complete. Background monitoring, location tracking, and content filtering remain inactive until configured.",
-                    fontSize = 12.sp,
-                    color = Color(0xFF475569),
-                    lineHeight = 17.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(36.dp))
-
-        // Unpair / Disconnect button
-        OutlinedButton(
-            onClick = onUnpairClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp),
-            shape = RoundedCornerShape(23.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA))
-        ) {
-            Text(
-                text = "Unpair Device",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = Color(0xFFFDCB6E),
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        // Green shield at bottom
+        Box(
+            modifier = Modifier
+                .offset(x = (-24).dp, y = 50.dp)
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF00B894)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Security,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
+}
+
+@Composable
+private fun StripedProgressBar(modifier: Modifier = Modifier) {
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(14.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color(0xFFE0E7FF))
+    ) {
+        val stripeWidth = 14.dp.toPx()
+        val stripeColor = FlashGetPurple.copy(alpha = 0.45f)
+        var x = -stripeWidth
+        while (x < size.width + stripeWidth) {
+            drawLine(
+                color = stripeColor,
+                start = Offset(x, 0f),
+                end = Offset(x + stripeWidth, size.height),
+                strokeWidth = stripeWidth * 0.6f
+            )
+            x += stripeWidth * 1.5f
+        }
+    }
+}
+
+@Composable
+private fun SetupPage(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
+        content = content
+    )
 }

@@ -97,20 +97,21 @@ fun LoginScreen(
     onNavigateToEmailVerification: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     onGoogleSignInClick: () -> Unit = {},
+    appSettings: com.parentalcontrol.core.network.rest.AppSettingsDto? = null,
+    onReloadSettings: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val mmkv = ParentalDatabase.getInstance().mmkv
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
-    var isGoogleAuthEnabled by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        val settings = FastifyRestClient.shared.getAppSettings()
-        if (settings.isSuccess) {
-            isGoogleAuthEnabled = settings.getOrNull()?.googleAuthEnabled == true
-        }
+    var showEmail by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(showEmail) { showEmail = false }
+    if (!showEmail) {
+        AuthMethodScreen(false, appSettings, onGoogleSignInClick, { showEmail = true }, onRegisterClick, onBackClick, onReloadSettings)
+        return
     }
+
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -159,7 +160,7 @@ fun LoginScreen(
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBackClick()
+                        showEmail = false
                     },
                     modifier = Modifier
                         .size(40.dp)
@@ -410,58 +411,7 @@ fun LoginScreen(
                     }
                 }
 
-                // Google Sign-In Button (conditionally enabled via remote configuration)
-                if (isGoogleAuthEnabled) {
-                    Spacer(modifier = Modifier.height(Space16))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
-                        Text(
-                            text = "OR",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B),
-                            modifier = Modifier.padding(horizontal = Space12)
-                        )
-                        Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF334155)))
-                    }
-                    Spacer(modifier = Modifier.height(Space16))
-                    OutlinedButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onGoogleSignInClick()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RadiusCapsule,
-                        border = BorderStroke(1.dp, Color(0xFF334155)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFF0F172A),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "G",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 18.sp,
-                                color = Color(0xFF4285F4)
-                            )
-                            Spacer(modifier = Modifier.width(Space12))
-                            Text(
-                                text = "Sign in with Google",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
+
 
                 // Biometric Login Pill (Only visible if biometric is enabled in Settings and valid session exists)
                 if (isBiometricEnabled) {

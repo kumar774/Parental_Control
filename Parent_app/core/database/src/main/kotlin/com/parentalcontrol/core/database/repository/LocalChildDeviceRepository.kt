@@ -41,7 +41,7 @@ class LocalChildDeviceRepository(
         return result.map { dto ->
             PairingCode(
                 code = dto.pairingCode,
-                qrPayload = dto.qrPayload,
+                sessionId = dto.sessionId,
                 expiresAtTimestamp = dto.expiresAtEpochMs
             )
         }

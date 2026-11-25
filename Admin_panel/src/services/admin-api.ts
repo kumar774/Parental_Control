@@ -55,7 +55,10 @@ export interface AppSettingsResponse {
   id: string;
   googleAuthEnabled: boolean;
   googleClientId: string | null;
-  childAppDownloadUrl: string;
+  childAppDownloadUrl: string | null;
+  parentAppDownloadUrl: string | null;
+  registrationEnabled: boolean;
+  pairingCodeExpirySeconds: number;
   childAppLatestVersion: string;
   childAppMinVersion: string;
   updatedBy: string | null;
@@ -65,7 +68,10 @@ export interface AppSettingsResponse {
 export interface UpdateAppSettingsPayload {
   googleAuthEnabled?: boolean;
   googleClientId?: string | null;
-  childAppDownloadUrl?: string;
+  childAppDownloadUrl?: string | null;
+  parentAppDownloadUrl?: string | null;
+  registrationEnabled?: boolean;
+  pairingCodeExpirySeconds?: number;
   childAppLatestVersion?: string;
   childAppMinVersion?: string;
 }

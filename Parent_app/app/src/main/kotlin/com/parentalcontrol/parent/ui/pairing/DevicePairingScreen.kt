@@ -215,7 +215,7 @@ internal fun parseChildQrContract(
             else -> return ChildQrValidationResult.Invalid("Missing or empty expiresAt in QR")
         }
 
-        if (expiryMs < nowMs) {
+        if (expiryMs <= nowMs) {
             ChildQrValidationResult.Expired(code = codeRaw, expiresAt = displayExpires)
         } else {
             ChildQrValidationResult.Valid(code = codeRaw, sessionId = sessionId, expiresAt = displayExpires)
@@ -243,703 +243,181 @@ fun formatNineDigitCode(code: String): String {
 }
 
 @Composable
-fun DevicePairingScreen(
-    onNavigateBack: () -> Unit,
-    onPairingSuccess: (childName: String, deviceName: String) -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, String) -> Unit,
+                        modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val childDao = remember { ParentalDatabase.getInstance().childDeviceDao }
-    val haptic = LocalHapticFeedback.current
+    val client = FastifyRestClient.shared
+    var session by remember { mutableStateOf<String?>(null) }
+    var code by remember { mutableStateOf<String?>(null) }
+    var expires by remember { mutableLongStateOf(0L) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var status by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+    var denied by remember { mutableStateOf(false) }
+    var pendingApproval by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-    // CameraX & Scan States
-    var isFlashOn by remember { mutableStateOf(false) }
-    var isPairingLoading by remember { mutableStateOf(false) }
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    // 9-Digit Code States
-    var serverPairingCode by remember { mutableStateOf<String?>(null) }
-    var pairingCodeExpiresAt by remember { mutableLongStateOf(0L) }
-    var remainingSeconds by remember { mutableIntStateOf(0) }
-    var isFetchingPairingCode by remember { mutableStateOf(false) }
-    var isCheckingBindingStatus by remember { mutableStateOf(false) }
-    var pairingCodeError by remember { mutableStateOf<String?>(null) }
-
-    // Download Info States
-    var childDownloadUrl by remember { mutableStateOf("https://download.guardian.io/child-app-latest.apk") }
-
-    // Function to generate new 9-digit pairing code from server
-    fun fetchNewPairingCode() {
-        isFetchingPairingCode = true
-        pairingCodeError = null
+    fun checkStatus() {
+        val id = session ?: return
+        if (busy) return
+        busy = true
+        message = null
         scope.launch {
-            val result = FastifyRestClient.shared.generatePairingCode()
-            isFetchingPairingCode = false
-            if (result.isSuccess) {
-                val dto = result.getOrNull()!!
-                serverPairingCode = dto.pairingCode
-                pairingCodeExpiresAt = dto.expiresAtEpochMs
-                val diffSec = ((dto.expiresAtEpochMs - System.currentTimeMillis()) / 1000).toInt()
-                remainingSeconds = maxOf(0, diffSec)
-            } else {
-                pairingCodeError = result.exceptionOrNull()?.message ?: "Failed to generate pairing code"
-                serverPairingCode = null
-                remainingSeconds = 0
-            }
+            client.checkPairingStatus(id).onSuccess { result ->
+                status = result.status
+                if (result.status == "paired") {
+                    val device = result.deviceId
+                    if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess)
+                        onPairingSuccess(device, result.deviceName.orEmpty())
+                    else message = "Could not identify the paired device."
+                }
+            }.onFailure { message = it.message }
+            busy = false
         }
     }
 
-    // Fetch remote settings (download URL) & automatically fetch 9-digit pairing code on entry
-    LaunchedEffect(Unit) {
-        val settings = FastifyRestClient.shared.getAppSettings()
-        if (settings.isSuccess) {
-            val url = settings.getOrNull()?.childAppDownloadUrl
-            if (!url.isNullOrBlank()) childDownloadUrl = url
-        }
-        fetchNewPairingCode()
-    }
-
-    // Check binding status on button click
-    fun checkBindingStatus() {
-        val code = serverPairingCode
-        if (code.isNullOrBlank()) {
-            Toast.makeText(context, "Pairing code not available yet", Toast.LENGTH_SHORT).show()
-            return
-        }
-        isCheckingBindingStatus = true
+    fun issueOrResume() {
+        if (busy) return
+        busy = true
+        message = null
         scope.launch {
-            val statusRes = FastifyRestClient.shared.checkPairingStatus(code)
-            isCheckingBindingStatus = false
-            if (statusRes.isSuccess) {
-                val statusDto = statusRes.getOrNull()
-                val targetId = statusDto?.deviceId
-                if (statusDto?.status == "paired" && !targetId.isNullOrBlank()) {
-                    val childName = statusDto.childName ?: "Child Phone"
-                    val deviceName = statusDto.deviceName ?: "Android Device"
-                    childDao.insertOrUpdate(
-                        ChildDeviceEntity(
-                            id = targetId,
-                            deviceName = deviceName,
-                            childName = childName,
-                            childAge = 10,
-                            avatarUrl = null,
-                            isLocked = false,
-                            batteryPercent = 0,
-                            isCharging = false,
-                            isOnline = false,
-                            activeApp = null,
-                            lastKnownLat = null,
-                            lastKnownLng = null,
-                            lastSeenAt = 0L
-                        )
-                    )
-                    Toast.makeText(context, "Child device successfully bound!", Toast.LENGTH_SHORT).show()
-                    onPairingSuccess(childName, deviceName)
+            try {
+                val saved = client.getOnboarding().getOrThrow()
+                if (saved.pendingSessionId != null) {
+                    session = saved.pendingSessionId
+                    code = saved.pendingCode
+                    expires = saved.expiresAt?.let { java.time.Instant.parse(it).toEpochMilli() } ?: 0L
                 } else {
-                    Toast.makeText(context, "Binding not completed yet. Enter code or scan QR on child device.", Toast.LENGTH_SHORT).show()
+                    val issued = client.generatePairingCode().getOrThrow()
+                    session = issued.sessionId
+                    code = issued.pairingCode
+                    expires = issued.expiresAtEpochMs
                 }
-            } else {
-                val err = statusRes.exceptionOrNull()?.message ?: "Binding status check failed"
-                Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
-            }
+                status = ""
+            } catch (e: Exception) { message = e.message }
+            busy = false
+            if (session != null && message == null) checkStatus()
         }
     }
+    LaunchedEffect(Unit) { issueOrResume() }
+    LaunchedEffect(expires) {
+        now = System.currentTimeMillis()
+        while (now < expires) { delay(1000); now = System.currentTimeMillis() }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        scanning = granted
+        denied = !granted
+    }
+    androidx.activity.compose.BackHandler(enabled = scanning) { scanning = false }
 
-    // Countdown timer for 9-digit pairing code & Polling status
-    LaunchedEffect(serverPairingCode, remainingSeconds) {
-        if (serverPairingCode != null && remainingSeconds > 0) {
-            delay(1000L)
-            remainingSeconds -= 1
-
-            // Poll pairing status periodically
-            if (remainingSeconds % 3 == 0) {
-                val statusRes = FastifyRestClient.shared.checkPairingStatus(serverPairingCode!!)
-                if (statusRes.isSuccess) {
-                    val statusDto = statusRes.getOrNull()
-                    if (statusDto?.status == "paired") {
-                        val childName = statusDto.childName ?: "Child Phone"
-                        val deviceName = statusDto.deviceName ?: "Android Device"
-                        childDao.insertOrUpdate(
-                            ChildDeviceEntity(
-                                id = statusDto.deviceId ?: serverPairingCode!!,
-                                deviceName = deviceName,
-                                childName = childName,
-                                childAge = 10,
-                                avatarUrl = null,
-                                isLocked = false,
-                                batteryPercent = 0,
-                                isCharging = false,
-                                isOnline = false,
-                                activeApp = null,
-                                lastKnownLat = null,
-                                lastKnownLng = null,
-                                lastSeenAt = 0L
-                            )
-                        )
-                        onPairingSuccess(childName, deviceName)
+    SetupPage("Add New Device", onNavigateBack) {
+        Text("Step 01 of 03   Bind child's device")
+        SetupCard("Download Child App") {
+            Text("Scan this download QR with the child's phone or open the official link.")
+            DownloadLink(true)
+        }
+        SetupCard("Scan Child QR") {
+            Text("On the child's phone, choose Generate QR Code.")
+            if (scanning) {
+                LiveCameraQrScanner(onQrCodeDetected = { raw ->
+                    scanning = false
+                    when (val qr = parseChildQrContract(raw)) {
+                        is ChildQrValidationResult.Valid -> pendingApproval = qr.sessionId to qr.code
+                        is ChildQrValidationResult.Invalid -> message = "This is not a valid Child App pairing QR."
+                        is ChildQrValidationResult.Expired -> message = "This QR has expired. Generate a new one on the child's phone."
                     }
+                }, isFlashOn = false, modifier = Modifier.fillMaxWidth().height(240.dp),
+                    onError = { scanning = false; message = "Camera unavailable. Try again or use the binding code." })
+                TextButton({ scanning = false }) { Text("Close scanner") }
+            } else {
+                OutlinedButton({
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scanning = true
+                    else permission.launch(Manifest.permission.CAMERA)
+                }, enabled = !busy) { Text("Scan QR Code") }
+                if (denied) {
+                    Text("Allow camera access to scan, or enter the binding code on the child's phone.")
+                    TextButton({ context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}"))) }) { Text("Open app settings") }
                 }
             }
         }
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                hasCameraPermission = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasCameraPermission = isGranted
-        if (!isGranted) {
-            Toast.makeText(context, "Camera permission is required to scan QR code", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BgCanvas)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = Space20, vertical = Space16),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top Navigation Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E293B))
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(Space12))
-                Column {
-                    Text(
-                        text = "Bind child's device",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Connect child companion phone",
-                        color = NeonCyan,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            // FlashGet Kids Continuous Vertical Flow: 01 Download Kids -> 02 Bind Child's Device
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // ==========================================
-                // SECTION 01: Download Kids (QR Code + Link)
-                // ==========================================
-                Section01DownloadKids(
-                    downloadUrl = childDownloadUrl,
-                    context = context
-                )
-
-                Spacer(modifier = Modifier.height(Space20))
-
-                // ==========================================
-                // SECTION 02: Bind Child's Device
-                // ==========================================
-                Section02BindChildDevice(
-                    hasCameraPermission = hasCameraPermission,
-                    isFlashOn = isFlashOn,
-                    onToggleFlash = { isFlashOn = !isFlashOn },
-                    onRequestPermission = {
-                        try {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onQrCodeDetected = { rawQr ->
-                        when (val qrResult = parseChildQrContract(rawQr)) {
-                            is ChildQrValidationResult.Valid -> {
-                                Toast.makeText(context, "Pairing with code ${qrResult.code}...", Toast.LENGTH_SHORT).show()
-                                scope.launch {
-                                    val result = FastifyRestClient.shared.confirmPairing(
-                                        code = qrResult.code,
-                                        sessionId = qrResult.sessionId
-                                    )
-                                    if (result.isSuccess) {
-                                        val dev = result.getOrNull()!!
-                                        childDao.insertOrUpdate(
-                                            ChildDeviceEntity(
-                                                id = dev.id,
-                                                deviceName = dev.deviceName,
-                                                childName = dev.childName.ifBlank { dev.deviceName },
-                                                childAge = 10,
-                                                avatarUrl = null,
-                                                isLocked = false,
-                                                batteryPercent = 0,
-                                                isCharging = false,
-                                                isOnline = false,
-                                                activeApp = null,
-                                                lastKnownLat = null,
-                                                lastKnownLng = null,
-                                                lastSeenAt = 0L
-                                            )
-                                        )
-                                        onPairingSuccess(dev.childName, dev.deviceName)
-                                    } else {
-                                        val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
-                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }
-                            is ChildQrValidationResult.Expired -> {
-                                Toast.makeText(context, "QR code has expired. Please refresh Child App.", Toast.LENGTH_LONG).show()
-                            }
-                            is ChildQrValidationResult.Invalid -> {
-                                Toast.makeText(context, qrResult.reason, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    pairingCode = serverPairingCode,
-                    remainingSeconds = remainingSeconds,
-                    isFetching = isFetchingPairingCode,
-                    errorMessage = pairingCodeError,
-                    isCheckingStatus = isCheckingBindingStatus,
-                    onRefreshCode = { fetchNewPairingCode() },
-                    onCheckBindingStatus = { checkBindingStatus() }
-                )
-
-                Spacer(modifier = Modifier.height(Space32))
-            }
-        }
-    }
-}
-
-/**
- * Section 01: Download Kids (QR Code + Direct Download Link)
- * Replicates FlashGet Kids Section 01 layout 1:1
- */
-@Composable
-private fun Section01DownloadKids(
-    downloadUrl: String,
-    context: Context
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .liquidGlassCard(shape = RadiusLarge)
-            .background(Color(0xFF0F172A))
-            .border(1.dp, Color(0xFF334155), RadiusLarge)
-            .padding(Space20),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(NeonCyan.copy(alpha = 0.2f))
-                    .border(1.dp, NeonCyan, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "01",
-                    color = NeonCyan,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.width(Space10))
-            Column {
-                Text(
-                    text = "Download Kids",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "1. Scan the QR code with child's device to download Kids.",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Space16))
-
-        // Download QR Code Card
-        Box(
-            modifier = Modifier
-                .size(180.dp)
-                .clip(RadiusMedium)
-                .background(Color.White)
-                .padding(Space8),
-            contentAlignment = Alignment.Center
-        ) {
-            DownloadQrCanvas(data = downloadUrl)
-        }
-
-        Spacer(modifier = Modifier.height(Space16))
-
-        Text(
-            text = "2. Or download through this link in browser:",
-            color = Color(0xFF94A3B8),
-            fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(Space8))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RadiusCapsule)
-                .background(Color(0xFF1E293B))
-                .border(1.dp, Color(0xFF334155), RadiusCapsule)
-                .padding(horizontal = Space12, vertical = Space8),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = downloadUrl,
-                color = NeonCyan,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(
-                onClick = {
-                    try {
+        SetupCard("Parent binding code") {
+            Text("Enter this code in the Child App.")
+            code?.let { value ->
+                Text(formatNineDigitCode(value), style = MaterialTheme.typography.headlineSmall)
+                if (now < expires) {
+                    Text("Expires in ${(expires - now + 999) / 1000} seconds")
+                    TextButton({
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val clip = android.content.ClipData.newPlainText("Child App Download Link", downloadUrl)
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Link copied to clipboard!", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Copied: $downloadUrl", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "Copy link",
-                    tint = NeonCyan,
-                    modifier = Modifier.size(16.dp)
-                )
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Binding code", value))
+                    }) { Text("Copy code") }
+                }
+            }
+            if (session == null || status in setOf("expired", "canceled") || (expires > 0 && now >= expires)) {
+                OutlinedButton({ issueOrResume() }, enabled = !busy) { Text("Get binding code") }
             }
         }
+        val description = when (status) {
+            "waiting_for_child" -> "Waiting for the child to enter the code."
+            "waiting_for_parent" -> "The child requested a connection. Review it before approving."
+            "waiting_for_child_confirmation" -> "Waiting for confirmation on the child's phone."
+            "finalizing" -> "The child is finishing secure setup."
+            "expired" -> "This enrollment has expired."
+            "canceled" -> "This enrollment was canceled."
+            else -> null
+        }
+        description?.let { Text(it) }
+        if (status == "waiting_for_parent" && session != null && code != null) {
+            Button({ pendingApproval = session!! to code!! }, enabled = !busy) { Text("Review connection") }
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button({ checkStatus() }, enabled = !busy && session != null) { Text("Check binding status") }
+        if (busy) CircularProgressIndicator()
+    }
+    pendingApproval?.let { (id, candidateCode) ->
+        AlertDialog(onDismissRequest = { pendingApproval = null }, title = { Text("Approve device connection?") },
+            text = { Text("Confirm that you are setting up the child's phone in front of you. The child must also confirm your account.") },
+            dismissButton = { TextButton({ pendingApproval = null }) { Text("Cancel") } },
+            confirmButton = { Button({
+                pendingApproval = null
+                busy = true
+                scope.launch {
+                    client.confirmPairing(candidateCode, id).onSuccess {
+                        session = id
+                        code = candidateCode
+                        message = null
+                    }.onFailure { message = it.message }
+                    busy = false
+                    if (message == null) checkStatus()
+                }
+            }) { Text("Approve") } })
     }
 }
 
-/**
- * Section 02: Bind Child's Device (Camera QR Scanner + Generated 9-Digit Code + Check Status Button)
- * Replicates FlashGet Kids Section 02 layout 1:1
- */
-@Composable
-private fun Section02BindChildDevice(
-    hasCameraPermission: Boolean,
-    isFlashOn: Boolean,
-    onToggleFlash: () -> Unit,
-    onRequestPermission: () -> Unit,
-    onQrCodeDetected: (String) -> Unit,
-    pairingCode: String?,
-    remainingSeconds: Int,
-    isFetching: Boolean,
-    errorMessage: String?,
-    isCheckingStatus: Boolean,
-    onRefreshCode: () -> Unit,
-    onCheckBindingStatus: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .liquidGlassCard(shape = RadiusLarge)
-            .background(Color(0xFF0F172A))
-            .border(1.dp, Color(0xFF334155), RadiusLarge)
-            .padding(Space20),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(NeonCyan.copy(alpha = 0.2f))
-                    .border(1.dp, NeonCyan, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "02",
-                    color = NeonCyan,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.width(Space10))
-            Column {
-                Text(
-                    text = "Bind child's device",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "1. Open Kids on the child's device, scan the QR code to bind.",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Space16))
-
-        // Part 1: Camera Scanner Option (UPAR)
-        if (hasCameraPermission) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RadiusLarge)
-                    .background(Color.Black)
-                    .border(1.5.dp, NeonCyan.copy(alpha = 0.8f), RadiusLarge)
-            ) {
-                LiveCameraQrScanner(
-                    onQrCodeDetected = onQrCodeDetected,
-                    isFlashOn = isFlashOn,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                IconButton(
-                    onClick = onToggleFlash,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(if (isFlashOn) NeonCyan.copy(alpha = 0.3f) else Color(0xFF1E293B))
-                        .border(1.dp, if (isFlashOn) NeonCyan else Color(0xFF334155), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                        contentDescription = "Flash Toggle",
-                        tint = if (isFlashOn) NeonCyan else Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                Text(
-                    text = "Aim camera at QR code on child's screen",
-                    color = Color(0xFFE2E8F0),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RadiusLarge)
-                    .background(Color(0xFF1E293B))
-                    .border(1.dp, Color(0xFF334155), RadiusLarge)
-                    .padding(Space12),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = null,
-                    tint = NeonCyan,
-                    modifier = Modifier.size(28.dp)
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                Text(
-                    text = "Camera access required to scan child's QR code",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(Space10))
-                Button(
-                    onClick = onRequestPermission,
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Text("Enable Camera", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Space20))
-
-        // Part 2: Generated 9-Digit Code Option (NICHE)
-        Text(
-            text = "2. Enter this 9-digit code in the Child App to pair:",
-            color = Color(0xFF94A3B8),
-            fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(Space12))
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RadiusLarge)
-                .background(Color(0xFF1E293B))
-                .border(1.dp, NeonCyan.copy(alpha = 0.4f), RadiusLarge)
-                .padding(Space16),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (isFetching) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), color = NeonCyan)
-            } else if (errorMessage != null && pairingCode == null) {
-                Text(
-                    text = errorMessage,
-                    color = Color(0xFFEF4444),
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                OutlinedButton(
-                    onClick = onRefreshCode,
-                    shape = RadiusCapsule,
-                    border = BorderStroke(1.dp, Color(0xFF334155))
-                ) {
-                    Text("Retry", color = NeonCyan, fontSize = 12.sp)
-                }
-            } else {
-                val formattedCode = formatNineDigitCode(pairingCode ?: "--- --- ---")
-                Text(
-                    text = formattedCode,
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 2.sp
-                )
-
-                Spacer(modifier = Modifier.height(Space10))
-
-                val minutes = remainingSeconds / 60
-                val seconds = remainingSeconds % 60
-                val timeDisplay = "%02d:%02d".format(minutes, seconds)
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        tint = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(Space4))
-                    Text(
-                        text = if (remainingSeconds > 0) "Expires in $timeDisplay (Single-Use)" else "Code expired",
-                        color = if (remainingSeconds < 60) StatusWarningAmber else StatusSafeGreen,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(Space10))
-
-                OutlinedButton(
-                    onClick = onRefreshCode,
-                    shape = RadiusCapsule,
-                    border = BorderStroke(1.dp, Color(0xFF334155)),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(Space6))
-                    Text("Generate New Code", color = NeonCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Space20))
-
-        // Part 3: Check binding status button
-        Button(
-            onClick = onCheckBindingStatus,
-            enabled = !isCheckingStatus,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            shape = RadiusLarge,
-            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
-        ) {
-            if (isCheckingStatus) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-            } else {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(Space8))
-                Text("Check binding status", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
-        }
-    }
-}
-
-/**
- * Live CameraX Preview with ML Kit Barcode Scanning.
- */
 @Composable
 private fun LiveCameraQrScanner(
     onQrCodeDetected: (String) -> Unit,
     isFlashOn: Boolean,
+    onError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var camera by remember { mutableStateOf<Camera?>(null) }
     var hasDetected by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val provider = remember(context) { ProcessCameraProvider.getInstance(context) }
+    val scanner = remember { BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()) }
+    val active = remember { java.util.concurrent.atomic.AtomicBoolean(true) }
+    DisposableEffect(provider) {
+        onDispose {
+            active.set(false)
+            if (provider.isDone) runCatching { provider.get().unbindAll() }
+            scanner.close()
+        }
+    }
 
     LaunchedEffect(isFlashOn, camera) {
         try {
@@ -954,19 +432,14 @@ private fun LiveCameraQrScanner(
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
 
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                val cameraProviderFuture = provider
                 cameraProviderFuture.addListener({
+                    if (!active.get()) return@addListener
                     try {
                         val cameraProvider = cameraProviderFuture.get()
                         val preview = Preview.Builder().build().also {
                             it.surfaceProvider = previewView.surfaceProvider
                         }
-
-                        val barcodeScanner = BarcodeScanning.getClient(
-                            BarcodeScannerOptions.Builder()
-                                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                                .build()
-                        )
 
                         val imageAnalysis = ImageAnalysis.Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -981,11 +454,11 @@ private fun LiveCameraQrScanner(
                                     mediaImage,
                                     imageProxy.imageInfo.rotationDegrees
                                 )
-                                barcodeScanner.process(image)
+                                scanner.process(image)
                                     .addOnSuccessListener { barcodes ->
                                         for (barcode in barcodes) {
                                             val rawValue = barcode.rawValue
-                                            if (!rawValue.isNullOrBlank() && !hasDetected) {
+                                            if (active.get() && !rawValue.isNullOrBlank() && !hasDetected) {
                                                 hasDetected = true
                                                 onQrCodeDetected(rawValue)
                                                 break
@@ -1009,7 +482,7 @@ private fun LiveCameraQrScanner(
                             imageAnalysis
                         )
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        if (active.get()) onError()
                     }
                 }, ContextCompat.getMainExecutor(ctx))
 

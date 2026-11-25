@@ -21,7 +21,7 @@ import {
   parentResendVerificationRateLimiter,
 } from '../../middleware/parent-rate-limiter';
 import { emailService } from '../../services/email/index';
-import { getAppSettings } from '../../services/app-settings.service';
+import { getAppSettingsStrict, validGoogleClientId } from '../../services/app-settings.service';
 import {
   isEmailConfigured,
   isParentEmailVerified,
@@ -193,6 +193,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    if (!(await getAppSettingsStrict()).registrationEnabled) {
+      return reply.status(403).send({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' });
+    }
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
 
     const [existing] = await db
@@ -483,8 +486,8 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
    * Automatically sets emailVerified: true and links googleId.
    */
   app.post('/google', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
-    const appSettings = await getAppSettings();
-    if (!appSettings.googleAuthEnabled || !appSettings.googleClientId || appSettings.googleClientId.trim().length === 0) {
+    const appSettings = await getAppSettingsStrict();
+    if (!appSettings.googleAuthEnabled || !validGoogleClientId(appSettings.googleClientId)) {
       return reply.status(403).send({
         statusCode: 403,
         error: 'Forbidden',
@@ -624,6 +627,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         }
       }
     } else {
+      if (!appSettings.registrationEnabled) {
+        return reply.status(403).send({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' });
+      }
       // Provision new parent account via Google OAuth
       // Requires profile setup (full name and compliant password) for new user accounts
       if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
@@ -750,6 +756,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    const settings = await getAppSettingsStrict();
+    if (!settings.googleAuthEnabled || !validGoogleClientId(settings.googleClientId)) {
+      return reply.status(403).send({ message: 'Google Sign-In is disabled' });
+    }
     const normalizedEmail = (tokenPayload.email as string).toLowerCase().trim();
     const googleId = tokenPayload.googleId as string;
 
@@ -805,6 +815,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         };
       }
 
+      if (!lockedExisting && !settings.registrationEnabled) {
+        return { status: 403, code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' };
+      }
+      if (lockedExisting?.googleId && lockedExisting.googleId !== googleId) {
+        return { status: 403, code: 'GOOGLE_ACCOUNT_MISMATCH', message: 'Account link has changed' };
+      }
       let user = lockedExisting;
       if (user) {
         const [updated] = await tx

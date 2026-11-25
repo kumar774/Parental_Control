@@ -20,7 +20,7 @@ data class ChildDevice(
 
 data class PairingCode(
     val code: String,
-    val qrPayload: String,
+    val sessionId: String,
     val expiresAtTimestamp: Long,
     val deviceQuotaRemaining: Int = 4
 )

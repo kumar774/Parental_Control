@@ -1,7 +1,19 @@
+import java.net.URI
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+}
+
+val guardianApiOrigin = providers.gradleProperty("GUARDIAN_API_BASE_URL")
+    .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orNull?.trimEnd('/').orEmpty()
+if (guardianApiOrigin.isNotEmpty()) {
+  val origin = URI(guardianApiOrigin)
+  require(origin.scheme == "https" && !origin.host.isNullOrBlank() && origin.userInfo == null &&
+      origin.path.isNullOrEmpty() && origin.query == null && origin.fragment == null) {
+    "GUARDIAN_API_BASE_URL must be an HTTPS origin."
+  }
 }
 
 android {
@@ -20,10 +32,12 @@ android {
 
   buildTypes {
     release {
+      buildConfigField("String", "API_ORIGIN", "\"$guardianApiOrigin\"")
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     debug {
+      buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://127.0.0.1:3000" }}\"")
       applicationIdSuffix = ".debug"
       isDebuggable = true
     }

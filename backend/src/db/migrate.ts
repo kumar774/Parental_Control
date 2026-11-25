@@ -176,6 +176,15 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'index', table: 'child_device_tokens', name: 'idx_child_device_tokens_jti' },
     { type: 'index', table: 'child_devices', name: 'idx_child_devices_unpaired' },
   ],
+  '0012_mutual_enrollment.sql': [
+    { type: 'index', table: 'child_devices', name: 'child_devices_active_installation' },
+    { type: 'column', table: 'child_devices', name: 'setup_step' },
+    { type: 'column', table: 'pairing_sessions', name: 'ack_hash' },
+    { type: 'column', table: 'pairing_sessions', name: 'child_policy_version' },
+    { type: 'column', table: 'system_app_settings', name: 'registration_enabled' },
+    { type: 'column', table: 'system_app_settings', name: 'pairing_code_expiry_seconds' },
+    { type: 'column', table: 'system_app_settings', name: 'parent_app_download_url' },
+  ],
 };
 
 export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {

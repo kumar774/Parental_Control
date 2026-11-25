@@ -1,7 +1,13 @@
 package com.parentalcontrol.child.network
 
 import android.os.Build
+import com.parentalcontrol.child.storage.DeviceStorage
+import com.parentalcontrol.child.storage.Enrollment
+import java.io.IOException
+import java.time.Instant
 import android.util.Log
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -31,6 +37,8 @@ data class PairSessionResult(
 )
 
 data class PairStatusResult(
+    val childConfirmed: Boolean = false,
+    val maskedParentEmail: String? = null,
     val status: String, // "pending", "paired", "expired", "not_found"
     val deviceId: String? = null,
     val deviceToken: String? = null,
@@ -71,26 +79,11 @@ class ChildRestClient(
 ) {
     companion object {
         const val TAG = "ChildRestClient"
-        // Production default HTTPS endpoint
-        const val PROD_BASE_URL = "https://api.parentalcontrol.guardian.io"
-        // Base URL: Production HTTPS by default; debug can use local IP if in debug build
-        val DEFAULT_BASE_URL: String = if (com.parentalcontrol.child.BuildConfig.DEBUG) {
-            "http://100.86.72.5:3000"
-        } else {
-            PROD_BASE_URL
-        }
-
-        // Candidate hosts strictly restricted to debug build only
-        val candidateHosts: List<String> = if (com.parentalcontrol.child.BuildConfig.DEBUG) {
-            listOf(
-                PROD_BASE_URL,
-                "http://100.86.72.5:3000",
-                "http://192.168.31.178:3000",
-                "http://127.0.0.1:3000",
-                "http://10.0.2.2:3000"
-            )
-        } else {
-            listOf(PROD_BASE_URL)
+        val DEFAULT_BASE_URL = com.parentalcontrol.child.BuildConfig.API_ORIGIN
+        internal fun isAllowedOrigin(url: URL, debug: Boolean): Boolean {
+            if (url.host.isBlank() || url.userInfo != null || url.query != null ||
+                url.ref != null || url.path.trim('/').isNotEmpty()) return false
+            return url.protocol == "https" || debug && url.protocol == "http" && url.host == "127.0.0.1"
         }
 
         val instance: ChildRestClient by lazy { ChildRestClient() }
@@ -100,33 +93,93 @@ class ChildRestClient(
      * Creates a genuine server-registered pairing session for Child App's QR code.
      * Calls POST /api/v1/child/pair-session.
      */
-    suspend fun createPairSession(): PairSessionResult = withContext(Dispatchers.IO) {
-        val path = "/api/v1/child/pair-session"
-        try {
-            val jsonBody = JSONObject().apply {
-                put("deviceModel", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
-                put("osVersion", "Android ${Build.VERSION.RELEASE}")
-                put("appVersion", "1.0.0-PROD")
-            }.toString()
-
-            val response = executeRequestWithFailover(path, "POST", jsonBody)
-            if (response.code in 200..299) {
-                val json = JSONObject(response.body)
-                PairSessionResult(
-                    success = true,
-                    sessionId = json.optString("sessionId"),
-                    pairingCode = json.optString("pairingCode"),
-                    qrPayload = json.optString("qrPayload"),
-                    pollingToken = json.optString("pollingToken"),
-                    message = "Session created successfully"
-                )
-            } else {
-                PairSessionResult(success = false, message = "HTTP ${response.code}: Failed to create pairing session")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create pairing session", e)
-            PairSessionResult(success = false, message = e.localizedMessage ?: "Network error creating pairing session")
+    suspend fun startEnrollment(attempt: Enrollment, storage: DeviceStorage): Enrollment = withContext(Dispatchers.IO) {
+        check(storage.hasConsent)
+        val body = JSONObject().apply {
+            put("requestId", attempt.requestId)
+            put("installationId", storage.installationId)
+            put("policyVersion", DeviceStorage.POLICY_VERSION)
+            put("consentedAt", storage.acceptedAt)
+            put("deviceModel", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+            put("osVersion", "Android ${Build.VERSION.RELEASE}")
+            put("appVersion", com.parentalcontrol.child.BuildConfig.VERSION_NAME)
+            attempt.code?.let { put("pairingCode", it) }
         }
+        val route = if (attempt.code == null) "pair-session" else "pair"
+        val result = executeRequest("/api/v1/child/$route", "POST", body.toString())
+        if (result.code !in 200..299) throw EnrollmentException(result.code, enrollmentMessage(result.code))
+        val json = JSONObject(result.body)
+        val sid = json.getString("sessionId")
+        val token = json.getString("pollingToken")
+        require(storage.isValidUuid(sid) && token.isNotBlank())
+        val expiry = Instant.parse(json.getString("expiresAt"))
+        val qr = if (attempt.code == null) {
+            val payload = JSONObject(json.getString("qrPayload"))
+            require(payload.getString("type") == "child_pair" && payload.getInt("version") == 1)
+            require(payload.getString("sessionId") == sid && Instant.parse(payload.getString("expiresAt")) == expiry)
+            require(payload.getString("code").matches(Regex("[0-9]{9}")))
+            require(payload.keys().asSequence().toSet() == setOf("type", "version", "sessionId", "code", "expiresAt"))
+            payload.toString()
+        } else null
+        attempt.copy(sessionId = sid, pollingToken = token, qr = qr,
+            expiresAt = expiry.toEpochMilli(),
+            maskedEmail = json.optionalText("maskedParentEmail"))
+    }
+
+    class EnrollmentException(val status: Int, message: String) : IOException(message)
+
+    private fun JSONObject.optionalText(key: String) = if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
+
+    private fun enrollmentMessage(status: Int) = when (status) {
+        400, 404 -> "Check the code in the Parent App and try again."
+        403 -> "Check guardian consent before pairing."
+        409 -> "This pairing attempt is no longer available."
+        410 -> "This code expired. Ask the parent to generate another one."
+        429 -> "Too many attempts. Wait a moment and try again."
+        else -> "Could not reach the pairing service. Please try again."
+    }
+
+    suspend fun decideEnrollment(session: Enrollment, confirm: Boolean) = withContext(Dispatchers.IO) {
+        val action = if (confirm) "pair-confirm" else "pair-cancel"
+        val response = executeRequest("/api/v1/child/$action/${session.sessionId}", "POST", "{}",
+            extraHeaders = mapOf("x-polling-token" to requireNotNull(session.pollingToken)))
+        if (response.code !in 200..299) throw EnrollmentException(response.code, enrollmentMessage(response.code))
+        val json = JSONObject(response.body)
+        if (confirm) {
+            check(json.optBoolean("childConfirmed") || json.optString("status") == "paired")
+        } else check(json.optString("status") == "canceled")
+    }
+
+    suspend fun parentDownloadUrl(): String? = withContext(Dispatchers.IO) {
+        val response = executeRequest("/api/v1/config/app-settings", "GET", null)
+        if (response.code != 200) throw IOException()
+        JSONObject(response.body).optionalText("parentAppDownloadUrl")?.takeIf {
+            val url = java.net.URI(it)
+            url.scheme == "https" && !url.host.isNullOrBlank() && url.userInfo == null
+        }
+    }
+
+    private val deviceAuth = Mutex()
+
+    private suspend fun authenticated(storage: DeviceStorage, path: String, body: String? = null): HttpResponse =
+        deviceAuth.withLock {
+            val session = storage.getSession()
+            fun request(token: String?) = executeRequest(path, if (body == null) "GET" else "POST", body, bearerToken = token)
+            val response = request(session.deviceToken)
+            if (response.code != 401) return@withLock response
+            val tokens = refreshDeviceToken(requireNotNull(session.refreshToken), session.deviceId)
+            if (!tokens.success) return@withLock response
+            storage.updateTokens(requireNotNull(tokens.deviceToken), requireNotNull(tokens.refreshToken))
+            request(tokens.deviceToken)
+        }
+
+    suspend fun checkAssociation(storage: DeviceStorage): Boolean = withContext(Dispatchers.IO) {
+        val session = storage.getSession()
+        val response = authenticated(storage, "/api/v1/child/setup")
+        if (response.code != 200) return@withContext false
+        val json = JSONObject(response.body)
+        json.optString("status") == "associated" && json.optString("deviceId") == session.deviceId &&
+            json.optString("parentId") == session.parentId
     }
 
     /**
@@ -138,7 +191,7 @@ class ChildRestClient(
 
         try {
             val extraHeaders = mapOf("x-polling-token" to pollingToken)
-            val response = executeRequestWithFailover(path, "GET", null, extraHeaders = extraHeaders)
+            val response = executeRequest(path, "GET", null, extraHeaders = extraHeaders)
             if (response.code in 200..299) {
                 val json = JSONObject(response.body)
                 val status = json.optString("status", "pending")
@@ -150,6 +203,8 @@ class ChildRestClient(
 
                 PairStatusResult(
                     status = status,
+                    childConfirmed = json.optBoolean("childConfirmed"),
+                    maskedParentEmail = json.optionalText("maskedParentEmail"),
                     deviceId = deviceId,
                     deviceToken = deviceToken,
                     refreshToken = refreshToken,
@@ -157,7 +212,7 @@ class ChildRestClient(
                     childName = childName
                 )
             } else {
-                PairStatusResult(status = "error", message = "HTTP ${response.code}")
+                PairStatusResult(status = if (response.code == 410) "expired" else "error", message = enrollmentMessage(response.code))
             }
         } catch (e: Exception) {
             PairStatusResult(status = "error", message = e.localizedMessage)
@@ -171,91 +226,29 @@ class ChildRestClient(
      */
     suspend fun acknowledgePairReceipt(
         sessionId: String,
-        pollingToken: String
+        pollingToken: String,
+        storage: DeviceStorage
     ): AckOutcome = withContext(Dispatchers.IO) {
         val path = "/api/v1/child/pair-ack/$sessionId"
         try {
             val extraHeaders = mapOf("x-polling-token" to pollingToken)
-            val response = executeRequestWithFailover(path, "POST", "{}", extraHeaders = extraHeaders)
-            when (response.code) {
-                in 200..299 -> AckOutcome.Success
-                408, 429, in 500..599 -> AckOutcome.TransientFailure(
-                    response.code,
-                    "Transient server/network error (HTTP ${response.code})"
-                )
-                else -> AckOutcome.PermanentFailure(
-                    response.code,
-                    "Permanent client rejection or invalid token (HTTP ${response.code})"
-                )
+            val first = executeRequest(path, "POST", "{}", extraHeaders = extraHeaders)
+            val response = if (first.code in listOf(401, 403, 404, 409, 410)) {
+                authenticated(storage, "/api/v1/child/setup/ack", JSONObject().put("sessionId", sessionId).toString())
+            } else first
+            val json = if (response.code == 200) JSONObject(response.body) else JSONObject()
+            val session = storage.getSession()
+            if (json.optString("status") == "acknowledged" && json.optString("deviceId") == session.deviceId &&
+                json.optString("parentId") == session.parentId) {
+                AckOutcome.Success
+            } else {
+                AckOutcome.TransientFailure(response.code, "Could not confirm credential receipt.")
             }
         } catch (e: Exception) {
             AckOutcome.TransientFailure(
                 null,
                 "Network transport failure: ${e.message ?: "Unknown network error"}"
             )
-        }
-    }
-
-    /**
-     * Submit pairing request to Backend when Child inputs Parent's pairing code.
-     * Calls POST /api/v1/child/pair.
-     * Rejects missing or empty tokens — never returns fabricated tokens.
-     */
-    suspend fun pairWithParent(
-        pairingCode: String,
-        childName: String = "Child",
-        deviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
-        osVersion: String = "Android ${Build.VERSION.RELEASE}",
-        appVersion: String = "1.0.0-PROD"
-    ): PairResult = withContext(Dispatchers.IO) {
-        val cleanCode = normalizeCode(pairingCode)
-        val path = "/api/v1/child/pair"
-
-        try {
-            val jsonBody = JSONObject().apply {
-                put("pairingCode", cleanCode)
-                put("childName", childName)
-                put("deviceModel", if (deviceModel.isNotBlank()) deviceModel else "Android Child Device")
-                put("osVersion", osVersion)
-                put("appVersion", appVersion)
-            }.toString()
-
-            val response = executeRequestWithFailover(path, "POST", jsonBody)
-            if (response.code in 200..299) {
-                val json = JSONObject(response.body)
-                val deviceId = json.optString("deviceId", json.optString("id", "")).takeIf { it.isNotBlank() }
-                val deviceToken = json.optString("deviceToken", json.optString("token", "")).takeIf { it.isNotBlank() }
-                val refreshToken = json.optString("refreshToken", "").takeIf { it.isNotBlank() }
-                val parentId = json.optString("parentId", "").takeIf { it.isNotBlank() }
-                val respChildName = json.optString("childName", childName)
-
-                if (deviceId == null || deviceToken == null) {
-                    return@withContext PairResult(
-                        success = false,
-                        message = "Pairing failed: backend returned empty device credential"
-                    )
-                }
-
-                PairResult(
-                    success = true,
-                    deviceId = deviceId,
-                    deviceToken = deviceToken,
-                    refreshToken = refreshToken,
-                    parentId = parentId,
-                    childName = respChildName,
-                    message = "Pairing successful"
-                )
-            } else {
-                val errMsg = try {
-                    JSONObject(response.body).optString("message", "Pairing rejected (HTTP ${response.code})")
-                } catch (_: Exception) {
-                    "Pairing rejected (HTTP ${response.code})"
-                }
-                PairResult(success = false, message = errMsg)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to connect to backend", e)
-            PairResult(success = false, message = "Network error: ${e.localizedMessage ?: "Could not connect to server"}")
         }
     }
 
@@ -279,7 +272,7 @@ class ChildRestClient(
                 if (accessibilityHealthy != null) put("accessibilityHealthy", accessibilityHealthy)
             }.toString()
 
-            val response = executeRequestWithFailover(path, "POST", jsonBody, bearerToken = deviceToken)
+            val response = executeRequest(path, "POST", jsonBody, bearerToken = deviceToken)
             when (response.code) {
                 in 200..299 -> HeartbeatOutcome.Success
                 401, 403 -> HeartbeatOutcome.TokenExpiredOrRevoked(
@@ -313,7 +306,7 @@ class ChildRestClient(
                 }
             }.toString()
 
-            val response = executeRequestWithFailover(path, "POST", jsonBody)
+            val response = executeRequest(path, "POST", jsonBody)
             if (response.code in 200..299) {
                 val json = JSONObject(response.body)
                 val newAccessToken = json.optString("deviceToken").takeIf { it.isNotBlank() }
@@ -369,17 +362,18 @@ class ChildRestClient(
                 }
             }.toString()
 
-            val response = executeRequestWithFailover(
+            val response = executeRequest(
                 path,
                 "POST",
                 jsonBody,
                 bearerToken = deviceToken?.takeIf { it.isNotBlank() }
             )
             when (response.code) {
-                in 200..299 -> UnpairOutcome.Success
-                404, 410 -> UnpairOutcome.AlreadyUnpairedOrRejected(
+                200 -> if (JSONObject(response.body).optString("status") == "unpaired") UnpairOutcome.Success
+                    else UnpairOutcome.TransientError(response.code, "Could not verify device removal")
+                404, 410 -> UnpairOutcome.TransientError(
                     response.code,
-                    "Server confirmed device record not found or already removed (HTTP ${response.code})"
+                    "Server could not confirm device removal (HTTP ${response.code})"
                 )
                 401, 403 -> UnpairOutcome.TransientError(
                     response.code,
@@ -397,35 +391,16 @@ class ChildRestClient(
 
     private data class HttpResponse(val code: Int, val body: String)
 
-    private fun executeRequestWithFailover(
+    private fun executeRequest(
         path: String,
         method: String,
         jsonBody: String?,
         bearerToken: String? = null,
         extraHeaders: Map<String, String> = emptyMap()
     ): HttpResponse {
-        val rawHosts = if (baseUrl !in candidateHosts) listOf(baseUrl) + candidateHosts else candidateHosts
-        val hosts = if (!com.parentalcontrol.child.BuildConfig.DEBUG) {
-            rawHosts.filter { it.startsWith("https://", ignoreCase = true) }
-        } else {
-            rawHosts
-        }
-        if (hosts.isEmpty()) {
-            throw SecurityException("Cleartext HTTP traffic is rejected in release build. No valid HTTPS host configured.")
-        }
-        var lastException: Exception? = null
-
-        for (host in hosts) {
-            try {
-                val fullUrl = if (host.endsWith("/")) "$host${path.removePrefix("/")}" else "$host$path"
-                val response = executeHttpRequest(fullUrl, method, jsonBody, bearerToken, extraHeaders)
-                baseUrl = host // Pin working host
-                return response
-            } catch (e: Exception) {
-                lastException = e
-            }
-        }
-        throw lastException ?: java.io.IOException("No responsive backend host found for $path")
+        val endpoint = URL(baseUrl)
+        require(isAllowedOrigin(endpoint, com.parentalcontrol.child.BuildConfig.DEBUG))
+        return executeHttpRequest(baseUrl.trimEnd('/') + path, method, jsonBody, bearerToken, extraHeaders)
     }
 
     private fun executeHttpRequest(
@@ -437,6 +412,7 @@ class ChildRestClient(
     ): HttpResponse {
         val url = URL(urlString)
         val conn = (url.openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
             requestMethod = method
             connectTimeout = 8000
             readTimeout = 10000
@@ -469,12 +445,4 @@ class ChildRestClient(
         return HttpResponse(responseCode, responseBody)
     }
 
-    private fun normalizeCode(raw: String): String {
-        val trimmed = raw.trim()
-        if (trimmed.startsWith("pc-pair:", ignoreCase = true) || trimmed.startsWith("pcpair:", ignoreCase = true)) {
-            val parts = trimmed.split(":")
-            if (parts.size >= 2) return parts[1].replace("-", "").replace(" ", "").trim()
-        }
-        return trimmed.replace("-", "").replace(" ", "")
-    }
 }
