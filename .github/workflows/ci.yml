@@ -104,7 +104,15 @@ jobs:
           GRANT pg_monitor TO auth001_test_admin;
           GRANT parental_audit_pruner TO auth001_test_admin WITH ADMIN OPTION;
           GRANT parental_migrator TO auth001_test_admin WITH ADMIN OPTION;
-          REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+          # The integration runner creates only its run-owned databases. It must not connect to protected maintenance/template DBs.
+          REVOKE CONNECT ON DATABASE postgres FROM PUBLIC, auth001_test_admin, parental_migrator, parental_admin, parental_audit_archive, parental_audit_attestation, parental_audit_pruner;
+          REVOKE CONNECT ON DATABASE template1 FROM PUBLIC, auth001_test_admin, parental_migrator, parental_admin, parental_audit_archive, parental_audit_attestation, parental_audit_pruner;
+          DO $ BEGIN
+            IF has_database_privilege('auth001_test_admin', 'postgres', 'CONNECT')
+              OR has_database_privilege('auth001_test_admin', 'template1', 'CONNECT') THEN
+              RAISE EXCEPTION 'Isolated PostgreSQL test role can connect to a protected database';
+            END IF;
+          END $;
           ALTER DATABASE auth001_ci_disposable_test OWNER TO auth001_test_admin;
           SQL
 
