@@ -14,8 +14,8 @@
 | 1 | Registration Validation | `POST /api/v1/auth/register` | Weak password `123` | HTTP 400 Bad Request (Policy rejection) | HTTP 400 (`Password must be at least 10 characters long`) | **PASS** |
 | 2 | Genuine Registration | `POST /api/v1/auth/register` | Valid synthetic identity, Argon2id compliant password | HTTP 201 Created | HTTP 201 (`Registration successful...`) | **PASS** |
 | 3 | Pre-Verification Login Attempt | `POST /api/v1/auth/login` | Valid credentials before email verification | HTTP 403 Forbidden | HTTP 403 (`Email not verified. Please verify your email before logging in.`) | **PASS** |
-| 4 | Email Dispatch & Receipt | `GET http://127.0.0.1:8025/api/v1/messages` | Search recipient `qa.synth.auth.*` | Captured message in Mailpit | HTTP 200 (Subject: `255891 is your Parental Control OS verification code`) | **PASS** |
-| 5 | Email Verification Confirmation | `POST /api/v1/auth/verify-email` | `{ email, otpCode: "255891" }` | HTTP 200 OK | HTTP 200 (`Email verified successfully`) | **PASS** |
+| 4 | Email Dispatch & Receipt | `GET http://127.0.0.1:8025/api/v1/messages` | Search recipient `qa.synth.auth.*` | Captured message in Mailpit | HTTP 200 (Subject: `[REDACTED_OTP] is your Parental Control OS verification code`) | **PASS** |
+| 5 | Email Verification Confirmation | `POST /api/v1/auth/verify-email` | `{ email, otpCode: "[REDACTED_OTP]" }` | HTTP 200 OK | HTTP 200 (`Email verified successfully`) | **PASS** |
 | 6 | Verified Login | `POST /api/v1/auth/login` | Correct email & password | HTTP 200 OK with Access & Refresh tokens | HTTP 200 OK (JWT Access & Refresh tokens received) | **PASS** |
 | 7 | Invalid Password Login | `POST /api/v1/auth/login` | Correct email, wrong password | HTTP 401 Unauthorized | HTTP 401 Unauthorized | **PASS** |
 | 8 | Session Restoration | `POST /api/v1/auth/refresh` | Valid Refresh Token | HTTP 200 OK with rotated Access Token | HTTP 200 OK (New Access Token generated) | **PASS** |

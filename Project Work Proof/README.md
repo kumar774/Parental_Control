@@ -8,9 +8,9 @@
 - **Physical Device:** Vivo I2220 (Display 1080 x 2400) connected exclusively via Tailscale Wireless ADB (`100.80.27.76:5555`).
 - **Standard Debug Packages:**
   - Parent App: `com.parentalcontrol.parent.debug`
-    - SHA-256: `FDA9A3FAC8667BCD53DDE414AB65AC031D8E7081D9D0CF0615C7D2CBF1D79CDD`
+    - SHA-256: `099A55DA269D35975DFD1CB7FC41F54E7A6298E478AA50C6F26A0A7D918852B1`
   - Child App: `com.parentalcontrol.child.debug`
-    - SHA-256: `49DC6E4866552C874771D3DB80DC0540F6A8591A4A7148661E8AC339226D913B`
+    - SHA-256: `BA2F3D8CF5423536BB97E3BDA603C72115BFE0ACC9A13F2E3FF1491560FB73C4`
 - **Proof-Mode Removal:** All `-PproofMode=true`, `.debug.proof` package IDs, `BuildConfig.PROOF_MODE`, and `api.invalid` configurations have been eliminated per project owner mandate.
 
 ---
@@ -39,9 +39,9 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
 | 14 | **Approval AlertDialog** | `Parent App/04_Pairing/03_parent_phone_approval_dialog.png` | **VERIFIED** — White card dialog with purple "Approve" button and `vivo I2220` model. |
 | 15 | **Step 2 Setup Guidance** | `Parent App/04_Pairing/02_parent_phone_step2_guidance.png` | **VERIFIED** — "Open Child's App" tutorial cards and setup instructions. |
 | 16 | **Step 3 Child Information** | `Parent App/05_Child_Information/01_parent_phone_step3_child_info.png` | **VERIFIED** — Fixed purple "Skip" button, 8-avatar grid, nickname/age/gender fields. |
-| 17 | **Step 3 Filled Profile** | `Parent App/05_Child_Information/02_parent_phone_step3_filled.png` | **VERIFIED** — Profile filled with child name "Alex", avatar 2, boy selected. |
-| 18 | **Minimal Dashboard** | `Parent App/06_Dashboard/01_parent_phone_dashboard.png` | **VERIFIED** — Minimal dashboard with paired device Alex (`vivo I2220`) and bottom tabs. |
-| 19 | **Device Dropdown** | `Parent App/06_Dashboard/02_parent_phone_device_dropdown.png` | **VERIFIED** — Active child device selector dropdown menu. |
+| 17 | **Step 3 Filled Profile** | `Parent App/05_Child_Information/02_parent_phone_step3_filled.png` | **VERIFIED** — Form filled on physical phone with nickname "Junior", age 10, boy selected, avatar 3 (Penguin) captured BEFORE pressing Complete. |
+| 18 | **Minimal Dashboard** | `Parent App/06_Dashboard/01_parent_phone_dashboard.png` | **VERIFIED** — Minimal dashboard with paired device Junior (`vivo I2220`), avatar Penguin, and bottom tabs. |
+| 19 | **Device Dropdown** | `Parent App/06_Dashboard/02_parent_phone_device_dropdown.png` | **VERIFIED** — Active child device selector dropdown menu displaying Junior. |
 | 20 | **Notice Tab** | `Parent App/06_Dashboard/03_parent_phone_notice_tab.png` | **VERIFIED** — Empty state notice tab. |
 | 21 | **Me Tab** | `Parent App/06_Dashboard/04_parent_phone_me_tab.png` | **VERIFIED** — Parent profile, account settings, biometric toggle, and log out action. |
 
@@ -81,8 +81,8 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
     - Backend committed `acknowledged_at = 2026-11-26 07:38:22.328+05:30` and cleared `issued_device_token`.
     - Child displayed "Connected Successfully!", tapped "Setup", passed initial setup check.
     - Parent UI advanced automatically to Step 2 Guidance -> Step 3 Child Information.
-    - Device record `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe` successfully bound to parent `6b2fce60-d50b-459f-9ab4-df824e63b048` with child name `Junior Vivo`, age 10, gender Boy, avatar 3.
-    - Parent dashboard opened with paired device Alex (`vivo I2220`).
+    - Device record `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe` successfully bound to parent `6b2fce60-d50b-459f-9ab4-df824e63b048` with child name `Junior`, age 10, gender Boy (`male`), avatar 3 (Penguin), and setup_step 4.
+    - Parent dashboard opened with paired device Junior (`vivo I2220`) displaying matching Penguin avatar. Parent restart and logout/re-login cleanly restored this device without duplicating associations. Child restart verified persistent initial setup completion.
 - **Optical QR Code Scanning:**
   - **Active Production Scanner:** `DevicePairingScreen.kt` implements `LiveCameraQrScanner` using CameraX 1.4.1 (`ProcessCameraProvider`, `PreviewView`, `CameraSelector.DEFAULT_BACK_CAMERA`, `ImageAnalysis.Builder()`) and Google ML Kit Barcode Scanning (`BarcodeScanning.getClient()`). It performs live QR decoding, schema validation via `parseChildQrContract`, unexpired check, and `previewQrPairing()`.
   - **Cleanup of Legacy Simulation:** The obsolete simulation file `QrScannerScreen.kt` and its stale import in `MainActivity.kt` have been completely removed.
