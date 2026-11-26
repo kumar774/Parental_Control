@@ -33,13 +33,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,7 +58,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.SecureFlagPolicy
+import com.parentalcontrol.parent.BuildConfig
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -157,140 +164,149 @@ fun LoginScreen(
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = Color.White,
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFFD1D5DB)) },
+            properties = ModalBottomSheetDefaults.properties(
+                securePolicy = if (BuildConfig.DEBUG) SecureFlagPolicy.SecureOff else SecureFlagPolicy.Inherit
+            ),
             modifier = Modifier.imePadding()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            CompositionLocalProvider(
+                LocalContentColor provides ParentTextDark,
+                LocalTextStyle provides LocalTextStyle.current.copy(color = ParentTextDark)
             ) {
-                // Header with Title & Close button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Sign in with Email",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ParentTextDark
-                    )
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                sheetState.hide()
-                                showEmailSheet = false
-                                localErrorMessage = null
-                                viewModel.handleIntent(AuthUiIntent.ClearError)
-                            }
-                        }
+                    // Header with Title & Close button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = ParentTextMuted
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Email Field
-                Text(
-                    text = "Email",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ParentTextDark
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = {
-                        email = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = {
                         Text(
-                            text = "Please enter a valid and real email",
-                            color = ParentTextMuted,
-                            fontSize = 14.sp
+                            text = "Sign in with Email",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ParentTextDark
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ParentPurple,
-                        unfocusedBorderColor = ParentBorder,
-                        focusedTextColor = ParentTextDark,
-                        unfocusedTextColor = ParentTextDark,
-                        focusedContainerColor = ParentBg,
-                        unfocusedContainerColor = ParentBg,
-                        cursorColor = ParentPurple
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Password Field
-                Text(
-                    text = "Password",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ParentTextDark
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = {
-                        password = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = {
-                        Text(
-                            text = "Please enter password",
-                            color = ParentTextMuted,
-                            fontSize = 14.sp
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    sheetState.hide()
+                                    showEmailSheet = false
+                                    localErrorMessage = null
+                                    viewModel.handleIntent(AuthUiIntent.ClearError)
+                                }
+                            }
+                        ) {
                             Icon(
-                                imageVector = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
                                 tint = ParentTextMuted
                             )
                         }
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ParentPurple,
-                        unfocusedBorderColor = ParentBorder,
-                        focusedTextColor = ParentTextDark,
-                        unfocusedTextColor = ParentTextDark,
-                        focusedContainerColor = ParentBg,
-                        unfocusedContainerColor = ParentBg,
-                        cursorColor = ParentPurple
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Email Field
+                    Text(
+                        text = "Email",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
                     )
-                )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Please enter a valid and real email",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Password Field
+                    Text(
+                        text = "Password",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Please enter password",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                    contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                    tint = ParentTextMuted
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
 
                 // Right-aligned "Forgot password?" link directly below password
                 Box(
@@ -427,4 +443,5 @@ fun LoginScreen(
             }
         }
     }
+}
 }
