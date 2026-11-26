@@ -727,14 +727,7 @@ fun ParentAppMainContent(
                         onSplashFinished = {
                             val savedToken = mmkv.accessToken
                             if (savedToken.isNullOrBlank()) {
-                                val pendingEmail = mmkv.userEmail
-                                if (!pendingEmail.isNullOrBlank()) {
-                                    emailVerificationOrigin = AppScreen.LOGIN
-                                    navManager.emailVerificationOrigin = AppScreen.LOGIN
-                                    currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
-                                    screenBackstack.clear()
-                                    screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                } else if (!mmkv.hasCompletedOnboarding) {
+                                if (!mmkv.hasCompletedOnboarding) {
                                     currentScreen = AppScreen.WELCOME_CAROUSEL
                                 } else {
                                     navigateToUnauthenticatedRoot(AppScreen.LOGIN)

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,6 +42,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -109,6 +111,7 @@ fun LoginScreen(
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
 
     var showEmailSheet by rememberSaveable { mutableStateOf(false) }
+    var showUnverifiedDialog by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val uiState by viewModel.uiState.collectAsState()
@@ -127,8 +130,7 @@ fun LoginScreen(
                     onLoginSuccess()
                 }
                 is AuthUiEffect.NavigateToEmailVerification -> {
-                    showEmailSheet = false
-                    onNavigateToEmailVerification(email)
+                    showUnverifiedDialog = true
                 }
                 else -> {}
             }
@@ -444,4 +446,63 @@ fun LoginScreen(
         }
     }
 }
+
+    // Unverified Email Confirmation Dialog
+    if (showUnverifiedDialog) {
+        CompositionLocalProvider(
+            LocalContentColor provides ParentTextDark,
+            LocalTextStyle provides LocalTextStyle.current.copy(color = ParentTextDark)
+        ) {
+            AlertDialog(
+                onDismissRequest = {
+                    showUnverifiedDialog = false
+                    password = ""
+                },
+                title = {
+                    Text(
+                        text = "Email Not Verified",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ParentTextDark
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Your email has not been verified yet. A 6-digit verification code was sent to your email. Would you like to verify it now?",
+                        fontSize = 14.sp,
+                        color = ParentTextMuted,
+                        lineHeight = 20.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showUnverifiedDialog = false
+                            showEmailSheet = false
+                            onNavigateToEmailVerification(email)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ParentPurple,
+                            contentColor = Color.White
+                        ),
+                        shape = RadiusCapsule
+                    ) {
+                        Text("Verify Now", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showUnverifiedDialog = false
+                            password = ""
+                        }
+                    ) {
+                        Text("Cancel", color = ParentTextMuted, fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+    }
 }

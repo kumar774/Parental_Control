@@ -13,6 +13,7 @@ import org.junit.Test
  * - Unauthenticated first launch with !hasCompletedOnboarding routes to WELCOME_CAROUSEL.
  * - Completing or skipping onboarding persists hasCompletedOnboarding = true.
  * - Subsequent unauthenticated launches route directly to LOGIN (never show WELCOME_CAROUSEL).
+ * - Fresh launch NEVER traps on PARENT_EMAIL_VERIFICATION even if mmkv.userEmail is present.
  * - clearSession() / logout preserves hasCompletedOnboarding = true.
  */
 class WelcomeOnboardingPersistenceTest {
@@ -30,21 +31,20 @@ class WelcomeOnboardingPersistenceTest {
      */
     private fun resolveStartupDestination(
         accessToken: String?,
-        pendingEmail: String?,
         hasCompletedOnboarding: Boolean
     ): AppScreen {
         return if (accessToken.isNullOrBlank()) {
-            if (!pendingEmail.isNullOrBlank()) {
-                AppScreen.PARENT_EMAIL_VERIFICATION
-            } else if (!hasCompletedOnboarding) {
+            if (!hasCompletedOnboarding) {
                 AppScreen.WELCOME_CAROUSEL
             } else {
-                AppScreen.LOGIN
+                navigateToUnauthenticatedRootDestination(AppScreen.LOGIN)
             }
         } else {
             AppScreen.MAIN_SHELL
         }
     }
+
+    private fun navigateToUnauthenticatedRootDestination(target: AppScreen): AppScreen = target
 
     @Test
     fun testFirstLaunch_unauthenticated_routesToWelcomeCarousel() {
@@ -53,7 +53,6 @@ class WelcomeOnboardingPersistenceTest {
 
         val destination = resolveStartupDestination(
             accessToken = mmkv.accessToken,
-            pendingEmail = mmkv.userEmail,
             hasCompletedOnboarding = mmkv.hasCompletedOnboarding
         )
 
@@ -71,12 +70,30 @@ class WelcomeOnboardingPersistenceTest {
         // Subsequent cold launch
         val destination = resolveStartupDestination(
             accessToken = null,
-            pendingEmail = null,
             hasCompletedOnboarding = mmkv.hasCompletedOnboarding
         )
 
         assertEquals(
             "Subsequent launch after onboarding must bypass WELCOME_CAROUSEL and route directly to LOGIN",
+            AppScreen.LOGIN,
+            destination
+        )
+    }
+
+    @Test
+    fun testPendingEmail_doesNotTrapStartup_routesToLoginWhenOnboardingCompleted() {
+        val mmkv = database.mmkv
+        mmkv.hasCompletedOnboarding = true
+        mmkv.userEmail = "unverified-parent@example.com"
+        mmkv.accessToken = null
+
+        val destination = resolveStartupDestination(
+            accessToken = mmkv.accessToken,
+            hasCompletedOnboarding = mmkv.hasCompletedOnboarding
+        )
+
+        assertEquals(
+            "Pending unverified email must NOT trap cold startup to verification screen; must open LOGIN",
             AppScreen.LOGIN,
             destination
         )
@@ -103,7 +120,6 @@ class WelcomeOnboardingPersistenceTest {
         // Cold launch after logout
         val destination = resolveStartupDestination(
             accessToken = mmkv.accessToken,
-            pendingEmail = mmkv.userEmail,
             hasCompletedOnboarding = mmkv.hasCompletedOnboarding
         )
 
@@ -116,7 +132,6 @@ class WelcomeOnboardingPersistenceTest {
         mmkv.hasCompletedOnboarding = true
         val destination = resolveStartupDestination(
             accessToken = "valid-active-session",
-            pendingEmail = null,
             hasCompletedOnboarding = mmkv.hasCompletedOnboarding
         )
 

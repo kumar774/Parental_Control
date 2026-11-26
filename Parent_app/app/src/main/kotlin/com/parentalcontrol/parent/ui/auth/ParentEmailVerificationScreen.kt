@@ -1,5 +1,6 @@
 package com.parentalcontrol.parent.ui.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +79,8 @@ fun ParentEmailVerificationScreen(
 ) {
     val haptic = LocalHapticFeedback.current
     val uiState by viewModel.uiState.collectAsState()
+
+    BackHandler(onBack = onNavigateBack)
 
     var otpCode by remember { mutableStateOf("") }
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
