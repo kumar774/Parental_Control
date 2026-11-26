@@ -5,6 +5,7 @@
 - **Repository:** `kumar774/Parental_Control`
 - **Branch:** `feat/onboarding-auth-pairing`
 - **Target Pull Request:** #10 (*Maintained strictly open for independent review; never merged, closed, or approved*).
+- **Latest CI Run:** `45760864448` (All 3 GitHub Actions jobs passed: Backend CI, Frontend CI, Android Builds & Unit Tests).
 - **Physical Device:** Vivo I2220 (Display 1080 x 2400) connected exclusively via Tailscale Wireless ADB (`100.80.27.76:5555`).
 - **Standard Debug Packages:**
   - Parent App: `com.parentalcontrol.parent.debug`
@@ -72,21 +73,36 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
 
 ## 3. Pairing Verification: Manual Code vs. Optical QR
 
-- **Manual 9-Digit Code Pairing:** **VERIFIED 100% END-TO-END ON PHYSICAL DEVICE WITH ZERO DIRECT SQL MANIPULATION.**
-  - **Foreground ACK Hardening:** Resolved delayed ACK dispatch by invoking `PairAckRetryManager.retryPendingAckIfNeeded(context, storage)` immediately when credentials are received in `ConnectToParentScreen.kt`. Synchronized `MainActivity.kt` state transitions so no false success screen appears while ACK is pending. `PairAckRetryManagerTest.kt` passes with 50/50 unit tests covering successful ACK, already acknowledged, transient 5xx/429 backoff, process restart recovery, and permanent rejection.
-  - **Zero-SQL Physical Device Test:** Both Parent (`com.parentalcontrol.parent.debug`) and Child (`com.parentalcontrol.child.debug`) apps communicated naturally through the live Fastify backend on the physical `vivo I2220` phone:
-    - Parent generated 9-digit binding code `543 634 711` (Session `a599914a-9e42-40d9-b64a-2f146e956f4f`).
-    - Child entered code -> tapped "Confirm Parent" -> Parent tapped "Review connection" -> Parent approved via White Dialog.
-    - Child received and securely stored credentials, immediately dispatched foreground ACK.
-    - Backend committed `acknowledged_at = 2026-11-26 07:38:22.328+05:30` and cleared `issued_device_token`.
-    - Child displayed "Connected Successfully!", tapped "Setup", passed initial setup check.
-    - Parent UI advanced automatically to Step 2 Guidance -> Step 3 Child Information.
-    - Device record `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe` successfully bound to parent `6b2fce60-d50b-459f-9ab4-df824e63b048` with child name `Junior`, age 10, gender Boy (`male`), avatar 3 (Penguin), and setup_step 4.
-    - Parent dashboard opened with paired device Junior (`vivo I2220`) displaying matching Penguin avatar. Parent restart and logout/re-login cleanly restored this device without duplicating associations. Child restart verified persistent initial setup completion.
-- **Optical QR Code Scanning:**
-  - **Active Production Scanner:** `DevicePairingScreen.kt` implements `LiveCameraQrScanner` using CameraX 1.4.1 (`ProcessCameraProvider`, `PreviewView`, `CameraSelector.DEFAULT_BACK_CAMERA`, `ImageAnalysis.Builder()`) and Google ML Kit Barcode Scanning (`BarcodeScanning.getClient()`). It performs live QR decoding, schema validation via `parseChildQrContract`, unexpired check, and `previewQrPairing()`.
-  - **Cleanup of Legacy Simulation:** The obsolete simulation file `QrScannerScreen.kt` and its stale import in `MainActivity.kt` have been completely removed.
-  - **Physical Optical Verification Status:** **NOT TESTED** for physical cross-device scanning due to single physical device constraint (scanning requires pointing Parent back camera at Child QR displayed on an external monitor/phone). Barcode contracts and payload validation are verified via unit tests (`DevicePairingContractTest`).
+### A. Optical QR Code Scanning: **PASS — PERSONALLY TESTED BY PROJECT OWNER**
+- **Hardware Optical Pairing:** Personally tested by the project owner using the physical Vivo I2220 phone and an external display.
+- **Verification Flow:**
+  1. Child App generated genuine server-issued QR code.
+  2. Parent App's `LiveCameraQrScanner` (CameraX 1.4.1 + Google ML Kit 17.3.0 `BarcodeScanning.getClient()`) opened on explicit tap.
+  3. Physical back camera aimed at Child QR; barcode raw-value automatically detected.
+  4. Parent parser validated QR contract schema (`parseChildQrContract()`) and checked unexpired session.
+  5. Backend previewed session via `POST /api/v1/devices/qr-preview`.
+  6. Mutual confirmation completed; Child received server credentials and securely persisted in `DeviceStorage` (AES-256).
+  7. Legitimate foreground ACK submitted and recorded by backend (`acknowledged_at = 2026-11-26 10:55:11.293+05:30`, Session `8f126723-d16e-4dfe-b246-272477d50724`).
+  8. Child App confirmed "Connected Successfully!", completed initial setup check, and paired device cleanly bound.
+- **Architecture Cleanup:** The obsolete simulation file `QrScannerScreen.kt` and its stale import in `MainActivity.kt` were safely removed. Unit contract tests in `DevicePairingContractTest` pass 100%.
+
+### B. Manual 9-Digit Code Pairing: **VERIFIED 100% END-TO-END (ZERO DIRECT SQL MANIPULATION)**
+- **Historical vs. Latest Verification Separation:**
+  - **Historical Pairing Milestone (Session `a599914a-9e42-40d9-b64a-2f146e956f4f`):** Validated initial 9-digit code generation (`543 634 711`), segmented code input, child confirmation dialog, parent white approval dialog, credential issuance, and server ACK commit (`acknowledged_at = 2026-11-26 07:38:22.328+05:30`).
+  - **Latest Profile & Persistence Milestone (Device `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe`):**
+    - **Foreground ACK Hardening:** Resolved delayed ACK dispatch by invoking `PairAckRetryManager.retryPendingAckIfNeeded(context, storage)` immediately upon credential receipt in `ConnectToParentScreen.kt`. Synchronized `MainActivity.kt` state transitions so no false success screen appears while ACK is pending. `PairAckRetryManagerTest.kt` passes with 50/50 unit tests covering successful ACK, already acknowledged, transient 5xx/429 backoff, process restart recovery, and permanent rejection.
+    - **Visible Nickname Input:** Verified on physical phone that nickname "Junior" renders in high-contrast dark text (`ParentTextDark` `#1A1A2E`) with active cursor and zero theme wash-out.
+    - **Form Capture BEFORE Complete:** `02_parent_phone_step3_filled.png` captured on physical phone with nickname "Junior", age 10, gender Boy, and avatar 3 (Penguin) before tapping Complete.
+    - **Natural REST Submission:** Form submitted normally via application API without direct SQL tampering. PostgreSQL record `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe` committed `child_name: 'Junior'`, `age: 10`, `gender: 'male'`, `child_avatar_id: 3`, and `setup_step: 4`.
+    - **Matching Dashboard Evidence:** Dashboard `01_parent_phone_dashboard.png` and Dropdown `02_parent_phone_device_dropdown.png` display matching Junior and Penguin avatar.
+    - **Session Persistence:** Parent App restart and logout/re-login restored the same device without creating duplicate rows. Child App restart retained "Initial setup complete" state without regressing to onboarding.
+
+### C. APK Download Workflows: **CONFIGURATION PENDING**
+- **Status:** In-app download popups and Step 1 download link/QR flows are fully implemented and verified against backend `MOBILE_DOWNLOAD_ORIGINS` whitelist (`https://github.com,https://releases.parentalcontrol.local`).
+- **Release Availability:** Configured download destinations (`https://github.com/kumar774/Parental_Control/releases/download/v1.0.0-debug/child-debug.apk` and `parent-debug.apk`) remain **CONFIGURATION PENDING** until official GitHub release assets are published by the project owner. In-app popups safely maintain the fallback retry behavior.
+
+### D. Temporary Authorization Cleanup: **VERIFIED**
+- Database inspection confirmed that all previously published temporary pairing sessions and codes are consumed (`status = 'paired'`, `acknowledged_at` committed, `issued_device_token` cleared), `canceled`, or naturally expired. Zero active temporary tokens remain in the database.
 
 ---
 
@@ -112,12 +128,13 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
 
 ---
 
-## 5. Automated Test Results
+## 5. Automated Test Results & CI
 
 | Test Suite | Command | Result |
 |---|---|---|
-| **Parent App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 201 tasks executed, 0 errors. Assembled `app-debug.apk`. |
-| **Child App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 47 unit tests passed. Assembled `app-debug.apk`. |
+| **Latest GitHub Actions CI** | CI Run `45760864448` | **PASS** — All 3 workflow jobs passed (Backend CI, Frontend CI, Android Builds & Tests). |
+| **Parent App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 128 unit tests passed, 0 errors. Assembled `app-debug.apk`. |
+| **Child App Unit Tests & Build** | `gradlew.bat testDebugUnitTest assembleDebug` | **PASS** — 50 unit tests passed (including foreground ACK retry & restart suites). Assembled `app-debug.apk`. |
 | **Backend Genuine Auth Suite** | Automated REST execution via Fastify & Mailpit | **PASS** — 11/11 authentication assertions passed (registration, OTP verification, login, rejection, rotation, `/me`, logout). |
 | **Backend Real PostgreSQL Suite** | `npm.cmd run test:real-pg` | **PASS** — 182/182 tests passed across 26 test suites against PostgreSQL. |
 | **Admin Panel Build & Tests** | `npm.cmd test && npm.cmd run build` | **PASS** — 41 tests passed; Vite production build clean. |
