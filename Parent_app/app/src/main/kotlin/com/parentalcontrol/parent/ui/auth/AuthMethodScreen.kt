@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.*
@@ -82,7 +81,6 @@ internal fun AuthMethodScreen(
     onGoogle: () -> Unit,
     onEmail: () -> Unit,
     onSwitch: () -> Unit,
-    onBack: () -> Unit,
     onRetry: () -> Unit
 ) {
     val action = if (register) "Sign up" else "Sign in"
@@ -100,13 +98,7 @@ internal fun AuthMethodScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ParentTextDark)
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(72.dp))
 
         Text(
             text = if (register) "You need to create an account" else "You need to sign in",

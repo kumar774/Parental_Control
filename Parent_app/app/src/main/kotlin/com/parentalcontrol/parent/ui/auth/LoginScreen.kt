@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.SecureFlagPolicy
@@ -76,6 +77,7 @@ import com.parentalcontrol.core.network.rest.AppSettingsDto
 import com.parentalcontrol.parent.ui.pairing.ParentBg
 import com.parentalcontrol.parent.ui.pairing.ParentBorder
 import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleSoft
 import com.parentalcontrol.parent.ui.pairing.ParentTextDark
 import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
 import kotlinx.coroutines.launch
@@ -97,13 +99,13 @@ fun LoginScreen(
     onRegisterClick: () -> Unit,
     onBiometricClick: () -> Unit,
     onNavigateToEmailVerification: (String) -> Unit = {},
-    onBackClick: () -> Unit = {},
     onGoogleSignInClick: () -> Unit = {},
     appSettings: AppSettingsDto? = null,
     onReloadSettings: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
+    val keyboard = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val mmkv = ParentalDatabase.getInstance().mmkv
@@ -149,7 +151,6 @@ fun LoginScreen(
             showEmailSheet = true
         },
         onSwitch = onRegisterClick,
-        onBack = onBackClick,
         onRetry = onReloadSettings
     )
 
@@ -380,6 +381,7 @@ fun LoginScreen(
                             return@Button
                         }
                         localErrorMessage = null
+                        keyboard?.hide()
                         viewModel.handleIntent(AuthUiIntent.Login(trimmedEmail, password))
                     },
                     enabled = !uiState.isLoading,
@@ -389,22 +391,25 @@ fun LoginScreen(
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = ParentPurple,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = ParentPurpleSoft,
+                        disabledContentColor = ParentTextDark
                     )
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = Color.White,
+                            modifier = Modifier.size(18.dp),
+                            color = ParentPurple,
                             strokeWidth = 2.dp
                         )
-                    } else {
-                        Text(
-                            text = "Sign in",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(Modifier.width(10.dp))
                     }
+                    Text(
+                        text = if (uiState.isLoading) "Signing in..." else "Sign in",
+                        color = if (uiState.isLoading) ParentTextDark else Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 // Biometric Login shortcut if enrolled

@@ -924,13 +924,6 @@ fun ParentAppMainContent(
                                     toastType = ToastType.ERROR
                                 }
                             }
-                        },
-                        onBackClick = {
-                            if (!mmkv.hasCompletedOnboarding) {
-                                currentScreen = AppScreen.WELCOME_CAROUSEL
-                            } else {
-                                activity?.finish()
-                            }
                         }
                     )
                 }
@@ -994,9 +987,6 @@ fun ParentAppMainContent(
                                     toastType = ToastType.ERROR
                                 }
                             }
-                        },
-                        onBackClick = {
-                            currentScreen = AppScreen.LOGIN
                         }
                     )
                 }
@@ -1547,8 +1537,10 @@ fun ParentAppMainContent(
                 }
 
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
-                    ChooseDeviceTypeScreen(onNavigateBack = { performLogout() },
-                        onSelectParentDevice = { currentScreen = AppScreen.PARENT_CONSENT })
+                    ChooseDeviceTypeScreen(
+                        onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null,
+                        onSelectParentDevice = { currentScreen = AppScreen.PARENT_CONSENT }
+                    )
                 }
 
                 AppScreen.PARENT_CONSENT -> {

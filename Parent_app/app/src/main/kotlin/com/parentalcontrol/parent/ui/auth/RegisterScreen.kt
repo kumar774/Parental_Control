@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.SecureFlagPolicy
@@ -71,6 +72,7 @@ import com.parentalcontrol.core.network.rest.AppSettingsDto
 import com.parentalcontrol.parent.ui.pairing.ParentBg
 import com.parentalcontrol.parent.ui.pairing.ParentBorder
 import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleSoft
 import com.parentalcontrol.parent.ui.pairing.ParentTextDark
 import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
 import kotlinx.coroutines.launch
@@ -95,7 +97,6 @@ private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onLoginClick: () -> Unit,
-    onBackClick: () -> Unit = {},
     onTermsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {},
     onGoogleSignUpClick: () -> Unit = {},
@@ -104,6 +105,7 @@ fun RegisterScreen(
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
+    val keyboard = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
@@ -147,7 +149,6 @@ fun RegisterScreen(
             showEmailSheet = true
         },
         onSwitch = onLoginClick,
-        onBack = onBackClick,
         onRetry = onReloadSettings
     )
 
@@ -525,6 +526,7 @@ fun RegisterScreen(
                         }
 
                         localErrorMessage = null
+                        keyboard?.hide()
                         viewModel.handleIntent(
                             AuthUiIntent.Register(
                                 email = trimmedEmail,
@@ -540,22 +542,25 @@ fun RegisterScreen(
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = ParentPurple,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = ParentPurpleSoft,
+                        disabledContentColor = ParentTextDark
                     )
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = Color.White,
+                            modifier = Modifier.size(18.dp),
+                            color = ParentPurple,
                             strokeWidth = 2.dp
                         )
-                    } else {
-                        Text(
-                            text = "Sign up",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(Modifier.width(10.dp))
                     }
+                    Text(
+                        text = if (uiState.isLoading) "Creating account..." else "Sign up",
+                        color = if (uiState.isLoading) ParentTextDark else Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

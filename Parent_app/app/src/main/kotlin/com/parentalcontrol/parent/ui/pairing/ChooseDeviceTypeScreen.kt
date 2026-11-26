@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,10 +51,11 @@ internal val ParentYellowAccent = Color(0xFFFFC107)
 @Composable
 internal fun SetupPage(
     title: String,
-    onBack: () -> Unit,
+    onBack: () -> Unit = {},
     showBack: Boolean = true,
     step: Int = 0,
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
+    headerActions: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -63,7 +65,7 @@ internal fun SetupPage(
             .systemBarsPadding()
             .imePadding()
     ) {
-        if (showBack || title.isNotEmpty()) {
+        if (showBack || title.isNotEmpty() || headerActions != null) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -88,6 +90,10 @@ internal fun SetupPage(
                         fontWeight = FontWeight.SemiBold,
                         color = ParentTextDark
                     )
+                }
+                if (headerActions != null) {
+                    Spacer(Modifier.weight(1f))
+                    headerActions()
                 }
             }
         }
@@ -329,9 +335,28 @@ private fun DeviceLinkHeroIllustration(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ChooseDeviceTypeScreen(onNavigateBack: () -> Unit, onSelectParentDevice: () -> Unit) {
+fun ChooseDeviceTypeScreen(onLogout: (() -> Unit)?, onSelectParentDevice: () -> Unit) {
     var showDownload by rememberSaveable { mutableStateOf(false) }
-    SetupPage("", onNavigateBack) {
+    val headerActions: (@Composable () -> Unit)? = onLogout?.let { logout ->
+        {
+            var showMenu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = ParentTextDark)
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Log out") },
+                        onClick = {
+                            showMenu = false
+                            logout()
+                        }
+                    )
+                }
+            }
+        }
+    }
+    SetupPage(title = "", showBack = false, headerActions = headerActions) {
         Spacer(Modifier.height(12.dp))
         DeviceLinkHeroIllustration(Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(8.dp))

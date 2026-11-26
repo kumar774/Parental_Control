@@ -1,11 +1,16 @@
 package com.parentalcontrol.parent.ui.auth
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,19 +68,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.designsystem.theme.AccentCyan
-import com.parentalcontrol.core.designsystem.theme.AccentIndigo
-import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.RadiusLarge
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space24
 import com.parentalcontrol.core.designsystem.theme.Space4
 import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.TextMuted
-import com.parentalcontrol.core.designsystem.theme.TextPrimary
-import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.parent.R
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleSoft
+import com.parentalcontrol.parent.ui.pairing.ParentBorder
+import com.parentalcontrol.parent.ui.pairing.ParentTextDark
+import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
+import com.parentalcontrol.parent.ui.pairing.ParentBg
+import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleDeep
 
 private const val OTP_LENGTH = 6
 
@@ -131,14 +137,14 @@ fun ParentEmailVerificationScreen(
                     text = "Cancel verification",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = ParentTextDark
                 )
             },
             text = {
                 Text(
                     text = "You will not be able to sign in with this account if you cancel the verification.",
                     fontSize = 14.sp,
-                    color = TextSecondary,
+                    color = ParentTextMuted,
                     lineHeight = 20.sp
                 )
             },
@@ -149,7 +155,7 @@ fun ParentEmailVerificationScreen(
                         onNavigateBack()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentIndigo,
+                        containerColor = ParentPurple,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
@@ -159,10 +165,10 @@ fun ParentEmailVerificationScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCancelDialog = false }) {
-                    Text("No", color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                    Text("No", color = ParentTextMuted, fontWeight = FontWeight.SemiBold)
                 }
             },
-            containerColor = BgCanvas,
+            containerColor = ParentBg,
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -170,28 +176,21 @@ fun ParentEmailVerificationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.email_verification_title),
-                        color = TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = {},
                 navigationIcon = {
                     IconButton(onClick = { showCancelDialog = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = TextPrimary
+                            contentDescription = "Back",
+                            tint = ParentTextDark
                         )
                     }
                 },
                 actions = {
-                    TextButton(onClick = onSkipClick) {
+                    TextButton(onClick = onSkipClick, enabled = !uiState.isLoading) {
                         Text(
                             text = "Skip",
-                            color = TextSecondary,
+                            color = ParentTextMuted,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -200,29 +199,29 @@ fun ParentEmailVerificationScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
-        containerColor = BgCanvas,
+        containerColor = ParentBg,
         modifier = modifier
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = Space24),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Space24, vertical = Space24),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Email icon
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(AccentIndigo.copy(alpha = 0.25f), CircleShape)
-                    .border(2.dp, AccentCyan, CircleShape),
+                    .size(64.dp)
+                    .background(ParentPurpleSoft, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.MarkEmailRead,
                     contentDescription = null,
-                    tint = AccentCyan,
+                    tint = ParentPurpleDeep,
                     modifier = Modifier.size(40.dp)
                 )
             }
@@ -231,7 +230,7 @@ fun ParentEmailVerificationScreen(
 
             Text(
                 text = stringResource(R.string.email_verification_title),
-                color = TextPrimary,
+                color = ParentTextDark,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -241,7 +240,7 @@ fun ParentEmailVerificationScreen(
 
             Text(
                 text = stringResource(R.string.email_verification_subtitle, displayEmail),
-                color = TextSecondary,
+                color = ParentTextMuted,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp
@@ -310,7 +309,7 @@ fun ParentEmailVerificationScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF1E293B), RoundedCornerShape(12.dp))
+                        .background(ParentPurpleSoft, RoundedCornerShape(12.dp))
                         .border(1.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
                         .padding(horizontal = Space16, vertical = Space12)
                 ) {
@@ -332,7 +331,7 @@ fun ParentEmailVerificationScreen(
                             Spacer(modifier = Modifier.height(Space4))
                             Text(
                                 text = "Automated email delivery is not configured on this server environment. Your guardian account is already active and ready to pair devices.",
-                                color = Color(0xFFCBD5E1),
+                                color = ParentTextDark,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp
                             )
@@ -351,7 +350,7 @@ fun ParentEmailVerificationScreen(
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RadiusLarge,
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
+                    colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
@@ -368,89 +367,61 @@ fun ParentEmailVerificationScreen(
                     )
                 }
             } else {
-                // ── 6-Digit Box OTP Input ──
                 val focusRequester = remember { FocusRequester() }
+                var fieldFocused by remember { mutableStateOf(false) }
 
-                // Hidden BasicTextField that captures input
                 BasicTextField(
                     value = otpCode,
-                    onValueChange = { newValue ->
-                        val filtered = newValue.filter { it.isDigit() }.take(OTP_LENGTH)
-                        otpCode = filtered
-                        if (localErrorMessage != null) localErrorMessage = null
+                    onValueChange = { value ->
+                        otpCode = value.filter { it in '0'..'9' }.take(OTP_LENGTH)
+                        localErrorMessage = null
                         if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    cursorBrush = SolidColor(AccentIndigo),
-                    textStyle = TextStyle(color = Color.Transparent, fontSize = 1.sp),
-                    modifier = Modifier
-                        .size(1.dp)
-                        .focusRequester(focusRequester)
-                        .focusable(),
-                    decorationBox = { }
-                )
-
-                // 6 visible digit boxes
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    cursorBrush = SolidColor(Color.Transparent),
+                    textStyle = TextStyle(color = Color.Transparent, fontSize = 22.sp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            focusRequester.requestFocus()
-                        }
-                ) {
-                    repeat(OTP_LENGTH) { index ->
-                        val char = otpCode.getOrNull(index)
-                        val isFocused = index == otpCode.length && !uiState.isLoading
-                        val isFilled = char != null
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .background(
-                                    color = if (isFocused) AccentIndigo.copy(alpha = 0.08f)
-                                    else Color(0xFF1E293B).copy(alpha = 0.6f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    width = if (isFocused || isFilled) 2.dp else 1.dp,
-                                    color = when {
-                                        isFocused -> AccentIndigo
-                                        isFilled -> AccentCyan.copy(alpha = 0.7f)
-                                        else -> Color(0xFF334155)
-                                    },
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (char != null) {
-                                Text(
-                                    text = char.toString(),
-                                    color = TextPrimary,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            } else if (isFocused) {
-                                // Blinking cursor indicator
-                                Box(
-                                    modifier = Modifier
-                                        .width(2.dp)
-                                        .height(24.dp)
-                                        .background(AccentIndigo, RoundedCornerShape(1.dp))
-                                )
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { fieldFocused = it.isFocused }
+                        .semantics { contentDescription = "Six digit verification code" },
+                    decorationBox = { editor ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                repeat(OTP_LENGTH) { index ->
+                                    val digit = otpCode.getOrNull(index)
+                                    val active = fieldFocused && index == otpCode.length
+                                    val shape = RoundedCornerShape(10.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(54.dp)
+                                            .background(if (active) ParentPurpleSoft else ParentBg, shape)
+                                            .border(
+                                                if (active) 2.dp else 1.dp,
+                                                if (active || digit != null) ParentPurple else ParentBorder,
+                                                shape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (digit != null) {
+                                            Text(digit.toString(), color = ParentTextDark, fontSize = 22.sp)
+                                        }
+                                    }
+                                }
+                            }
+                            Box(Modifier.matchParentSize().alpha(0f), contentAlignment = Alignment.CenterStart) {
+                                editor()
                             }
                         }
                     }
-                }
+                )
 
-                // Auto-request focus so keyboard pops up
                 LaunchedEffect(Unit) {
                     focusRequester.requestFocus()
                 }
@@ -474,8 +445,8 @@ fun ParentEmailVerificationScreen(
                         .height(52.dp),
                     shape = RadiusLarge,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentIndigo,
-                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
+                        containerColor = ParentPurple,
+                        disabledContainerColor = ParentPurple.copy(alpha = 0.5f),
                         disabledContentColor = Color.White.copy(alpha = 0.7f)
                     )
                 ) {
@@ -512,7 +483,7 @@ fun ParentEmailVerificationScreen(
                 ) {
                     Text(
                         text = "Didn't receive the code? ",
-                        color = TextSecondary,
+                        color = ParentTextMuted,
                         fontSize = 13.sp
                     )
                     TextButton(
@@ -526,14 +497,14 @@ fun ParentEmailVerificationScreen(
                     ) {
                         if (uiState.isResendingOtp) {
                             CircularProgressIndicator(
-                                color = AccentCyan,
+                                color = ParentPurpleDeep,
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
                             Text(
                                 text = if (resendCooldown > 0) "Resend (${resendCooldown}s)" else "Resend Code",
-                                color = if (resendCooldown <= 0) AccentCyan else TextMuted,
+                                color = if (resendCooldown <= 0) ParentPurpleDeep else ParentTextMuted,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -546,7 +517,7 @@ fun ParentEmailVerificationScreen(
                 // Help link
                 Text(
                     text = "Didn't receive the verification code, how to solve it?",
-                    color = TextSecondary,
+                    color = ParentTextMuted,
                     fontSize = 12.sp,
                     textDecoration = TextDecoration.Underline,
                     textAlign = TextAlign.Center,
