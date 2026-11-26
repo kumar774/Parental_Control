@@ -140,6 +140,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0006_parent_full_name.sql
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0007_parent_verification_tokens.sql
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0008_system_smtp_settings.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0009_pairing_and_app_settings.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0010_pairing_security_and_consent.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0011_child_device_tokens_and_lifecycle.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0012_mutual_enrollment.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0013_enrollment_lifecycle_and_concurrency.sql
 
       - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
         working-directory: backend
