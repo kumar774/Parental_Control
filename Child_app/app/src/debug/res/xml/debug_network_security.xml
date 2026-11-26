@@ -2,6 +2,10 @@
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
+        <domain>100.86.72.5</domain>
+        <domain>192.168.31.178</domain>
         <domain>127.0.0.1</domain>
+        <domain>10.0.2.2</domain>
+        <domain>localhost</domain>
     </domain-config>
 </network-security-config>

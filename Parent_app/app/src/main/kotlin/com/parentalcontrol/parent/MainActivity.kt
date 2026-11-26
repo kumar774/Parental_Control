@@ -2358,7 +2358,19 @@ fun ConnectionErrorRecoveryScreen(
                 modifier = Modifier.padding(horizontal = Space12)
             )
 
-            if (!errorMessage.isNullOrBlank()) {
+            val sanitizedErrorMessage = when {
+                errorMessage.isNullOrBlank() -> null
+                errorMessage.contains("Failed to connect", ignoreCase = true) ||
+                errorMessage.contains("Connection refused", ignoreCase = true) ||
+                errorMessage.contains("ECONNREFUSED", ignoreCase = true) ||
+                errorMessage.contains("timeout", ignoreCase = true) ||
+                errorMessage.contains("127.0.0.1") ||
+                errorMessage.contains("100.") ||
+                errorMessage.contains("192.168.") -> "Server unreachable. Please verify your connection or try again."
+                else -> errorMessage.replace(Regex("""(?:https?://)?(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?"""), "[server]")
+            }
+
+            if (!sanitizedErrorMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(Space16))
                 Box(
                     modifier = Modifier
@@ -2369,7 +2381,7 @@ fun ConnectionErrorRecoveryScreen(
                         .padding(horizontal = Space16, vertical = Space12)
                 ) {
                     Text(
-                        text = "Diagnostics: $errorMessage",
+                        text = sanitizedErrorMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF94A3B8),
                         textAlign = TextAlign.Center,
@@ -2423,7 +2435,7 @@ fun ConnectionErrorRecoveryScreen(
             Spacer(modifier = Modifier.height(Space16))
 
             Text(
-                text = "Log In with Another Account",
+                text = "Sign Out & Return to Login",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = NeonCyan,

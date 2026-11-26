@@ -38,7 +38,7 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     debug {
-      buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://127.0.0.1:3000" }}\"")
+      buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://100.86.72.5:3000" }}\"")
       applicationIdSuffix = ".debug"
       isDebuggable = true
     }
