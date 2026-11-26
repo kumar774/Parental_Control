@@ -1,0 +1,18 @@
+Vivo I2220 via Tailscale; package com.parentalcontrol.parent.debug.
+Auth-flow test APK SHA-256: 31bd820e7b9371fb7f7f541d8d4e64d338dbc5e03f4c67e747185ff94c024abc
+Final APK ready on the sign-in screen for a fresh QA account.
+Signup opens OTP with accurate Verify email button label.
+Guest path: OTP Skip opens device choices; selecting Parents devices routes directly to sign-in before consent.
+Genuine OTP accepted for the dedicated QA account; verification returns to sign-in.
+Verified sign-in automatically resumes the previously requested parent consent screen.
+Authenticated consent saved; Add New Device generates a real nine-digit binding code (value omitted).
+Final debug APK SHA-256: 68c2a57b92ff770fccf56fd7ef1afd48898da6c0422d9512613ac56ceae89a3a
+Final APK: install QR/link card, scanner card and binding-status control visible.
+Final APK: live CameraX scanner opened and closed inside the Parent App.
+Final APK: Check binding status and Copy code exercised. Regenerate returned a different real code.
+Final APK: Cancel removed the binding code and Copy action; Get binding code is available.
+Final Parent unit suite: 135 passed, 0 failed, 0 skipped.
+Auth flow exercised on the prior build; final build adds the device-selection breadcrumb and preserves regenerate while a request is active.
+Pairing-controls screenshot contains a disposable QA code invalidated by Regenerate during this run.
+Optical QR scan and Child App confirmation were outside this Parent-only check.
+VERDICT: PASS for the checks recorded above.

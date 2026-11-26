@@ -308,6 +308,7 @@ fun ParentAppMainContent(
     var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
     var setupDeviceId by rememberSaveable { mutableStateOf("") }
     var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(true) }
+    var resumeParentSetupAfterSignIn by rememberSaveable { mutableStateOf(false) }
 
     // Persistent Screen Backstack History
     val screenBackstack = rememberSaveable(
@@ -422,6 +423,12 @@ fun ParentAppMainContent(
         allowAutoResumeOnboarding = true
         sessionRestorationManager.markSessionVerified()
         navManager.navigateToAuthenticatedRoot()
+        if (resumeParentSetupAfterSignIn) {
+            resumeParentSetupAfterSignIn = false
+            allowAutoResumeOnboarding = false
+            navManager.navigateTo(AppScreen.CHOOSE_DEVICE_TYPE)
+            navManager.navigateTo(AppScreen.PARENT_CONSENT)
+        }
     }
 
     fun navigateToUnauthenticatedRoot(screen: AppScreen = AppScreen.LOGIN) {
@@ -430,7 +437,15 @@ fun ParentAppMainContent(
         navManager.navigateToUnauthenticatedRoot(screen)
     }
 
-    fun performLogout(message: String = "Logged out successfully") {
+    fun requireSignInForParentSetup() {
+        resumeParentSetupAfterSignIn = true
+        navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+        toastMessage = "Sign in to continue setting up the child's device."
+        toastType = ToastType.INFO
+    }
+
+    fun performLogout(message: String = "Logged out successfully", resumeParentSetup: Boolean = false) {
+        resumeParentSetupAfterSignIn = resumeParentSetup
         isSessionAuthenticated = false
         navManager.hasAuthenticatedSession = false
         sessionRestorationManager.markSessionInvalidated()
@@ -499,13 +514,19 @@ fun ParentAppMainContent(
         SessionEventBus.sessionExpiredFlow.collect {
             isSessionAuthenticated = false
             navManager.hasAuthenticatedSession = false
-            performLogout("Session expired. Please log in again.")
+            performLogout(
+                message = "Session expired. Sign in to continue.",
+                resumeParentSetup = resumeParentSetupAfterSignIn ||
+                    currentScreen in setOf(AppScreen.PARENT_CONSENT, AppScreen.DEVICE_PAIRING, AppScreen.QR_SCANNER)
+            )
         }
     }
 
     // Global email verification listener (reactive navigation to ParentEmailVerificationScreen without generic logout)
     LaunchedEffect(Unit) {
         SessionEventBus.emailVerificationRequiredFlow.collect { email ->
+            resumeParentSetupAfterSignIn = resumeParentSetupAfterSignIn ||
+                currentScreen in setOf(AppScreen.PARENT_CONSENT, AppScreen.DEVICE_PAIRING, AppScreen.QR_SCANNER)
             isSessionAuthenticated = false
             navManager.hasAuthenticatedSession = false
             sessionRestorationManager.markSessionInvalidated()
@@ -1004,18 +1025,22 @@ fun ParentAppMainContent(
                     )
                 }
 
-                AppScreen.DEVICE_PAIRING -> {
-                    DevicePairingScreen(
-                        onNavigateBack = {
-                            allowAutoResumeOnboarding = false
-                            currentScreen = AppScreen.MAIN_SHELL
-                        },
-                        onPairingSuccess = { id, model ->
-                            setupDeviceId = id
-                            lastPairedDeviceName = model
-                            currentScreen = AppScreen.PAIRING_SUCCESS
-                        }
-                    )
+                AppScreen.DEVICE_PAIRING, AppScreen.QR_SCANNER -> {
+                    if (!isSessionAuthenticated) {
+                        LaunchedEffect(Unit) { requireSignInForParentSetup() }
+                    } else {
+                        DevicePairingScreen(
+                            onNavigateBack = {
+                                allowAutoResumeOnboarding = false
+                                currentScreen = AppScreen.MAIN_SHELL
+                            },
+                            onPairingSuccess = { id, model ->
+                                setupDeviceId = id
+                                lastPairedDeviceName = model
+                                currentScreen = AppScreen.PAIRING_SUCCESS
+                            }
+                        )
+                    }
                 }
 
                 AppScreen.FAMILY_PIN_MANAGEMENT -> {
@@ -1539,40 +1564,32 @@ fun ParentAppMainContent(
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
                     ChooseDeviceTypeScreen(
                         onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null,
-                        onSelectParentDevice = { currentScreen = AppScreen.PARENT_CONSENT }
+                        onSelectParentDevice = {
+                            if (isSessionAuthenticated) currentScreen = AppScreen.PARENT_CONSENT
+                            else requireSignInForParentSetup()
+                        }
                     )
                 }
 
                 AppScreen.PARENT_CONSENT -> {
-                    ParentConsentScreen(
-                        onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
-                        onConsentAccepted = {
-                            currentScreen = AppScreen.DEVICE_PAIRING
-                        },
-                        onOpenTerms = {
-                            selectedLegalDocType = "terms"
-                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
-                            currentScreen = AppScreen.NATIVE_LEGAL
-                        },
-                        onOpenPrivacy = {
-                            selectedLegalDocType = "privacy"
-                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
-                            currentScreen = AppScreen.NATIVE_LEGAL
-
-                        }
-                    )
-                }
-
-                AppScreen.QR_SCANNER -> {
-                    // Redirect legacy mock scanner route directly to real DevicePairingScreen
-                    DevicePairingScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onPairingSuccess = { id, model ->
-                            setupDeviceId = id
-                            lastPairedDeviceName = model
-                            currentScreen = AppScreen.PAIRING_SUCCESS
-                        }
-                    )
+                    if (!isSessionAuthenticated) {
+                        LaunchedEffect(Unit) { requireSignInForParentSetup() }
+                    } else {
+                        ParentConsentScreen(
+                            onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
+                            onConsentAccepted = { currentScreen = AppScreen.DEVICE_PAIRING },
+                            onOpenTerms = {
+                                selectedLegalDocType = "terms"
+                                legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                                currentScreen = AppScreen.NATIVE_LEGAL
+                            },
+                            onOpenPrivacy = {
+                                selectedLegalDocType = "privacy"
+                                legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                                currentScreen = AppScreen.NATIVE_LEGAL
+                            }
+                        )
+                    }
                 }
 
                 AppScreen.CHILD_PROFILE_EDIT -> {

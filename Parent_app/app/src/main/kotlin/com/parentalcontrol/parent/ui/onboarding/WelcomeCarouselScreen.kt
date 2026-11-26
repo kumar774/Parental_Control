@@ -29,13 +29,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -50,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -63,35 +61,17 @@ import com.parentalcontrol.core.designsystem.theme.AccentViolet
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.GlassBorderHighlight
 import com.parentalcontrol.core.designsystem.theme.GlassSurfaceBase
-import com.parentalcontrol.core.designsystem.theme.GlassSurfaceElevated
 import com.parentalcontrol.core.designsystem.theme.NeonCyan
 import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
-import com.parentalcontrol.core.designsystem.theme.RadiusLarge
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space20
 import com.parentalcontrol.core.designsystem.theme.Space24
 import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
-import com.parentalcontrol.core.designsystem.theme.TextMuted
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import kotlinx.coroutines.launch
 
-/**
- * FlashGet Kids-style 3-slide onboarding walkthrough for first-time launch.
- *
- * Slide 1: Real-Time Location & Geofencing Alerts
- * Slide 2: Screen Time & Notification Sync
- * Slide 3: Remote Screen, Camera & Audio Safety
- *
- * Features:
- * - Top-right "Skip" button visible on slides 1 & 2; auto-hidden on slide 3.
- * - HorizontalPager with swipe gesture support.
- * - Animated expanding pill indicator.
- * - Single full-width primary bottom button: "Next" on slides 1 & 2, "Got it" on slide 3.
- * - No login/signup buttons on this screen.
- */
 @Composable
 fun WelcomeCarouselScreen(
     onFinish: () -> Unit,
@@ -143,7 +123,7 @@ fun WelcomeCarouselScreen(
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        text = "FlashGet Kids Guardian",
+                        text = "Parent setup",
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonCyan
                     )
@@ -182,9 +162,24 @@ fun WelcomeCarouselScreen(
                 .fillMaxWidth()
         ) { pageIndex ->
             when (pageIndex) {
-                0 -> LocationSlide()
-                1 -> ScreenTimeSlide()
-                2 -> SurveillanceSlide()
+                0 -> SetupSlide(
+                    icon = Icons.Default.Devices,
+                    accent = AccentCyan,
+                    title = "Set up your parent account",
+                    description = "Sign in or create an account, then choose this phone as the parent device."
+                )
+                1 -> SetupSlide(
+                    icon = Icons.Default.QrCodeScanner,
+                    accent = AccentViolet,
+                    title = "Connect a child's device",
+                    description = "Scan the pairing QR shown by the Child App, or enter the binding code on the child's phone."
+                )
+                2 -> SetupSlide(
+                    icon = Icons.Default.Security,
+                    accent = NeonCyan,
+                    title = "Confirm the connection",
+                    description = "Review the connection request. Both devices must confirm before they are linked."
+                )
             }
         }
 
@@ -255,400 +250,38 @@ fun WelcomeCarouselScreen(
     }
 }
 
-/** Slide 1: Real-Time Location & Geofencing Alerts */
 @Composable
-private fun LocationSlide() {
+private fun SetupSlide(icon: ImageVector, accent: Color, title: String, description: String) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = Space8),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // High-Tech Visual Container
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(260.dp)
-                .clip(RadiusLarge)
-                .background(GlassSurfaceBase)
-                .border(1.5.dp, Color(0xFF26334A), RadiusLarge),
-            contentAlignment = Alignment.Center
-        ) {
-            // Radar Background Rings
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color(0xFF1E293B), CircleShape)
-            )
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color(0xFF334155), CircleShape)
-            )
-            Box(
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(CircleShape)
-                    .background(AccentCyan.copy(alpha = 0.15f))
-                    .border(1.5.dp, NeonCyan, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = NeonCyan,
-                    modifier = Modifier.size(34.dp)
-                )
-            }
-
-            // Status Floating Pill: Safe Zone
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = Space16)
-                    .clip(RadiusCapsule)
-                    .background(GlassSurfaceElevated)
-                    .border(1.dp, GlassBorderHighlight.copy(alpha = 0.6f), RadiusCapsule)
-                    .padding(horizontal = Space16, vertical = Space8)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(StatusSafeGreen)
-                    )
-                    Spacer(Modifier.width(Space8))
-                    Text(
-                        text = "Safe Zone: School (Active)",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(Space24))
-
-        Text(
-            text = "Real-Time Location & Geofencing Alerts",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(Space12))
-
-        Text(
-            text = "Pinpoint your child's exact whereabouts with high-accuracy live GPS tracking and get instant arrival and departure alerts for custom safe zones.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            modifier = Modifier.padding(horizontal = Space12)
-        )
-    }
-}
-
-/** Slide 2: Screen Time & Notification Sync */
-@Composable
-private fun ScreenTimeSlide() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = Space8),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // High-Tech Visual Container
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(260.dp)
-                .clip(RadiusLarge)
-                .background(GlassSurfaceBase)
-                .border(1.5.dp, Color(0xFF26334A), RadiusLarge),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Space24),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Central Icon Hub
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(AccentViolet.copy(alpha = 0.2f))
-                            .border(1.dp, AccentViolet, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.HourglassTop,
-                            contentDescription = null,
-                            tint = AccentViolet,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(Space16))
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(AccentIndigo.copy(alpha = 0.2f))
-                            .border(1.dp, AccentIndigo, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsActive,
-                            contentDescription = null,
-                            tint = NeonCyan,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(Space20))
-
-                // Simulated App Limit Bar 1
-                UsageBarItem(title = "Social Apps", duration = "1h 15m / 2h", progress = 0.62f, color = AccentViolet)
-                Spacer(Modifier.height(Space8))
-                // Simulated App Limit Bar 2
-                UsageBarItem(title = "Games & Media", duration = "45m / 1h", progress = 0.75f, color = NeonCyan)
-            }
-
-            // Bedtime Mode Pill
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = Space12)
-                    .clip(RadiusCapsule)
-                    .background(GlassSurfaceElevated)
-                    .border(1.dp, Color(0xFF334155), RadiusCapsule)
-                    .padding(horizontal = Space12, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "Automated Bedtime Lock • 9:00 PM",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
-        Spacer(Modifier.height(Space24))
-
-        Text(
-            text = "Screen Time & Notification Sync",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(Space12))
-
-        Text(
-            text = "Set healthy daily limits, schedule automated downtime bedtime locks, and monitor incoming app notifications to protect focus and well-being.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            modifier = Modifier.padding(horizontal = Space12)
-        )
-    }
-}
-
-/** Slide 3: Remote Screen, Camera & Audio Safety */
-@Composable
-private fun SurveillanceSlide() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = Space8),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // High-Tech Visual Container
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(260.dp)
-                .clip(RadiusLarge)
-                .background(GlassSurfaceBase)
-                .border(1.5.dp, Color(0xFF26334A), RadiusLarge),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Space20),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Feature Cards Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FeaturePillItem(
-                        icon = Icons.Default.Videocam,
-                        label = "Remote View",
-                        tint = NeonCyan
-                    )
-                    FeaturePillItem(
-                        icon = Icons.Default.GraphicEq,
-                        label = "Live Audio",
-                        tint = AccentViolet
-                    )
-                    FeaturePillItem(
-                        icon = Icons.Default.Security,
-                        label = "End-to-End",
-                        tint = StatusSafeGreen
-                    )
-                }
-
-                Spacer(Modifier.height(Space24))
-
-                // Streaming Status Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(GlassSurfaceElevated)
-                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Surveillance Guard",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(StatusSafeGreen)
-                            )
-                            Spacer(Modifier.width(Space8))
-                            Text(
-                                text = "Encrypted",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = StatusSafeGreen,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(Space24))
-
-        Text(
-            text = "Remote Screen, Camera & Audio Safety",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(Space12))
-
-        Text(
-            text = "Access live remote screen mirroring, ambient environmental audio listening, and camera snapshots to verify safety whenever you need peace of mind.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            modifier = Modifier.padding(horizontal = Space12)
-        )
-    }
-}
-
-@Composable
-private fun UsageBarItem(
-    title: String,
-    duration: String,
-    progress: Float,
-    color: Color
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = title, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-            Text(text = duration, style = MaterialTheme.typography.labelSmall, color = TextMuted)
-        }
-        Spacer(Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RadiusCapsule)
-                .background(Color(0xFF1E293B))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(6.dp)
-                    .clip(RadiusCapsule)
-                    .background(color)
-            )
-        }
-    }
-}
-
-@Composable
-private fun FeaturePillItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    tint: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = Space8)
+        modifier = Modifier.fillMaxSize().padding(horizontal = Space12),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(140.dp)
                 .clip(CircleShape)
-                .background(tint.copy(alpha = 0.15f))
-                .border(1.dp, tint.copy(alpha = 0.5f), CircleShape),
+                .background(GlassSurfaceBase)
+                .border(1.dp, GlassBorderHighlight, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = tint,
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(64.dp))
         }
-        Spacer(Modifier.height(Space8))
+        Spacer(Modifier.height(Space24))
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = TextSecondary
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(Space12))
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp
         )
     }
 }

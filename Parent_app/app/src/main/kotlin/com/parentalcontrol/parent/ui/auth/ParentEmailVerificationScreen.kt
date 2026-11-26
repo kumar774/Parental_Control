@@ -428,7 +428,6 @@ fun ParentEmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(Space24))
 
-                // "Verify and sign in" primary button
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -465,7 +464,7 @@ fun ParentEmailVerificationScreen(
                         )
                         Spacer(modifier = Modifier.width(Space8))
                         Text(
-                            text = "Verify and sign in",
+                            text = "Verify email",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp

@@ -4,13 +4,35 @@ import com.parentalcontrol.parent.ui.pairing.ChildQrValidationResult
 import com.parentalcontrol.parent.ui.pairing.extractPairingCode
 import com.parentalcontrol.parent.ui.pairing.formatNineDigitCode
 import com.parentalcontrol.parent.ui.pairing.parseChildQrContract
+import com.parentalcontrol.parent.ui.pairing.visibleManualBindingCode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DevicePairingContractTest {
 
     private val fixedNowMs = 1795325000000L // 2026-11-24T05:23:20.000Z
+
+    @Test
+    fun manualCodeIsVisibleOnlyBeforeExpiry() {
+        val code = "987654321"
+        val expiresAt = fixedNowMs + 1000
+        assertEquals(code, visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt - 1))
+        assertNull(visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt))
+        assertNull(visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt + 1))
+        assertNull(visibleManualBindingCode("123", "waiting_for_child", expiresAt, fixedNowMs))
+    }
+
+    @Test
+    fun approvalAndTerminalStatesDoNotExposeABindingCode() {
+        val hiddenStatuses = listOf(
+            "waiting_for_parent", "waiting_for_child_confirmation", "finalizing", "paired", "expired", "canceled"
+        )
+        for (status in hiddenStatuses) {
+            assertNull(visibleManualBindingCode("987654321", status, fixedNowMs + 1000, fixedNowMs))
+        }
+    }
 
     @Test
     fun testExactChildGeneratedPayloadAccepted() {
