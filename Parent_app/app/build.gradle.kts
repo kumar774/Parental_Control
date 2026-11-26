@@ -16,6 +16,9 @@ android {
   }
 
   buildTypes {
+    debug {
+      applicationIdSuffix = ".debug"
+    }
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -28,8 +31,12 @@ android {
   buildFeatures {
     compose = true
     aidl = false
-    buildConfig = false
+    buildConfig = true
     shaders = false
+  }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
   }
 
   packaging {
@@ -77,6 +84,7 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation("org.json:json:20240303")
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -99,7 +107,14 @@ dependencies {
   implementation("androidx.camera:camera-lifecycle:$cameraVersion")
   implementation("androidx.camera:camera-view:$cameraVersion")
 
+  implementation("com.google.zxing:core:3.5.3")
+
   // ML Kit Barcode Scanning
   implementation("com.google.mlkit:barcode-scanning:17.3.0")
   implementation("com.google.guava:guava:33.3.1-android")
+
+  // Google Credential Manager & Identity
+  implementation("androidx.credentials:credentials:1.3.0")
+  implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }

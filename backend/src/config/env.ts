@@ -5,10 +5,25 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Load environment variables from .env
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), 'backend', '.env') });
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+const isRealPostgresTestEntry = process.argv.some((arg) =>
+  /tests[/\\]integration[/\\]real-postgres[/\\].*\.test\.ts$/i.test(arg));
+const preflightRunId = (process as NodeJS.Process & { [key: symbol]: string | undefined })[
+  Symbol.for('parental-control.real-postgres.preflight')
+];
+if (isRealPostgresTestEntry
+  && (!process.env.AUTH001_TEST_DATABASE_RUN_ID || preflightRunId !== process.env.AUTH001_TEST_DATABASE_RUN_ID)) {
+  throw new Error('[Real PostgreSQL Gate FATAL] Real PostgreSQL test files cannot import application modules before the explicit target preflight.');
+}
+
+// A real-PostgreSQL integration run must receive its full target explicitly.
+// Never let a local .env supply or augment credentials for that safety-sensitive run.
+const isExplicitRealPostgresTest =
+  process.env.NODE_ENV === 'test' && Boolean(process.env.AUTH001_TEST_DATABASE_RUN_ID);
+if (!isExplicitRealPostgresTest) {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+  dotenv.config({ path: path.resolve(process.cwd(), 'backend', '.env') });
+  dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+}
 
 export const KNOWN_DEV_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 export const KNOWN_DEV_RATE_LIMIT_KEY = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
@@ -39,6 +54,8 @@ export const envSchema = z
       .length(64, 'IDENTIFIER_RATE_LIMIT_KEY must be exactly 64 hex characters (32 bytes)')
       .regex(/^[0-9a-fA-F]+$/, 'IDENTIFIER_RATE_LIMIT_KEY must be a valid hex string')
       .optional(),
+
+    MOBILE_DOWNLOAD_ORIGINS: z.string().default('https://github.com,https://releases.parentalcontrol.local'),
 
     // Allowed Admin UI Origin
     ADMIN_FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),

@@ -37,13 +37,14 @@ class LocalChildDeviceRepository(
     }
 
     override suspend fun generatePairingCode(): Result<PairingCode> {
-        val code = (100000..999999).random().toString()
-        val pairing = PairingCode(
-            code = code,
-            qrPayload = "pc-pairing:$code:${System.currentTimeMillis() + 600000}",
-            expiresAtTimestamp = System.currentTimeMillis() + 600000
-        )
-        return Result.success(pairing)
+        val result = com.parentalcontrol.core.network.rest.FastifyRestClient.shared.generatePairingCode()
+        return result.map { dto ->
+            PairingCode(
+                code = dto.pairingCode,
+                sessionId = dto.sessionId,
+                expiresAtTimestamp = dto.expiresAtEpochMs
+            )
+        }
     }
 
     override suspend fun updateChildProfile(childId: String, name: String, age: Int): Result<Unit> {

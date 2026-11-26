@@ -2,13 +2,14 @@ package com.parentalcontrol.parent.ui.pairing
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -43,25 +44,36 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.json.JSONObject
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,9 +81,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -88,486 +105,592 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.parentalcontrol.core.database.ParentalDatabase
 import com.parentalcontrol.core.database.entity.ChildDeviceEntity
+import com.parentalcontrol.core.designsystem.theme.AccentCyan
+import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
+import com.parentalcontrol.core.designsystem.theme.NeonCyan
+import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
 import com.parentalcontrol.core.designsystem.theme.RadiusLarge
+import com.parentalcontrol.core.designsystem.theme.RadiusMedium
+import com.parentalcontrol.core.designsystem.theme.Space4
+import com.parentalcontrol.core.designsystem.theme.Space6
+import com.parentalcontrol.core.designsystem.theme.Space8
+import com.parentalcontrol.core.designsystem.theme.Space10
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space20
 import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space6
-import com.parentalcontrol.core.designsystem.theme.Space8
+import com.parentalcontrol.core.designsystem.theme.Space32
+import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
+import com.parentalcontrol.core.designsystem.theme.StatusWarningAmber
+import com.parentalcontrol.core.designsystem.theme.TextMuted
+import com.parentalcontrol.core.designsystem.theme.TextPrimary
+import com.parentalcontrol.core.designsystem.theme.TextSecondary
+import com.parentalcontrol.core.designsystem.theme.liquidGlassCard
 import com.parentalcontrol.core.network.rest.FastifyRestClient
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * Screen 06: Device Pairing Screen
- * Single Dedicated Flow: Parent scanning Child's QR Code with live CameraX + ML Kit
- * + Fallback to Manual 6-Digit PIN input dialog with strict inline validation.
- * No tabs, no Parent QR display.
+ * Three Integrated Sections:
+ * Section A: Download Child App (Download URL, open browser, QR code encoding download URL).
+ * Section B: Real CameraX + ML Kit QR scanner (scanning Child App pairing QR).
+ * Section C: 9-Digit numeric manual pairing code (XXX - XXX - XXX) fetched from POST /api/v1/devices/pair-code
+ *            with countdown timer and single-use expiry, and manual entry dialog.
  */
-private fun extractPairingCode(raw: String): String {
-    val trimmed = raw.trim()
-    val parts = trimmed.split(":")
-    if (parts.size >= 2 && (parts[0].equals("pc-pair", ignoreCase = true) || parts[0].equals("pcpair", ignoreCase = true))) {
-        return parts[1]
-    }
-    val digitsOnly = trimmed.filter { it.isDigit() }
-    if (digitsOnly.length == 6) {
-        return digitsOnly
-    }
-    return trimmed
-}
-
-@Composable
-fun DevicePairingScreen(
-    onNavigateBack: () -> Unit,
-    onPairingSuccess: (childName: String, deviceName: String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
-    val childDao = remember { ParentalDatabase.getInstance().childDeviceDao }
-
-    var isFlashOn by remember { mutableStateOf(false) }
-    var showManualInputDialog by remember { mutableStateOf(false) }
-    var manualPinInput by remember { mutableStateOf("") }
-    var manualPinError by remember { mutableStateOf<String?>(null) }
-    var isPairingLoading by remember { mutableStateOf(false) }
-
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                hasCameraPermission = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasCameraPermission = isGranted
-        if (!isGranted) {
-            Toast.makeText(context, "Camera permission is required to scan QR code", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BgCanvas)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Space20, vertical = Space24),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top Navigation Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E293B))
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(Space12))
-                Text(
-                    text = "Pair Supervised Device",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space20))
-
-            Text(
-                text = "Scan Child QR Code",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(Space6))
-
-            Text(
-                text = "Point camera at the QR code displayed on your child's companion app",
-                color = Color(0xFF94A3B8),
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = Space12)
-            )
-
-            Spacer(modifier = Modifier.height(Space24))
-
-            if (hasCameraPermission) {
-                // Live Hardware Camera Viewfinder Box (CameraX + ML Kit)
-                Box(
-                    modifier = Modifier
-                        .size(280.dp)
-                        .clip(RadiusLarge)
-                        .background(Color.Black)
-                        .border(2.dp, Color(0xFF1E293B), RadiusLarge)
-                ) {
-                    LiveCameraQrScanner(
-                        onQrCodeDetected = { rawQr ->
-                            val code = extractPairingCode(rawQr)
-                            Toast.makeText(context, "Pairing with code $code...", Toast.LENGTH_SHORT).show()
-                            scope.launch {
-                                val result = FastifyRestClient.shared.confirmPairing(code)
-                                if (result.isSuccess) {
-                                    val dev = result.getOrNull()!!
-                                    childDao.insertOrUpdate(
-                                        ChildDeviceEntity(
-                                            id = dev.id,
-                                            deviceName = dev.deviceName,
-                                            childName = dev.childName.ifBlank { dev.deviceName },
-                                            childAge = 10,
-                                            avatarUrl = null,
-                                            isLocked = false,
-                                            batteryPercent = 100,
-                                            isCharging = false,
-                                            isOnline = true,
-                                            activeApp = null,
-                                            lastKnownLat = null,
-                                            lastKnownLng = null,
-                                            lastSeenAt = System.currentTimeMillis()
-                                        )
-                                    )
-                                    onPairingSuccess(dev.childName, dev.deviceName)
-                                } else {
-                                    val err = result.exceptionOrNull()?.message ?: "Pairing failed. Please check the QR code."
-                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        },
-                        isFlashOn = isFlashOn,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Flash Toggle button in top right
-                    IconButton(
-                        onClick = { isFlashOn = !isFlashOn },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (isFlashOn) Color(0xFF38BDF8).copy(alpha = 0.2f) else Color(0xFF1E293B))
-                            .border(
-                                1.dp,
-                                if (isFlashOn) Color(0xFF38BDF8) else Color(0xFF334155),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                            contentDescription = "Flash Toggle",
-                            tint = if (isFlashOn) Color(0xFF38BDF8) else Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // Center hint
-                    Text(
-                        text = "Align QR code inside frame",
-                        color = Color(0xFFE2E8F0),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 12.dp)
-                    )
-                }
-            } else {
-                // Camera Permission Required Box
-                Column(
-                    modifier = Modifier
-                        .size(280.dp)
-                        .clip(RadiusLarge)
-                        .background(Color(0xFF0F172A))
-                        .border(1.5.dp, Color(0xFF1E293B), RadiusLarge)
-                        .padding(Space20),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E293B))
-                            .border(1.dp, Color(0xFF38BDF8), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = null,
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(Space16))
-
-                    Text(
-                        text = "Camera Access Required",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(Space6))
-
-                    Text(
-                        text = "Grant camera access to scan pairing QR code directly from your child's phone",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(Space16))
-
-                    Button(
-                        onClick = {
-                            try {
-                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0284C7),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(40.dp)
-                    ) {
-                        Text(
-                            text = "Grant Camera Permission",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Space24))
-
-            // Enter Code Manually Button
-            OutlinedButton(
-                onClick = {
-                    manualPinError = null
-                    manualPinInput = ""
-                    showManualInputDialog = true
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF38BDF8)
-                ),
-                border = BorderStroke(1.5.dp, Color(0xFF1E293B)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = null,
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(Space8))
-                Text(
-                    text = "Enter Child Code Manually",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-
-        // Manual PIN Entry Dialog with Strict Inline Validation
-        if (showManualInputDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showManualInputDialog = false
-                    manualPinError = null
-                },
-                containerColor = Color(0xFF0F172A),
-                titleContentColor = Color.White,
-                textContentColor = Color(0xFF94A3B8),
-                title = {
-                    Text(
-                        text = "Enter Child Pairing Code",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(Space12)) {
-                        Text(
-                            text = "Enter the 6-digit pairing code shown on your child's companion screen:",
-                            fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
-                        )
-                        OutlinedTextField(
-                            value = manualPinInput,
-                            onValueChange = {
-                                if (it.length <= 6) {
-                                    manualPinInput = it
-                                    if (manualPinError != null) manualPinError = null
-                                }
-                            },
-                            placeholder = { Text("e.g. 849204", color = Color(0xFF64748B)) },
-                            singleLine = true,
-                            isError = manualPinError != null,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = if (manualPinError != null) Color(0xFFEF4444) else Color(0xFF38BDF8),
-                                unfocusedBorderColor = if (manualPinError != null) Color(0xFFEF4444) else Color(0xFF334155),
-                                errorBorderColor = Color(0xFFEF4444),
-                                cursorColor = Color(0xFF38BDF8)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Strict Inline Validation Error Notice
-                        if (manualPinError != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ErrorOutline,
-                                    contentDescription = null,
-                                    tint = Color(0xFFEF4444),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = manualPinError!!,
-                                    color = Color(0xFFEF4444),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val trimmed = manualPinInput.trim()
-                            if (trimmed.isEmpty() || trimmed.length != 6) {
-                                manualPinError = "Please enter a valid 6-digit pairing code"
-                                return@Button
-                            }
-                            manualPinError = null
-                            isPairingLoading = true
-                            scope.launch {
-                                val result = FastifyRestClient.shared.confirmPairing(trimmed)
-                                isPairingLoading = false
-                                if (result.isSuccess) {
-                                    val dev = result.getOrNull()!!
-                                    childDao.insertOrUpdate(
-                                        ChildDeviceEntity(
-                                            id = dev.id,
-                                            deviceName = dev.deviceName,
-                                            childName = dev.childName.ifBlank { dev.deviceName },
-                                            childAge = 10,
-                                            avatarUrl = null,
-                                            isLocked = false,
-                                            batteryPercent = 100,
-                                            isCharging = false,
-                                            isOnline = true,
-                                            activeApp = null,
-                                            lastKnownLat = null,
-                                            lastKnownLng = null,
-                                            lastSeenAt = System.currentTimeMillis()
-                                        )
-                                    )
-                                    showManualInputDialog = false
-                                    onPairingSuccess(dev.childName, dev.deviceName)
-                                } else {
-                                    manualPinError = result.exceptionOrNull()?.message ?: "Pairing confirmation failed. Please verify code."
-                                }
-                            }
-                        },
-                        enabled = !isPairingLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0284C7),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isPairingLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Connect", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showManualInputDialog = false
-                        manualPinError = null
-                    }) {
-                        Text("Cancel", color = Color(0xFF94A3B8))
-                    }
-                }
-            )
-        }
-    }
+sealed class ChildQrValidationResult {
+    data class Valid(val code: String, val sessionId: String, val expiresAt: String) : ChildQrValidationResult()
+    data class Expired(val code: String, val expiresAt: String? = null) : ChildQrValidationResult()
+    data class Invalid(val reason: String) : ChildQrValidationResult()
 }
 
 /**
- * Live CameraX Preview with ML Kit Barcode Scanning.
+ * Validates the typed Child QR Contract.
+ * Rejects wrong version, wrong type, missing UUID sessionId, non-9-digit codes, or expired timestamps.
  */
-@OptIn(ExperimentalGetImage::class)
+internal fun parseChildQrContract(
+    raw: String,
+    nowMs: Long = System.currentTimeMillis()
+): ChildQrValidationResult {
+    val trimmed = raw.trim()
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+        return ChildQrValidationResult.Invalid("Invalid pairing QR format: expected JSON child_pair contract")
+    }
+
+    return try {
+        val json = org.json.JSONObject(trimmed)
+
+        // 1. Version check (strictly version 1)
+        if (!json.has("version")) {
+            return ChildQrValidationResult.Invalid("Missing QR version")
+        }
+        val version = json.optInt("version", -1)
+        if (version != 1) {
+            return ChildQrValidationResult.Invalid("Unsupported QR version: $version")
+        }
+
+        // 2. Type check (strictly 'child_pair')
+        if (!json.has("type")) {
+            return ChildQrValidationResult.Invalid("Missing QR type")
+        }
+        val type = json.optString("type")
+        if (type != "child_pair") {
+            return ChildQrValidationResult.Invalid("Invalid QR type: $type")
+        }
+
+        // 3. SessionId check (UUID format required)
+        if (!json.has("sessionId")) {
+            return ChildQrValidationResult.Invalid("Missing sessionId in QR")
+        }
+        val sessionId = json.optString("sessionId")
+        val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        if (!uuidRegex.matches(sessionId)) {
+            return ChildQrValidationResult.Invalid("Invalid UUID sessionId in QR: $sessionId")
+        }
+
+        // 4. Code check (strictly 9 digits)
+        val codeRaw = when {
+            json.has("code") -> json.optString("code")
+            json.has("pairingCode") -> json.optString("pairingCode")
+            else -> null
+        }
+        if (codeRaw.isNullOrBlank() || !codeRaw.matches(Regex("^[0-9]{9}$"))) {
+            return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR: $codeRaw")
+        }
+
+        // 5. Expiry check: strictly mandatory, rejects missing/empty/unparsable
+        if (!json.has("expiresAt") || json.isNull("expiresAt")) {
+            return ChildQrValidationResult.Invalid("Missing expiresAt in QR")
+        }
+
+        val displayExpires = json.optString("expiresAt", "")
+        val expiryMs: Long = when {
+            json.optLong("expiresAt", -1L) > 0L -> json.getLong("expiresAt")
+            displayExpires.isNotBlank() -> try {
+                java.time.Instant.parse(displayExpires).toEpochMilli()
+            } catch (_: Exception) {
+                return ChildQrValidationResult.Invalid("Malformed expiresAt timestamp in QR: $displayExpires")
+            }
+            else -> return ChildQrValidationResult.Invalid("Missing or empty expiresAt in QR")
+        }
+
+        if (expiryMs <= nowMs) {
+            ChildQrValidationResult.Expired(code = codeRaw, expiresAt = displayExpires)
+        } else {
+            ChildQrValidationResult.Valid(code = codeRaw, sessionId = sessionId, expiresAt = displayExpires)
+        }
+    } catch (e: Exception) {
+        ChildQrValidationResult.Invalid("Malformed JSON QR payload: ${e.message}")
+    }
+}
+
+internal fun extractPairingCode(raw: String): String {
+    return when (val res = parseChildQrContract(raw)) {
+        is ChildQrValidationResult.Valid -> res.code
+        is ChildQrValidationResult.Expired -> res.code
+        is ChildQrValidationResult.Invalid -> raw.filter { it.isDigit() }.takeIf { it.length in 6..16 } ?: raw.trim()
+    }
+}
+
+fun formatNineDigitCode(code: String): String {
+    val clean = code.filter { it.isDigit() }
+    return when {
+        clean.length > 6 -> "${clean.substring(0, 3)} - ${clean.substring(3, 6)} - ${clean.substring(6, minOf(clean.length, 9))}"
+        clean.length > 3 -> "${clean.substring(0, 3)} - ${clean.substring(3)}"
+        else -> clean
+    }
+}
+
+internal data class PendingApprovalInfo(
+    val sessionId: String,
+    val code: String,
+    val deviceModel: String? = null,
+    val isChildInitiated: Boolean = false
+)
+
+@Composable
+fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, String) -> Unit,
+                        modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val client = FastifyRestClient.shared
+    var session by remember { mutableStateOf<String?>(null) }
+    var code by remember { mutableStateOf<String?>(null) }
+    var expires by remember { mutableLongStateOf(0L) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var status by remember { mutableStateOf("") }
+    var reportedDeviceModel by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+    var denied by remember { mutableStateOf(false) }
+    var pendingApproval by remember { mutableStateOf<PendingApprovalInfo?>(null) }
+    var showCancelConfirm by remember { mutableStateOf(false) }
+
+    fun checkStatus() {
+        val id = session ?: return
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            client.checkPairingStatus(id).onSuccess { result ->
+                status = result.status
+                if (!result.deviceName.isNullOrBlank()) {
+                    reportedDeviceModel = result.deviceName
+                }
+                if (result.status == "paired") {
+                    val device = result.deviceId
+                    if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess)
+                        onPairingSuccess(device, result.deviceName.orEmpty())
+                    else message = "Could not identify the paired device."
+                }
+            }.onFailure { message = it.message }
+            busy = false
+        }
+    }
+
+    fun issueOrResume(regenerate: Boolean = false) {
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            try {
+                if (regenerate) {
+                    val issued = client.generatePairingCode(regenerate = true).getOrThrow()
+                    session = issued.sessionId
+                    code = issued.pairingCode
+                    expires = issued.expiresAtEpochMs
+                    reportedDeviceModel = null
+                } else {
+                    val saved = client.getOnboarding().getOrThrow()
+                    val canResume = saved.pendingSessionId != null &&
+                        saved.pendingStatus !in setOf("expired", "canceled")
+                    if (canResume) {
+                        session = saved.pendingSessionId
+                        code = saved.pendingCode
+                        reportedDeviceModel = saved.pendingDeviceModel
+                        expires = saved.expiresAt?.let { java.time.Instant.parse(it).toEpochMilli() } ?: 0L
+                    } else {
+                        val issued = client.generatePairingCode(regenerate = false).getOrThrow()
+                        session = issued.sessionId
+                        code = issued.pairingCode
+                        expires = issued.expiresAtEpochMs
+                        reportedDeviceModel = null
+                    }
+                }
+                status = ""
+            } catch (e: Exception) { message = e.message }
+            busy = false
+            if (session != null && message == null) checkStatus()
+        }
+    }
+
+    fun cancelCurrentEnrollment() {
+        val id = session ?: return
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            client.cancelPairing(id).onSuccess {
+                status = "canceled"
+                code = null
+                expires = 0L
+                reportedDeviceModel = null
+                pendingApproval = null
+            }.onFailure { message = it.message }
+            busy = false
+        }
+    }
+
+    fun rejectChildRequest(targetSessionId: String, targetCode: String?) {
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            client.rejectPairing(targetSessionId, targetCode).onSuccess {
+                pendingApproval = null
+                if (session == targetSessionId) {
+                    status = "canceled"
+                    code = null
+                    expires = 0L
+                    reportedDeviceModel = null
+                }
+                message = "Connection request rejected."
+            }.onFailure { message = it.message }
+            busy = false
+        }
+    }
+
+    LaunchedEffect(Unit) { issueOrResume(regenerate = false) }
+    LaunchedEffect(expires) {
+        now = System.currentTimeMillis()
+        while (now < expires) { delay(1000); now = System.currentTimeMillis() }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        scanning = granted
+        denied = !granted
+    }
+    androidx.activity.compose.BackHandler(enabled = scanning) { scanning = false }
+
+    SetupPage(
+        title = "Add New Device",
+        onBack = onNavigateBack,
+        step = 1,
+        bottomBar = {
+            if (busy) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ParentPurple, modifier = Modifier.size(28.dp))
+                }
+            }
+            PurpleCapsuleButton(
+                text = "Check binding status",
+                enabled = !busy && session != null,
+                onClick = { checkStatus() }
+            )
+        }
+    ) {
+        StepHeading("01", "Bind child's device")
+        SetupCard {
+            Text(
+                "Please use your child's device to scan the QR code or access the link below in a browser to download and install the child's app.",
+                color = ParentTextDark,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+            DownloadLink(true)
+        }
+        SetupCard("Scan Child QR") {
+            Text(
+                "On the child's phone, choose Generate QR Code.",
+                color = ParentTextMuted,
+                fontSize = 14.sp
+            )
+            if (scanning) {
+                LiveCameraQrScanner(onQrCodeDetected = { raw ->
+                    scanning = false
+                    when (val qr = parseChildQrContract(raw)) {
+                        is ChildQrValidationResult.Valid -> {
+                            busy = true
+                            scope.launch {
+                                client.previewQrPairing(qr.sessionId, qr.code)
+                                    .onSuccess { preview ->
+                                        pendingApproval = PendingApprovalInfo(
+                                            sessionId = preview.sessionId,
+                                            code = qr.code,
+                                            deviceModel = preview.deviceName,
+                                            isChildInitiated = true
+                                        )
+                                    }
+                                    .onFailure { err ->
+                                        message = err.message ?: "Unable to verify Child QR."
+                                    }
+                                busy = false
+                            }
+                        }
+                        is ChildQrValidationResult.Invalid -> message = "This is not a valid Child App pairing QR."
+                        is ChildQrValidationResult.Expired -> message = "This QR has expired. Generate a new one on the child's phone."
+                    }
+                }, isFlashOn = false, modifier = Modifier.fillMaxWidth().height(240.dp),
+                    onError = { scanning = false; message = "Camera unavailable. Try again or use the binding code." })
+                TextButton({ scanning = false }) { Text("Close scanner", color = ParentPurple) }
+            } else {
+                OutlinedPurpleCapsuleButton(
+                    text = "Scan QR Code",
+                    enabled = !busy,
+                    onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scanning = true
+                        else permission.launch(Manifest.permission.CAMERA)
+                    }
+                )
+                if (denied) {
+                    Text(
+                        "Allow camera access to scan, or enter the binding code on the child's phone.",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    TextButton({
+                        context.startActivity(
+                            Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                        )
+                    }) { Text("Open app settings", color = ParentPurple) }
+                }
+            }
+        }
+        SetupCard {
+            Text(
+                "Open the child's app and enter the binding code below to bind the child's device to your account.",
+                color = ParentTextDark,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+            code?.let { value ->
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    color = ParentSurfaceMuted
+                ) {
+                    Text(
+                        text = formatNineDigitCode(value).replace(" - ", " "),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ParentTextDark,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
+                    )
+                }
+                if (now < expires) {
+                    Text(
+                        "Expires in ${(expires - now + 999) / 1000} seconds",
+                        color = ParentTextMuted,
+                        fontSize = 12.sp
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton({
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Binding code", value))
+                            Toast.makeText(context, "Binding code copied", Toast.LENGTH_SHORT).show()
+                        }) { Text("Copy code", color = ParentPurple) }
+                        if (status !in setOf("expired", "canceled", "paired")) {
+                            TextButton({ issueOrResume(regenerate = true) }, enabled = !busy) {
+                                Text("Regenerate code", color = ParentPurple)
+                            }
+                        }
+                    }
+                }
+            }
+            if (session != null && status !in setOf("expired", "canceled", "paired")) {
+                TextButton({ showCancelConfirm = true }, enabled = !busy) {
+                    Text("Cancel pairing", color = MaterialTheme.colorScheme.error)
+                }
+            }
+            if (session == null || status in setOf("expired", "canceled") || (expires > 0 && now >= expires)) {
+                OutlinedPurpleCapsuleButton(
+                    text = "Get binding code",
+                    enabled = !busy,
+                    onClick = { issueOrResume(regenerate = false) }
+                )
+            }
+        }
+        val description = when (status) {
+            "waiting_for_child" -> "Waiting for the child to enter the code."
+            "waiting_for_parent" -> "The child requested a connection. Review it before approving."
+            "waiting_for_child_confirmation" -> "Waiting for confirmation on the child's phone."
+            "finalizing" -> "The child is finishing secure setup."
+            "expired" -> "This enrollment has expired."
+            "canceled" -> "This enrollment was canceled."
+            else -> null
+        }
+        description?.let {
+            Text(it, color = ParentTextDark, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+        if (status == "waiting_for_parent" && session != null && code != null) {
+            PurpleCapsuleButton(
+                text = "Review connection",
+                enabled = !busy,
+                onClick = {
+                    pendingApproval = PendingApprovalInfo(
+                        sessionId = session!!,
+                        code = code!!,
+                        deviceModel = reportedDeviceModel,
+                        isChildInitiated = true
+                    )
+                }
+            )
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+    }
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            containerColor = ParentBg,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    "Cancel pending pairing?",
+                    color = ParentTextDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    "This will invalidate the current binding code so it cannot be used to pair a device.",
+                    color = ParentTextMuted,
+                    fontSize = 14.sp
+                )
+            },
+            dismissButton = {
+                TextButton({ showCancelConfirm = false }) {
+                    Text("Keep active", color = ParentTextMuted, fontWeight = FontWeight.Medium)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelConfirm = false
+                        cancelCurrentEnrollment()
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Cancel pairing", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+    pendingApproval?.let { info ->
+        AlertDialog(
+            onDismissRequest = { pendingApproval = null },
+            containerColor = ParentBg,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    "Approve device connection?",
+                    color = ParentTextDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Reported device model: ${info.deviceModel?.takeIf { it.isNotBlank() } ?: "Unknown"}",
+                        color = ParentTextDark,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "Binding code: ${formatNineDigitCode(info.code)}",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "Enrollment session: ${info.sessionId.take(8)}…",
+                        color = ParentTextMuted,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "Confirm that you are setting up this child's phone in front of you. After you approve, the Child App must also confirm your account before pairing completes.",
+                        color = ParentTextDark,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton({ pendingApproval = null }) {
+                        Text("Close", color = ParentTextMuted, fontWeight = FontWeight.Medium)
+                    }
+                    TextButton(
+                        onClick = { rejectChildRequest(info.sessionId, info.code) },
+                        enabled = !busy
+                    ) {
+                        Text("Reject", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingApproval = null
+                        busy = true
+                        scope.launch {
+                            client.confirmPairing(info.code, info.sessionId).onSuccess {
+                                session = info.sessionId
+                                code = info.code
+                                message = null
+                            }.onFailure { message = it.message }
+                            busy = false
+                            if (message == null) checkStatus()
+                        }
+                    },
+                    enabled = !busy,
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ParentPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = ParentPurple.copy(alpha = 0.45f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Text("Approve", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+}
+
 @Composable
 private fun LiveCameraQrScanner(
     onQrCodeDetected: (String) -> Unit,
     isFlashOn: Boolean,
+    onError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var camera by remember { mutableStateOf<Camera?>(null) }
     var hasDetected by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val provider = remember(context) { ProcessCameraProvider.getInstance(context) }
+    val scanner = remember { BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()) }
+    val active = remember { java.util.concurrent.atomic.AtomicBoolean(true) }
+    DisposableEffect(provider) {
+        onDispose {
+            active.set(false)
+            if (provider.isDone) runCatching { provider.get().unbindAll() }
+            scanner.close()
+        }
+    }
 
     LaunchedEffect(isFlashOn, camera) {
         try {
@@ -582,19 +705,14 @@ private fun LiveCameraQrScanner(
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
 
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                val cameraProviderFuture = provider
                 cameraProviderFuture.addListener({
+                    if (!active.get()) return@addListener
                     try {
                         val cameraProvider = cameraProviderFuture.get()
                         val preview = Preview.Builder().build().also {
                             it.surfaceProvider = previewView.surfaceProvider
                         }
-
-                        val barcodeScanner = BarcodeScanning.getClient(
-                            BarcodeScannerOptions.Builder()
-                                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                                .build()
-                        )
 
                         val imageAnalysis = ImageAnalysis.Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -609,11 +727,11 @@ private fun LiveCameraQrScanner(
                                     mediaImage,
                                     imageProxy.imageInfo.rotationDegrees
                                 )
-                                barcodeScanner.process(image)
+                                scanner.process(image)
                                     .addOnSuccessListener { barcodes ->
                                         for (barcode in barcodes) {
                                             val rawValue = barcode.rawValue
-                                            if (!rawValue.isNullOrBlank() && !hasDetected) {
+                                            if (active.get() && !rawValue.isNullOrBlank() && !hasDetected) {
                                                 hasDetected = true
                                                 onQrCodeDetected(rawValue)
                                                 break
@@ -637,7 +755,7 @@ private fun LiveCameraQrScanner(
                             imageAnalysis
                         )
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        if (active.get()) onError()
                     }
                 }, ContextCompat.getMainExecutor(ctx))
 
@@ -646,7 +764,6 @@ private fun LiveCameraQrScanner(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Viewfinder reticles overlay
         CameraScanReticleViewfinder(
             modifier = Modifier
                 .fillMaxSize()
@@ -677,23 +794,18 @@ private fun CameraScanReticleViewfinder(
         val cornerArm = 28.dp.toPx()
         val cornerColor = Color(0xFF38BDF8)
 
-        // Top-Left Corner
         drawLine(cornerColor, Offset(0f, 0f), Offset(cornerArm, 0f), strokeWidth = stroke)
         drawLine(cornerColor, Offset(0f, 0f), Offset(0f, cornerArm), strokeWidth = stroke)
 
-        // Top-Right Corner
         drawLine(cornerColor, Offset(w, 0f), Offset(w - cornerArm, 0f), strokeWidth = stroke)
         drawLine(cornerColor, Offset(w, 0f), Offset(w, cornerArm), strokeWidth = stroke)
 
-        // Bottom-Left Corner
         drawLine(cornerColor, Offset(0f, h), Offset(cornerArm, h), strokeWidth = stroke)
         drawLine(cornerColor, Offset(0f, h), Offset(0f, h - cornerArm), strokeWidth = stroke)
 
-        // Bottom-Right Corner
         drawLine(cornerColor, Offset(w, h), Offset(w - cornerArm, h), strokeWidth = stroke)
         drawLine(cornerColor, Offset(w, h), Offset(w, h - cornerArm), strokeWidth = stroke)
 
-        // Center Target Guide Crosshair
         val cx = w / 2f
         val cy = h / 2f
         val guideArm = 8.dp.toPx()
@@ -701,7 +813,6 @@ private fun CameraScanReticleViewfinder(
         drawLine(guideColor, Offset(cx - guideArm, cy), Offset(cx + guideArm, cy), strokeWidth = 1.dp.toPx())
         drawLine(guideColor, Offset(cx, cy - guideArm), Offset(cx, cy + guideArm), strokeWidth = 1.dp.toPx())
 
-        // Animated Cyan Laser Scan Line
         val laserY = h * laserProgress
         drawLine(
             color = Color(0xFF00E5FF),

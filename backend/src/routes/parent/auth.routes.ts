@@ -8,6 +8,7 @@ import {
   parentUsers,
   parentRefreshTokens,
   parentVerificationTokens,
+  parentRateLimits,
 } from '../../db/schema/parental-control';
 import { hashPassword, verifyPassword, verifyDummyPassword } from '../../utils/crypto-vault';
 import { env } from '../../config/env';
@@ -20,6 +21,7 @@ import {
   parentResendVerificationRateLimiter,
 } from '../../middleware/parent-rate-limiter';
 import { emailService } from '../../services/email/index';
+import { getAppSettingsStrict, validGoogleClientId } from '../../services/app-settings.service';
 import {
   isEmailConfigured,
   isParentEmailVerified,
@@ -95,6 +97,48 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+import {
+  verifyGoogleIdToken,
+  GoogleAuthVerificationError,
+  type GoogleTokenClaims,
+} from '../../services/google-auth.service';
+
+const googleAuthSchema = z.object({
+  idToken: z.string().min(1, 'Google idToken is required'),
+  password: z.string().optional(),
+  fullName: z.string().optional(),
+});
+
+const googleCompleteProfileSchema = z.object({
+  completionToken: z.string().min(10, 'completionToken is required'),
+  fullName: z.string().min(1, 'Full name is required').max(100),
+  password: z.string().min(8, 'Password is required'),
+});
+
+export { GoogleTokenClaims };
+
+export function parseGoogleIdToken(token: string): GoogleTokenClaims | null {
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && typeof decoded === 'object') {
+      const claims = decoded as any;
+      if (claims.email || claims.sub) {
+        return {
+          sub: claims.sub || '',
+          email: claims.email || '',
+          email_verified: claims.email_verified === true || claims.email_verified === 'true',
+          name: claims.name,
+          picture: claims.picture,
+          aud: claims.aud || '',
+          iss: claims.iss || '',
+          exp: claims.exp || 0,
+        };
+      }
+    }
+  } catch {}
+  return null;
+}
+
 const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
@@ -149,6 +193,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    if (!(await getAppSettingsStrict()).registrationEnabled) {
+      return reply.status(403).send({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' });
+    }
     const normalizedEmail = parsed.data.email.toLowerCase().trim();
 
     const [existing] = await db
@@ -365,6 +412,15 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
+    if (!user.passwordHash) {
+      await verifyDummyPassword(parsed.data.password);
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Account was registered via Google Sign-In. Please sign in with Google.',
+      });
+    }
+
     const valid = await verifyPassword(user.passwordHash, parsed.data.password);
     if (!valid) {
       return reply.status(401).send({
@@ -421,6 +477,430 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       refreshToken: rawRefreshToken,
       expiresIn: 900,
     });
+  });
+
+  /**
+   * POST /google
+   * Authenticates or provisions a parent account using verified Google OAuth ID Token.
+   * Strictly enforces administrative feature flag: rejected with HTTP 403 if googleAuthEnabled is false.
+   * Automatically sets emailVerified: true and links googleId.
+   */
+  app.post('/google', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
+    const appSettings = await getAppSettingsStrict();
+    if (!appSettings.googleAuthEnabled || !validGoogleClientId(appSettings.googleClientId)) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Google Sign-In is currently disabled or not properly configured (missing Client ID)',
+      });
+    }
+
+    const parsed = googleAuthSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Google ID token is required',
+      });
+    }
+
+    let claims: GoogleTokenClaims;
+    try {
+      claims = await verifyGoogleIdToken(parsed.data.idToken, appSettings.googleClientId);
+    } catch (err: any) {
+      if (err instanceof GoogleAuthVerificationError) {
+        return reply.status(err.statusCode).send({
+          statusCode: err.statusCode,
+          code: err.code || 'INVALID_GOOGLE_TOKEN',
+          error: 'Unauthorized',
+          message: err.message,
+        });
+      }
+      return reply.status(401).send({
+        statusCode: 401,
+        code: 'INVALID_GOOGLE_TOKEN',
+        error: 'Unauthorized',
+        message: err.message || 'Failed to cryptographically verify Google ID token',
+      });
+    }
+
+    const normalizedEmail = claims.email.toLowerCase().trim();
+    const googleId = claims.sub;
+
+    // Check if account is suspended or already exists
+    const [existingUser] = await db
+      .select()
+      .from(parentUsers)
+      .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    let user = existingUser;
+
+    if (user) {
+      if (user.status === 'suspended') {
+        return reply.status(403).send({
+          statusCode: 403,
+          code: 'ACCOUNT_SUSPENDED',
+          error: 'Forbidden',
+          message: 'Account suspended. Please contact support.',
+        });
+      }
+
+      // Prevent account takeover: verify Google account ID matches if user already linked Google
+      if (user.googleId && user.googleId !== googleId) {
+        return reply.status(403).send({
+          statusCode: 403,
+          code: 'GOOGLE_ACCOUNT_MISMATCH',
+          error: 'Forbidden',
+          message: 'Account is already associated with a different Google account. Linking rejected.',
+        });
+      }
+
+      // Check if existing user has incomplete profile or missing password
+      const needsProfileCompletion = !user.passwordHash || !user.fullName || user.fullName.trim().length === 0;
+      if (needsProfileCompletion) {
+        if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+          const completionJti = crypto.randomUUID();
+          const completionToken = jwt.sign(
+            {
+              jti: completionJti,
+              googleId,
+              email: normalizedEmail,
+              purpose: 'google_profile_completion',
+            },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+          );
+          return reply.status(200).send({
+            statusCode: 200,
+            requiresProfileCompletion: true,
+            email: normalizedEmail,
+            fullName: user.fullName || claims.name || '',
+            googleId,
+            completionToken,
+            message: 'Please complete your full name and password to complete registration.',
+          });
+        }
+
+        const pwCheck = validateParentPassword(parsed.data.password);
+        if (!pwCheck.valid) {
+          return reply.status(400).send({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: pwCheck.message || 'Password does not meet complexity requirements',
+          });
+        }
+        const passwordHash = await hashPassword(parsed.data.password);
+        const derivedFullName = parsed.data.fullName.trim();
+
+        const [updatedUser] = await db
+          .update(parentUsers)
+          .set({
+            fullName: derivedFullName,
+            passwordHash,
+            googleId: googleId || user.googleId,
+            emailVerified: true,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id))
+          .returning();
+        user = updatedUser;
+      } else {
+        // Link googleId and verify email if not already verified
+        if (!user.googleId && googleId) {
+          await db
+            .update(parentUsers)
+            .set({
+              googleId,
+              emailVerified: true,
+              updatedAt: sql`NOW()`,
+            })
+            .where(eq(parentUsers.id, user.id));
+        } else if (!user.emailVerified) {
+          await db
+            .update(parentUsers)
+            .set({
+              emailVerified: true,
+              updatedAt: sql`NOW()`,
+            })
+            .where(eq(parentUsers.id, user.id));
+        }
+      }
+    } else {
+      if (!appSettings.registrationEnabled) {
+        return reply.status(403).send({ code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' });
+      }
+      // Provision new parent account via Google OAuth
+      // Requires profile setup (full name and compliant password) for new user accounts
+      if (!parsed.data.password || !parsed.data.fullName || parsed.data.fullName.trim().length === 0) {
+        const completionJti = crypto.randomUUID();
+        const completionToken = jwt.sign(
+          {
+            jti: completionJti,
+            googleId,
+            email: normalizedEmail,
+            purpose: 'google_profile_completion',
+          },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: '15m' }
+        );
+        return reply.status(200).send({
+          statusCode: 200,
+          requiresProfileCompletion: true,
+          email: normalizedEmail,
+          fullName: claims.name || '',
+          googleId,
+          completionToken,
+          message: 'Google identity verified. Please provide full name and password to complete registration.',
+        });
+      }
+
+      const pwCheck = validateParentPassword(parsed.data.password);
+      if (!pwCheck.valid) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: pwCheck.message || 'Password does not meet complexity requirements',
+        });
+      }
+      const passwordHash = await hashPassword(parsed.data.password);
+      const derivedFullName = parsed.data.fullName.trim();
+
+      const [newUser] = await db
+        .insert(parentUsers)
+        .values({
+          email: normalizedEmail,
+          fullName: derivedFullName,
+          googleId: googleId || undefined,
+          authProvider: 'google',
+          emailVerified: true,
+          status: 'active',
+          passwordHash,
+        })
+        .returning();
+
+      user = newUser;
+    }
+
+    if (!user) {
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to process Google authentication',
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m' }
+    );
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashRefreshToken(rawRefreshToken);
+
+    const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
+    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+    await db.insert(parentRefreshTokens).values({
+      parentId: user.id,
+      tokenHash,
+      familyCardNo: derivedFamilyCard,
+      deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Auth)',
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    return reply.send({
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: resolvedFullName,
+        familyCardNo: derivedFamilyCard,
+        phone: user.phone,
+        isGuest: false,
+        status: user.status,
+      },
+      accessToken: token,
+      refreshToken: rawRefreshToken,
+      expiresIn: 900,
+    });
+  });
+
+  /**
+   * POST /google/complete-profile
+   * Completes registration or profile setup for a Google-authenticated user.
+   * Requires a valid completionToken signed by the backend and a compliant password.
+   */
+  app.post('/google/complete-profile', { preHandler: [parentLoginRateLimiter] }, async (request, reply) => {
+    const parsed = googleCompleteProfileSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid completion payload',
+      });
+    }
+
+    let tokenPayload: any;
+    try {
+      tokenPayload = jwt.verify(parsed.data.completionToken, env.JWT_ACCESS_SECRET);
+      if (tokenPayload.purpose !== 'google_profile_completion') {
+        throw new Error('Invalid token purpose');
+      }
+    } catch {
+      return reply.status(401).send({
+        statusCode: 401,
+        code: 'INVALID_COMPLETION_TOKEN',
+        error: 'Unauthorized',
+        message: 'Completion token is invalid or expired. Please sign in with Google again.',
+      });
+    }
+
+    const settings = await getAppSettingsStrict();
+    if (!settings.googleAuthEnabled || !validGoogleClientId(settings.googleClientId)) {
+      return reply.status(403).send({ message: 'Google Sign-In is disabled' });
+    }
+    const normalizedEmail = (tokenPayload.email as string).toLowerCase().trim();
+    const googleId = tokenPayload.googleId as string;
+
+    const pwCheck = validateParentPassword(parsed.data.password);
+    if (!pwCheck.valid) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: pwCheck.message || 'Password does not meet complexity requirements',
+      });
+    }
+    const passwordHash = await hashPassword(parsed.data.password);
+    const derivedFullName = parsed.data.fullName.trim();
+
+    const tokenJti = tokenPayload.jti || crypto.createHash('sha256').update(parsed.data.completionToken).digest('hex');
+    const tokenKey = `used_completion_token:${tokenJti}`;
+
+    // Atomically consume token, verify account status, and complete profile in a single transaction
+    const txResult = await db.transaction(async (tx) => {
+      // 1. Replay Protection: Atomic single-use token consumption
+      const [consumed] = await tx
+        .insert(parentRateLimits)
+        .values({
+          key: tokenKey,
+          count: 1,
+          windowStartedAt: Date.now(),
+          expiresAt: tokenPayload.exp ? tokenPayload.exp * 1000 : Date.now() + 900000,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      if (!consumed) {
+        return {
+          status: 409,
+          code: 'COMPLETION_TOKEN_REPLAYED',
+          message: 'Completion token has already been consumed. Please sign in with Google again.',
+        };
+      }
+
+      // 2. Account state check with row locking
+      const [lockedExisting] = await tx
+        .select()
+        .from(parentUsers)
+        .where(sql`LOWER(${parentUsers.email}) = ${normalizedEmail}`)
+        .limit(1)
+        .for('update');
+
+      if (lockedExisting && lockedExisting.status === 'suspended') {
+        return {
+          status: 403,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact support.',
+        };
+      }
+
+      if (!lockedExisting && !settings.registrationEnabled) {
+        return { status: 403, code: 'REGISTRATION_DISABLED', message: 'Registration is currently closed' };
+      }
+      if (lockedExisting?.googleId && lockedExisting.googleId !== googleId) {
+        return { status: 403, code: 'GOOGLE_ACCOUNT_MISMATCH', message: 'Account link has changed' };
+      }
+      let user = lockedExisting;
+      if (user) {
+        const [updated] = await tx
+          .update(parentUsers)
+          .set({
+            fullName: derivedFullName,
+            passwordHash,
+            googleId: googleId || user.googleId,
+            emailVerified: true,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(parentUsers.id, user.id))
+          .returning();
+        user = updated;
+      } else {
+        const [created] = await tx
+          .insert(parentUsers)
+          .values({
+            email: normalizedEmail,
+            fullName: derivedFullName,
+            googleId: googleId || undefined,
+            authProvider: 'google',
+            emailVerified: true,
+            status: 'active',
+            passwordHash,
+          })
+          .returning();
+        user = created;
+      }
+
+      if (!user) {
+        throw new Error('Failed to complete user profile in transaction');
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '15m' }
+      );
+      const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = hashRefreshToken(rawRefreshToken);
+      const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
+      const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
+
+      await tx.insert(parentRefreshTokens).values({
+        parentId: user.id,
+        tokenHash,
+        familyCardNo: derivedFamilyCard,
+        deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
+        ipAddress: request.ip,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: resolvedFullName,
+          familyCardNo: derivedFamilyCard,
+          phone: user.phone,
+          isGuest: false,
+          status: user.status,
+        },
+        accessToken: token,
+        refreshToken: rawRefreshToken,
+        expiresIn: 900,
+      };
+    });
+
+    if ('code' in txResult && typeof txResult.code === 'string') {
+      const errorStatus = (txResult as { status: number; code: string; message: string }).status;
+      return reply.status(errorStatus).send({
+        statusCode: errorStatus,
+        code: txResult.code,
+        error: errorStatus === 403 ? 'Forbidden' : 'Conflict',
+        message: txResult.message,
+      });
+    }
+
+    return reply.status(200).send(txResult);
   });
 
   /**

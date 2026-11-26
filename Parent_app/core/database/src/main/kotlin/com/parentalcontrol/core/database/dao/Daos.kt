@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 interface ChildDeviceDao {
     fun observeAllChildren(): Flow<List<ChildDeviceEntity>>
     fun observeChildById(deviceId: String): Flow<ChildDeviceEntity?>
+    fun getAllDevicesSync(): List<ChildDeviceEntity>
     suspend fun insertOrUpdate(device: ChildDeviceEntity)
     suspend fun insertOrUpdateAll(devices: List<ChildDeviceEntity>)
     suspend fun updateLockStatus(deviceId: String, locked: Boolean)
@@ -23,6 +24,8 @@ class InMemoryChildDeviceDao : ChildDeviceDao {
     private val flow = MutableStateFlow<List<ChildDeviceEntity>>(emptyList())
 
     override fun observeAllChildren(): Flow<List<ChildDeviceEntity>> = flow
+
+    override fun getAllDevicesSync(): List<ChildDeviceEntity> = store.values.toList()
 
     override fun observeChildById(deviceId: String): Flow<ChildDeviceEntity?> =
         flow.map { list -> list.find { it.id == deviceId } }

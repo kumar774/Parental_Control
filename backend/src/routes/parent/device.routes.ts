@@ -1,8 +1,21 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { eq, count, sql, desc } from 'drizzle-orm';
+import { eq, and, or, gt, isNull, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
+import {
+  approveParent,
+  bindingCode,
+  cancelParentEnrollment,
+  consentFor,
+  deliveryWindow,
+  enrollmentStatus,
+  getOrCreateParentPairCode,
+  isDeliveryExpired,
+  previewChildQr,
+  retireExpiredUnacknowledgedSession,
+} from '../../services/enrollment.service';
+import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { db } from '../../db/index';
-import { childDevices } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions, parentConsents, childDeviceTokens } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
@@ -22,10 +35,26 @@ const deviceQuerySchema = z.object({
   }, z.number().int().min(1).max(50).default(20)),
 });
 
-export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  // All device routes require parent authentication and active account status
-  app.addHook('preHandler', requireParentAuth);
+const approvalLimiter = createParentRateLimiter({windowSeconds:900,maxRequests:30,prefix:'rl:parent_enrollment'});
+const parentPairStatusRateLimiter = createParentRateLimiter({windowSeconds:60,maxRequests:60,prefix:'rl:parent_pair_status'});
+const setupInput = z.object({
+  setupStep: z.union([z.literal(3),z.literal(4)]),
+  nickname: z.string().trim().min(1).max(100).nullable().optional(),
+  age: z.number().int().min(0).max(17).nullable().optional(),
+  gender: z.enum(['male','female','other','unspecified']).nullable().optional(),
+  childAvatarId: z.number().int().min(1).max(8).optional(),
+}).strict();
 
+export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
+  app.setErrorHandler((err: any, _request, reply) => {
+    const statusCode = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
+    return reply.status(statusCode).send({
+      statusCode,
+      error: statusCode === 404 ? 'Not Found' : statusCode === 409 ? 'Conflict' : statusCode === 410 ? 'Gone' : statusCode === 403 ? 'Forbidden' : statusCode === 400 ? 'Bad Request' : 'Error',
+      ...(err.errorCode ? { code: err.errorCode } : {}),
+      message: err.message || 'Enrollment request failed',
+    });
+  });
   /**
    * GET /api/v1/devices
    * Retrieves paginated list of child devices belonging to the authenticated parent.
@@ -33,16 +62,20 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
    * Real-time zero-trust status check: rejects suspended parent with HTTP 403.
    * Server-side bounded pagination with maximum page size 50 (clamped).
    */
-  app.get('/', async (request, reply) => {
+  app.get('/', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const parent = request.parentUser!;
     const parsedQuery = deviceQuerySchema.parse(request.query || {});
     const page = parsedQuery.page;
     const pageSize = parsedQuery.pageSize;
 
+    const visibleDevices = and(eq(childDevices.parentId, parent.id), eq(childDevices.isUnpaired, false),
+      or(isNull(childDevices.installationId),sql`EXISTS (SELECT 1 FROM ${pairingSessions}
+        WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.acknowledgedAt} IS NOT NULL)`));
+
     const [totalRes] = await db
       .select({ total: count() })
       .from(childDevices)
-      .where(eq(childDevices.parentId, parent.id));
+      .where(visibleDevices);
 
     const total = totalRes?.total ?? 0;
 
@@ -51,6 +84,9 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         id: childDevices.id,
         childName: childDevices.childName,
         childAvatarId: childDevices.childAvatarId,
+        setupStep:childDevices.setupStep,
+        age:childDevices.age,
+        gender:childDevices.gender,
         deviceModel: childDevices.deviceModel,
         osVersion: childDevices.osVersion,
         appVersion: childDevices.appVersion,
@@ -63,7 +99,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
-      .where(eq(childDevices.parentId, parent.id))
+      .where(visibleDevices)
       .orderBy(sql`${childDevices.lastSeenAt} DESC NULLS LAST`, desc(childDevices.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
@@ -71,6 +107,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     // Formatted strictly according to Parent_app's DeviceDto in FastifyRestClient.kt
     const formattedDevices = devices.map((d) => ({
       ...d,
+      nickname:d.childName !== d.deviceModel ? d.childName : null,
       deviceName: d.deviceModel || `${d.childName}'s Device`,
       model: d.deviceModel,
       kioskMode: d.isLocked,
@@ -84,12 +121,119 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     });
   });
 
+  app.post('/pair-code', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parentId = request.parentUser!.id;
+    const rawBody = request.body ?? {};
+    if (typeof rawBody !== 'object' || rawBody === null || Array.isArray(rawBody)) {
+      return reply.code(400).send({ message: 'Invalid pair-code request' });
+    }
+    const body = z.object({ regenerate: z.boolean().optional() }).safeParse(rawBody);
+    if (!body.success) return reply.code(400).send({ message: 'Invalid pair-code request' });
+    return getOrCreateParentPairCode(parentId, body.data.regenerate === true);
+  });
+
+  app.post('/qr-preview', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session or code' });
+    return previewChildQr(request.parentUser!.id, parsed.data.sessionId, parsed.data.code);
+  });
+
+  app.post('/pair-cancel', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid() }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session' });
+    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, false);
+  });
+
+  app.post('/pair-reject', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
+    const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode.optional() }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session' });
+    return cancelParentEnrollment(request.parentUser!.id, parsed.data.sessionId, true, parsed.data.code);
+  });
+
+  app.get<{Params:{sessionId:string}}>('/pair-status/:sessionId',{preHandler:[requireParentAuth,parentPairStatusRateLimiter]},async (request,reply) => {
+    if (!z.string().uuid().safeParse(request.params.sessionId).success) return reply.code(400).send({message:'Invalid session'});
+    return db.transaction(async tx => {
+      let [s] = await tx.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),
+        eq(pairingSessions.parentId,request.parentUser!.id))).for('update');
+      if (!s) return reply.code(404).send({message:'Enrollment unavailable'});
+      if (s.status === 'pending' && s.expiresAt.getTime() <= Date.now()) {
+        const [expired] = await tx.update(pairingSessions).set({ status: 'expired' }).where(eq(pairingSessions.id, s.id)).returning();
+        if (expired) s = expired;
+      } else if (isDeliveryExpired(s)) {
+        s = await retireExpiredUnacknowledgedSession(tx, s);
+      }
+      return {
+        status: enrollmentStatus(s, true),
+        sessionId: s.id,
+        deviceId: s.status === 'paired' ? s.childDeviceId : null,
+        deviceModel: s.deviceModel,
+        childConfirmed: s.childConfirmed,
+        parentApproved: s.parentApproved,
+        expiresAt: s.expiresAt,
+        deliveryExpiresAt: s.claimedAt ? new Date(s.claimedAt.getTime() + deliveryWindow) : null,
+      };
+    });
+  });
+
+  app.post('/pair-confirm',{preHandler:[requireParentAuth,approvalLimiter]},async (request,reply) => {
+    const parsed = z.object({sessionId:z.string().uuid(),code:bindingCode}).safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({message:'Invalid session or code'});
+    return approveParent(request.parentUser!.id,parsed.data.sessionId,parsed.data.code);
+  });
+
+  app.get('/onboarding',{preHandler:[requireParentAuth]},async request => {
+    const parentId = request.parentUser!.id;
+    const [consent] = await db.select({id:parentConsents.id}).from(parentConsents).where(consentFor(parentId)).limit(1);
+    const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.parentId,parentId),or(
+      and(eq(pairingSessions.status,'pending'),gt(pairingSessions.expiresAt,new Date())),
+      and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-deliveryWindow)),
+          sql`${pairingSessions.installationId} IS NOT NULL`))))
+      .orderBy(sql`CASE WHEN ${pairingSessions.status} = 'paired' THEN 0 WHEN ${pairingSessions.installationId} IS NOT NULL THEN 1 ELSE 2 END`,desc(pairingSessions.createdAt)).limit(1);
+    return {
+      consentAccepted: Boolean(consent),
+      pendingSessionId: s?.id ?? null,
+      pendingCode: s?.pairingCode ?? null,
+      pendingStatus: s ? enrollmentStatus(s, true) : null,
+      pendingDeviceModel: s?.deviceModel ?? null,
+      expiresAt: s?.expiresAt ?? null,
+    };
+  });
+
+  app.put<{Params:{deviceId:string}}>('/:deviceId/setup',{preHandler:[requireParentAuth]},async (request,reply) => {
+    const input = setupInput.safeParse(request.body);
+    if (!input.success || !z.string().uuid().safeParse(request.params.deviceId).success) return reply.code(400).send({message:'Invalid device setup'});
+    return db.transaction(async tx => {
+      const [d] = await tx.select().from(childDevices).where(and(eq(childDevices.id,request.params.deviceId),
+        eq(childDevices.parentId,request.parentUser!.id),eq(childDevices.isUnpaired,false))).for('update');
+      if (!d) return reply.code(404).send({message:'Device unavailable'});
+      const data = input.data;
+      if (data.setupStep > d.setupStep + 1) return reply.code(409).send({message:'Complete the preceding step first'});
+      if (d.setupStep < data.setupStep) {
+        const [ack] = await tx.select({at:pairingSessions.acknowledgedAt}).from(pairingSessions)
+          .where(and(eq(pairingSessions.childDeviceId,d.id),eq(pairingSessions.status,'paired'))).limit(1);
+        if (!ack?.at) return reply.code(409).send({message:'Waiting for child credential receipt'});
+      }
+      const profile: Record<string, any> = {};
+      if (data.setupStep === 4 || d.setupStep >= 4) {
+        if (data.age !== undefined) profile.age = data.age;
+        if (data.gender !== undefined) profile.gender = data.gender;
+        if (data.childAvatarId !== undefined) profile.childAvatarId = data.childAvatarId;
+        if (data.nickname !== undefined) {
+          profile.childName = data.nickname === null ? (d.deviceModel || 'Child') : data.nickname;
+        }
+      }
+      const newStep = Math.max(d.setupStep, data.setupStep);
+      await tx.update(childDevices).set({ ...profile, setupStep: newStep }).where(eq(childDevices.id, d.id));
+      return { deviceId: d.id, setupStep: newStep };
+    });
+  });
+
   /**
    * GET /api/v1/devices/:deviceId
    * Retrieves single child device with strict parent ownership verification.
    * Enforces cross-parent resource isolation: returns 404 if not found, 403 if device belongs to another parent.
    */
-  app.get('/:deviceId', async (request, reply) => {
+  app.get('/:deviceId', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const { deviceId } = request.params as { deviceId: string };
     const parent = request.parentUser!;
 
@@ -121,6 +265,10 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         id: device.id,
         childName: device.childName,
         childAvatarId: device.childAvatarId,
+        nickname:device.childName !== device.deviceModel ? device.childName : null,
+        setupStep:device.setupStep,
+        age:device.age,
+        gender:device.gender,
         deviceModel: device.deviceModel,
         deviceName: device.deviceModel || `${device.childName}'s Device`,
         model: device.deviceModel,
@@ -144,7 +292,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
    * Verifies parent ownership, then honestly reports unsupported status because
    * Child_app currently lacks mobile push transport and cryptographic signature verification.
    */
-  app.post('/:deviceId/commands', async (request, reply) => {
+  app.post('/:deviceId/commands', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const { deviceId } = request.params as { deviceId: string };
     const parent = request.parentUser!;
 
@@ -177,4 +325,73 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       commandStatus: 'BLOCKED_PENDING_ANDROID_TRANSPORT',
     });
   });
+
+  /**
+   * DELETE /api/v1/devices/:deviceId
+   * Parent-initiated device removal and server-side credential revocation.
+   * Transactionally revokes all active device credentials and removes device from active parent list.
+   */
+  const removeDeviceHandler = async (request: any, reply: any) => {
+    const { deviceId } = request.params as { deviceId: string };
+    const parent = request.parentUser!;
+
+    const [device] = await db
+      .select({ id: childDevices.id, parentId: childDevices.parentId })
+      .from(childDevices)
+      .where(eq(childDevices.id, deviceId))
+      .limit(1);
+
+    if (!device) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Device not found',
+      });
+    }
+
+    if (device.parentId !== parent.id) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Access denied: you do not own this device',
+      });
+    }
+
+    await db.transaction(async (tx) => {
+      // 1. Revoke all credentials for device
+      await tx
+        .update(childDeviceTokens)
+        .set({
+          isRevoked: true,
+          revokedAt: new Date(),
+          revocationReason: 'parent_removed',
+        })
+        .where(eq(childDeviceTokens.deviceId, device.id));
+
+      // 2. Mark device as unpaired
+      await tx
+        .update(childDevices)
+        .set({
+          isUnpaired: true,
+          unpairedAt: new Date(),
+        })
+        .where(eq(childDevices.id, device.id));
+
+      // 3. Clear active pairing sessions
+      await tx
+        .update(pairingSessions)
+        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .where(eq(pairingSessions.childDeviceId, device.id));
+    });
+
+    return reply.status(200).send({
+      statusCode: 200,
+      status: 'unpaired',
+      message: 'Device removed and credentials revoked successfully',
+      deviceId: device.id,
+    });
+  };
+
+  app.delete('/:deviceId', { preHandler: [requireParentAuth] }, removeDeviceHandler);
+  app.post('/:deviceId/remove', { preHandler: [requireParentAuth] }, removeDeviceHandler);
 };

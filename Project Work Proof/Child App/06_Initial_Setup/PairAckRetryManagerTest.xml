@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.parentalcontrol.child.network.PairAckRetryManagerTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-11-25T10:23:45.723Z" hostname="KUMAR-SHIVA" time="0.518">
+  <properties/>
+  <testcase name="testTransientFailure429RetainsPendingAckAndRetries" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.008"/>
+  <testcase name="testTransientFailure503RetainsPendingAckAndRetries" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.007"/>
+  <testcase name="testTransientVsPermanentStatePreservation" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.008"/>
+  <testcase name="testPermanentFailure404NotFoundResetsPairingCredentials" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.02"/>
+  <testcase name="testTransientNetworkExceptionRetainsPendingAckAndRetries" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.02"/>
+  <testcase name="testSuccessfulAckClearsPendingMarker" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.019"/>
+  <testcase name="testUnpairWith401RetainsPendingUnpairInStorage" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.063"/>
+  <testcase name="testUnpairWith404AlreadyRemovedClearsPendingUnpair" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.133"/>
+  <testcase name="testPermanentFailure401ResetsPairingCredentialsAndMarksRequiresRepair" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.012"/>
+  <testcase name="testPermanentFailure403ForbiddenResetsPairingCredentials" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.022"/>
+  <testcase name="testNoPendingAckReturnsNonePendingImmediately" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.018"/>
+  <testcase name="testUnpairWith200SuccessClearsPendingUnpair" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.045"/>
+  <testcase name="testUnpairCleanupClearsSessionAndPendingAck" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.006"/>
+  <testcase name="testTransientFailure408RetainsPendingAckAndRetries" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.026"/>
+  <testcase name="testPermanentFailure410ExpiredTokenResetsPairingCredentials" classname="com.parentalcontrol.child.network.PairAckRetryManagerTest" time="0.022"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -4,6 +4,18 @@ import { requireAdminSession } from '../../middleware/admin-session.guard';
 import { emailService } from '../../services/email/index';
 import { db } from '../../db/index';
 import { adminControlAuditLogs } from '../../db/schema/parental-control';
+import { InvalidAppSettings, getAppSettingsStrict, updateAppSettings } from '../../services/app-settings.service';
+
+const appSettingsConfigSchema = z.object({
+  googleAuthEnabled: z.boolean().optional(),
+  googleClientId: z.string().trim().nullable().optional(),
+  registrationEnabled: z.boolean().optional(),
+  pairingCodeExpirySeconds: z.number().int().min(60).max(3600).optional(),
+  childAppDownloadUrl: z.string().trim().url().nullable().optional(),
+  parentAppDownloadUrl: z.string().trim().url().nullable().optional(),
+  childAppLatestVersion: z.string().trim().min(1).optional(),
+  childAppMinVersion: z.string().trim().min(1).optional(),
+});
 
 const smtpConfigSchema = z.object({
   host: z.string().trim().min(1, 'Host is required').max(255),
@@ -31,6 +43,78 @@ export const adminSettingsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         statusCode: 403,
         error: 'Forbidden',
         message: 'Insufficient administrative privileges to configure system email settings',
+      });
+    }
+  });
+
+  /**
+   * GET /api/v1/admin/settings/app
+   * Returns general application & mobile client settings.
+   */
+  app.get('/app', async (_request, reply) => {
+    try {
+      const settings = await getAppSettingsStrict();
+      return reply.send(settings);
+    } catch (err: any) {
+      return reply.status(503).send({
+        statusCode: 503,
+        error: 'Service Unavailable',
+        message: 'Database unavailable: Failed to fetch application settings',
+      });
+    }
+  });
+
+  /**
+   * PUT /api/v1/admin/settings/app
+   * Updates application settings (Google Auth, Child App download URL/version).
+   */
+  app.put('/app', async (request, reply) => {
+    const parsed = appSettingsConfigSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: parsed.error.errors[0]?.message || 'Invalid application settings payload',
+      });
+    }
+
+    const admin = request.adminUser!;
+
+    // Atomic transaction: Settings update and required audit log are committed together.
+    // If the audit write fails, settings update rolls back completely.
+    try {
+      const updated = await db.transaction(async (tx) => {
+        const settings = await updateAppSettings(parsed.data, admin.id, tx);
+        await tx.insert(adminControlAuditLogs).values({
+          adminId: admin.id,
+          action: 'APP_SETTINGS_UPDATE',
+          targetType: 'SYSTEM_SETTINGS',
+          targetId: null,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'] as string,
+          severity: 'info',
+          metadata: {
+            changedFields: Object.keys(parsed.data),
+            googleAuthEnabled: settings.googleAuthEnabled,
+            childAppDownloadUrl: settings.childAppDownloadUrl,
+            childAppLatestVersion: settings.childAppLatestVersion,
+          },
+        });
+        return settings;
+      });
+
+      return reply.send({
+        statusCode: 200,
+        message: 'Application settings updated successfully',
+        settings: updated,
+      });
+    } catch (err: any) {
+      if (err instanceof InvalidAppSettings) return reply.status(400).send({ message: err.message });
+      request.log.error({ err }, 'Failed to atomically update application settings and audit log');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: err.message || 'Failed to update application settings with required audit logging',
       });
     }
   });

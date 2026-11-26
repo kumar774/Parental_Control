@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { buildApp } from '../../../src/app';
-import { db } from '../../../src/db/index';
+import { db, pool } from '../../../src/db/index';
 import { adminUsers, adminSessions, adminAuthAuditLogs } from '../../../src/db/schema/admin-auth';
 import { parentUsers, childDevices, adminControlAuditLogs, parentRefreshTokens } from '../../../src/db/schema/parental-control';
 import { generateRandomToken, sha256, hashPassword } from '../../../src/utils/crypto-vault';
@@ -26,6 +26,15 @@ describe('Hybrid Admin Dashboard API — Real PostgreSQL Integration Suite', () 
 
   before(async () => {
     readyApp = await app;
+
+    // Ensure all versioned migrations are applied to disposable database
+    const { runMigrations } = await import('../../../src/db/migrate');
+    const migClient = await pool.connect();
+    try {
+      await runMigrations(migClient);
+    } finally {
+      migClient.release();
+    }
 
     // Clean up any previous test artifact
     await db.delete(childDevices);

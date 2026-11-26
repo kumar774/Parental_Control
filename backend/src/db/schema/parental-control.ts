@@ -9,6 +9,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -27,7 +28,9 @@ export const parentUsers = pgTable(
     fullName: text('full_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     phone: varchar('phone', { length: 32 }),
-    passwordHash: text('password_hash').notNull(),
+    passwordHash: text('password_hash'),
+    googleId: varchar('google_id', { length: 255 }).unique(),
+    authProvider: varchar('auth_provider', { length: 32 }).notNull().default('local'),
     familyPinHash: text('family_pin_hash'),
     avatarR2Key: text('avatar_r2_key'),
     status: varchar('status', { length: 20 }).notNull().default('active'),
@@ -54,6 +57,11 @@ export const childDevices = pgTable(
       .references(() => parentUsers.id, { onDelete: 'cascade' }),
     childName: varchar('child_name', { length: 100 }).notNull(),
     childAvatarId: integer('child_avatar_id'),
+    age: integer('age'),
+    gender: varchar('gender', { length: 16 }),
+    setupStep: integer('setup_step').notNull().default(4),
+    installationId: uuid('installation_id'),
+    pairedAt: timestamp('paired_at', { withTimezone: true }),
     deviceModel: varchar('device_model', { length: 255 }),
     osVersion: varchar('os_version', { length: 100 }),
     appVersion: varchar('app_version', { length: 100 }),
@@ -64,11 +72,15 @@ export const childDevices = pgTable(
     accessibilityHealthy: boolean('accessibility_healthy').notNull().default(false),
     deviceAdminActive: boolean('device_admin_active').notNull().default(false),
     knoxActive: boolean('knox_active').notNull().default(false),
+    isUnpaired: boolean('is_unpaired').notNull().default(false),
+    unpairedAt: timestamp('unpaired_at', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
   (table) => [
+    uniqueIndex('child_devices_active_installation').on(table.installationId).where(sql`${table.isUnpaired} = false`),
     index('idx_child_devices_parent').on(table.parentId),
     index('idx_child_devices_last_seen').on(table.lastSeenAt),
+    index('idx_child_devices_unpaired').on(table.isUnpaired),
     check(
       'child_devices_battery_pct_check',
       sql`${table.batteryPct} IS NULL OR (${table.batteryPct} >= 0 AND ${table.batteryPct} <= 100)`
@@ -77,6 +89,39 @@ export const childDevices = pgTable(
       'child_devices_avatar_check',
       sql`${table.childAvatarId} IS NULL OR (${table.childAvatarId} >= 1 AND ${table.childAvatarId} <= 8)`
     ),
+  ]
+);
+
+/**
+ * Child Device Tokens.
+ * Implements full credential lifecycle: rotating refresh token hashes, short-lived JWT jti tracking,
+ * and server-side revocation on unpair, parent device removal, or account suspension.
+ * Plaintext refresh tokens are never stored (only SHA-256 hex digests).
+ */
+export const childDeviceTokens = pgTable(
+  'child_device_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => childDevices.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    refreshTokenHash: varchar('refresh_token_hash', { length: 64 }).notNull().unique(),
+    currentJti: varchar('current_jti', { length: 64 }).notNull(),
+    isRevoked: boolean('is_revoked').notNull().default(false),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revocationReason: varchar('revocation_reason', { length: 64 }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_child_device_tokens_device').on(table.deviceId),
+    index('idx_child_device_tokens_hash').on(table.refreshTokenHash),
+    index('idx_child_device_tokens_jti').on(table.currentJti),
   ]
 );
 
@@ -174,6 +219,9 @@ export type NewParentUser = typeof parentUsers.$inferInsert;
 export type ChildDevice = typeof childDevices.$inferSelect;
 export type NewChildDevice = typeof childDevices.$inferInsert;
 
+export type ChildDeviceToken = typeof childDeviceTokens.$inferSelect;
+export type NewChildDeviceToken = typeof childDeviceTokens.$inferInsert;
+
 export type AdminControlAuditLog = typeof adminControlAuditLogs.$inferSelect;
 export type NewAdminControlAuditLog = typeof adminControlAuditLogs.$inferInsert;
 
@@ -196,3 +244,96 @@ export const parentRateLimits = pgTable(
 
 export type ParentRateLimit = typeof parentRateLimits.$inferSelect;
 export type NewParentRateLimit = typeof parentRateLimits.$inferInsert;
+
+/**
+ * System Application & Client Settings.
+ * Configured by Super Admin: Google OAuth toggle, Child App download URL, and version policies.
+ */
+export const systemAppSettings = pgTable(
+  'system_app_settings',
+  {
+    id: varchar('id', { length: 32 }).primaryKey().default('default'),
+    googleAuthEnabled: boolean('google_auth_enabled').notNull().default(false),
+    googleClientId: text('google_client_id'),
+    childAppDownloadUrl: text('child_app_download_url'),
+    parentAppDownloadUrl: text('parent_app_download_url'),
+    registrationEnabled: boolean('registration_enabled').notNull().default(true),
+    pairingCodeExpirySeconds: integer('pairing_code_expiry_seconds').notNull().default(900),
+    childAppLatestVersion: text('child_app_latest_version').notNull().default('1.0.0'),
+    childAppMinVersion: text('child_app_min_version').notNull().default('1.0.0'),
+    updatedBy: uuid('updated_by').references(() => adminUsers.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  }
+);
+
+export type SystemAppSettings = typeof systemAppSettings.$inferSelect;
+export type NewSystemAppSettings = typeof systemAppSettings.$inferInsert;
+
+/**
+ * Device Pairing Sessions.
+ * Tracks ephemeral 6/9-digit pairing codes and QR pairing payloads generated by parent or child.
+ */
+export const pairingSessions = pgTable(
+  'pairing_sessions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: uuid('parent_id').references(() => parentUsers.id, { onDelete: 'cascade' }),
+    pairingCode: varchar('pairing_code', { length: 16 }).notNull().unique(),
+    qrPayload: text('qr_payload').notNull(),
+    pollingToken: varchar('polling_token', { length: 64 }),
+    issuedDeviceToken: text('issued_device_token'),
+    installationId: uuid('installation_id'),
+    requestHash: varchar('request_hash', { length: 64 }).unique(),
+    policyVersion: varchar('child_policy_version', { length: 32 }),
+    consentedAt: timestamp('child_consented_at', { withTimezone: true }),
+    childConfirmed: boolean('child_confirmed').notNull().default(false),
+    parentApproved: boolean('parent_approved').notNull().default(false),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    ackHash: varchar('ack_hash', { length: 64 }),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    childDeviceId: uuid('child_device_id').references(() => childDevices.id, { onDelete: 'set null' }),
+    childName: text('child_name'),
+    deviceModel: text('device_model'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('pairing_sessions_one_active_manual_code_per_parent')
+      .on(table.parentId)
+      .where(sql`${table.parentId} IS NOT NULL AND ${table.installationId} IS NULL AND ${table.status} = 'pending'`),
+    index('idx_pairing_sessions_code').on(table.pairingCode),
+    index('idx_pairing_sessions_parent').on(table.parentId),
+    index('idx_pairing_sessions_expires').on(table.expiresAt),
+    index('idx_pairing_sessions_polling_token').on(table.pollingToken),
+    check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'paired', 'expired', 'canceled')`),
+  ]
+);
+
+export type PairingSession = typeof pairingSessions.$inferSelect;
+export type NewPairingSession = typeof pairingSessions.$inferInsert;
+
+/**
+ * Parental Consent Records.
+ * Tracks explicit parental consent acceptance with timestamp, policy version, and IP.
+ */
+export const parentConsents = pgTable(
+  'parent_consents',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: uuid('parent_id')
+      .notNull()
+      .references(() => parentUsers.id, { onDelete: 'cascade' }),
+    consentType: varchar('consent_type', { length: 64 }).notNull().default('parental_supervision'),
+    policyVersion: varchar('policy_version', { length: 32 }).notNull().default('v1.0'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    consentedAt: timestamp('consented_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_parent_consents_parent').on(table.parentId),
+  ]
+);
+
+export type ParentConsent = typeof parentConsents.$inferSelect;
+export type NewParentConsent = typeof parentConsents.$inferInsert;
+

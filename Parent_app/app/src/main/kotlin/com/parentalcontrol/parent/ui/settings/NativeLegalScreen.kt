@@ -51,10 +51,11 @@ import com.parentalcontrol.parent.R
 @Composable
 fun NativeLegalScreen(
     onNavigateBack: () -> Unit,
+    initialTab: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Privacy, 1: Terms, 2: COPPA
+    var selectedTabIndex by remember { mutableIntStateOf(initialTab.coerceIn(0, 2)) } // 0: Privacy, 1: Terms, 2: COPPA
 
     val tabs = listOf(
         stringResource(R.string.tab_privacy),

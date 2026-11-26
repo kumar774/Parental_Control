@@ -1,5 +1,6 @@
 package com.parentalcontrol.parent.ui.auth
 
+import com.parentalcontrol.core.database.ParentalDatabase
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,7 +63,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.database.ParentalDatabase
+import com.parentalcontrol.core.network.rest.FastifyRestClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.OutlinedButton
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
@@ -93,12 +96,22 @@ fun LoginScreen(
     onBiometricClick: () -> Unit,
     onNavigateToEmailVerification: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
+    onGoogleSignInClick: () -> Unit = {},
+    appSettings: com.parentalcontrol.core.network.rest.AppSettingsDto? = null,
+    onReloadSettings: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val mmkv = ParentalDatabase.getInstance().mmkv
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
+    var showEmail by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(showEmail) { showEmail = false }
+    if (!showEmail) {
+        AuthMethodScreen(false, appSettings, onGoogleSignInClick, { showEmail = true }, onRegisterClick, onBackClick, onReloadSettings)
+        return
+    }
+
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -147,7 +160,7 @@ fun LoginScreen(
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBackClick()
+                        showEmail = false
                     },
                     modifier = Modifier
                         .size(40.dp)
@@ -397,6 +410,8 @@ fun LoginScreen(
                         )
                     }
                 }
+
+
 
                 // Biometric Login Pill (Only visible if biometric is enabled in Settings and valid session exists)
                 if (isBiometricEnabled) {

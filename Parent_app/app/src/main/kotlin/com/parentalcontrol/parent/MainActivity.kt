@@ -3,6 +3,8 @@ package com.parentalcontrol.parent
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
+import com.parentalcontrol.parent.BuildConfig
 import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -23,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
@@ -78,8 +81,12 @@ import com.parentalcontrol.core.designsystem.theme.Space8
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.parent.ui.auth.ForgotPasswordScreen
+import com.parentalcontrol.parent.ui.auth.GoogleProfileCompletionDialog
 import com.parentalcontrol.parent.ui.auth.LoginScreen
 import com.parentalcontrol.parent.ui.auth.RegisterScreen
+import com.parentalcontrol.parent.auth.GoogleAuthHelper
+import com.parentalcontrol.core.network.rest.AppSettingsDto
+import com.parentalcontrol.core.network.rest.GoogleAuthResult
 import com.parentalcontrol.parent.ui.dashboard.ActivityAuditHubScreen
 import com.parentalcontrol.parent.ui.dashboard.DashboardScreen
 import com.parentalcontrol.parent.ui.dashboard.FamilyPinManagementScreen
@@ -150,8 +157,8 @@ import com.parentalcontrol.parent.ui.auth.ParentEmailVerificationScreen
 import com.parentalcontrol.parent.ui.onboarding.ChildProfileEditScreen
 import com.parentalcontrol.parent.ui.onboarding.ChildUninstallGuideScreen
 import com.parentalcontrol.parent.ui.pairing.ChooseDeviceTypeScreen
+import com.parentalcontrol.parent.ui.pairing.ParentConsentScreen
 import com.parentalcontrol.parent.ui.pairing.PairingSuccessScreen
-import com.parentalcontrol.parent.ui.pairing.QrScannerScreen
 import com.parentalcontrol.parent.ui.settings.AdbUsbActivationGuideScreen
 import com.parentalcontrol.parent.ui.settings.AppOtaUpdateScreen
 import com.parentalcontrol.parent.ui.settings.NativeLegalScreen
@@ -187,28 +194,15 @@ import com.parentalcontrol.parent.ui.modals.AvatarImageCropperBottomSheet
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        val startScreen = intent?.getStringExtra("EXTRA_START_SCREEN")?.let {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
-        } ?: AppScreen.SPLASH
-        val startAuth = intent?.getBooleanExtra("EXTRA_IS_AUTHENTICATED", false) ?: false
-        val startOrigin = intent?.getStringExtra("EXTRA_EMAIL_ORIGIN")?.let {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
-        } ?: AppScreen.LOGIN
-        val startRoute = intent?.getStringExtra("EXTRA_START_ROUTE") ?: "home"
-        val startBackstack = intent?.getStringArrayListExtra("EXTRA_BACKSTACK")?.mapNotNull {
-            runCatching { AppScreen.valueOf(it) }.getOrNull()
+        if (BuildConfig.DEBUG) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
-
+        enableEdgeToEdge()
         setContent {
             LiquidGlassTheme(darkTheme = true) {
-                ParentAppMainContent(
-                    initialScreen = startScreen,
-                    initialNavRoute = startRoute,
-                    initialAuthenticated = startAuth,
-                    initialEmailVerificationOrigin = startOrigin,
-                    initialBackstack = startBackstack
-                )
+                ParentAppMainContent()
             }
         }
     }
@@ -273,6 +267,7 @@ enum class AppScreen {
     // Phase 10 Routes (Completing 66 Screens)
     PAIRING_SUCCESS,
     CHOOSE_DEVICE_TYPE,
+    PARENT_CONSENT,
     QR_SCANNER,
     CHILD_PROFILE_EDIT,
     CHILD_UNINSTALL_GUIDE,
@@ -302,6 +297,7 @@ fun ParentAppMainContent(
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val mmkv = remember { ParentalDatabase.getInstance().mmkv }
+    val childDao = remember { ParentalDatabase.getInstance().childDeviceDao }
     val scope = rememberCoroutineScope()
 
     var currentScreen by rememberSaveable { mutableStateOf(initialScreen) }
@@ -309,7 +305,9 @@ fun ParentAppMainContent(
     var activeChildId by remember { mutableStateOf(mmkv.selectedChildId ?: "") }
     var activeChildName by remember { mutableStateOf("Child") }
     var lastPairedChildName by remember { mutableStateOf("Child") }
-    var lastPairedDeviceName by remember { mutableStateOf("Android Phone") }
+    var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
+    var setupDeviceId by rememberSaveable { mutableStateOf("") }
+    var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(true) }
 
     // Persistent Screen Backstack History
     val screenBackstack = rememberSaveable(
@@ -338,6 +336,13 @@ fun ParentAppMainContent(
     var connectionErrorMessage by remember { mutableStateOf<String?>(null) }
     var isRetryingConnection by remember { mutableStateOf(false) }
     var lastBackPressTime by remember { mutableStateOf(0L) }
+    var remoteAppSettings by remember { mutableStateOf<AppSettingsDto?>(null) }
+
+    var settingsAttempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(settingsAttempt) {
+        val settingsRes = FastifyRestClient.shared.getAppSettings()
+        remoteAppSettings = settingsRes.getOrNull()
+    }
 
     val sessionRestorationManager = remember {
         SessionRestorationManager(
@@ -414,6 +419,7 @@ fun ParentAppMainContent(
     fun navigateToAuthenticatedRoot() {
         isSessionAuthenticated = true
         navManager.hasAuthenticatedSession = true
+        allowAutoResumeOnboarding = true
         sessionRestorationManager.markSessionVerified()
         navManager.navigateToAuthenticatedRoot()
     }
@@ -428,6 +434,12 @@ fun ParentAppMainContent(
         isSessionAuthenticated = false
         navManager.hasAuthenticatedSession = false
         sessionRestorationManager.markSessionInvalidated()
+        activeChildId = ""
+        activeChildName = "Child"
+        lastPairedChildName = "Child"
+        lastPairedDeviceName = ""
+        setupDeviceId = ""
+        allowAutoResumeOnboarding = true
         mmkv.clearSession()
         FastifyRestClient.shared.accessToken = null
         FastifyRestClient.shared.refreshToken = null
@@ -554,12 +566,16 @@ fun ParentAppMainContent(
     // Phase 10 Modal states (Completing 26 Modals)
     var showUpgradePremiumModal by remember { mutableStateOf(false) }
     var showVipDiscountModal by remember { mutableStateOf(false) }
+
+    // Google Identity Profile Completion state
+    var googleCompletionPendingData by remember { mutableStateOf<GoogleAuthResult.RequiresProfileCompletion?>(null) }
     var showVoucherRedemptionModal by remember { mutableStateOf(false) }
     var showBindPhoneModal by remember { mutableStateOf(false) }
     var showStreamQuotaExhaustedModal by remember { mutableStateOf(false) }
     var showLogoutConfirmModal by remember { mutableStateOf(false) }
     var showAvatarCropperModal by remember { mutableStateOf(false) }
     var selectedLegalDocType by remember { mutableStateOf("privacy") }
+    var legalScreenReturnTarget by remember { mutableStateOf(AppScreen.MAIN_SHELL) }
 
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
@@ -797,7 +813,7 @@ fun ParentAppMainContent(
                 AppScreen.WELCOME_CAROUSEL -> {
                     WelcomeCarouselScreen(
                         onGetStarted = {
-                            currentScreen = AppScreen.REGISTER
+                            currentScreen = AppScreen.LOGIN
                         },
                         onLoginClick = {
                             currentScreen = AppScreen.LOGIN
@@ -807,9 +823,13 @@ fun ParentAppMainContent(
 
                 AppScreen.LOGIN -> {
                     LoginScreen(
+                        appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
                             toastType = ToastType.SUCCESS
+                            isSessionAuthenticated = true
+                            navManager.hasAuthenticatedSession = true
+                            sessionRestorationManager.markSessionVerified()
                             navigateToAuthenticatedRoot()
                         },
                         onRegisterClick = {
@@ -873,6 +893,45 @@ fun ParentAppMainContent(
                                 )
                             }
                         },
+                        onGoogleSignInClick = {
+                            scope.launch {
+                                toastMessage = "Connecting with Google Identity Services…"
+                                toastType = ToastType.INFO
+                                val tokenRes = GoogleAuthHelper.getGoogleIdToken(
+                                    context = context,
+                                    googleClientId = remoteAppSettings?.googleClientId
+                                )
+                                if (tokenRes.isFailure) {
+                                    val err = tokenRes.exceptionOrNull()
+                                    if (err !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                                        toastMessage = err?.message ?: "Google sign-in was cancelled"
+                                        toastType = ToastType.WARNING
+                                    }
+                                    return@launch
+                                }
+                                val idToken = tokenRes.getOrNull()!!
+                                val res = FastifyRestClient.shared.loginWithGoogle(idToken)
+                                if (res.isSuccess) {
+                                    when (val result = res.getOrNull()!!) {
+                                        is GoogleAuthResult.Success -> {
+                                            val user = result.authResponse
+                                            mmkv.accessToken = user.accessToken
+                                            mmkv.refreshToken = user.refreshToken
+                                            mmkv.userEmail = user.user.email
+                                            toastMessage = "Welcome, ${user.user.fullName}!"
+                                            toastType = ToastType.SUCCESS
+                                            navigateToAuthenticatedRoot()
+                                        }
+                                        is GoogleAuthResult.RequiresProfileCompletion -> {
+                                            googleCompletionPendingData = result
+                                        }
+                                    }
+                                } else {
+                                    toastMessage = res.exceptionOrNull()?.message ?: "Google sign-in failed"
+                                    toastType = ToastType.ERROR
+                                }
+                            }
+                        },
                         onBackClick = {
                             currentScreen = AppScreen.WELCOME_CAROUSEL
                         }
@@ -881,6 +940,7 @@ fun ParentAppMainContent(
 
                 AppScreen.REGISTER -> {
                     RegisterScreen(
+                        appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
                         onRegisterSuccess = {
                             emailVerificationOrigin = AppScreen.REGISTER
                             navManager.emailVerificationOrigin = AppScreen.REGISTER
@@ -888,6 +948,55 @@ fun ParentAppMainContent(
                         },
                         onLoginClick = {
                             currentScreen = AppScreen.LOGIN
+                        },
+                        onTermsClick = {
+                            selectedLegalDocType = "terms"
+                            legalScreenReturnTarget = AppScreen.REGISTER
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onPrivacyPolicyClick = {
+                            selectedLegalDocType = "privacy"
+                            legalScreenReturnTarget = AppScreen.REGISTER
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onGoogleSignUpClick = {
+                            scope.launch {
+                                toastMessage = "Connecting with Google Identity Services…"
+                                toastType = ToastType.INFO
+                                val tokenRes = GoogleAuthHelper.getGoogleIdToken(
+                                    context = context,
+                                    googleClientId = remoteAppSettings?.googleClientId
+                                )
+                                if (tokenRes.isFailure) {
+                                    val err = tokenRes.exceptionOrNull()
+                                    if (err !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                                        toastMessage = err?.message ?: "Google sign-up was cancelled"
+                                        toastType = ToastType.WARNING
+                                    }
+                                    return@launch
+                                }
+                                val idToken = tokenRes.getOrNull()!!
+                                val res = FastifyRestClient.shared.loginWithGoogle(idToken)
+                                if (res.isSuccess) {
+                                    when (val result = res.getOrNull()!!) {
+                                        is GoogleAuthResult.Success -> {
+                                            val user = result.authResponse
+                                            mmkv.accessToken = user.accessToken
+                                            mmkv.refreshToken = user.refreshToken
+                                            mmkv.userEmail = user.user.email
+                                            toastMessage = "Account created with Google!"
+                                            toastType = ToastType.SUCCESS
+                                            navigateToAuthenticatedRoot()
+                                        }
+                                        is GoogleAuthResult.RequiresProfileCompletion -> {
+                                            googleCompletionPendingData = result
+                                        }
+                                    }
+                                } else {
+                                    toastMessage = res.exceptionOrNull()?.message ?: "Google sign-up failed"
+                                    toastType = ToastType.ERROR
+                                }
+                            }
                         },
                         onBackClick = {
                             currentScreen = AppScreen.WELCOME_CAROUSEL
@@ -911,12 +1020,12 @@ fun ParentAppMainContent(
                 AppScreen.DEVICE_PAIRING -> {
                     DevicePairingScreen(
                         onNavigateBack = {
+                            allowAutoResumeOnboarding = false
                             currentScreen = AppScreen.MAIN_SHELL
                         },
-                        onPairingSuccess = { name, model ->
-                            lastPairedChildName = name
+                        onPairingSuccess = { id, model ->
+                            setupDeviceId = id
                             lastPairedDeviceName = model
-                            activeChildName = name
                             currentScreen = AppScreen.PAIRING_SUCCESS
                         }
                     )
@@ -1431,42 +1540,56 @@ fun ParentAppMainContent(
 
                 // Phase 10 Screens (Completing all 66 screens)
                 AppScreen.PAIRING_SUCCESS -> {
-                    PairingSuccessScreen(
-                        childName = lastPairedChildName,
-                        deviceName = lastPairedDeviceName,
-                        onGoToDashboardClick = { currentScreen = AppScreen.MAIN_SHELL }
-                    )
+                    com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
+                        setupDeviceId, lastPairedDeviceName, 2,
+                        {
+                            allowAutoResumeOnboarding = false
+                            currentScreen = AppScreen.MAIN_SHELL
+                        },
+                        { currentScreen = AppScreen.CHILD_PROFILE_EDIT })
                 }
 
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
-                    ChooseDeviceTypeScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onContinueSetup = {
-                            currentScreen = AppScreen.QR_SCANNER
+                    ChooseDeviceTypeScreen(onNavigateBack = { performLogout() },
+                        onSelectParentDevice = { currentScreen = AppScreen.PARENT_CONSENT })
+                }
+
+                AppScreen.PARENT_CONSENT -> {
+                    ParentConsentScreen(
+                        onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
+                        onConsentAccepted = {
+                            currentScreen = AppScreen.DEVICE_PAIRING
+                        },
+                        onOpenTerms = {
+                            selectedLegalDocType = "terms"
+                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                            currentScreen = AppScreen.NATIVE_LEGAL
+                        },
+                        onOpenPrivacy = {
+                            selectedLegalDocType = "privacy"
+                            legalScreenReturnTarget = AppScreen.PARENT_CONSENT
+                            currentScreen = AppScreen.NATIVE_LEGAL
+
                         }
                     )
                 }
 
                 AppScreen.QR_SCANNER -> {
-                    QrScannerScreen(
+                    // Redirect legacy mock scanner route directly to real DevicePairingScreen
+                    DevicePairingScreen(
                         onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onQrScanned = {
-                            toastMessage = "QR pairing code verified"
-                            toastType = ToastType.SUCCESS
+                        onPairingSuccess = { id, model ->
+                            setupDeviceId = id
+                            lastPairedDeviceName = model
                             currentScreen = AppScreen.PAIRING_SUCCESS
                         }
                     )
                 }
 
                 AppScreen.CHILD_PROFILE_EDIT -> {
-                    ChildProfileEditScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL },
-                        onSaveProfile = { name: String, age: Int ->
-                            toastMessage = "Profile updated: $name, $age yrs"
-                            toastType = ToastType.SUCCESS
-                            currentScreen = AppScreen.MAIN_SHELL
-                        }
-                    )
+                    com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
+                        setupDeviceId, lastPairedDeviceName, 3, { currentScreen = AppScreen.PAIRING_SUCCESS },
+                        { navigateToAuthenticatedRoot() })
                 }
 
                 AppScreen.CHILD_UNINSTALL_GUIDE -> {
@@ -1574,8 +1697,14 @@ fun ParentAppMainContent(
                 }
 
                 AppScreen.NATIVE_LEGAL -> {
+                    val initialLegalTab = when (selectedLegalDocType) {
+                        "terms" -> 1
+                        "coppa" -> 2
+                        else -> 0
+                    }
                     NativeLegalScreen(
-                        onNavigateBack = { currentScreen = AppScreen.MAIN_SHELL }
+                        initialTab = initialLegalTab,
+                        onNavigateBack = { currentScreen = legalScreenReturnTarget }
                     )
                 }
 
@@ -1650,174 +1779,24 @@ fun ParentAppMainContent(
                 }
 
                 AppScreen.MAIN_SHELL -> {
-                    Scaffold(
-                        bottomBar = {
-                            FloatingGlassNavigationBar(
-                                currentRoute = currentNavRoute,
-                                onNavigate = { route ->
-                                    if (route == "instant_lock") {
-                                        showInstantLockModal = true
-                                    } else {
-                                        navManager.selectNavRoute(route)
-                                    }
-                                },
-                                unreadAlertsCount = 0
-                            )
-                        },
-                        containerColor = BgCanvas
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            when (currentNavRoute) {
-                                "home" -> {
-                                    DashboardScreen(
-                                        onInstantLockClick = { showInstantLockModal = true },
-                                        onGrantBonusClick = { showBonusTimeModal = true },
-                                        onLiveAssistClick = {
-                                            currentScreen = AppScreen.SCREEN_MIRROR_VIEWER
-                                        },
-                                        onLocateKidClick = {
-                                            currentScreen = AppScreen.LIVE_LOCATION_MAP
-                                        },
-                                        onSoundSirenClick = {
-                                            currentScreen = AppScreen.FIND_KID_ALARM
-                                        },
-                                        onPairDeviceClick = {
-                                            currentScreen = AppScreen.DEVICE_PAIRING
-                                        }
-                                    )
-                                }
-
-                                "map" -> {
-                                    LiveTrackingHubScreen(
-                                        onViewRouteHistoryClick = {
-                                            currentScreen = AppScreen.LOCATION_HISTORY
-                                        },
-                                        onGeofencesClick = {
-                                            showGeofenceEditorModal = true
-                                        }
-                                    )
-                                }
-
-                                "limits" -> {
-                                    val currentDevId: String = (activeChildId.ifBlank { mmkv.selectedChildId }).orEmpty()
-                                    RulesHubScreen(
-                                        childId = currentDevId,
-                                        onScreenTimeClick = {
-                                            currentScreen = AppScreen.SCREEN_TIME_LIMIT
-                                        },
-                                        onAppLimitsClick = {
-                                            currentScreen = AppScreen.APP_MANAGEMENT
-                                        },
-                                        onWebSafetyClick = {
-                                            currentScreen = AppScreen.WEB_FILTER_CONFIG
-                                        },
-                                        onCallGuardClick = {
-                                            currentScreen = AppScreen.CALL_SMS_LOG
-                                        },
-                                        onMasterPauseChanged = { isPaused ->
-                                            if (currentDevId.isNotBlank()) {
-                                                scope.launch {
-                                                    val mode = if (isPaused) "free" else "standard"
-                                                    val res = FastifyRestClient.shared.switchDeviceMode(currentDevId, mode)
-                                                    res.onSuccess {
-                                                        toastMessage = if (isPaused) "All restrictions paused for today" else "Standard rules restored"
-                                                        toastType = ToastType.INFO
-                                                    }.onFailure { err ->
-                                                        toastMessage = err.message ?: "Failed to update device mode"
-                                                        toastType = ToastType.ERROR
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-
-                                "me", "hub", "family" -> {
-                                    ParentMeScreen(
-                                        onUpgradeClick = {
-                                            currentScreen = AppScreen.SUBSCRIPTION_PLANS
-                                        },
-                                        onMyDevicesClick = {
-                                            currentScreen = AppScreen.CHILD_DEVICE_PICKER
-                                        },
-                                        onPairDeviceClick = {
-                                            currentScreen = AppScreen.DEVICE_PAIRING
-                                        },
-                                        onFamilyPinClick = {
-                                            currentScreen = AppScreen.FAMILY_PIN_MANAGEMENT
-                                        },
-                                        onHelpClick = {
-                                            currentScreen = AppScreen.PARENT_FAQ_HELP
-                                        },
-                                        onFeedbackClick = {
-                                            currentScreen = AppScreen.PARENT_BUG_FEEDBACK
-                                        },
-                                        onAboutClick = {
-                                            selectedLegalDocType = "privacy"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onSignOutClick = {
-                                            showLogoutConfirmModal = true
-                                        }
-                                    )
-                                }
-
-                                "settings" -> {
-                                    FamilySettingsHubScreen(
-                                        onChildrenProfilesClick = {
-                                            currentScreen = AppScreen.CHILD_DEVICE_PICKER
-                                        },
-                                        onCoParentsClick = {
-                                            currentScreen = AppScreen.CO_PARENT_SHARING
-                                        },
-                                        onFamilyPinClick = {
-                                            currentScreen = AppScreen.FAMILY_PIN_MANAGEMENT
-                                        },
-                                        onBiometricLockClick = {
-                                            toastMessage = "Biometric app lock toggle"
-                                            toastType = ToastType.SUCCESS
-                                        },
-                                        onOemGuideClick = {
-                                            currentScreen = AppScreen.CHILD_UNINSTALL_GUIDE
-                                        },
-                                        onFaqClick = {
-                                            currentScreen = AppScreen.PARENT_FAQ_HELP
-                                        },
-                                        onNetworkDiagClick = {
-                                            currentScreen = AppScreen.NETWORK_DIAGNOSTICS
-                                        },
-                                        onPrivacyPolicyClick = {
-                                            selectedLegalDocType = "privacy"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onTermsClick = {
-                                            selectedLegalDocType = "terms"
-                                            currentScreen = AppScreen.NATIVE_LEGAL
-                                        },
-                                        onSignOutClick = {
-                                            showLogoutConfirmModal = true
-                                        }
-                                    )
-                                }
-
-                                else -> {
-                                    DashboardScreen(
-                                        onInstantLockClick = { showInstantLockModal = true },
-                                        onGrantBonusClick = { showBonusTimeModal = true },
-                                        onLiveAssistClick = {
-                                            currentScreen = AppScreen.SCREEN_MIRROR_VIEWER
-                                        },
-                                        onLocateKidClick = { currentScreen = AppScreen.LIVE_LOCATION_MAP },
-                                        onSoundSirenClick = { currentScreen = AppScreen.FIND_KID_ALARM },
-                                        onPairDeviceClick = { currentScreen = AppScreen.DEVICE_PAIRING }
-                                    )
-                                }
-                            }
-                        }
+                    if (isSessionAuthenticated) {
+                        com.parentalcontrol.parent.ui.dashboard.PairedDeviceDashboard(
+                            account = mmkv.userEmail.orEmpty(), tab = currentNavRoute,
+                            onTab = navManager::selectNavRoute,
+                            onSelectType = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
+                            onPair = { currentScreen = AppScreen.DEVICE_PAIRING },
+                            onConsent = { currentScreen = AppScreen.PARENT_CONSENT },
+                            onSetup = { device ->
+                                setupDeviceId = device.id
+                                lastPairedDeviceName = device.model ?: device.deviceName
+                                currentScreen = if (device.setupStep == 2) AppScreen.PAIRING_SUCCESS else AppScreen.CHILD_PROFILE_EDIT
+                            },
+                            onLogout = { showLogoutConfirmModal = true },
+                            onTerms = { selectedLegalDocType = "terms"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
+                            onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
+                            allowAutoResumeOnboarding = allowAutoResumeOnboarding,
+                            onAutoResumeConsumed = { allowAutoResumeOnboarding = false }
+                        )
                     }
                 }
             }
@@ -2204,6 +2183,25 @@ fun ParentAppMainContent(
                 onViewPlansClick = {
                     showUpgradePremiumModal = false
                     currentScreen = AppScreen.SUBSCRIPTION_PLANS
+                }
+            )
+        }
+
+        // Google Profile Completion Dialog
+        googleCompletionPendingData?.let { compData ->
+            GoogleProfileCompletionDialog(
+                completionData = compData,
+                onSuccess = { authRes ->
+                    googleCompletionPendingData = null
+                    mmkv.accessToken = authRes.accessToken
+                    mmkv.refreshToken = authRes.refreshToken
+                    mmkv.userEmail = authRes.user.email
+                    toastMessage = "Welcome, ${authRes.user.fullName}!"
+                    toastType = ToastType.SUCCESS
+                    navigateToAuthenticatedRoot()
+                },
+                onDismiss = {
+                    googleCompletionPendingData = null
                 }
             )
         }

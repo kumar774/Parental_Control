@@ -33,6 +33,15 @@ data class AuthResponseDto(
     val message: String? = null
 )
 
+sealed class GoogleAuthResult {
+    data class Success(val authResponse: AuthResponseDto) : GoogleAuthResult()
+    data class RequiresProfileCompletion(
+        val email: String,
+        val fullName: String,
+        val completionToken: String
+    ) : GoogleAuthResult()
+}
+
 data class TokenRefreshRequestDto(
     val refreshToken: String
 )
@@ -58,8 +67,29 @@ data class RemoteCommandResponseDto(
 
 data class PairingCodeResponseDto(
     val pairingCode: String,
-    val qrPayload: String,
+    val sessionId: String,
     val expiresAtEpochMs: Long
+)
+
+data class PairingStatusDto(
+    val status: String,
+    val sessionId: String,
+    val deviceId: String? = null,
+    val childName: String? = null,
+    val deviceName: String? = null,
+    val childConfirmed: Boolean = false,
+    val parentApproved: Boolean = false,
+    val expiresAt: String? = null,
+    val deliveryExpiresAt: String? = null
+)
+
+data class AppSettingsDto(
+    val googleAuthEnabled: Boolean = false,
+    val googleClientId: String? = null,
+    val childAppDownloadUrl: String = "",
+    val registrationEnabled: Boolean = false,
+    val childAppLatestVersion: String = "1.0.0",
+    val childAppMinVersion: String = "1.0.0"
 )
 
 data class AppRuleDto(
@@ -90,7 +120,10 @@ data class DeviceDto(
     val batteryPct: Int = 100,
     val isLocked: Boolean = false,
     val kioskMode: Boolean = false,
-    val lastSeenAt: String? = null
+    val lastSeenAt: String? = null,
+    val setupStep: Int = 4,
+    val nickname: String? = null,
+    val childAvatarId: Int = 1
 )
 
 data class FeatureEntitlementDto(
@@ -403,3 +436,12 @@ class InvalidRefreshPayloadException(
 
 class SessionExpiredException(val code: String = "USER_NOT_FOUND") : AuthException(401, "Session expired: $code")
 
+
+data class OnboardingDto(
+    val consentAccepted: Boolean,
+    val pendingSessionId: String?,
+    val pendingCode: String?,
+    val expiresAt: String?,
+    val pendingStatus: String? = null,
+    val pendingDeviceModel: String? = null
+)

@@ -48,7 +48,7 @@ class NetworkAndWebSocketSyncUnitTest {
                 fullUrl.endsWith("/api/v1/devices/pair-code") -> {
                     FastifyRestClient.HttpResponse(
                         200,
-                        """{"code":"654321","qrPayload":"pc-pair:654321:1700000000","expiresInSeconds":300}"""
+                        """{"code":"654321987","sessionId":"ff9fa048-909b-42d7-9fc4-eb146db035fb","expiresAt":"2026-12-01T00:00:00Z"}"""
                     )
                 }
                 else -> FastifyRestClient.HttpResponse(404, "{}")
@@ -65,8 +65,8 @@ class NetworkAndWebSocketSyncUnitTest {
         val pairingResult = client.generatePairingCode()
         assertTrue(pairingResult.isSuccess)
         val pairing = pairingResult.getOrThrow()
-        assertEquals(6, pairing.pairingCode.length)
-        assertTrue(pairing.qrPayload.contains("pc-pair"))
+        assertEquals("654321987", pairing.pairingCode)
+        assertEquals("ff9fa048-909b-42d7-9fc4-eb146db035fb", pairing.sessionId)
     }
 
     @Test
@@ -736,5 +736,73 @@ class NetworkAndWebSocketSyncUnitTest {
         assertFalse("Generic 401 must not be AccountSuspendedException", err is com.parentalcontrol.core.network.rest.AccountSuspendedException)
         assertEquals("Invalid email or password", err?.message)
         assertFalse("Login failure must NOT trigger onSessionExpired", sessionExpiredCalled)
+    }
+
+    @Test
+    fun testPairing_CancelRejectRegenerateAndMetadataParsing() = runBlocking {
+        val sessionId = "11111111-1111-4111-8111-111111111111"
+        val capturedPaths = mutableListOf<String>()
+        val capturedBodies = mutableListOf<String?>()
+
+        val client = FastifyRestClient(accessToken = "parent-token")
+        client.customTransport = FastifyRestClient.HttpTransport { method, fullUrl, _, body ->
+            capturedPaths.add("$method $fullUrl")
+            capturedBodies.add(body)
+            when {
+                fullUrl.endsWith("/api/v1/devices/pair-code") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"code":"987654321","sessionId":"$sessionId","expiresAt":"2026-12-01T00:00:00.000Z","expiresInSeconds":600}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-cancel") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"canceled","sessionId":"$sessionId"}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/qr-preview") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"waiting_for_parent","sessionId":"$sessionId","deviceModel":"Vivo I2220","childConfirmed":false,"parentApproved":false,"expiresAt":"2026-12-01T00:00:00.000Z"}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-reject") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"canceled","rejected":true,"sessionId":"$sessionId"}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/pair-status/$sessionId") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"status":"waiting_for_parent","sessionId":"$sessionId","deviceId":null,"deviceModel":"Pixel 8","childConfirmed":false,"parentApproved":false,"expiresAt":"2026-12-01T00:00:00.000Z","deliveryExpiresAt":null}"""
+                )
+                fullUrl.endsWith("/api/v1/devices/onboarding") -> FastifyRestClient.HttpResponse(
+                    200,
+                    """{"consentAccepted":true,"pendingSessionId":"$sessionId","pendingCode":"987654321","pendingStatus":"waiting_for_parent","pendingDeviceModel":"Pixel 8","expiresAt":"2026-12-01T00:00:00.000Z"}"""
+                )
+                else -> FastifyRestClient.HttpResponse(404, "{}")
+            }
+        }
+
+        val regenRes = client.generatePairingCode(regenerate = true)
+        assertTrue(regenRes.isSuccess)
+        assertTrue(capturedBodies.last()?.contains("\"regenerate\":true") == true)
+
+        val statusRes = client.checkPairingStatus(sessionId).getOrThrow()
+        assertEquals("waiting_for_parent", statusRes.status)
+        assertEquals("Pixel 8", statusRes.deviceName)
+        assertFalse(statusRes.parentApproved)
+
+        val onboardingRes = client.getOnboarding().getOrThrow()
+        assertTrue(onboardingRes.consentAccepted)
+        assertEquals("waiting_for_parent", onboardingRes.pendingStatus)
+        assertEquals("Pixel 8", onboardingRes.pendingDeviceModel)
+
+        assertTrue(client.cancelPairing(sessionId).isSuccess)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-cancel"))
+
+        val previewRes = client.previewQrPairing(sessionId, "987654321").getOrThrow()
+        assertEquals("Vivo I2220", previewRes.deviceName)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/qr-preview"))
+
+        assertTrue(client.rejectPairing(sessionId, "987654321").isSuccess)
+        assertTrue(capturedPaths.last().endsWith("/api/v1/devices/pair-reject"))
+        assertTrue(capturedBodies.last()?.contains("\"code\":\"987654321\"") == true)
+
+        assertTrue(client.cancelPairing("not-a-uuid").isFailure)
+        assertTrue(client.rejectPairing("not-a-uuid").isFailure)
     }
 }

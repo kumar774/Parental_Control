@@ -249,10 +249,10 @@ describe('Admin Frontend Auth Test Suite', () => {
     it('FINDING-02: vite.config.ts contains /health proxy routing to Fastify port 3000', async () => {
       const fs = await import('node:fs');
       const path = await import('node:path');
-      const viteConfigContent = fs.readFileSync(
-        path.resolve(process.cwd(), 'vite.config.ts'),
-        'utf-8'
-      );
+      const configPath = fs.existsSync(path.resolve(process.cwd(), 'vite.config.ts'))
+        ? path.resolve(process.cwd(), 'vite.config.ts')
+        : path.resolve(process.cwd(), 'Admin_panel', 'vite.config.ts');
+      const viteConfigContent = fs.readFileSync(configPath, 'utf-8');
 
       assert.ok(viteConfigContent.includes("'/health':"), "vite.config.ts must define '/health' proxy");
       assert.ok(

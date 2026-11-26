@@ -7,6 +7,8 @@ import { db } from '../../../src/db/index';
 import { adminUsers, adminSessions, systemSmtpSettings } from '../../../src/db/schema/admin-auth';
 import { adminControlAuditLogs, parentUsers } from '../../../src/db/schema/parental-control';
 import { generateRandomToken, sha256, decryptSecret } from '../../../src/utils/crypto-vault';
+import { env } from '../../../src/config/env';
+import { systemAppSettings } from '../../../src/db/schema/parental-control';
 import { emailService } from '../../../src/services/email/index';
 
 describe('Admin SMTP Settings & Email Control Plane — Real PostgreSQL Integration Suite', () => {
@@ -60,6 +62,48 @@ describe('Admin SMTP Settings & Email Control Plane — Real PostgreSQL Integrat
     // Reset test overrides
     emailService.setTestProvider(null);
     emailService.setTestConfigured(null);
+  });
+
+  it('persists mobile registration and download controls with an admin audit entry', async () => {
+    const endpoint = '/api/v1/admin/settings/app';
+    const initial = await readyApp!.inject({ method: 'GET', url: endpoint, headers: authHeaders });
+    assert.equal(initial.statusCode, 200);
+    const saved = initial.json();
+    const originalOrigins = env.MOBILE_DOWNLOAD_ORIGINS;
+    env.MOBILE_DOWNLOAD_ORIGINS = 'https://distribution.example.test';
+    try {
+      const policy = {
+        registrationEnabled: false, googleAuthEnabled: false, pairingCodeExpirySeconds: 180,
+        parentAppDownloadUrl: 'https://distribution.example.test/parent.apk',
+        childAppDownloadUrl: 'https://distribution.example.test/child.apk',
+      };
+      const update = await readyApp!.inject({ method: 'PUT', url: endpoint, headers: authHeaders, payload: policy });
+      assert.equal(update.statusCode, 200);
+      const config = (await readyApp!.inject({ method: 'GET', url: '/api/v1/config/app-settings' })).json();
+      for (const key of ['registrationEnabled', 'googleAuthEnabled', 'parentAppDownloadUrl', 'childAppDownloadUrl'] as const) {
+        assert.equal(config[key], policy[key]);
+      }
+      assert.equal('updatedBy' in config, false);
+      assert.equal((await db.select().from(systemAppSettings).where(eq(systemAppSettings.id, 'default')))[0]?.pairingCodeExpirySeconds, 180);
+      const audit = await db.select().from(adminControlAuditLogs).where(eq(adminControlAuditLogs.action, 'APP_SETTINGS_UPDATE'));
+      assert.ok(audit.some(entry => entry.adminId === adminId));
+      const invalid = await readyApp!.inject({ method: 'PUT', url: endpoint, headers: authHeaders,
+        payload: { parentAppDownloadUrl: 'https://outside.example.test/parent.apk' } });
+      assert.equal(invalid.statusCode, 400);
+      const register = await readyApp!.inject({ method: 'POST', url: '/api/v1/auth/register',
+        payload: { email: 'disabled@example.test', password: 'Future!Parent2026' } });
+      assert.equal(register.statusCode, 403);
+      assert.equal(register.json().code, 'REGISTRATION_DISABLED');
+      const google = await readyApp!.inject({ method: 'POST', url: '/api/v1/auth/google', payload: {} });
+      assert.equal(google.statusCode, 403);
+    } finally {
+      env.MOBILE_DOWNLOAD_ORIGINS = originalOrigins;
+      await db.update(systemAppSettings).set({
+        registrationEnabled: saved.registrationEnabled, googleAuthEnabled: saved.googleAuthEnabled,
+        pairingCodeExpirySeconds: saved.pairingCodeExpirySeconds, parentAppDownloadUrl: saved.parentAppDownloadUrl,
+        childAppDownloadUrl: saved.childAppDownloadUrl, updatedBy: saved.updatedBy, updatedAt: new Date(saved.updatedAt),
+      }).where(eq(systemAppSettings.id, 'default'));
+    }
   });
 
   it('1. GET /api/v1/admin/settings/smtp rejects unauthenticated requests with 401', async () => {

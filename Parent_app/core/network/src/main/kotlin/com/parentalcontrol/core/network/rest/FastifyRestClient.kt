@@ -148,6 +148,96 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun loginWithGoogle(idToken: String): Result<GoogleAuthResult> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("idToken", idToken)
+            }.toString()
+
+            val response = executePost("/api/v1/auth/google", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val requiresProfile = json.optBoolean("requiresProfileCompletion", false)
+                if (requiresProfile) {
+                    val email = json.optString("email", "")
+                    val fullName = json.optString("fullName", "")
+                    val completionToken = json.optString("completionToken", "")
+                    return@withContext Result.success(
+                        GoogleAuthResult.RequiresProfileCompletion(
+                            email = email,
+                            fullName = fullName,
+                            completionToken = completionToken
+                        )
+                    )
+                }
+
+                val userJson = json.getJSONObject("user")
+                val token = json.getString("accessToken")
+                val refToken = json.getString("refreshToken")
+
+                val user = AuthUserDto(
+                    id = userJson.getString("id"),
+                    email = userJson.getString("email"),
+                    fullName = userJson.optString("fullName", "Parent"),
+                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
+                    isGuest = userJson.optBoolean("isGuest", false)
+                )
+
+                accessToken = token
+                refreshToken = refToken
+                Result.success(GoogleAuthResult.Success(AuthResponseDto(user, token, refToken)))
+            } else {
+                val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
+                val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
+                    ?: "Google authentication failed (HTTP ${response.statusCode})"
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun completeGoogleProfile(
+        completionToken: String,
+        fullName: String,
+        password: String
+    ): Result<AuthResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("completionToken", completionToken)
+                put("fullName", fullName.trim())
+                put("password", password)
+            }.toString()
+
+            val response = executePost("/api/v1/auth/google/complete-profile", jsonBody, null)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val userJson = json.getJSONObject("user")
+                val token = json.getString("accessToken")
+                val refToken = json.getString("refreshToken")
+
+                val user = AuthUserDto(
+                    id = userJson.getString("id"),
+                    email = userJson.getString("email"),
+                    fullName = userJson.optString("fullName", "Parent"),
+                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
+                    isGuest = userJson.optBoolean("isGuest", false)
+                )
+
+                accessToken = token
+                refreshToken = refToken
+                Result.success(AuthResponseDto(user, token, refToken))
+            } else {
+                val errorJson = try { JSONObject(response.body) } catch (_: Exception) { null }
+                val msg = errorJson?.optString("message", "")?.takeIf { it.isNotBlank() }
+                    ?: "Failed to complete Google profile (HTTP ${response.statusCode})"
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     private fun toUserFriendlyError(e: Exception): String {
         return if (e is java.net.ConnectException || e is java.net.SocketTimeoutException || e is java.net.UnknownHostException) {
             "Unable to connect to guardian servers. Please check your internet connection."
@@ -369,26 +459,22 @@ class FastifyRestClient(
         }
     }
 
-    suspend fun generatePairingCode(): Result<PairingCodeResponseDto> = withContext(Dispatchers.IO) {
+    suspend fun generatePairingCode(regenerate: Boolean = false): Result<PairingCodeResponseDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to generate pairing code"))
         }
         try {
-            val response = executePost("/api/v1/devices/pair-code", "{}", token)
+            val body = if (regenerate) JSONObject().put("regenerate", true).toString() else "{}"
+            val response = executePost("/api/v1/devices/pair-code", body, token)
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val code = json.getString("code")
-                val expiresInSeconds = json.optLong("expiresInSeconds", 300L)
-                val expiresAtEpochMs = System.currentTimeMillis() + (expiresInSeconds * 1000L)
-                val qr = if (json.has("qrPayload")) {
-                    json.getString("qrPayload")
-                } else {
-                    "pc-pair:$code:$expiresAtEpochMs"
-                }
+                val expiresAtEpochMs = java.time.Instant.parse(json.getString("expiresAt")).toEpochMilli()
+                require(code.matches(Regex("[0-9]{9}"))) { "Invalid binding code from server" }
                 val dto = PairingCodeResponseDto(
                     pairingCode = code,
-                    qrPayload = qr,
+                    sessionId = json.getString("sessionId"),
                     expiresAtEpochMs = expiresAtEpochMs
                 )
                 Result.success(dto)
@@ -407,40 +493,245 @@ class FastifyRestClient(
 
     suspend fun confirmPairing(
         code: String,
-        childName: String = "Child",
-        deviceName: String = "Android Phone",
-        model: String? = null
-    ): Result<DeviceDto> = withContext(Dispatchers.IO) {
+        sessionId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val trimmedSessionId = sessionId.trim()
+        val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        if (!uuidRegex.matches(trimmedSessionId)) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId for pairing confirmation: $sessionId"))
+        }
+        val cleanCode = code.trim()
+        if (!cleanCode.matches(Regex("[0-9]{9}"))) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid 9-digit pairing code: $code"))
+        }
+
         try {
             val jsonBody = JSONObject().apply {
-                put("code", code.trim())
-                put("childName", childName)
-                put("deviceName", deviceName)
-                if (!model.isNullOrBlank()) put("model", model)
-                put("osVersion", "Android 14")
-                put("appVersion", "1.0.0")
+                put("code", cleanCode)
+                put("sessionId", trimmedSessionId)
             }.toString()
-
             val response = executePost("/api/v1/devices/pair-confirm", jsonBody, accessToken)
             if (response.statusCode in 200..299) {
-                val json = JSONObject(response.body)
-                val deviceId = json.getString("deviceId")
-                val rChildName = json.optString("childName", childName)
-                val rDeviceName = json.optString("deviceName", deviceName)
-                val dto = DeviceDto(
-                    id = deviceId,
-                    childName = rChildName,
-                    deviceName = rDeviceName,
-                    model = model,
-                    batteryPct = 100,
-                    isLocked = false
-                )
-                Result.success(dto)
+                Result.success(Unit)
             } else {
                 val msg = try {
                     JSONObject(response.body).optString("message", "Pairing confirmation failed")
                 } catch (_: Exception) {
                     "Pairing confirmation failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun getAppSettings(): Result<AppSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeGet("/api/v1/config/app-settings")
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = AppSettingsDto(
+                    googleAuthEnabled = json.optBoolean("googleAuthEnabled", false),
+                    googleClientId = if (json.has("googleClientId") && !json.isNull("googleClientId")) json.getString("googleClientId") else null,
+                    registrationEnabled = json.optBoolean("registrationEnabled", false),
+                    childAppDownloadUrl = json.optString("childAppDownloadUrl", "").takeIf { runCatching { val uri = java.net.URI(it); uri.scheme == "https" && uri.host != null && uri.userInfo == null }.getOrDefault(false) }.orEmpty(),
+                    childAppLatestVersion = json.optString("childAppLatestVersion", "1.0.0"),
+                    childAppMinVersion = json.optString("childAppMinVersion", "1.0.0")
+                )
+                Result.success(dto)
+            } else {
+                Result.failure(Exception("Application settings are unavailable"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Application settings are unavailable"))
+        }
+    }
+
+    suspend fun checkPairingStatus(sessionId: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = executeGet("/api/v1/devices/pair-status/${java.util.UUID.fromString(sessionId)}", accessToken)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = PairingStatusDto(
+                    status = json.getString("status"),
+                    sessionId = json.getString("sessionId").also { require(it == sessionId) },
+                    deviceId = if (json.has("deviceId") && !json.isNull("deviceId")) json.getString("deviceId") else null,
+                    childName = if (json.has("childName") && !json.isNull("childName")) json.getString("childName") else null,
+                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" },
+                    childConfirmed = json.optBoolean("childConfirmed", false),
+                    parentApproved = json.optBoolean("parentApproved", false),
+                    expiresAt = json.optString("expiresAt").takeIf { it.isNotBlank() && it != "null" },
+                    deliveryExpiresAt = json.optString("deliveryExpiresAt").takeIf { it.isNotBlank() && it != "null" }
+                )
+                Result.success(dto)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Pairing status query failed")
+                } catch (_: Exception) {
+                    "Pairing status query failed (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun cancelPairing(sessionId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to cancel pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        try {
+            val body = JSONObject().put("sessionId", trimmedId).toString()
+            val response = executePost("/api/v1/devices/pair-cancel", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(Unit)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to cancel pairing")
+                } catch (_: Exception) {
+                    "Unable to cancel pairing (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun previewQrPairing(sessionId: String, code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to preview QR pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        val cleanCode = code.trim()
+        if (!cleanCode.matches(Regex("[0-9]{9}"))) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid 9-digit pairing code: $code"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("sessionId", trimmedId)
+                put("code", cleanCode)
+            }.toString()
+            val response = executePost("/api/v1/devices/qr-preview", body, token)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val dto = PairingStatusDto(
+                    status = json.getString("status"),
+                    sessionId = json.getString("sessionId"),
+                    deviceName = json.optString("deviceModel").takeIf { it.isNotBlank() && it != "null" },
+                    childConfirmed = json.optBoolean("childConfirmed", false),
+                    parentApproved = json.optBoolean("parentApproved", false),
+                    expiresAt = json.optString("expiresAt").takeIf { it.isNotBlank() && it != "null" }
+                )
+                Result.success(dto)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to inspect QR pairing")
+                } catch (_: Exception) {
+                    "Unable to inspect QR pairing (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun rejectPairing(sessionId: String, code: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to reject pairing"))
+        }
+        val trimmedId = try {
+            java.util.UUID.fromString(sessionId.trim()).toString()
+        } catch (_: Exception) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid UUID sessionId: $sessionId"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("sessionId", trimmedId)
+                code?.trim()?.takeIf { it.matches(Regex("[0-9]{9}")) }?.let { put("code", it) }
+            }.toString()
+            val response = executePost("/api/v1/devices/pair-reject", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(Unit)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Unable to reject pairing request")
+                } catch (_: Exception) {
+                    "Unable to reject pairing request (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun getOnboarding(): Result<OnboardingDto> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = executeGet("/api/v1/devices/onboarding", accessToken)
+            check(response.statusCode in 200..299) { "Could not load account setup." }
+            val obj = JSONObject(response.body)
+            fun optional(key: String) = if (!obj.has(key) || obj.isNull(key)) null else obj.getString(key)
+            OnboardingDto(
+                consentAccepted = obj.getBoolean("consentAccepted"),
+                pendingSessionId = optional("pendingSessionId"),
+                pendingCode = optional("pendingCode"),
+                expiresAt = optional("expiresAt"),
+                pendingStatus = optional("pendingStatus"),
+                pendingDeviceModel = optional("pendingDeviceModel")
+            )
+        }
+    }
+
+    suspend fun saveSetup(deviceId: String, step: Int, nickname: String? = null, age: Int? = null,
+                          gender: String? = null, avatar: Int? = null): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val body = JSONObject().put("setupStep", step)
+            nickname?.let { body.put("nickname", it) }
+            age?.let { body.put("age", it) }
+            gender?.let { body.put("gender", it) }
+            avatar?.let { body.put("childAvatarId", it) }
+            val response = executePut("/api/v1/devices/${java.util.UUID.fromString(deviceId)}/setup", body.toString(), accessToken)
+            check(response.statusCode in 200..299) { "Could not save device setup. Please try again." }
+        }
+    }
+
+    suspend fun recordParentConsent(
+        consentType: String = "parental_supervision",
+        policyVersion: String = "v1.0"
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to record consent"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("consentType", consentType)
+                put("policyVersion", policyVersion)
+            }.toString()
+            val response = executePost("/api/v1/parent/consent", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(true)
+            } else {
+                val msg = try {
+                    JSONObject(response.body).optString("message", "Failed to record consent")
+                } catch (_: Exception) {
+                    "Failed to record consent (HTTP ${response.statusCode})"
                 }
                 Result.failure(Exception(msg))
             }
@@ -464,6 +755,9 @@ class FastifyRestClient(
                             childName = obj.optString("childName", "Child"),
                             deviceName = obj.optString("deviceName", "Device"),
                             model = if (obj.has("model") && !obj.isNull("model")) obj.getString("model") else null,
+                            setupStep = obj.optInt("setupStep", 4),
+                            nickname = obj.optString("nickname").takeIf { it.isNotBlank() && it != "null" },
+                            childAvatarId = obj.optInt("childAvatarId", 1),
                             osVersion = if (obj.has("osVersion") && !obj.isNull("osVersion")) obj.getString("osVersion") else null,
                             batteryPct = obj.optInt("batteryPct", 100),
                             isLocked = obj.optBoolean("isLocked", false),
@@ -1858,15 +2152,15 @@ class FastifyRestClient(
         throw lastException ?: Exception("Network connection failed")
     }
 
-    private fun executeGet(path: String, bearerToken: String?): HttpResponse =
+    private fun executeGet(path: String, bearerToken: String? = null): HttpResponse =
         executeRequest("GET", path, null, bearerToken)
 
-    private fun executePost(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+    private fun executePost(path: String, jsonBody: String, bearerToken: String? = null): HttpResponse =
         executeRequest("POST", path, jsonBody, bearerToken)
 
-    private fun executePut(path: String, jsonBody: String, bearerToken: String?): HttpResponse =
+    private fun executePut(path: String, jsonBody: String, bearerToken: String? = null): HttpResponse =
         executeRequest("PUT", path, jsonBody, bearerToken)
 
-    private fun executeDelete(path: String, bearerToken: String?): HttpResponse =
+    private fun executeDelete(path: String, bearerToken: String? = null): HttpResponse =
         executeRequest("DELETE", path, null, bearerToken)
 }

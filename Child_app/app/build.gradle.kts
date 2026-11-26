@@ -1,7 +1,20 @@
+import java.net.URI
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+}
+
+val configuredGuardianApiOrigin = providers.gradleProperty("GUARDIAN_API_BASE_URL")
+    .orElse(providers.environmentVariable("GUARDIAN_API_BASE_URL")).orNull?.trimEnd('/').orEmpty()
+val guardianApiOrigin = configuredGuardianApiOrigin
+if (guardianApiOrigin.isNotEmpty()) {
+  val origin = URI(guardianApiOrigin)
+  require(origin.scheme == "https" && !origin.host.isNullOrBlank() && origin.userInfo == null &&
+      origin.path.isNullOrEmpty() && origin.query == null && origin.fragment == null) {
+    "GUARDIAN_API_BASE_URL must be an HTTPS origin."
+  }
 }
 
 android {
@@ -20,23 +33,29 @@ android {
 
   buildTypes {
     release {
+      buildConfigField("String", "API_ORIGIN", "\"$guardianApiOrigin\"")
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     debug {
+      buildConfigField("String", "API_ORIGIN", "\"${guardianApiOrigin.ifEmpty { "http://127.0.0.1:3000" }}\"")
       applicationIdSuffix = ".debug"
       isDebuggable = true
     }
   }
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+  }
+
+  testOptions {
+    unitTests.isReturnDefaultValues = true
   }
 
   buildFeatures {
     compose = true
-    buildConfig = false
+    buildConfig = true
   }
 
   packaging {
@@ -60,4 +79,34 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.material.icons.extended)
+
+  // CameraX
+  val cameraVersion = "1.4.1"
+  implementation("androidx.camera:camera-core:$cameraVersion")
+  implementation("androidx.camera:camera-camera2:$cameraVersion")
+  implementation("androidx.camera:camera-lifecycle:$cameraVersion")
+  implementation("androidx.camera:camera-view:$cameraVersion")
+
+  // ML Kit Barcode Scanning
+  implementation("com.google.mlkit:barcode-scanning:17.3.0")
+  implementation("com.google.guava:guava:33.3.1-android")
+
+  // ZXing QR Generation
+  implementation("com.google.zxing:core:3.5.3")
+
+  // Encrypted Storage & Security Crypto
+  implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+  // WorkManager for Reliable Background Retry
+  implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+  // Kotlinx Serialization & Coroutines
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
+  // Test Dependencies
+  testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation("org.json:json:20240303")
+  testImplementation("androidx.work:work-testing:2.10.0")
 }
