@@ -131,6 +131,8 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                             PairAckRetryManager.retryPendingAckIfNeeded(context, storage)
                             onCredentialsStored()
                             return@LaunchedEffect
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (_: Exception) {
                             error = "Could not safely save the device session. Retrying…"
                         }

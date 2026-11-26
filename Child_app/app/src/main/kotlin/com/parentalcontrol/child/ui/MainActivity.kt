@@ -129,7 +129,14 @@ class MainActivity : ComponentActivity() {
                         onNavigateBack = { step = 1 },
                         onCredentialsStored = {
                             ackTransientMessage = null
-                            pendingAck = true
+                            val stillPending = storage.getPendingPairAck() != null
+                            val isNowPaired = storage.isPaired()
+                            pendingAck = stillPending
+                            paired = isNowPaired
+                            setupStage = storage.setupStage
+                            if (!stillPending && !isNowPaired && storage.getSession().status == PairingStatus.PAIRING_REQUIRES_REPAIR) {
+                                repairMessage = "Your pairing session expired or was rejected. Please pair again."
+                            }
                         }
                     )
                     step == 1 -> {

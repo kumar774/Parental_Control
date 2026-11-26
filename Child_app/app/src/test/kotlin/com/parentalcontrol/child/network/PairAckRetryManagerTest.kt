@@ -358,6 +358,82 @@ class PairAckRetryManagerTest {
         assertNull(storage.getPendingUnpair())
     }
 
+    @Test
+    fun testForegroundAckAlreadyAcknowledgedClearsPendingAndPreservesPairing() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = validDeviceId,
+            deviceToken = "tok-already",
+            parentId = validParentId,
+            childName = "Child",
+            sessionId = "sess-already",
+            pollingToken = "poll-already",
+            refreshToken = "ref-already"
+        )
+        assertNotNull(storage.getPendingPairAck())
+
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.AlreadyAcknowledged
+        }
+        assertEquals(AckRetryResult.Confirmed, result)
+        assertNull(storage.getPendingPairAck())
+        assertTrue(storage.isPaired())
+    }
+
+    @Test
+    fun testForegroundAckProcessRestartBeforeAckRestoresAndConfirms() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = validDeviceId,
+            deviceToken = "tok-restart",
+            parentId = validParentId,
+            childName = "Child",
+            sessionId = "sess-restart",
+            pollingToken = "poll-restart",
+            refreshToken = "ref-restart"
+        )
+        // Simulate process restart by instantiating a new DeviceStorage over the same persisted preferences
+        val restartedStorage = DeviceStorage.createForTesting(mockPrefs)
+        assertNotNull(restartedStorage.getPendingPairAck())
+        assertTrue(restartedStorage.isPaired())
+
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(restartedStorage) { sid, tok ->
+            assertEquals("sess-restart", sid)
+            assertEquals("poll-restart", tok)
+            AckOutcome.Success
+        }
+        assertEquals(AckRetryResult.Confirmed, result)
+        assertNull(restartedStorage.getPendingPairAck())
+        assertTrue(restartedStorage.isPaired())
+    }
+
+    @Test
+    fun testNoFalseSuccessWhileAcknowledgmentIsPending() = runBlocking {
+        storage.savePairingSessionWithPendingAck(
+            deviceId = validDeviceId,
+            deviceToken = "tok-pending",
+            parentId = validParentId,
+            childName = "Child",
+            sessionId = "sess-pending",
+            pollingToken = "poll-pending",
+            refreshToken = "ref-pending"
+        )
+        // Transient network failure leaves pending ACK in storage; success screen gate must remain false
+        val result = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.TransientFailure(null, "Offline")
+        }
+        assertTrue(result is AckRetryResult.TransientPending)
+        assertNotNull(storage.getPendingPairAck())
+        assertTrue(storage.isPaired())
+        val canShowSuccess = storage.isPaired() && storage.getPendingPairAck() == null
+        assertFalse("Must NOT show success screen while ACK is still pending", canShowSuccess)
+
+        // Once ACK succeeds, pending ACK is cleared and success screen gate becomes true
+        val confirmed = PairAckRetryManager.retryPendingAckIfNeeded(storage) { _, _ ->
+            AckOutcome.Success
+        }
+        assertEquals(AckRetryResult.Confirmed, confirmed)
+        assertTrue(storage.isPaired() && storage.getPendingPairAck() == null)
+    }
+
     private class MockSharedPreferences : android.content.SharedPreferences {
         private val data = ConcurrentHashMap<String, Any>()
 

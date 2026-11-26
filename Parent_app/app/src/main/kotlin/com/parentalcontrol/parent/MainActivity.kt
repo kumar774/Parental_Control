@@ -159,7 +159,6 @@ import com.parentalcontrol.parent.ui.onboarding.ChildUninstallGuideScreen
 import com.parentalcontrol.parent.ui.pairing.ChooseDeviceTypeScreen
 import com.parentalcontrol.parent.ui.pairing.ParentConsentScreen
 import com.parentalcontrol.parent.ui.pairing.PairingSuccessScreen
-import com.parentalcontrol.parent.ui.pairing.QrScannerScreen
 import com.parentalcontrol.parent.ui.settings.AdbUsbActivationGuideScreen
 import com.parentalcontrol.parent.ui.settings.AppOtaUpdateScreen
 import com.parentalcontrol.parent.ui.settings.NativeLegalScreen
