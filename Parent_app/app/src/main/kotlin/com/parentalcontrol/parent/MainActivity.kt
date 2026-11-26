@@ -80,6 +80,8 @@ import com.parentalcontrol.core.designsystem.theme.Space32
 import com.parentalcontrol.core.designsystem.theme.Space8
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
+import com.parentalcontrol.parent.ui.auth.AuthViewModelFactory
+import com.parentalcontrol.parent.ui.auth.EmailSignInContinuation
 import com.parentalcontrol.parent.ui.auth.ForgotPasswordScreen
 import com.parentalcontrol.parent.ui.auth.GoogleProfileCompletionDialog
 import com.parentalcontrol.parent.ui.auth.LoginScreen
@@ -308,6 +310,8 @@ fun ParentAppMainContent(
     var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
     var setupDeviceId by rememberSaveable { mutableStateOf("") }
     var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(true) }
+    val emailContinuation = remember { EmailSignInContinuation() }
+    var firstChildSetup by rememberSaveable { mutableStateOf(false) }
     var resumeParentSetupAfterSignIn by rememberSaveable { mutableStateOf(false) }
 
     // Persistent Screen Backstack History
@@ -363,6 +367,7 @@ fun ParentAppMainContent(
             emailVerificationOrigin = emailVerificationOrigin,
             screenBackstack = screenBackstack
         ).apply {
+            isFirstChildSetup = { firstChildSetup }
             onNavigationChanged = { screen, route ->
                 currentScreen = screen
                 currentNavRoute = route
@@ -445,7 +450,9 @@ fun ParentAppMainContent(
     }
 
     fun performLogout(message: String = "Logged out successfully", resumeParentSetup: Boolean = false) {
+        emailContinuation.clear()
         resumeParentSetupAfterSignIn = resumeParentSetup
+        firstChildSetup = false
         isSessionAuthenticated = false
         navManager.hasAuthenticatedSession = false
         sessionRestorationManager.markSessionInvalidated()
@@ -837,6 +844,7 @@ fun ParentAppMainContent(
 
                 AppScreen.LOGIN -> {
                     LoginScreen(
+                        viewModel = remember { AuthViewModelFactory.create(emailContinuation = emailContinuation) },
                         appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
                         onLoginSuccess = {
                             toastMessage = "Welcome back!"
@@ -951,7 +959,9 @@ fun ParentAppMainContent(
 
                 AppScreen.REGISTER -> {
                     RegisterScreen(
+                        viewModel = remember { AuthViewModelFactory.create(emailContinuation = emailContinuation) },
                         appSettings = remoteAppSettings, onReloadSettings = { settingsAttempt++ },
+                        onAuthenticated = { navigateToAuthenticatedRoot() },
                         onRegisterSuccess = {
                             emailVerificationOrigin = AppScreen.REGISTER
                             navManager.emailVerificationOrigin = AppScreen.REGISTER
@@ -1030,10 +1040,7 @@ fun ParentAppMainContent(
                         LaunchedEffect(Unit) { requireSignInForParentSetup() }
                     } else {
                         DevicePairingScreen(
-                            onNavigateBack = {
-                                allowAutoResumeOnboarding = false
-                                currentScreen = AppScreen.MAIN_SHELL
-                            },
+                            onNavigateBack = { navigateBack() },
                             onPairingSuccess = { id, model ->
                                 setupDeviceId = id
                                 lastPairedDeviceName = model
@@ -1565,7 +1572,7 @@ fun ParentAppMainContent(
                     ChooseDeviceTypeScreen(
                         onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null,
                         onSelectParentDevice = {
-                            if (isSessionAuthenticated) currentScreen = AppScreen.PARENT_CONSENT
+                            if (isSessionAuthenticated) navManager.navigateTo(AppScreen.PARENT_CONSENT)
                             else requireSignInForParentSetup()
                         }
                     )
@@ -1576,8 +1583,8 @@ fun ParentAppMainContent(
                         LaunchedEffect(Unit) { requireSignInForParentSetup() }
                     } else {
                         ParentConsentScreen(
-                            onNavigateBack = { currentScreen = AppScreen.CHOOSE_DEVICE_TYPE },
-                            onConsentAccepted = { currentScreen = AppScreen.DEVICE_PAIRING },
+                            onNavigateBack = { navigateBack() },
+                            onConsentAccepted = { navManager.navigateTo(AppScreen.DEVICE_PAIRING) },
                             onOpenTerms = {
                                 selectedLegalDocType = "terms"
                                 legalScreenReturnTarget = AppScreen.PARENT_CONSENT
@@ -1606,22 +1613,30 @@ fun ParentAppMainContent(
 
                 AppScreen.PARENT_EMAIL_VERIFICATION -> {
                     ParentEmailVerificationScreen(
+                        viewModel = remember { AuthViewModelFactory.create(emailContinuation = emailContinuation) },
                         email = mmkv.userEmail ?: "your registered email",
                         onNavigateBack = {
-                            if (!navManager.navigateBack(hasValidAuthSession = isSessionAuthenticated)) {
-                                val target = if (emailVerificationOrigin == AppScreen.REGISTER) AppScreen.REGISTER else AppScreen.LOGIN
-                                navigateToUnauthenticatedRoot(target)
-                            }
+                            emailContinuation.clear()
+                            resumeParentSetupAfterSignIn = false
+                            performLogout("Verification cancelled")
                         },
                         onSkipClick = {
-                            currentScreen = AppScreen.CHOOSE_DEVICE_TYPE
+                            emailContinuation.clear()
+                            resumeParentSetupAfterSignIn = false
+                            isSessionAuthenticated = true
+                            navManager.hasAuthenticatedSession = true
+                            sessionRestorationManager.markSessionVerified()
+                            navManager.navigateTo(AppScreen.CHOOSE_DEVICE_TYPE)
                         },
-                        onVerificationSuccess = {
-                            toastMessage = "Email verified successfully! Please log in to continue."
-                            toastType = ToastType.SUCCESS
-                            if (mmkv.accessToken.isNullOrBlank()) {
+                        onVerificationSuccess = { signedIn ->
+                            if (!signedIn) {
+                                toastMessage = "Email verified. Sign in to continue."
+                                toastType = ToastType.INFO
                                 navigateToUnauthenticatedRoot(AppScreen.LOGIN)
                             } else {
+                                toastMessage = "Email verified successfully."
+                                toastType = ToastType.SUCCESS
+                                resumeParentSetupAfterSignIn = false
                                 navigateToAuthenticatedRoot()
                             }
                         }
@@ -1804,7 +1819,8 @@ fun ParentAppMainContent(
                             onTerms = { selectedLegalDocType = "terms"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
                             onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
                             allowAutoResumeOnboarding = allowAutoResumeOnboarding,
-                            onAutoResumeConsumed = { allowAutoResumeOnboarding = false }
+                            onAutoResumeConsumed = { allowAutoResumeOnboarding = false },
+                            onHasConnectedChild = { firstChildSetup = !it }
                         )
                     }
                 }

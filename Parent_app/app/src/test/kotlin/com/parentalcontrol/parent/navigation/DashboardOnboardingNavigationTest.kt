@@ -225,4 +225,14 @@ class DashboardOnboardingNavigationTest {
         )
         assertEquals(DashboardRouteDecision.OpenDeviceTypeSelection, noConsentDecision)
     }
+    @Test
+    fun pendingEnrollmentAndConsumedResumeDoNotOpenDashboardWithoutAChild() {
+        val decision = resolveDashboardState(
+            devices = emptyList(),
+            enrollment = pendingOnboarding,
+            selectedDeviceId = null,
+            allowAutoResumeOnboarding = false
+        )
+        assertEquals(DashboardRouteDecision.OpenDeviceTypeSelection, decision)
+    }
 }

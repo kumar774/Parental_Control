@@ -930,7 +930,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201);
 
-    // 2. Attempt login BEFORE verifying email -> must reject with HTTP 403
+    // 2. Attempt login BEFORE verifying email -> succeeds with requiresEmailVerification: true (matching FlashGet Kids)
     const loginRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -939,9 +939,9 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
         password: validPassword,
       },
     });
-    assert.equal(loginRes.statusCode, 403);
-    assert.equal(loginRes.json().error, 'Forbidden');
-    assert.equal(loginRes.json().message, 'Email not verified. Please verify your email before logging in.');
+    assert.equal(loginRes.statusCode, 200);
+    assert.equal(loginRes.json().requiresEmailVerification, true);
+    assert.ok(loginRes.json().accessToken);
 
     // 3. Verify email
     await db
@@ -1308,8 +1308,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     assert.equal(freshToken.status, 'pending');
     assert.equal(freshToken.isUsed, false);
 
-    // 3. CRITICAL REGRESSION CHECK: Attempt login WITHOUT verifying the new OTP
-    // Even though the old token is is_used = true, the account must NOT be verified!
+    // 3. Attempt login WITHOUT verifying the new OTP -> returns requiresEmailVerification: true
     const unverifiedLoginRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
@@ -1318,8 +1317,8 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
         password: validPassword,
       },
     });
-    assert.equal(unverifiedLoginRes.statusCode, 403, 'Unverified parent account MUST be denied login (HTTP 403)');
-    assert.match(unverifiedLoginRes.json().message, /Email not verified/i);
+    assert.equal(unverifiedLoginRes.statusCode, 200);
+    assert.equal(unverifiedLoginRes.json().requiresEmailVerification, true);
 
     // 4. Submit fresh OTP to POST /verify-email
     const verifyRes = await readyApp!.inject({

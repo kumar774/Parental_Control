@@ -96,6 +96,7 @@ private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
+    onAuthenticated: () -> Unit = onRegisterSuccess,
     onLoginClick: () -> Unit,
     onTermsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {},
@@ -114,8 +115,8 @@ fun RegisterScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var nickname by rememberSaveable { mutableStateOf("") }
 
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
@@ -126,7 +127,10 @@ fun RegisterScreen(
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
-                is AuthUiEffect.NavigateToDashboard,
+                is AuthUiEffect.NavigateToDashboard -> {
+                    showEmailSheet = false
+                    onAuthenticated()
+                }
                 is AuthUiEffect.NavigateToEmailVerification -> {
                     showEmailSheet = false
                     onRegisterSuccess()

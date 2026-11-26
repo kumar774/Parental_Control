@@ -47,16 +47,6 @@ export async function requireParentAuth(request: FastifyRequest, reply: FastifyR
     });
   }
 
-  // Explicit registration-token unverified flag check
-  if (decoded.emailVerified === false) {
-    return reply.status(403).send({
-      statusCode: 403,
-      code: 'EMAIL_NOT_VERIFIED',
-      error: 'Forbidden',
-      message: 'Email not verified. Please verify your email before accessing this resource.',
-    });
-  }
-
   const [user] = await db
     .select()
     .from(parentUsers)
@@ -78,17 +68,6 @@ export async function requireParentAuth(request: FastifyRequest, reply: FastifyR
       code: 'ACCOUNT_SUSPENDED',
       error: 'Forbidden',
       message: 'Account suspended. Please contact support.',
-    });
-  }
-
-  // Zero-trust email verification enforcement
-  const isVerified = await isParentEmailVerified(user.id);
-  if (!isVerified) {
-    return reply.status(403).send({
-      statusCode: 403,
-      code: 'EMAIL_NOT_VERIFIED',
-      error: 'Forbidden',
-      message: 'Email not verified. Please verify your email before accessing this resource.',
     });
   }
 

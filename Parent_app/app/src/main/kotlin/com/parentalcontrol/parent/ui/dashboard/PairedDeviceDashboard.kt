@@ -47,7 +47,6 @@ import kotlinx.coroutines.launch
 
 internal sealed class DashboardRouteDecision {
     data object OpenDeviceTypeSelection : DashboardRouteDecision()
-    data object OpenPairing : DashboardRouteDecision()
     data class OpenDeviceSetup(val device: DeviceDto) : DashboardRouteDecision()
     data class ShowDashboard(
         val devices: List<DeviceDto>,
@@ -72,22 +71,7 @@ internal fun resolveDashboardState(
     val unfinishedSetupDevice = devices.firstOrNull { it.setupStep in 2..3 }
     val pendingEnrollment = enrollment.takeIf { it.pendingSessionId != null }
 
-    if (devices.isEmpty()) {
-        return if (allowAutoResumeOnboarding) {
-            if (!enrollment.consentAccepted) {
-                DashboardRouteDecision.OpenDeviceTypeSelection
-            } else {
-                DashboardRouteDecision.OpenPairing
-            }
-        } else {
-            DashboardRouteDecision.ShowDashboard(
-                devices = emptyList(),
-                selectedDeviceId = null,
-                pendingEnrollment = pendingEnrollment,
-                pendingSetupDevice = null
-            )
-        }
-    }
+    if (devices.isEmpty()) return DashboardRouteDecision.OpenDeviceTypeSelection
 
     if (completedDevices.isEmpty() && unfinishedSetupDevice != null) {
         return if (allowAutoResumeOnboarding) {
@@ -267,6 +251,7 @@ fun PairedDeviceDashboard(
     onPrivacy: () -> Unit,
     allowAutoResumeOnboarding: Boolean = true,
     onAutoResumeConsumed: () -> Unit = {},
+    onHasConnectedChild: (Boolean) -> Unit = {},
     onCancelPending: suspend (String) -> Result<Unit> = { FastifyRestClient.shared.cancelPairing(it) }
 ) {
     val context = LocalContext.current
@@ -293,15 +278,12 @@ fun PairedDeviceDashboard(
             val client = FastifyRestClient.shared
             val enrollment = client.getOnboarding().getOrThrow()
             val list = client.getDevices().getOrThrow()
+            onHasConnectedChild(list.isNotEmpty())
             consent = enrollment.consentAccepted
             when (val decision = resolveDashboardState(list, enrollment, selected, allowAutoResumeOnboarding)) {
                 DashboardRouteDecision.OpenDeviceTypeSelection -> {
                     onAutoResumeConsumed()
                     onSelectType()
-                }
-                DashboardRouteDecision.OpenPairing -> {
-                    onAutoResumeConsumed()
-                    onPair()
                 }
                 is DashboardRouteDecision.OpenDeviceSetup -> {
                     onAutoResumeConsumed()
@@ -321,6 +303,24 @@ fun PairedDeviceDashboard(
             error = e.message
         }
         loading = false
+    }
+
+    // The server's device list excludes connections that have not been acknowledged.
+    // Until an eligible device is loaded, keep the dashboard (including tabs) out of the UI.
+    if (devices.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (error == null) {
+                CircularProgressIndicator(color = ParentPurple)
+            } else {
+                Text("Could not load your connected devices.", color = ParentTextDark)
+                TextButton({ attempt++ }) { Text("Retry", color = ParentPurple) }
+            }
+        }
+        return
     }
 
     val device = devices.firstOrNull { it.id == selected }

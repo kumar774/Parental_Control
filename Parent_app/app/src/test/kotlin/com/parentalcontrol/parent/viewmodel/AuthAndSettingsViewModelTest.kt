@@ -8,6 +8,8 @@ import com.parentalcontrol.core.model.usecase.ManageSubscriptionUseCase
 import com.parentalcontrol.core.model.usecase.VerifyEmailOtpUseCase
 import com.parentalcontrol.parent.fakes.FakeAuthAndSettingsRepository
 import com.parentalcontrol.parent.fakes.FakeChildDeviceRepository
+import com.parentalcontrol.core.network.rest.UnverifiedEmailException
+import com.parentalcontrol.parent.ui.auth.AuthUiEffect
 import com.parentalcontrol.parent.ui.auth.AuthUiIntent
 import com.parentalcontrol.parent.ui.auth.AuthViewModel
 import com.parentalcontrol.parent.ui.settings.SettingsUiIntent
@@ -201,6 +203,43 @@ class AuthAndSettingsViewModelTest {
 
         assertNull(authViewModel.uiState.value.errorMessage)
         assertFalse(authViewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun verifiedOtpAutomaticallySignsInTheSamePendingAccount() = runTest(testDispatcher) {
+        val email = "parent@test.com"
+        val effects = mutableListOf<AuthUiEffect>()
+        val job = launch { authViewModel.uiEffect.collect { effects.add(it) } }
+        authAndSettingsRepo.loginResult = Result.failure(UnverifiedEmailException(403, "Email not verified"))
+        authViewModel.handleIntent(AuthUiIntent.Login(email, "password123"))
+        advanceUntilIdle()
+
+        authAndSettingsRepo.loginResult = null
+        authViewModel.handleIntent(AuthUiIntent.VerifyOtp(email, "123456"))
+        advanceUntilIdle()
+
+        assertTrue(effects.contains(AuthUiEffect.NavigateToDashboard))
+        assertFalse(effects.contains(AuthUiEffect.NavigateToLogin))
+        assertNotNull(authViewModel.uiState.value.currentAccount)
+        job.cancel()
+    }
+
+    @Test
+    fun otpForAnotherAccountDoesNotUsePendingCredentials() = runTest(testDispatcher) {
+        val effects = mutableListOf<AuthUiEffect>()
+        val job = launch { authViewModel.uiEffect.collect { effects.add(it) } }
+        authAndSettingsRepo.loginResult = Result.failure(UnverifiedEmailException(403, "Email not verified"))
+        authViewModel.handleIntent(AuthUiIntent.Login("first@test.com", "password123"))
+        advanceUntilIdle()
+
+        authAndSettingsRepo.loginResult = null
+        authViewModel.handleIntent(AuthUiIntent.VerifyOtp("other@test.com", "123456"))
+        advanceUntilIdle()
+
+        assertTrue(effects.contains(AuthUiEffect.NavigateToLogin))
+        assertFalse(effects.contains(AuthUiEffect.NavigateToDashboard))
+        assertNull(authViewModel.uiState.value.currentAccount)
+        job.cancel()
     }
 
     @Test

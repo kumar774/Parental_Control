@@ -17,7 +17,8 @@ data class ParentAccount(
     val maxDevicesQuota: Int = 1,
     val boundDevicesCount: Int = 1,
     val isBiometricsRequired: Boolean = true,
-    val isEmailDeliveryFailed: Boolean = false
+    val isEmailDeliveryFailed: Boolean = false,
+    val requiresEmailVerification: Boolean = true
 )
 
 data class SubscriptionPlan(

@@ -90,7 +90,7 @@ private const val OTP_LENGTH = 6
 fun ParentEmailVerificationScreen(
     email: String = "",
     onNavigateBack: () -> Unit,
-    onVerificationSuccess: () -> Unit,
+    onVerificationSuccess: (Boolean) -> Unit,
     onSkipClick: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
@@ -105,7 +105,7 @@ fun ParentEmailVerificationScreen(
     val displayEmail = if (email.isNotBlank()) email else "your registered email"
 
     // Replace BackHandler with dialog trigger
-    BackHandler { showCancelDialog = true }
+    BackHandler { if (!uiState.isLoading) showCancelDialog = true }
 
     LaunchedEffect(resendCooldown) {
         if (resendCooldown > 0) {
@@ -118,9 +118,8 @@ fun ParentEmailVerificationScreen(
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
-                is AuthUiEffect.NavigateToLogin,
-                is AuthUiEffect.NavigateToPairing,
-                is AuthUiEffect.NavigateToDashboard -> onVerificationSuccess()
+                AuthUiEffect.NavigateToLogin -> onVerificationSuccess(false)
+                AuthUiEffect.NavigateToDashboard -> onVerificationSuccess(true)
                 else -> {}
             }
         }
@@ -178,7 +177,7 @@ fun ParentEmailVerificationScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = { showCancelDialog = true }) {
+                    IconButton(onClick = { showCancelDialog = true }, enabled = !uiState.isLoading) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -344,7 +343,7 @@ fun ParentEmailVerificationScreen(
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onVerificationSuccess()
+                        onNavigateBack()
                     },
                     modifier = Modifier
                         .fillMaxWidth()

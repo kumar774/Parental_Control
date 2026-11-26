@@ -43,7 +43,7 @@ export function isDeliveryExpired(s: PairingSession, now = Date.now()): boolean 
 export async function authorizedParent(tx: Tx, parentId: string) {
   const [record] = await tx.select({email:parentUsers.email}).from(parentUsers)
     .innerJoin(parentConsents, consentFor(parentId))
-    .where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active'), eq(parentUsers.emailVerified, true))).limit(1);
+    .where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active'))).limit(1);
   if (!record) rejectEnrollment(403, 'Current guardian authorization required', 'GUARDIAN_AUTHORIZATION_REQUIRED');
   return record.email;
 }

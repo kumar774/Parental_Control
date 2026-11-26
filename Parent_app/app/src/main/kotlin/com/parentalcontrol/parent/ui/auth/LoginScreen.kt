@@ -117,7 +117,7 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 

@@ -21,6 +21,7 @@ class AppNavigationManager(
     var currentNavRoute: String = initialRoute
         private set
 
+    var isFirstChildSetup: () -> Boolean = { false }
     var isAnyModalOpen: () -> Boolean = { false }
     var dismissAllModals: () -> Unit = {}
 
@@ -188,12 +189,22 @@ class AppNavigationManager(
             return false
         }
 
-        // 4. Special handling for PARENT_EMAIL_VERIFICATION:
-        // Always respect the origin route (REGISTER vs LOGIN) to prevent unverified email users
-        // from being incorrectly routed to the registration screen.
         if (currentScreen == AppScreen.PARENT_EMAIL_VERIFICATION) {
-            val target = if (emailVerificationOrigin == AppScreen.REGISTER) AppScreen.REGISTER else AppScreen.LOGIN
-            navigateToUnauthenticatedRoot(target)
+            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
+            return true
+        }
+
+        if (currentScreen == AppScreen.CHOOSE_DEVICE_TYPE && isFirstChildSetup()) return false
+
+        if (currentScreen == AppScreen.PARENT_CONSENT) {
+            navigateTo(AppScreen.CHOOSE_DEVICE_TYPE)
+            return true
+        }
+
+        if (currentScreen in setOf(AppScreen.DEVICE_PAIRING, AppScreen.QR_SCANNER) &&
+            (AppScreen.PARENT_CONSENT in screenBackstack || isFirstChildSetup())
+        ) {
+            navigateTo(AppScreen.PARENT_CONSENT)
             return true
         }
 

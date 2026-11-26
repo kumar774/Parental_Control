@@ -242,8 +242,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
 
         if (!emailVerified) {
           // SMTP / Email verification is enabled:
-          // Strictly DO NOT issue access JWT.
-          // Strictly DO NOT persist refresh token in database for unverified accounts.
           // Generate 6-digit OTP token in parentVerificationTokens.
           const rawVerificationOtp = crypto.randomInt(100000, 999999).toString();
           const verificationHash = crypto.createHash('sha256').update(rawVerificationOtp).digest('hex');
@@ -259,6 +257,24 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
           });
 
+          // Issue access token and persist refresh token so parent can explore and pair immediately (matching FlashGet Kids):
+          const token = jwt.sign(
+            { userId: newUser.id, email: newUser.email, role: 'parent', emailVerified: false },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+          );
+          const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = hashRefreshToken(rawRefreshToken);
+
+          await tx.insert(parentRefreshTokens).values({
+            parentId: newUser.id,
+            tokenHash,
+            familyCardNo: derivedFamilyCard,
+            deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
+            ipAddress: request.ip,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          });
+
           return {
             user: {
               id: newUser.id,
@@ -269,9 +285,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
               isGuest: false,
               status: newUser.status,
             },
-            accessToken: null,
-            refreshToken: null,
-            expiresIn: null,
+            accessToken: token,
+            refreshToken: rawRefreshToken,
+            expiresIn: 900,
             requiresEmailVerification: true,
             verificationOtp: rawVerificationOtp,
           };
@@ -344,6 +360,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       if (result.requiresEmailVerification) {
         return reply.status(201).send({
           user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn,
           requiresEmailVerification: true,
           verificationEmailSent,
           message: verificationEmailSent
@@ -430,20 +449,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    // Zero-trust email verification enforcement:
-    // Reject unverified parent login with HTTP 403 Forbidden until email is verified.
     const isVerified = await isParentEmailVerified(user.id);
-    if (!isVerified) {
-      return reply.status(403).send({
-        statusCode: 403,
-        code: 'EMAIL_NOT_VERIFIED',
-        error: 'Forbidden',
-        message: 'Email not verified. Please verify your email before logging in.',
-      });
-    }
-
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: isVerified },
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
@@ -476,6 +484,7 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       accessToken: token,
       refreshToken: rawRefreshToken,
       expiresIn: 900,
+      requiresEmailVerification: !isVerified,
     });
   });
 
@@ -993,17 +1002,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         };
       }
 
-      // 2b. Zero-trust email verification check: reject refresh if email is not verified
-      const isVerified = await isParentEmailVerified(user.id);
-      if (!isVerified) {
-        return {
-          ok: false,
-          status: 403,
-          code: 'EMAIL_NOT_VERIFIED',
-          error: 'Forbidden',
-          message: 'Email not verified. Please verify your email before refreshing session.',
-        };
-      }
 
       // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
       if (record.isRevoked) {
