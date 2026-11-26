@@ -146,10 +146,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0012_mutual_enrollment.sql
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0013_enrollment_lifecycle_and_concurrency.sql
 
-      - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
+      - name: Post-Migration Grant Test Admin Privileges (Superuser Step)
         working-directory: backend
         run: |
-          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "REVOKE parental_audit_pruner FROM parental_migrator;"
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO auth001_test_admin; GRANT ALL ON SCHEMA public TO auth001_test_admin;"
 
       - name: Run Cryptographic Unit & Mock Tests
