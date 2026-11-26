@@ -3,6 +3,9 @@ package com.parentalcontrol.parent.ui.auth
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,21 +19,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,19 +49,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.parentalcontrol.core.designsystem.theme.AccentCyan
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
 import com.parentalcontrol.core.designsystem.theme.RadiusLarge
-import com.parentalcontrol.core.designsystem.theme.RadiusMedium
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space24
@@ -68,24 +77,29 @@ import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
 import com.parentalcontrol.parent.R
 
+private const val OTP_LENGTH = 6
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParentEmailVerificationScreen(
     email: String = "",
     onNavigateBack: () -> Unit,
     onVerificationSuccess: () -> Unit,
+    onSkipClick: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val uiState by viewModel.uiState.collectAsState()
 
-    BackHandler(onBack = onNavigateBack)
-
     var otpCode by remember { mutableStateOf("") }
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
-    var resendCooldown by remember { mutableStateOf(0) }
+    var resendCooldown by remember { mutableStateOf(60) }
+    var showCancelDialog by remember { mutableStateOf(false) }
     val displayEmail = if (email.isNotBlank()) email else "your registered email"
+
+    // Replace BackHandler with dialog trigger
+    BackHandler { showCancelDialog = true }
 
     LaunchedEffect(resendCooldown) {
         if (resendCooldown > 0) {
@@ -108,6 +122,51 @@ fun ParentEmailVerificationScreen(
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
+    // Cancel Verification Confirmation Dialog
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = {
+                Text(
+                    text = "Cancel verification",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "You will not be able to sign in with this account if you cancel the verification.",
+                    fontSize = 14.sp,
+                    color = TextSecondary,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        onNavigateBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentIndigo,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Yes", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("No", color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = BgCanvas,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,11 +179,21 @@ fun ParentEmailVerificationScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { showCancelDialog = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = null,
                             tint = TextPrimary
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onSkipClick) {
+                        Text(
+                            text = "Skip",
+                            color = TextSecondary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 },
@@ -142,6 +211,7 @@ fun ParentEmailVerificationScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Email icon
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -235,7 +305,7 @@ fun ParentEmailVerificationScreen(
                 Spacer(modifier = Modifier.height(Space16))
             }
 
-            // Honest Guidance Notice if server lacks email infrastructure
+            // Email service unavailable notice
             if (uiState.isEmailServiceUnavailable) {
                 Box(
                     modifier = Modifier
@@ -298,49 +368,107 @@ fun ParentEmailVerificationScreen(
                     )
                 }
             } else {
-                OutlinedTextField(
+                // ── 6-Digit Box OTP Input ──
+                val focusRequester = remember { FocusRequester() }
+
+                // Hidden BasicTextField that captures input
+                BasicTextField(
                     value = otpCode,
-                    onValueChange = {
-                        if (it.length <= 6 && it.all { c -> c.isDigit() }) {
-                            otpCode = it
-                            if (localErrorMessage != null) localErrorMessage = null
-                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                        }
+                    onValueChange = { newValue ->
+                        val filtered = newValue.filter { it.isDigit() }.take(OTP_LENGTH)
+                        otpCode = filtered
+                        if (localErrorMessage != null) localErrorMessage = null
+                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
-                    placeholder = {
-                        Text(
-                            text = "123456",
-                            color = TextMuted,
-                            fontSize = 20.sp,
-                            letterSpacing = 8.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    },
-                    singleLine = true,
                     enabled = !uiState.isLoading,
-                    modifier = Modifier.fillMaxWidth(0.7f),
-                    shape = RadiusMedium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    cursorBrush = SolidColor(AccentIndigo),
+                    textStyle = TextStyle(color = Color.Transparent, fontSize = 1.sp),
+                    modifier = Modifier
+                        .size(1.dp)
+                        .focusRequester(focusRequester)
+                        .focusable(),
+                    decorationBox = { }
                 )
+
+                // 6 visible digit boxes
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusRequester.requestFocus()
+                        }
+                ) {
+                    repeat(OTP_LENGTH) { index ->
+                        val char = otpCode.getOrNull(index)
+                        val isFocused = index == otpCode.length && !uiState.isLoading
+                        val isFilled = char != null
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .background(
+                                    color = if (isFocused) AccentIndigo.copy(alpha = 0.08f)
+                                    else Color(0xFF1E293B).copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    width = if (isFocused || isFilled) 2.dp else 1.dp,
+                                    color = when {
+                                        isFocused -> AccentIndigo
+                                        isFilled -> AccentCyan.copy(alpha = 0.7f)
+                                        else -> Color(0xFF334155)
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (char != null) {
+                                Text(
+                                    text = char.toString(),
+                                    color = TextPrimary,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            } else if (isFocused) {
+                                // Blinking cursor indicator
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .height(24.dp)
+                                        .background(AccentIndigo, RoundedCornerShape(1.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Auto-request focus so keyboard pops up
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
 
                 Spacer(modifier = Modifier.height(Space24))
 
+                // "Verify and sign in" primary button
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (otpCode.trim().length != 6) {
+                        if (otpCode.trim().length != OTP_LENGTH) {
                             localErrorMessage = "Please enter the 6-digit verification code"
                             return@Button
                         }
                         localErrorMessage = null
                         viewModel.handleIntent(AuthUiIntent.VerifyOtp(displayEmail, otpCode.trim()))
                     },
-                    enabled = otpCode.length == 6 && !uiState.isLoading,
+                    enabled = otpCode.length == OTP_LENGTH && !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -366,7 +494,7 @@ fun ParentEmailVerificationScreen(
                         )
                         Spacer(modifier = Modifier.width(Space8))
                         Text(
-                            text = stringResource(R.string.action_verify_email),
+                            text = "Verify and sign in",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
@@ -412,6 +540,19 @@ fun ParentEmailVerificationScreen(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(Space12))
+
+                // Help link
+                Text(
+                    text = "Didn't receive the verification code, how to solve it?",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    textDecoration = TextDecoration.Underline,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                )
             }
         }
     }

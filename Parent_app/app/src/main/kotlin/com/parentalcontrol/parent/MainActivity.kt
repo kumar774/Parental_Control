@@ -1604,6 +1604,9 @@ fun ParentAppMainContent(
                                 navigateToUnauthenticatedRoot(target)
                             }
                         },
+                        onSkipClick = {
+                            currentScreen = AppScreen.CHOOSE_DEVICE_TYPE
+                        },
                         onVerificationSuccess = {
                             toastMessage = "Email verified successfully! Please log in to continue."
                             toastType = ToastType.SUCCESS
