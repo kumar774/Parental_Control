@@ -4,7 +4,6 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index';
 import { parentUsers, ParentUser } from '../db/schema/parental-control';
 import { env } from '../config/env';
-import { isParentEmailVerified } from '../routes/parent/email-status';
 
 export interface ParentJwtPayload {
   userId: string;
