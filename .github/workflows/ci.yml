@@ -1,1 +1,258 @@
-# Test check
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend:
+    name: Backend CI (Typecheck & Multi-Engine Tests)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci_test_user
+          POSTGRES_DB: auth001_ci_disposable_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_test_user -d auth001_ci_disposable_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Credential Hygiene (Static Password Literal Scan)
+        run: node backend/scripts/check-credential-hygiene.mjs
+
+      - name: Generate Ephemeral Runtime Database Credentials
+        run: |
+          # Generate cryptographically secure random passwords from OS random source (192-bit entropy)
+          MIGRATOR_PASS=$(openssl rand -hex 24)
+          ADMIN_PASS=$(openssl rand -hex 24)
+          ARCHIVE_PASS=$(openssl rand -hex 24)
+          ATTESTATION_PASS=$(openssl rand -hex 24)
+          TEST_ADMIN_PASS=$(openssl rand -hex 24)
+          TEST_RUN_ID=$(node -e "console.log(require('crypto').randomUUID())")
+
+          # Mask all generated credentials in runner logs
+          echo "::add-mask::$MIGRATOR_PASS"
+          echo "::add-mask::$ADMIN_PASS"
+          echo "::add-mask::$ARCHIVE_PASS"
+          echo "::add-mask::$ATTESTATION_PASS"
+          echo "::add-mask::$TEST_ADMIN_PASS"
+
+          # Export to GITHUB_ENV for use across subsequent job steps
+          echo "CI_MIGRATOR_PASS=$MIGRATOR_PASS" >> $GITHUB_ENV
+          echo "CI_ADMIN_PASS=$ADMIN_PASS" >> $GITHUB_ENV
+          echo "CI_ARCHIVE_PASS=$ARCHIVE_PASS" >> $GITHUB_ENV
+          echo "CI_ATTESTATION_PASS=$ATTESTATION_PASS" >> $GITHUB_ENV
+          echo "CI_TEST_ADMIN_PASS=$TEST_ADMIN_PASS" >> $GITHUB_ENV
+          echo "AUTH001_TEST_DATABASE_RUN_ID=$TEST_RUN_ID" >> $GITHUB_ENV
+
+          # Ephemeral loopback connection URL using container trust-authentication (no hardcoded password)
+          echo "DATABASE_URL=postgres://auth001_test_admin:$TEST_ADMIN_PASS@127.0.0.1:5432/auth001_ci_disposable_test" >> $GITHUB_ENV
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install PostgreSQL Client Tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Backend Typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Bootstrap Section 8.6 Roles (Superuser Step)
+        working-directory: backend
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -v migrator_password="$CI_MIGRATOR_PASS" \
+            -v admin_password="$CI_ADMIN_PASS" \
+            -v archive_password="$CI_ARCHIVE_PASS" \
+            -v attestation_password="$CI_ATTESTATION_PASS" \
+            -f drizzle/bootstrap_roles.sql
+
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -v test_admin_password="$CI_TEST_ADMIN_PASS" <<'SQL'
+          CREATE ROLE auth001_test_admin LOGIN CREATEDB CREATEROLE PASSWORD :'test_admin_password';
+          GRANT pg_monitor TO auth001_test_admin;
+          GRANT parental_audit_pruner TO auth001_test_admin WITH ADMIN OPTION;
+          GRANT parental_migrator TO auth001_test_admin WITH ADMIN OPTION;
+          -- The integration runner creates only its run-owned databases. It must not connect to protected maintenance/template DBs.
+          REVOKE CONNECT ON DATABASE postgres FROM PUBLIC, auth001_test_admin, parental_migrator, parental_admin, parental_audit_archive, parental_audit_attestation, parental_audit_pruner;
+          REVOKE CONNECT ON DATABASE template0 FROM PUBLIC, auth001_test_admin, parental_migrator, parental_admin, parental_audit_archive, parental_audit_attestation, parental_audit_pruner;
+          REVOKE CONNECT ON DATABASE template1 FROM PUBLIC, auth001_test_admin, parental_migrator, parental_admin, parental_audit_archive, parental_audit_attestation, parental_audit_pruner;
+          DO $guard$
+          BEGIN
+            IF has_database_privilege('auth001_test_admin', 'postgres', 'CONNECT')
+              OR has_database_privilege('auth001_test_admin', 'template0', 'CONNECT')
+              OR has_database_privilege('auth001_test_admin', 'template1', 'CONNECT') THEN
+              RAISE EXCEPTION 'Isolated PostgreSQL test role can connect to a protected database';
+            END IF;
+          END;
+          $guard$;
+          ALTER DATABASE auth001_ci_disposable_test OWNER TO auth001_test_admin;
+          SQL
+
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test \
+            -c "COMMENT ON DATABASE auth001_ci_disposable_test IS 'codex-test-run:$AUTH001_TEST_DATABASE_RUN_ID';"
+
+          SERVER_ID=$(psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U auth001_test_admin -d auth001_ci_disposable_test -Atc 'SELECT system_identifier::text FROM pg_control_system()')
+          echo "AUTH001_TEST_SERVER_ID=$SERVER_ID" >> $GITHUB_ENV
+
+      - name: Apply AUTH-001 Migrations as parental_migrator (Section 8.6)
+        working-directory: backend
+        env:
+          PGPASSWORD: ${{ env.CI_MIGRATOR_PASS }}
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0000_fast_yellow_claw.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0001_audit_prune_function.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0002_admin_dashboard_hybrid.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0003_admin_control_audit_severity.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0004_parental_admin_user_status_update.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0005_protected_superadmin.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0006_parent_full_name.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0007_parent_verification_tokens.sql
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U parental_migrator -d auth001_ci_disposable_test -f drizzle/0008_system_smtp_settings.sql
+
+      - name: Post-Migration Temporary Privilege Revocation (Superuser Step)
+        working-directory: backend
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "REVOKE parental_audit_pruner FROM parental_migrator;"
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U ci_test_user -d auth001_ci_disposable_test -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO auth001_test_admin; GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO auth001_test_admin; GRANT ALL ON SCHEMA public TO auth001_test_admin;"
+
+      - name: Run Cryptographic Unit & Mock Tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+        run: npm run test
+
+      - name: Run Genuine PostgreSQL Integration Test Suite (No pg-mem)
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          AUTH001_TEST_DATABASE_NAME: auth001_ci_disposable_test
+          AUTH001_TEST_DATABASE_PORT: "5432"
+          AUTH001_TEST_DATABASE_ROLE: auth001_test_admin
+          AUTH001_TEST_MIGRATOR_ROLE: parental_migrator
+          AUTH001_TEST_DATABASE_OWNER: auth001_test_admin
+          AUTH001_TEST_DATABASE_RUN_ID: ${{ env.AUTH001_TEST_DATABASE_RUN_ID }}
+          AUTH001_TEST_SERVER_ID: ${{ env.AUTH001_TEST_SERVER_ID }}
+          AUTH001_ADMIN_ROLE_PASSWORD: ${{ env.CI_ADMIN_PASS }}
+          AUTH001_ARCHIVE_ROLE_PASSWORD: ${{ env.CI_ARCHIVE_PASS }}
+          AUTH001_ATTESTATION_ROLE_PASSWORD: ${{ env.CI_ATTESTATION_PASS }}
+          SMTP_HOST: 127.0.0.1
+          SMTP_PORT: "1025"
+          SMTP_SECURE: "false"
+          SMTP_FROM: "noreply@parentalcontrol.local"
+          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          IDENTIFIER_RATE_LIMIT_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+        run: npm run test:real-pg
+
+  frontend:
+    name: Frontend CI (Typecheck, Tests & Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: Admin_panel/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: Admin_panel
+        run: |
+          npm ci
+          npm install -D tsx --no-save
+
+      - name: Install Playwright Browsers
+        working-directory: Admin_panel
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend Typecheck
+        working-directory: Admin_panel
+        run: npm run typecheck
+
+      - name: Frontend Unit & API Test Suite
+        working-directory: Admin_panel
+        run: npm test
+
+      - name: Playwright E2E Browser Test Suite
+        working-directory: Admin_panel
+        run: npm run test:e2e
+
+      - name: Frontend Production Build
+        working-directory: Admin_panel
+        run: npm run build
+
+  android:
+    name: Android CI (Parent & Child Unit Tests & Debug APK Builds)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for Parent gradlew
+        working-directory: Parent_app
+        run: chmod +x gradlew
+
+      - name: Run Parent Android Unit Tests
+        working-directory: Parent_app
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build Parent Android Debug APK
+        working-directory: Parent_app
+        run: ./gradlew assembleDebug
+
+      - name: Grant execute permission for Child gradlew
+        working-directory: Child_app
+        run: chmod +x gradlew
+
+      - name: Run Child Android Unit Tests
+        working-directory: Child_app
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build Child Android Debug APK
+        working-directory: Child_app
+        run: ./gradlew assembleDebug
