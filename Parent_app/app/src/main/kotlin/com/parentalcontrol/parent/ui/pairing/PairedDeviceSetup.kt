@@ -189,6 +189,7 @@ fun PairedDeviceSetup(deviceId: String, model: String, step: Int, onBack: () -> 
                 onValueChange = { if (it.length <= 64) nickname = it },
                 placeholder = { Text("Please enter a nickname", color = ParentTextMuted, fontSize = 14.sp) },
                 singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(color = ParentTextDark, fontSize = 14.sp),
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = ParentPurple,

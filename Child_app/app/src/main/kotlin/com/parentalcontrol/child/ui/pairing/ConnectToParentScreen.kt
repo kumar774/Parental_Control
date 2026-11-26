@@ -128,6 +128,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                             storage.savePairingSessionWithPendingAck(status.deviceId!!, status.deviceToken,
                                 status.parentId!!, status.childName.orEmpty(), sid, token, status.refreshToken)
                             PairAckRetryManager.scheduleBackgroundRetry(context)
+                            PairAckRetryManager.retryPendingAckIfNeeded(context, storage)
                             onCredentialsStored()
                             return@LaunchedEffect
                         } catch (_: Exception) {

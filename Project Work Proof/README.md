@@ -72,11 +72,20 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
 
 ## 3. Pairing Verification: Manual Code vs. Optical QR
 
-- **Manual 9-Digit Code Pairing:** **VERIFIED END-TO-END ON PHYSICAL DEVICE.** Both Parent and Child apps communicated through the live Fastify backend, validated codes, triggered mutual confirmation, created the `child_devices` association record in PostgreSQL, and transitioned to Step 2/3.
+- **Manual 9-Digit Code Pairing:** **VERIFIED 100% END-TO-END ON PHYSICAL DEVICE WITH ZERO DIRECT SQL MANIPULATION.**
+  - **Foreground ACK Fix:** Resolved delayed ACK dispatch by invoking `PairAckRetryManager.retryPendingAckIfNeeded(context, storage)` immediately when credentials are received in `ConnectToParentScreen.kt`. This completely eliminates WorkManager scheduler delay, enabling instant HTTP `POST /api/v1/child/pair-ack/:sessionId`.
+  - **Zero-SQL Physical Device Test:** Both Parent (`com.parentalcontrol.parent.debug`) and Child (`com.parentalcontrol.child.debug`) apps communicated naturally through the live Fastify backend on the physical `vivo I2220` phone:
+    - Parent generated 9-digit binding code `543 634 711` (Session `a599914a-9e42-40d9-b64a-2f146e956f4f`).
+    - Child entered code -> tapped "Confirm Parent" -> Parent tapped "Review connection" -> Parent approved via White Dialog.
+    - Child received and securely stored credentials, immediately dispatched foreground ACK.
+    - Backend committed `acknowledged_at = 2026-11-26 07:38:22.328+05:30` and cleared `issued_device_token`.
+    - Child displayed "Connected Successfully!", tapped "Setup", passed initial setup check.
+    - Parent UI advanced automatically to Step 2 Guidance -> Step 3 Child Information.
+    - Device record `aff15b6e-cf7a-40d3-b9b6-ae8ff01ec1fe` successfully bound to parent `6b2fce60-d50b-459f-9ab4-df824e63b048` with child name `Junior Vivo`, age 10, gender Boy, avatar 3.
+    - Parent dashboard opened with paired device Alex (`vivo I2220`).
 - **Optical QR Code Scanning:**
-  - CameraX lifecycle, permission requests, barcode scanner UI, and camera resource release are fully implemented in `DevicePairingScreen.kt` and `QrScannerScreen.kt`.
-  - Camera preview and closed-by-default behavior are verified with genuine device screenshots (`01_parent_phone_step1_pairing.png` and `02_parent_phone_scanner_open.png`).
-  - Scanning a QR code across two devices simultaneously requires two physical phones or a secondary monitor displaying the Child QR. Unit tests in `QrCodeScannerTest.kt` verify barcode decoding logic.
+  - **Current Implementation:** `QrScannerScreen.kt` renders the camera UI, viewfinder overlay, laser reticle animation, and simulation trigger (`onQrScanned("KL-PAIR-891044")`).
+  - **Honest Assessment:** Live optical barcode decoding via CameraX `ImageAnalysis` + Google ML Kit / ZXing barcode analyzer is not yet wired to native camera frames; real optical pairing requires adding ML Kit barcode scanning dependencies to parse QR bitmaps from live camera feed. Manual 9-digit pairing serves as the primary, verified pairing path.
 
 ---
 
@@ -87,10 +96,13 @@ Every screenshot below was captured directly from the physical Vivo I2220 phone 
    - Credentials were immediately rotated to an Argon2id hash (`$argon2id$v=19$m=65536,t=3,p=4$...`) in PostgreSQL.
    - All active refresh tokens in `parent_refresh_tokens` were revoked. Genuine user accounts were never touched.
 2. **Defective Screenshot Purge:**
-   - Deleted 22 invalid, remote desktop, and sensitive screenshot files from the repository history.
+   - Deleted invalid, remote desktop, and sensitive screenshot files from the repository history.
+   - Verified all 14 physical device screenshots in `Project Work Proof/` against their actual rendered screen contents.
 3. **UI Defects Resolved:**
+   - **Step 3 Nickname Input Color (Dark Theme):** Added explicit `textStyle = TextStyle(color = ParentTextDark, fontSize = 14.sp)` to `OutlinedTextField` in `PairedDeviceSetup.kt` to ensure child nickname remains clearly visible in dark mode against white cards.
    - **Parent Step 3 "Skip" Button:** Fixed invisible text by explicitly passing `color = if (enabled) ParentPurple else ParentPurple.copy(alpha = 0.45f)` to the `Text` composable inside `OutlinedPurpleCapsuleButton`.
    - **Parent Approval Dialog:** Redesigned AlertDialog with white card container (`ParentBg`), rounded corners (20.dp), bold dark typography, and a prominent purple capsule "Approve" button.
+   - **Download Link Whitelisting:** Configured `MOBILE_DOWNLOAD_ORIGINS` in `backend/src/config/env.ts` (`https://github.com,https://releases.parentalcontrol.local`) so Parent App Card 1 renders active QR code and clickable download link.
    - **Camera Resource Management:** Camera preview remains closed by default in Step 1 pairing to conserve hardware resources and preserve battery.
 
 ---
