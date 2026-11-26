@@ -1,6 +1,6 @@
 package com.parentalcontrol.parent.ui.auth
 
-import com.parentalcontrol.core.database.ParentalDatabase
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,85 +9,79 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Fingerprint
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.network.rest.FastifyRestClient
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.OutlinedButton
-import com.parentalcontrol.core.designsystem.theme.AccentIndigo
-import com.parentalcontrol.core.designsystem.theme.BgCanvas
-import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
-import com.parentalcontrol.core.designsystem.theme.NeonCyan
+import com.parentalcontrol.core.database.ParentalDatabase
 import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
-import com.parentalcontrol.core.designsystem.theme.RadiusLarge
-import com.parentalcontrol.core.designsystem.theme.Space12
-import com.parentalcontrol.core.designsystem.theme.Space16
-import com.parentalcontrol.core.designsystem.theme.Space20
-import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
-import com.parentalcontrol.core.designsystem.theme.TextPrimary
-import com.parentalcontrol.core.designsystem.theme.TextSecondary
+import com.parentalcontrol.core.network.rest.AppSettingsDto
+import com.parentalcontrol.parent.ui.pairing.ParentBg
+import com.parentalcontrol.parent.ui.pairing.ParentBorder
+import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentTextDark
+import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
+import kotlinx.coroutines.launch
 
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
- * Screen 03: LoginScreen
- * High-contrast, executive authentication card with real input validation,
- * ViewModel-driven authentication flow, loading states, and biometric shortcut.
+ * Screen 03: LoginScreen (FlashGet Kids In-Place Bottom Sheet Architecture)
+ *
+ * User lands on the clean, light [AuthMethodScreen].
+ * When "Sign in with Email" is clicked, a [ModalBottomSheet] slides up in-place on the same screen,
+ * preserving clean typography, neutral background, smooth dismissal, and complete ViewModel state integration.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
@@ -97,37 +91,38 @@ fun LoginScreen(
     onNavigateToEmailVerification: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     onGoogleSignInClick: () -> Unit = {},
-    appSettings: com.parentalcontrol.core.network.rest.AppSettingsDto? = null,
+    appSettings: AppSettingsDto? = null,
     onReloadSettings: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
     val mmkv = ParentalDatabase.getInstance().mmkv
     val isBiometricEnabled = remember { mmkv.isBiometricEnabled && mmkv.accessToken != null }
-    var showEmail by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    androidx.activity.compose.BackHandler(showEmail) { showEmail = false }
-    if (!showEmail) {
-        AuthMethodScreen(false, appSettings, onGoogleSignInClick, { showEmail = true }, onRegisterClick, onBackClick, onReloadSettings)
-        return
-    }
 
+    var showEmailSheet by rememberSaveable { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val uiState by viewModel.uiState.collectAsState()
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var localErrorMessage by remember { mutableStateOf<String?>(null) }
-
-    val scrollState = rememberScrollState()
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Listen to ViewModel side-effects
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
-                is AuthUiEffect.NavigateToDashboard -> onLoginSuccess()
-                is AuthUiEffect.NavigateToEmailVerification -> onNavigateToEmailVerification(email)
+                is AuthUiEffect.NavigateToDashboard -> {
+                    showEmailSheet = false
+                    onLoginSuccess()
+                }
+                is AuthUiEffect.NavigateToEmailVerification -> {
+                    showEmailSheet = false
+                    onNavigateToEmailVerification(email)
+                }
                 else -> {}
             }
         }
@@ -135,137 +130,82 @@ fun LoginScreen(
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BgCanvas)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = Space20, vertical = Space16),
-            horizontalAlignment = Alignment.CenterHorizontally
+    // Base landing screen: FlashGet Kids Light Auth Method Selector
+    AuthMethodScreen(
+        register = false,
+        settings = appSettings,
+        onGoogle = onGoogleSignInClick,
+        onEmail = {
+            localErrorMessage = null
+            viewModel.handleIntent(AuthUiIntent.ClearError)
+            showEmailSheet = true
+        },
+        onSwitch = onRegisterClick,
+        onBack = onBackClick,
+        onRetry = onReloadSettings
+    )
+
+    // In-Place Email Sign-In Bottom Sheet Popup
+    if (showEmailSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showEmailSheet = false
+                localErrorMessage = null
+                viewModel.handleIntent(AuthUiIntent.ClearError)
+            },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            containerColor = Color.White,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFFD1D5DB)) },
+            modifier = Modifier.imePadding()
         ) {
-            // Top Navigation Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = Space16),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showEmail = false
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E293B))
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(Space12))
-                Text(
-                    text = "Sign In to Guardian",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-
-            // Shield Crest Header
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF0284C7), Color(0xFF4F46E5))
-                        )
-                    )
-                    .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = NeonCyan),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(38.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            Text(
-                text = "Welcome Back",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(Space8))
-            Text(
-                text = "Enter your registered credentials to sign in",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
-
-            Spacer(modifier = Modifier.height(Space20))
-
-            // Error Alert Banner (if validation or backend error occurred)
-            if (displayErrorMessage != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF7F1D1D).copy(alpha = 0.85f))
-                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = Color(0xFFFCA5A5),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Space12))
-                        Text(
-                            text = displayErrorMessage,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(Space16))
-            }
-
-            // Main High-Contrast Login Card
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RadiusLarge)
-                    .background(Color(0xFF0F172A))
-                    .border(1.5.dp, Color(0xFF1E293B), RadiusLarge)
-                    .padding(Space20)
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
+                // Header with Title & Close button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Sign in with Email",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ParentTextDark
+                    )
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                sheetState.hide()
+                                showEmailSheet = false
+                                localErrorMessage = null
+                                viewModel.handleIntent(AuthUiIntent.ClearError)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ParentTextMuted
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Email Field
                 Text(
-                    text = "Parent Email Address",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "Email",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
+                    color = ParentTextDark
                 )
-                Spacer(modifier = Modifier.height(Space8))
+                Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = email,
                     onValueChange = {
@@ -273,36 +213,42 @@ fun LoginScreen(
                         if (localErrorMessage != null) localErrorMessage = null
                         if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
-                    placeholder = { Text("parent@example.com", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Email, contentDescription = null, tint = NeonCyan)
+                    placeholder = {
+                        Text(
+                            text = "Please enter a valid and real email",
+                            color = ParentTextMuted,
+                            fontSize = 14.sp
+                        )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
+                        focusedBorderColor = ParentPurple,
+                        unfocusedBorderColor = ParentBorder,
+                        focusedTextColor = ParentTextDark,
+                        unfocusedTextColor = ParentTextDark,
+                        focusedContainerColor = ParentBg,
+                        unfocusedContainerColor = ParentBg,
+                        cursorColor = ParentPurple
                     )
                 )
 
-                Spacer(modifier = Modifier.height(Space16))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Password Field
                 Text(
                     text = "Password",
-                    style = MaterialTheme.typography.labelMedium,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
+                    color = ParentTextDark
                 )
-                Spacer(modifier = Modifier.height(Space8))
+                Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = password,
                     onValueChange = {
@@ -310,66 +256,102 @@ fun LoginScreen(
                         if (localErrorMessage != null) localErrorMessage = null
                         if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
                     },
-                    placeholder = { Text("Enter your password", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = NeonCyan)
+                    placeholder = {
+                        Text(
+                            text = "Please enter password",
+                            color = ParentTextMuted,
+                            fontSize = 14.sp
+                        )
                     },
-                    trailingIcon = {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = "Toggle password visibility",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    },
-                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(
+                                imageVector = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                tint = ParentTextMuted
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
+                        focusedBorderColor = ParentPurple,
+                        unfocusedBorderColor = ParentBorder,
+                        focusedTextColor = ParentTextDark,
+                        unfocusedTextColor = ParentTextDark,
+                        focusedContainerColor = ParentBg,
+                        unfocusedContainerColor = ParentBg,
+                        cursorColor = ParentPurple
                     )
                 )
 
-                Spacer(modifier = Modifier.height(Space12))
-
-                // Forgot Password link
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                // Right-aligned "Forgot password?" link directly below password
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
                     Text(
-                        text = "Forgot Password?",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = NeonCyan,
+                        text = "Forgot password?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = ParentPurple,
+                        textDecoration = TextDecoration.Underline,
                         modifier = Modifier.clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onForgotPasswordClick()
+                            coroutineScope.launch {
+                                sheetState.hide()
+                                showEmailSheet = false
+                                onForgotPasswordClick()
+                            }
                         }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(Space20))
+                // Inline error display if credentials fail
+                if (!displayErrorMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFEF2F2))
+                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = displayErrorMessage,
+                            color = Color(0xFFDC2626),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
-                // Sign In Button (Strictly ViewModel-driven)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Single full-width primary capsule button "Sign in"
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        localErrorMessage = null
                         val trimmedEmail = email.trim()
-
                         if (trimmedEmail.isEmpty()) {
-                            localErrorMessage = "Please enter your parent email address"
+                            localErrorMessage = "Please enter a valid and real email"
                             return@Button
                         }
                         if (!EMAIL_PATTERN.matches(trimmedEmail)) {
@@ -377,115 +359,72 @@ fun LoginScreen(
                             return@Button
                         }
                         if (password.isEmpty()) {
-                            localErrorMessage = "Please enter your password"
+                            localErrorMessage = "Please enter password"
                             return@Button
                         }
-
+                        localErrorMessage = null
                         viewModel.handleIntent(AuthUiIntent.Login(trimmedEmail, password))
                     },
                     enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
-                        .shadow(12.dp, RadiusCapsule, spotColor = AccentIndigo),
+                        .height(52.dp),
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentIndigo,
-                        contentColor = Color.White,
-                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
-                        disabledContentColor = Color.White.copy(alpha = 0.7f)
+                        containerColor = ParentPurple,
+                        contentColor = Color.White
                     )
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            color = Color.White,
                             modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp
+                            color = Color.White,
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Text(
-                            text = "Sign In",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "Sign in",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-
-
-                // Biometric Login Pill (Only visible if biometric is enabled in Settings and valid session exists)
+                // Biometric Login shortcut if enrolled
                 if (isBiometricEnabled) {
-                    Spacer(modifier = Modifier.height(Space12))
-                    Row(
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                sheetState.hide()
+                                showEmailSheet = false
+                                onBiometricClick()
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .clip(RadiusCapsule)
-                            .background(Color(0xFF1E293B))
-                            .border(1.dp, Color(0xFF334155), RadiusCapsule)
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onBiometricClick()
-                            },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(48.dp),
+                        shape = RadiusCapsule,
+                        border = BorderStroke(1.dp, ParentBorder)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Fingerprint,
                             contentDescription = null,
-                            tint = StatusSafeGreen,
-                            modifier = Modifier.size(22.dp)
+                            tint = ParentPurple,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(Space8))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Quick Sign-In with Biometrics",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            text = "Sign in with Biometrics",
+                            color = ParentTextDark,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(Space24))
-
-            // Sign Up link
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Don't have an account?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.width(Space8))
-                Text(
-                    text = "Create Account",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = NeonCyan,
-                    modifier = Modifier.clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onRegisterClick()
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space20))
         }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF080C14)
-@Composable
-fun LoginScreenPreview() {
-    LiquidGlassTheme(darkTheme = true) {
-        LoginScreen(
-            onLoginSuccess = {},
-            onForgotPasswordClick = {},
-            onRegisterClick = {},
-            onBiometricClick = {}
-        )
     }
 }
