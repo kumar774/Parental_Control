@@ -352,4 +352,19 @@ class DatabaseAndLocalStorageUnitTest {
         assertEquals("m-1", medal.id)
         assertEquals("e-1", speed.id)
     }
+
+    @Test
+    fun testHasCompletedOnboardingPersistenceAndClearSession() {
+        val mmkv = database.mmkv
+        assertFalse("New database instance defaults hasCompletedOnboarding to false", mmkv.hasCompletedOnboarding)
+
+        mmkv.hasCompletedOnboarding = true
+        assertTrue("Setting hasCompletedOnboarding must persist true", mmkv.hasCompletedOnboarding)
+
+        mmkv.accessToken = "sample-token"
+        mmkv.clearSession()
+
+        assertNull("clearSession clears accessToken", mmkv.accessToken)
+        assertTrue("clearSession must preserve hasCompletedOnboarding flag", mmkv.hasCompletedOnboarding)
+    }
 }

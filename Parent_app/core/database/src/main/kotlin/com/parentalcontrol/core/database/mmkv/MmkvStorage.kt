@@ -26,6 +26,7 @@ interface IMmkvStorage {
     var userPlanCode: String?
     var familyCardNo: String?
     var familyPin: String?
+    var hasCompletedOnboarding: Boolean
 
     fun clearSession(preserveEmail: Boolean = false)
 }
@@ -86,6 +87,7 @@ class FastMmkvStorage(
         sp.getString(KEY_STREAM_RESOLUTION, null)?.let { cache[KEY_STREAM_RESOLUTION] = it }
         if (sp.contains(KEY_WIFI_ONLY_STREAMING)) cache[KEY_WIFI_ONLY_STREAMING] = sp.getBoolean(KEY_WIFI_ONLY_STREAMING, false)
         if (sp.contains(KEY_RETENTION_DAYS)) cache[KEY_RETENTION_DAYS] = sp.getInt(KEY_RETENTION_DAYS, 7)
+        if (sp.contains(KEY_HAS_COMPLETED_ONBOARDING)) cache[KEY_HAS_COMPLETED_ONBOARDING] = sp.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false)
     }
 
     override var userId: String?
@@ -246,6 +248,13 @@ class FastMmkvStorage(
             }
         }
 
+    override var hasCompletedOnboarding: Boolean
+        get() = cache[KEY_HAS_COMPLETED_ONBOARDING] as? Boolean ?: prefs?.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false) ?: false
+        set(value) {
+            cache[KEY_HAS_COMPLETED_ONBOARDING] = value
+            prefs?.edit()?.putBoolean(KEY_HAS_COMPLETED_ONBOARDING, value)?.apply()
+        }
+
     override fun clearSession(preserveEmail: Boolean) {
         cache.remove(KEY_USER_ID)
         cache.remove(KEY_ACCESS_TOKEN)
@@ -292,6 +301,7 @@ class FastMmkvStorage(
         private const val KEY_USER_PLAN = "auth_user_plan"
         private const val KEY_FAMILY_CARD_NO = "family_card_no"
         private const val KEY_FAMILY_PIN = "family_pin"
+        private const val KEY_HAS_COMPLETED_ONBOARDING = "has_completed_onboarding"
 
         @Volatile
         private var appContext: Context? = null

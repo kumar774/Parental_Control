@@ -734,8 +734,10 @@ fun ParentAppMainContent(
                                     currentScreen = AppScreen.PARENT_EMAIL_VERIFICATION
                                     screenBackstack.clear()
                                     screenBackstack.add(AppScreen.PARENT_EMAIL_VERIFICATION)
-                                } else {
+                                } else if (!mmkv.hasCompletedOnboarding) {
                                     currentScreen = AppScreen.WELCOME_CAROUSEL
+                                } else {
+                                    navigateToUnauthenticatedRoot(AppScreen.LOGIN)
                                 }
                             } else {
                                 scope.launch {
@@ -812,11 +814,9 @@ fun ParentAppMainContent(
 
                 AppScreen.WELCOME_CAROUSEL -> {
                     WelcomeCarouselScreen(
-                        onGetStarted = {
-                            currentScreen = AppScreen.LOGIN
-                        },
-                        onLoginClick = {
-                            currentScreen = AppScreen.LOGIN
+                        onFinish = {
+                            mmkv.hasCompletedOnboarding = true
+                            navigateToUnauthenticatedRoot(AppScreen.LOGIN)
                         }
                     )
                 }
@@ -933,7 +933,11 @@ fun ParentAppMainContent(
                             }
                         },
                         onBackClick = {
-                            currentScreen = AppScreen.WELCOME_CAROUSEL
+                            if (!mmkv.hasCompletedOnboarding) {
+                                currentScreen = AppScreen.WELCOME_CAROUSEL
+                            } else {
+                                activity?.finish()
+                            }
                         }
                     )
                 }
@@ -999,7 +1003,7 @@ fun ParentAppMainContent(
                             }
                         },
                         onBackClick = {
-                            currentScreen = AppScreen.WELCOME_CAROUSEL
+                            currentScreen = AppScreen.LOGIN
                         }
                     )
                 }
