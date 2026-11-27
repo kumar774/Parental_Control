@@ -11,6 +11,7 @@ import {
   getOrCreateParentPairCode,
   getOrCreatePermanentBindCode,
   bindDeviceByHardware,
+  pairingEventBus,
   isDeliveryExpired,
   previewChildQr,
   retireExpiredUnacknowledgedSession,
@@ -147,6 +148,60 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       },
     };
   });
+
+  app.get<{ Params: { sessionId: string } }>(
+    '/guards/pairing-event/:sessionId',
+    { preHandler: [requireParentAuth] },
+    async (request, reply) => {
+      const parentId = request.parentUser!.id;
+      const { sessionId } = request.params;
+
+      const [session] = await db
+        .select()
+        .from(pairingSessions)
+        .where(and(eq(pairingSessions.id, sessionId), eq(pairingSessions.parentId, parentId)))
+        .limit(1);
+
+      if (!session) {
+        return reply.code(404).send({ statusCode: 404, message: 'Pairing session not found' });
+      }
+
+      if (session.status === 'paired' && session.childDeviceId) {
+        const name = session.deviceModel || 'Child Device';
+        return {
+          status: 'paired',
+          deviceId: session.childDeviceId,
+          deviceName: name,
+          childName: name,
+        };
+      }
+
+      return new Promise((resolve) => {
+        let timer: NodeJS.Timeout | null = null;
+
+        const onPaired = (data: { deviceId: string; childName?: string }) => {
+          if (timer) clearTimeout(timer);
+          const name = data.childName || 'Child Device';
+          resolve({
+            status: 'paired',
+            deviceId: data.deviceId,
+            deviceName: name,
+            childName: name,
+          });
+        };
+
+        const eventName = `paired:${sessionId}`;
+        pairingEventBus.once(eventName, onPaired);
+
+        timer = setTimeout(() => {
+          pairingEventBus.removeListener(eventName, onPaired);
+          resolve({
+            status: 'waiting',
+          });
+        }, 30000);
+      });
+    }
+  );
 
   const parentGuardActiveSchema = z.object({
     SN: z.string().optional(),

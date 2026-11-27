@@ -1,5 +1,9 @@
 import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import jwt from 'jsonwebtoken';
+
+export const pairingEventBus = new EventEmitter();
+pairingEventBus.setMaxListeners(200);
 import { and, desc, eq, gt, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index';
@@ -853,6 +857,11 @@ export async function activateByChildCdkey(params: {
         deviceModel: model || 'Android Device',
       })
       .where(eq(pairingSessions.id, session.id));
+
+    pairingEventBus.emit(`paired:${session.id}`, {
+      deviceId,
+      childName: (brand ? `${brand} ` : '') + (model || 'Child Device'),
+    });
 
     return {
       code: 200,

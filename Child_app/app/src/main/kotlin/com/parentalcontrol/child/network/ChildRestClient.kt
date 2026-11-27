@@ -352,6 +352,12 @@ class ChildRestClient(
                         AssociationCheckOutcome.RevokedOrInvalid(200, "Device association is no longer valid.")
                     }
                 }
+                401, 403, 404 -> {
+                    AssociationCheckOutcome.RevokedOrInvalid(
+                        response.code,
+                        "Device pairing was revoked or removed."
+                    )
+                }
                 else -> if (response.backendCode() == "ASSOCIATION_REVOKED") AssociationCheckOutcome.RevokedOrInvalid(
                     response.code,
                     "Device pairing was revoked or removed."

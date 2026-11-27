@@ -448,24 +448,16 @@ fun DevicePairingScreen(
     LaunchedEffect(session, status) {
         val currentSession = session ?: return@LaunchedEffect
         if (status == "paired") return@LaunchedEffect
-        while (true) {
-            delay(3000)
-            if (!busy && session == currentSession && status != "paired") {
-                client.checkPairingStatus(currentSession).onSuccess { result ->
-                    if (result.status == "paired") {
-                        val device = result.deviceId
-                        if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess) {
-                            onPairingSuccess(device, result.deviceName.orEmpty())
-                            return@LaunchedEffect
-                        }
-                    } else {
-                        status = result.status
-                        if (!result.deviceName.isNullOrBlank()) {
-                            reportedDeviceModel = result.deviceName
-                        }
-                    }
+        while (session == currentSession && status != "paired") {
+            val res = client.waitForPairingEvent(currentSession)
+            res.onSuccess { event ->
+                val pairedDeviceId = event.deviceId
+                if (event.status == "paired" && !pairedDeviceId.isNullOrBlank()) {
+                    onPairingSuccess(pairedDeviceId, event.deviceName.orEmpty())
+                    return@LaunchedEffect
                 }
             }
+            delay(1000)
         }
     }
 

@@ -50,10 +50,24 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     if (splash) {
+                        val client = com.parentalcontrol.child.network.ChildRestClient.instance
+                        if (storage.isPaired()) {
+                            runCatching {
+                                val outcome = client.verifyAssociation(storage)
+                                if (outcome is com.parentalcontrol.child.network.AssociationCheckOutcome.RevokedOrInvalid) {
+                                    storage.clearPairingSession()
+                                    storage.setupStage = SetupStage.NOT_STARTED
+                                    paired = false
+                                    setupStage = SetupStage.NOT_STARTED
+                                    step = if (storage.hasConsent) 2 else 0
+                                    repairMessage = "Device was unpaired or removed by guardian."
+                                }
+                            }
+                        }
                         if (!storage.isPaired()) {
                             val hid = storage.getHardwareId()
                             runCatching {
-                                val restore = com.parentalcontrol.child.network.ChildRestClient.instance.restoreBinding(hid)
+                                val restore = client.restoreBinding(hid)
                                 if (restore.restored && restore.deviceId != null && restore.deviceToken != null && restore.parentId != null) {
                                     storage.acceptPolicy()
                                     storage.savePairingSession(
@@ -67,6 +81,7 @@ class MainActivity : ComponentActivity() {
                                     paired = true
                                     setupStage = SetupStage.STARTED
                                     step = 2
+                                    repairMessage = null
                                 }
                             }
                         }

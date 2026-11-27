@@ -671,6 +671,36 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun waitForPairingEvent(sessionId: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required"))
+        }
+        try {
+            val response = executeGet("/api/v1/devices/guards/pairing-event/$sessionId", token)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val status = json.optString("status", "waiting")
+                val deviceId = json.optString("deviceId", "").takeIf { it.isNotBlank() }
+                val deviceName = json.optString("deviceName", "").takeIf { it.isNotBlank() }
+                val childName = json.optString("childName", "").takeIf { it.isNotBlank() }
+                Result.success(
+                    PairingStatusDto(
+                        status = status,
+                        sessionId = sessionId,
+                        deviceId = deviceId,
+                        deviceName = deviceName,
+                        childName = childName
+                    )
+                )
+            } else {
+                Result.failure(Exception("Pairing event check failed (HTTP ${response.statusCode})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun previewQrPairing(sessionId: String, code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
