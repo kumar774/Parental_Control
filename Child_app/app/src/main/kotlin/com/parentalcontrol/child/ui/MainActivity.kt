@@ -49,7 +49,30 @@ class MainActivity : ComponentActivity() {
                 var ackManualTrigger by remember { mutableIntStateOf(0) }
 
                 LaunchedEffect(Unit) {
-                    if (splash) { delay(500); splash = false }
+                    if (splash) {
+                        if (!storage.isPaired()) {
+                            val hid = storage.installationId ?: storage.getHardwareId()
+                            runCatching {
+                                val restore = com.parentalcontrol.child.network.ChildRestClient.instance.restoreBinding(hid)
+                                if (restore.restored && restore.deviceId != null && restore.deviceToken != null && restore.parentId != null) {
+                                    storage.acceptPolicy()
+                                    storage.savePairingSession(
+                                        deviceId = restore.deviceId,
+                                        deviceToken = restore.deviceToken,
+                                        parentId = restore.parentId,
+                                        childName = restore.childName ?: "Child",
+                                        refreshToken = restore.refreshToken
+                                    )
+                                    storage.setupStage = SetupStage.STARTED
+                                    paired = true
+                                    setupStage = SetupStage.STARTED
+                                    step = 2
+                                }
+                            }
+                        }
+                        delay(500)
+                        splash = false
+                    }
                 }
                 when {
                     splash -> CenteredStatus("Child Guard")

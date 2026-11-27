@@ -368,6 +368,31 @@ fun DevicePairingScreen(
     }
 
     LaunchedEffect(Unit) { issueOrResume(regenerate = false) }
+
+    LaunchedEffect(session, status) {
+        val currentSession = session ?: return@LaunchedEffect
+        if (status == "paired") return@LaunchedEffect
+        while (true) {
+            delay(3000)
+            if (!busy && session == currentSession && status != "paired") {
+                client.checkPairingStatus(currentSession).onSuccess { result ->
+                    if (result.status == "paired") {
+                        val device = result.deviceId
+                        if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess) {
+                            onPairingSuccess(device, result.deviceName.orEmpty())
+                            return@LaunchedEffect
+                        }
+                    } else {
+                        status = result.status
+                        if (!result.deviceName.isNullOrBlank()) {
+                            reportedDeviceModel = result.deviceName
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     val approvalDeadline = pendingApproval?.expiresAtMillis ?: 0L
     LaunchedEffect(expires, approvalDeadline) {
         val deadline = maxOf(expires, approvalDeadline)
@@ -518,9 +543,9 @@ fun DevicePairingScreen(
         }
         val description = when (status) {
             "waiting_for_child" -> "Waiting for the child to enter the code."
-            "waiting_for_parent" -> "The child requested a connection. Review it before approving."
-            "waiting_for_child_confirmation" -> "Waiting for confirmation on the child's phone."
-            "finalizing" -> "The child is finishing secure setup."
+            "waiting_for_parent" -> if (pendingApproval?.fromQr == true) "Child QR scanned. Review to approve." else "Connecting child device…"
+            "waiting_for_child_confirmation" -> "Confirming connection on the child's phone…"
+            "paired", "finalizing" -> "Device connected! Finalizing setup…"
             "expired" -> "This enrollment has expired."
             "canceled" -> "This enrollment was canceled."
             else -> null
@@ -530,7 +555,7 @@ fun DevicePairingScreen(
         }
         val reviewSession = session
         val reviewCode = approvalCode
-        if (status == "waiting_for_parent" && reviewSession != null && reviewCode != null) {
+        if (status == "waiting_for_parent" && reviewSession != null && reviewCode != null && pendingApproval?.fromQr == true) {
             PurpleCapsuleButton(
                 text = "Review connection",
                 enabled = !busy,
@@ -539,7 +564,8 @@ fun DevicePairingScreen(
                         sessionId = reviewSession,
                         code = reviewCode,
                         deviceModel = reportedDeviceModel,
-                        expiresAtMillis = expires
+                        expiresAtMillis = expires,
+                        fromQr = true
                     )
                 }
             )

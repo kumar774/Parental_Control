@@ -167,6 +167,45 @@ class ChildRestClient(
         } else check(json.optString("status") == "canceled")
     }
 
+    data class RestoredBindingResult(
+        val restored: Boolean,
+        val deviceId: String? = null,
+        val parentId: String? = null,
+        val childName: String? = null,
+        val setupStep: Int? = null,
+        val parentEmail: String? = null,
+        val deviceToken: String? = null,
+        val refreshToken: String? = null,
+        val message: String? = null
+    )
+
+    suspend fun restoreBinding(hardwareId: String): RestoredBindingResult = withContext(Dispatchers.IO) {
+        val body = JSONObject().apply {
+            put("hardwareId", hardwareId)
+            put("deviceBrand", Build.BRAND)
+            put("deviceModel", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+        }
+        val result = executeRequest("/api/v1/child/device/restore-binding", "POST", body.toString())
+        if (result.code !in 200..299) {
+            return@withContext RestoredBindingResult(restored = false, message = result.body)
+        }
+        val json = JSONObject(result.body)
+        val restored = json.optBoolean("restored", false)
+        if (!restored) {
+            return@withContext RestoredBindingResult(restored = false, message = json.optString("message"))
+        }
+        RestoredBindingResult(
+            restored = true,
+            deviceId = json.optionalText("deviceId"),
+            parentId = json.optionalText("parentId"),
+            childName = json.optionalText("childName"),
+            setupStep = json.optInt("setupStep", 2),
+            parentEmail = json.optionalText("parentEmail"),
+            deviceToken = json.optionalText("deviceToken"),
+            refreshToken = json.optionalText("refreshToken")
+        )
+    }
+
     suspend fun parentDownloadUrl(): String? = withContext(Dispatchers.IO) {
         val response = executeRequest("/api/v1/config/app-settings", "GET", null)
         if (response.code != 200) throw IOException()

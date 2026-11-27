@@ -53,10 +53,10 @@ function maskEmail(email: string) {
   return email.slice(0, Math.min(2, at)) + '***' + email.slice(at);
 }
 
-export function enrollmentStatus(s: PairingSession, parent = false) {
+export function enrollmentStatus(s: PairingSession, _parent = false) {
   if (s.status === 'paired') {
     if (isDeliveryExpired(s)) return 'expired';
-    return parent && !s.acknowledgedAt ? 'finalizing' : 'paired';
+    return 'paired';
   }
   if (s.status !== 'pending') return s.status;
   if (s.expiresAt.getTime() <= Date.now()) return 'expired';
@@ -341,10 +341,17 @@ export async function startChild(input: z.infer<typeof enrollmentInput>, code?: 
         session = await issueSession(tx, null, input.deviceModel);
       }
       const qrContract = {version:1,type:'child_pair',sessionId:session.id,code:session.pairingCode,expiresAt:session.expiresAt.toISOString()};
-      [session] = await tx.update(pairingSessions).set({installationId:input.installationId, requestHash,
-        pollingToken:sha256(raw),deviceModel:input.deviceModel, policyVersion:input.policyVersion,
-        consentedAt:new Date(input.consentedAt),qrPayload:code ? '' : JSON.stringify(qrContract)})
-        .where(eq(pairingSessions.id,session.id)).returning();
+      [session] = await tx.update(pairingSessions).set({
+        installationId: input.installationId,
+        requestHash,
+        pollingToken: sha256(raw),
+        deviceModel: input.deviceModel,
+        policyVersion: input.policyVersion,
+        consentedAt: new Date(input.consentedAt),
+        parentApproved: Boolean(code),
+        qrPayload: code ? '' : JSON.stringify(qrContract),
+      })
+        .where(eq(pairingSessions.id, session.id)).returning();
     }
     if (!session) rejectEnrollment(500,'Enrollment creation failed', 'ENROLLMENT_CREATION_FAILED');
     const maskedParentEmail = session.parentId ? maskEmail(await authorizedParent(tx,session.parentId)) : undefined;
@@ -507,6 +514,70 @@ export async function ackChildWithDeviceAuth(deviceId: string, parentId: string,
         .where(eq(pairingSessions.id, s.id));
     }
     return { status: 'acknowledged', deviceId, parentId };
+  });
+  return unwrapTx(res);
+}
+
+export async function restoreBinding(hardwareId: string, _deviceBrand?: string, deviceModel?: string) {
+  const res = await db.transaction(async tx => {
+    const [device] = await tx
+      .select()
+      .from(childDevices)
+      .where(and(eq(childDevices.installationId, hardwareId), eq(childDevices.isUnpaired, false)))
+      .limit(1);
+
+    if (!device) {
+      return { restored: false, message: 'No active device binding found' };
+    }
+
+    const [parent] = await tx
+      .select({ email: parentUsers.email, fullName: parentUsers.fullName })
+      .from(parentUsers)
+      .where(and(eq(parentUsers.id, device.parentId), eq(parentUsers.status, 'active')))
+      .limit(1);
+
+    if (!parent) {
+      return { restored: false, message: 'Guardian account is inactive' };
+    }
+
+    await tx
+      .update(childDevices)
+      .set({
+        lastSeenAt: new Date(),
+        ...(deviceModel ? { deviceModel } : {}),
+      })
+      .where(eq(childDevices.id, device.id));
+
+    await tx
+      .update(childDeviceTokens)
+      .set({ isRevoked: true, revokedAt: new Date(), revocationReason: 'device_restored' })
+      .where(and(eq(childDeviceTokens.deviceId, device.id), eq(childDeviceTokens.isRevoked, false)));
+
+    const jti = crypto.randomUUID();
+    const deviceToken = jwt.sign(
+      { deviceId: device.id, parentId: device.parentId, role: 'child', jti },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await tx.insert(childDeviceTokens).values({
+      deviceId: device.id,
+      parentId: device.parentId,
+      currentJti: jti,
+      refreshTokenHash: sha256(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    return {
+      restored: true,
+      deviceId: device.id,
+      parentId: device.parentId,
+      childName: device.childName,
+      setupStep: device.setupStep,
+      parentEmail: maskEmail(parent.email),
+      deviceToken,
+      refreshToken,
+    };
   });
   return unwrapTx(res);
 }

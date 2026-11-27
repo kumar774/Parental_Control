@@ -47,18 +47,32 @@ data class DeviceSession(
 )
 
 class DeviceStorage internal constructor(
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val appContext: Context? = null
 ) {
     private val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
+    fun getHardwareId(): String {
+        val ctx = appContext
+        if (ctx != null) {
+            val aid = android.provider.Settings.Secure.getString(
+                ctx.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )?.takeIf { it.isNotBlank() } ?: "unknown"
+            return "AnID$aid"
+        }
+        return "AnIDfallback"
+    }
+
     fun acceptPolicy() {
+        val hid = if (appContext != null) getHardwareId() else (installationId ?: java.util.UUID.randomUUID().toString())
         check(prefs.edit().putString("policy", POLICY_VERSION)
             .putString("acceptedAt", java.time.Instant.now().toString())
-            .putString("installation", installationId ?: java.util.UUID.randomUUID().toString())
+            .putString("installation", hid)
             .commit())
     }
 
-    val installationId: String? get() = prefs.getString("installation", null)
+    val installationId: String? get() = prefs.getString("installation", null) ?: appContext?.let { getHardwareId() }
     val acceptedAt: String? get() = prefs.getString("acceptedAt", null)
     val hasConsent: Boolean get() = prefs.getString("policy", null) == POLICY_VERSION &&
         acceptedAt != null && installationId != null
@@ -337,7 +351,7 @@ class DeviceStorage internal constructor(
             return instance ?: synchronized(this) {
                 instance ?: run {
                     val sp = createSecurePreferences(context.applicationContext)
-                    DeviceStorage(sp).also { instance = it }
+                    DeviceStorage(sp, context.applicationContext).also { instance = it }
                 }
             }
         }

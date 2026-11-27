@@ -8,7 +8,7 @@ import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '.
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { requireChildDeviceAuth, ChildDeviceJwtPayload } from '../../middleware/child-auth.guard';
-import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth } from '../../services/enrollment.service';
+import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth, restoreBinding } from '../../services/enrollment.service';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -48,6 +48,19 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     const input = enrollmentInput.extend({pairingCode:bindingCode}).safeParse(request.body);
     if (!input.success) return reply.code(400).send({message:'Valid pairing code, installation and consent required'});
     return startChild(input.data,input.data.pairingCode);
+  });
+
+  app.post('/device/restore-binding', { preHandler: [childPairAttemptRateLimiter] }, async (request, reply) => {
+    const schema = z.object({
+      hardwareId: z.string().min(4).max(64),
+      deviceBrand: z.string().max(64).optional(),
+      deviceModel: z.string().max(64).optional(),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ message: 'Valid hardwareId required' });
+    }
+    return restoreBinding(parsed.data.hardwareId, parsed.data.deviceBrand, parsed.data.deviceModel);
   });
 
   for (const action of ['status','confirm','cancel','ack'] as const) {
