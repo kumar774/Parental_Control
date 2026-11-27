@@ -71,9 +71,18 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const page = parsedQuery.page;
     const pageSize = parsedQuery.pageSize;
 
-    const visibleDevices = and(eq(childDevices.parentId, parent.id), eq(childDevices.isUnpaired, false),
-      or(isNull(childDevices.installationId),sql`EXISTS (SELECT 1 FROM ${pairingSessions}
-        WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.acknowledgedAt} IS NOT NULL)`));
+    const visibleDevices = and(
+      eq(childDevices.parentId, parent.id),
+      eq(childDevices.isUnpaired, false),
+      or(
+        isNull(childDevices.installationId),
+        sql`EXISTS (SELECT 1 FROM ${pairingSessions}
+          WHERE (${pairingSessions.childDeviceId} = ${childDevices.id} OR ${pairingSessions.parentId} = ${parent.id})
+          AND (${pairingSessions.acknowledgedAt} IS NOT NULL OR ${pairingSessions.expiresAt} > ${new Date('2090-01-01')}))`,
+        sql`NOT EXISTS (SELECT 1 FROM ${pairingSessions}
+          WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.status} = 'pending')`
+      )
+    );
 
     const [totalRes] = await db
       .select({ total: count() })
@@ -316,9 +325,17 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       const data = input.data;
       if (data.setupStep > d.setupStep + 1) return reply.code(409).send({message:'Complete the preceding step first'});
       if (d.setupStep < data.setupStep) {
-        const [ack] = await tx.select({at:pairingSessions.acknowledgedAt}).from(pairingSessions)
-          .where(and(eq(pairingSessions.childDeviceId,d.id),eq(pairingSessions.status,'paired'))).limit(1);
-        if (!ack?.at) return reply.code(409).send({message:'Waiting for child credential receipt'});
+        const [ack] = await tx.select({
+          at: pairingSessions.acknowledgedAt,
+          expiresAt: pairingSessions.expiresAt,
+        }).from(pairingSessions)
+          .where(and(
+            or(eq(pairingSessions.childDeviceId, d.id), eq(pairingSessions.parentId, request.parentUser!.id)),
+            eq(pairingSessions.status, 'paired')
+          )).limit(1);
+        if (!ack?.at && (ack?.expiresAt?.getFullYear() ?? 0) < 2090) {
+          return reply.code(409).send({ message: 'Waiting for child credential receipt' });
+        }
       }
       const profile: Record<string, any> = {};
       if (data.setupStep === 4 || d.setupStep >= 4) {
