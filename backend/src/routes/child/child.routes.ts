@@ -173,28 +173,9 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return ackChildWithDeviceAuth(device.id, device.parentId, body.data.sessionId);
   });
 
-  app.get('/setup', {preHandler:[requireChildDeviceAuth]}, async (request, reply) => {
-    const device = request.childDevice!;
-    const [activeSession] = await db
-      .select({ id: pairingSessions.id })
-      .from(pairingSessions)
-      .where(eq(pairingSessions.parentId, device.parentId))
-      .limit(1);
-
-    if (!activeSession) {
-      return reply.status(401).send({
-        statusCode: 401,
-        code: 'ASSOCIATION_REVOKED',
-        message: 'Pairing code has been deleted or revoked by administrator',
-      });
-    }
-
-    return {
-      status: 'associated',
-      deviceId: device.id,
-      parentId: device.parentId,
-    };
-  });
+  app.get('/setup', {preHandler:[requireChildDeviceAuth]}, async request => ({
+    status:'associated',deviceId:request.childDevice!.id,parentId:request.childDevice!.parentId,
+  }));
 
   /**
    * POST /api/v1/child/refresh-token

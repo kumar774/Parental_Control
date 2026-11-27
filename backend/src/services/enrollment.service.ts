@@ -854,6 +854,7 @@ export async function activateByChildCdkey(params: {
         status: 'paired',
         childDeviceId: deviceId,
         claimedAt: now,
+        acknowledgedAt: now,
         deviceModel: model || 'Android Device',
       })
       .where(eq(pairingSessions.id, session.id));
