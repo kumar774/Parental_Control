@@ -606,6 +606,68 @@ class FastifyRestClient(
         }
     }
 
+    suspend fun bindHardwareDevice(
+        sn: String,
+        brand: String,
+        model: String,
+        mac: String = ""
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to bind device"))
+        }
+        try {
+            val body = JSONObject().apply {
+                put("SN", sn.trim())
+                put("Brand", brand.trim())
+                put("Model", model.trim())
+                put("MAC", mac.trim())
+            }.toString()
+            val response = executePost("/api/v1/devices/guards/active", body, token)
+            if (response.statusCode in 200..299) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = try {
+                    JSONObject(response.body).optString("message", "Failed to bind device")
+                } catch (_: Exception) {
+                    "Failed to bind device (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
+    suspend fun getPermanentBindCode(): Result<String> = withContext(Dispatchers.IO) {
+        val token = accessToken
+        if (token.isNullOrBlank()) {
+            return@withContext Result.failure(Exception("Authentication required to get binding code"))
+        }
+        try {
+            val response = executeGet("/api/v1/devices/guards/bind-code", token)
+            if (response.statusCode in 200..299) {
+                val json = JSONObject(response.body)
+                val data = json.optJSONObject("data") ?: json
+                val code = data.optString("bindCode", data.optString("code", ""))
+                if (code.isNotBlank()) {
+                    Result.success(code)
+                } else {
+                    Result.failure(Exception("Empty binding code received"))
+                }
+            } else {
+                val errorMsg = try {
+                    JSONObject(response.body).optString("message", "Failed to get binding code")
+                } catch (_: Exception) {
+                    "Failed to get binding code (HTTP ${response.statusCode})"
+                }
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(toUserFriendlyError(e)))
+        }
+    }
+
     suspend fun previewQrPairing(sessionId: String, code: String): Result<PairingStatusDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {

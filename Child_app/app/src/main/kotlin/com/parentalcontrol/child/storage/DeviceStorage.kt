@@ -64,15 +64,19 @@ class DeviceStorage internal constructor(
         return "AnIDfallback"
     }
 
+    fun getHardwareUuid(): String {
+        return java.util.UUID.nameUUIDFromBytes(getHardwareId().toByteArray(Charsets.UTF_8)).toString()
+    }
+
     fun acceptPolicy() {
-        val hid = if (appContext != null) getHardwareId() else (installationId ?: java.util.UUID.randomUUID().toString())
+        val hid = if (appContext != null) getHardwareUuid() else (installationId ?: java.util.UUID.randomUUID().toString())
         check(prefs.edit().putString("policy", POLICY_VERSION)
             .putString("acceptedAt", java.time.Instant.now().toString())
             .putString("installation", hid)
             .commit())
     }
 
-    val installationId: String? get() = prefs.getString("installation", null) ?: appContext?.let { getHardwareId() }
+    val installationId: String? get() = prefs.getString("installation", null) ?: appContext?.let { getHardwareUuid() }
     val acceptedAt: String? get() = prefs.getString("acceptedAt", null)
     val hasConsent: Boolean get() = prefs.getString("policy", null) == POLICY_VERSION &&
         acceptedAt != null && installationId != null

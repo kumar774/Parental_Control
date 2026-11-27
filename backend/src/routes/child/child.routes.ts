@@ -8,7 +8,7 @@ import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '.
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { requireChildDeviceAuth, ChildDeviceJwtPayload } from '../../middleware/child-auth.guard';
-import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth, restoreBinding } from '../../services/enrollment.service';
+import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth, restoreBinding, activateByChildCdkey, deviceUsersSignin } from '../../services/enrollment.service';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -53,6 +53,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.post('/device/restore-binding', { preHandler: [childPairAttemptRateLimiter] }, async (request, reply) => {
     const schema = z.object({
       hardwareId: z.string().min(4).max(64),
+      installationId: z.string().uuid().optional(),
       deviceBrand: z.string().max(64).optional(),
       deviceModel: z.string().max(64).optional(),
     });
@@ -60,8 +61,81 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     if (!parsed.success) {
       return reply.code(400).send({ message: 'Valid hardwareId required' });
     }
-    return restoreBinding(parsed.data.hardwareId, parsed.data.deviceBrand, parsed.data.deviceModel);
+    return restoreBinding(parsed.data.hardwareId, parsed.data.deviceBrand, parsed.data.deviceModel, parsed.data.installationId);
   });
+
+  const childActiveSchema = z.object({
+    SN: z.string().optional(),
+    sn: z.string().optional(),
+    Model: z.string().optional(),
+    model: z.string().optional(),
+    Brand: z.string().optional(),
+    brand: z.string().optional(),
+    MAC: z.string().optional(),
+    mac: z.string().optional(),
+    Cdkey: z.string().optional(),
+    cdkey: z.string().optional(),
+    IsGuardUserActive: z.boolean().optional(),
+    isGuardUserActive: z.boolean().optional(),
+  });
+
+  const handleChildActive = async (request: any, reply: any) => {
+    const parsed = childActiveSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ statusCode: 400, message: 'Invalid payload' });
+    }
+    const b = parsed.data;
+    const sn = b.SN || b.sn;
+    const cdkey = b.Cdkey || b.cdkey;
+    if (!sn || !cdkey) {
+      return reply.code(400).send({ statusCode: 400, message: 'SN and Cdkey are required' });
+    }
+    return activateByChildCdkey({
+      sn,
+      cdkey,
+      brand: b.Brand || b.brand,
+      model: b.Model || b.model,
+      mac: b.MAC || b.mac,
+      isGuardUserActive: b.IsGuardUserActive ?? b.isGuardUserActive ?? true,
+    });
+  };
+
+  app.post('/systems/active', { preHandler: [childPairAttemptRateLimiter] }, handleChildActive);
+  app.post('/device/activate-code', { preHandler: [childPairAttemptRateLimiter] }, handleChildActive);
+
+  const childSigninSchema = z.object({
+    SN: z.string().optional(),
+    sn: z.string().optional(),
+    Model: z.string().optional(),
+    model: z.string().optional(),
+    Brand: z.string().optional(),
+    brand: z.string().optional(),
+    MAC: z.string().optional(),
+    mac: z.string().optional(),
+    Timestamp: z.union([z.number(), z.string()]).optional(),
+    timestamp: z.union([z.number(), z.string()]).optional(),
+  });
+
+  const handleChildSignin = async (request: any, reply: any) => {
+    const parsed = childSigninSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ statusCode: 400, message: 'Invalid payload' });
+    }
+    const b = parsed.data;
+    const sn = b.SN || b.sn;
+    if (!sn) {
+      return reply.code(400).send({ statusCode: 400, message: 'SN is required' });
+    }
+    return deviceUsersSignin({
+      sn,
+      brand: b.Brand || b.brand,
+      model: b.Model || b.model,
+      mac: b.MAC || b.mac,
+    });
+  };
+
+  app.post('/device-users/signin', { preHandler: [childPairStatusRateLimiter] }, handleChildSignin);
+  app.post('/device/probe-hardware', { preHandler: [childPairStatusRateLimiter] }, handleChildSignin);
 
   for (const action of ['status','confirm','cancel','ack'] as const) {
     app.route<{Params:{sessionId:string}}>({

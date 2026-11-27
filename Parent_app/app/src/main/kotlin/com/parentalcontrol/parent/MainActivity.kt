@@ -309,7 +309,7 @@ fun ParentAppMainContent(
     var lastPairedChildName by remember { mutableStateOf("Child") }
     var lastPairedDeviceName by rememberSaveable { mutableStateOf("") }
     var setupDeviceId by rememberSaveable { mutableStateOf("") }
-    var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(true) }
+    var allowAutoResumeOnboarding by rememberSaveable(mmkv.userEmail) { mutableStateOf(false) }
     val emailContinuation = remember { EmailSignInContinuation() }
     var firstChildSetup by rememberSaveable { mutableStateOf(false) }
     var resumeParentSetupAfterSignIn by rememberSaveable { mutableStateOf(false) }
@@ -425,7 +425,7 @@ fun ParentAppMainContent(
     fun navigateToAuthenticatedRoot() {
         isSessionAuthenticated = true
         navManager.hasAuthenticatedSession = true
-        allowAutoResumeOnboarding = true
+        allowAutoResumeOnboarding = false
         sessionRestorationManager.markSessionVerified()
         navManager.navigateToAuthenticatedRoot()
         if (resumeParentSetupAfterSignIn) {

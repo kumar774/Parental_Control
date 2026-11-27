@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { and, desc, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { childDevices, childDeviceTokens, pairingSessions, parentConsents, parentUsers, PairingSession } from '../db/schema/parental-control';
@@ -53,10 +53,10 @@ function maskEmail(email: string) {
   return email.slice(0, Math.min(2, at)) + '***' + email.slice(at);
 }
 
-export function enrollmentStatus(s: PairingSession, _parent = false) {
+export function enrollmentStatus(s: PairingSession, parent = false) {
   if (s.status === 'paired') {
     if (isDeliveryExpired(s)) return 'expired';
-    return 'paired';
+    return parent && !s.acknowledgedAt ? 'finalizing' : 'paired';
   }
   if (s.status !== 'pending') return s.status;
   if (s.expiresAt.getTime() <= Date.now()) return 'expired';
@@ -101,10 +101,9 @@ export async function retireExpiredUnacknowledgedSession(
   return updated ?? s;
 }
 
-export async function issueSession(tx: Tx, parentId: string | null, deviceModel?: string, explicitExpiresAt?: Date) {
+export async function issueSession(tx: Tx, parentId: string | null, deviceModel?: string) {
   const {pairingCodeExpirySeconds} = await getAppSettingsStrict(tx);
-  const permanentExpiry = new Date('2099-12-31T23:59:59.999Z');
-  const expiresAt = explicitExpiresAt ?? (parentId ? permanentExpiry : new Date(Date.now() + pairingCodeExpirySeconds * 1000));
+  const expiresAt = new Date(Date.now() + pairingCodeExpirySeconds * 1000);
   // ON CONFLICT permits a fresh draw without aborting the transaction.
   for (let i = 0; i < 5; i++) {
     const [session] = await tx.insert(pairingSessions).values({
@@ -120,65 +119,59 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
   return db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
     await authorizedParent(tx, parentId);
-    const permanentExpiry = new Date('2099-12-31T23:59:59.999Z'); // Permanent pairing code, never expires
-
-    const [existing] = await tx
-      .select()
-      .from(pairingSessions)
+    const now = new Date();
+    // Retire expired untouched manual codes so the partial unique index stays clean.
+    await tx
+      .update(pairingSessions)
+      .set({ status: 'expired' })
       .where(
         and(
           eq(pairingSessions.parentId, parentId),
           eq(pairingSessions.status, 'pending'),
-          isNull(pairingSessions.installationId)
+          isNull(pairingSessions.installationId),
+          lte(pairingSessions.expiresAt, now)
         )
-      )
-      .orderBy(desc(pairingSessions.createdAt))
-      .limit(1);
+      );
 
-    if (existing) {
-      if (!regenerate) {
-        // Keep code active and permanent without creating new rows
-        if (existing.expiresAt.getFullYear() < 2099) {
-          await tx
-            .update(pairingSessions)
-            .set({ expiresAt: permanentExpiry })
-            .where(eq(pairingSessions.id, existing.id));
-          existing.expiresAt = permanentExpiry;
-        }
+    if (!regenerate) {
+      const [existing] = await tx
+        .select()
+        .from(pairingSessions)
+        .where(
+          and(
+            eq(pairingSessions.parentId, parentId),
+            eq(pairingSessions.status, 'pending'),
+            gt(pairingSessions.expiresAt, now),
+            isNull(pairingSessions.installationId)
+          )
+        )
+        .orderBy(desc(pairingSessions.createdAt))
+        .limit(1);
+      if (existing) {
         return {
           code: existing.pairingCode,
           sessionId: existing.id,
           expiresAt: existing.expiresAt,
           expiresInSeconds: Math.max(0, Math.ceil((existing.expiresAt.getTime() - Date.now()) / 1000)),
         };
-      } else {
-        // In-place refresh: update existing code in place to prevent database pollution
-        let newCode = '';
-        for (let i = 0; i < 5; i++) {
-          const candidate = crypto.randomInt(100000000, 1000000000).toString();
-          const [duplicate] = await tx.select({ id: pairingSessions.id }).from(pairingSessions).where(eq(pairingSessions.pairingCode, candidate)).limit(1);
-          if (!duplicate) {
-            newCode = candidate;
-            break;
-          }
-        }
-        if (!newCode) return rejectEnrollment(503, 'Please try generating a new code', 'CODE_GENERATION_UNAVAILABLE');
-        const [updated] = await tx
-          .update(pairingSessions)
-          .set({ pairingCode: newCode, expiresAt: permanentExpiry })
-          .where(eq(pairingSessions.id, existing.id))
-          .returning();
-        if (!updated) return rejectEnrollment(500, 'Failed to update pairing code');
-        return {
-          code: updated.pairingCode,
-          sessionId: updated.id,
-          expiresAt: updated.expiresAt,
-          expiresInSeconds: Math.max(0, Math.ceil((updated.expiresAt.getTime() - Date.now()) / 1000)),
-        };
+      }
+    } else {
+      // D4: Cleanly retire/invalidate ANY active unfinished enrollment (even if partially approved or unacknowledged finalizing)
+      await tx
+        .update(pairingSessions)
+        .set({ status: 'canceled' })
+        .where(and(eq(pairingSessions.parentId, parentId), eq(pairingSessions.status, 'pending')));
+
+      const unackPaired = await tx
+        .select()
+        .from(pairingSessions)
+        .where(and(eq(pairingSessions.parentId, parentId), eq(pairingSessions.status, 'paired'), isNull(pairingSessions.acknowledgedAt)))
+        .for('update');
+      for (const s of unackPaired) {
+        await retireExpiredUnacknowledgedSession(tx, s, 'parent_regenerated');
       }
     }
-
-    const s = await issueSession(tx, parentId, undefined, permanentExpiry);
+    const s = await issueSession(tx, parentId);
     return {
       code: s.pairingCode,
       sessionId: s.id,
@@ -348,7 +341,6 @@ export async function startChild(input: z.infer<typeof enrollmentInput>, code?: 
         deviceModel: input.deviceModel,
         policyVersion: input.policyVersion,
         consentedAt: new Date(input.consentedAt),
-        parentApproved: Boolean(code),
         qrPayload: code ? '' : JSON.stringify(qrContract),
       })
         .where(eq(pairingSessions.id, session.id)).returning();
@@ -518,12 +510,18 @@ export async function ackChildWithDeviceAuth(deviceId: string, parentId: string,
   return unwrapTx(res);
 }
 
-export async function restoreBinding(hardwareId: string, _deviceBrand?: string, deviceModel?: string) {
+export async function restoreBinding(hardwareId: string, _deviceBrand?: string, deviceModel?: string, installationId?: string) {
+  const targetId = installationId || (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hardwareId)
+      ? hardwareId
+      : crypto.createHash('md5').update(hardwareId).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5')
+  );
+
   const res = await db.transaction(async tx => {
     const [device] = await tx
       .select()
       .from(childDevices)
-      .where(and(eq(childDevices.installationId, hardwareId), eq(childDevices.isUnpaired, false)))
+      .where(and(eq(childDevices.installationId, targetId), eq(childDevices.isUnpaired, false)))
       .limit(1);
 
     if (!device) {
@@ -580,4 +578,390 @@ export async function restoreBinding(hardwareId: string, _deviceBrand?: string, 
     };
   });
   return unwrapTx(res);
+}
+
+export async function getOrCreatePermanentBindCode(parentId: string): Promise<string> {
+  return db.transaction(async tx => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
+    const [parent] = await tx.select().from(parentUsers).where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active'))).limit(1);
+    if (!parent) rejectEnrollment(404, 'Guardian account not found', 'GUARDIAN_NOT_FOUND');
+
+    const permanentExpiry = new Date('2099-12-31T23:59:59.999Z');
+
+    const [existing] = await tx
+      .select()
+      .from(pairingSessions)
+      .where(and(eq(pairingSessions.parentId, parentId), isNull(pairingSessions.installationId)))
+      .orderBy(desc(pairingSessions.createdAt))
+      .limit(1);
+
+    if (existing) {
+      if (existing.expiresAt.getFullYear() < 2099 || existing.status !== 'pending') {
+        await tx
+          .update(pairingSessions)
+          .set({ expiresAt: permanentExpiry, status: 'pending' })
+          .where(eq(pairingSessions.id, existing.id));
+      }
+      return existing.pairingCode;
+    }
+
+    for (let i = 0; i < 10; i++) {
+      const code = crypto.randomInt(100000000, 1000000000).toString();
+      const [duplicate] = await tx
+        .select({ id: pairingSessions.id })
+        .from(pairingSessions)
+        .where(eq(pairingSessions.pairingCode, code))
+        .limit(1);
+
+      if (!duplicate) {
+        await tx.insert(pairingSessions).values({
+          pairingCode: code,
+          parentId,
+          expiresAt: permanentExpiry,
+          qrPayload: '',
+          status: 'pending',
+        });
+        return code;
+      }
+    }
+    return rejectEnrollment(503, 'Failed to allocate permanent binding code', 'CODE_ALLOCATION_FAILED');
+  });
+}
+
+function getDeterministicInstallationId(sn: string): string {
+  return crypto.createHash('md5').update(sn).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+}
+
+export async function bindDeviceByHardware(params: {
+  sn: string;
+  brand?: string;
+  model?: string;
+  mac?: string;
+  guardUserId: string;
+}) {
+  const { sn, brand, model, guardUserId } = params;
+  if (!sn || !sn.trim()) rejectEnrollment(400, 'Valid SN is required', 'INVALID_SN');
+  if (!guardUserId || !guardUserId.trim()) rejectEnrollment(400, 'Valid GuardUserId is required', 'INVALID_GUARD_USER_ID');
+
+  const cleanSn = sn.trim();
+  const installationId = getDeterministicInstallationId(cleanSn);
+
+  return db.transaction(async tx => {
+    const [parent] = await tx
+      .select()
+      .from(parentUsers)
+      .where(and(eq(parentUsers.id, guardUserId), eq(parentUsers.status, 'active')))
+      .limit(1);
+
+    if (!parent) rejectEnrollment(404, 'Guardian account not found', 'GUARDIAN_NOT_FOUND');
+
+    const [existingDevice] = await tx
+      .select()
+      .from(childDevices)
+      .where(
+        or(
+          eq(childDevices.installationId, installationId),
+          eq(childDevices.oaidFingerprint, cleanSn)
+        )
+      )
+      .limit(1);
+
+    const now = new Date();
+    let deviceId: string;
+
+    if (existingDevice) {
+      deviceId = existingDevice.id;
+      await tx
+        .update(childDevices)
+        .set({
+          parentId: parent.id,
+          isUnpaired: false,
+          deviceModel: model || existingDevice.deviceModel || 'Android Device',
+          oaidFingerprint: cleanSn,
+          lastSeenAt: now,
+        })
+        .where(eq(childDevices.id, existingDevice.id));
+    } else {
+      const childName = (brand ? `${brand} ` : '') + (model || 'Child Device');
+      const [inserted] = await tx
+        .insert(childDevices)
+        .values({
+          parentId: parent.id,
+          childName,
+          deviceModel: model || 'Android Device',
+          installationId,
+          oaidFingerprint: cleanSn,
+          pairedAt: now,
+          lastSeenAt: now,
+          setupStep: 4,
+          isUnpaired: false,
+        })
+        .returning();
+      deviceId = inserted.id;
+    }
+
+    // Revoke old tokens and issue fresh credentials
+    await tx
+      .update(childDeviceTokens)
+      .set({ isRevoked: true, revokedAt: now, revocationReason: 'hardware_rebound' })
+      .where(and(eq(childDeviceTokens.deviceId, deviceId), eq(childDeviceTokens.isRevoked, false)));
+
+    const jti = crypto.randomUUID();
+    const deviceToken = jwt.sign(
+      { deviceId, parentId: parent.id, role: 'child', jti },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await tx.insert(childDeviceTokens).values({
+      deviceId,
+      parentId: parent.id,
+      currentJti: jti,
+      refreshTokenHash: sha256(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        isBound: true,
+        deviceId,
+        parentId: parent.id,
+        deviceToken,
+        refreshToken,
+      },
+    };
+  });
+}
+
+export async function activateByChildCdkey(params: {
+  cdkey: string;
+  sn: string;
+  brand?: string;
+  model?: string;
+  mac?: string;
+  isGuardUserActive?: boolean;
+}) {
+  const { cdkey, sn, brand, model } = params;
+  if (!cdkey || !/^[0-9]{9}$/.test(cdkey.trim())) {
+    rejectEnrollment(400, 'Valid 9-digit Cdkey is required', 'INVALID_CDKEY');
+  }
+  if (!sn || !sn.trim()) {
+    rejectEnrollment(400, 'Valid SN is required', 'INVALID_SN');
+  }
+
+  const cleanCode = cdkey.trim();
+  const cleanSn = sn.trim();
+
+  return db.transaction(async tx => {
+    const [session] = await tx
+      .select()
+      .from(pairingSessions)
+      .where(and(eq(pairingSessions.pairingCode, cleanCode), isNull(pairingSessions.installationId)))
+      .limit(1);
+
+    if (!session || !session.parentId) {
+      rejectEnrollment(404, 'Invalid pairing code', 'INVALID_PAIRING_CODE');
+    }
+
+    const [parent] = await tx
+      .select()
+      .from(parentUsers)
+      .where(and(eq(parentUsers.id, session.parentId), eq(parentUsers.status, 'active')))
+      .limit(1);
+
+    if (!parent) {
+      rejectEnrollment(404, 'Parent account associated with code not found', 'PARENT_NOT_FOUND');
+    }
+
+    const installationId = getDeterministicInstallationId(cleanSn);
+    const [existingDevice] = await tx
+      .select()
+      .from(childDevices)
+      .where(
+        or(
+          eq(childDevices.installationId, installationId),
+          eq(childDevices.oaidFingerprint, cleanSn)
+        )
+      )
+      .limit(1);
+
+    const now = new Date();
+    let deviceId: string;
+
+    if (existingDevice) {
+      deviceId = existingDevice.id;
+      await tx
+        .update(childDevices)
+        .set({
+          parentId: parent.id,
+          isUnpaired: false,
+          deviceModel: model || existingDevice.deviceModel || 'Android Device',
+          oaidFingerprint: cleanSn,
+          lastSeenAt: now,
+        })
+        .where(eq(childDevices.id, existingDevice.id));
+    } else {
+      const childName = (brand ? `${brand} ` : '') + (model || 'Child Device');
+      const [inserted] = await tx
+        .insert(childDevices)
+        .values({
+          parentId: parent.id,
+          childName,
+          deviceModel: model || 'Android Device',
+          installationId,
+          oaidFingerprint: cleanSn,
+          pairedAt: now,
+          lastSeenAt: now,
+          setupStep: 4,
+          isUnpaired: false,
+        })
+        .returning();
+      deviceId = inserted.id;
+    }
+
+    await tx
+      .update(childDeviceTokens)
+      .set({ isRevoked: true, revokedAt: now, revocationReason: 'cdkey_activated' })
+      .where(and(eq(childDeviceTokens.deviceId, deviceId), eq(childDeviceTokens.isRevoked, false)));
+
+    const jti = crypto.randomUUID();
+    const deviceToken = jwt.sign(
+      { deviceId, parentId: parent.id, role: 'child', jti },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await tx.insert(childDeviceTokens).values({
+      deviceId,
+      parentId: parent.id,
+      currentJti: jti,
+      refreshTokenHash: sha256(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        isBound: true,
+        token: deviceToken,
+        refreshToken,
+        parentId: parent.id,
+        parentName: parent.fullName || maskEmail(parent.email),
+        childDeviceId: deviceId,
+      },
+    };
+  });
+}
+
+export async function deviceUsersSignin(params: {
+  sn: string;
+  brand?: string;
+  model?: string;
+  mac?: string;
+  timestamp?: number;
+}) {
+  const { sn, model } = params;
+  if (!sn || !sn.trim()) {
+    rejectEnrollment(400, 'Valid SN is required', 'INVALID_SN');
+  }
+
+  const cleanSn = sn.trim();
+  const installationId = getDeterministicInstallationId(cleanSn);
+
+  return db.transaction(async tx => {
+    const [device] = await tx
+      .select()
+      .from(childDevices)
+      .where(
+        and(
+          or(
+            eq(childDevices.installationId, installationId),
+            eq(childDevices.oaidFingerprint, cleanSn)
+          ),
+          eq(childDevices.isUnpaired, false)
+        )
+      )
+      .limit(1);
+
+    if (!device) {
+      return {
+        code: 200,
+        message: 'Device not bound',
+        data: {
+          IsGuardBind: false,
+          UserId: null,
+          UserToken: null,
+          RefreshToken: null,
+          GuardUserId: null,
+          GuardUserName: null,
+        },
+      };
+    }
+
+    const [parent] = await tx
+      .select()
+      .from(parentUsers)
+      .where(and(eq(parentUsers.id, device.parentId), eq(parentUsers.status, 'active')))
+      .limit(1);
+
+    if (!parent) {
+      return {
+        code: 200,
+        message: 'Guardian account inactive or removed',
+        data: {
+          IsGuardBind: false,
+          UserId: null,
+          UserToken: null,
+          RefreshToken: null,
+          GuardUserId: null,
+          GuardUserName: null,
+        },
+      };
+    }
+
+    const now = new Date();
+    await tx
+      .update(childDevices)
+      .set({
+        lastSeenAt: now,
+        ...(model ? { deviceModel: model } : {}),
+      })
+      .where(eq(childDevices.id, device.id));
+
+    await tx
+      .update(childDeviceTokens)
+      .set({ isRevoked: true, revokedAt: now, revocationReason: 'device_signin_restore' })
+      .where(and(eq(childDeviceTokens.deviceId, device.id), eq(childDeviceTokens.isRevoked, false)));
+
+    const jti = crypto.randomUUID();
+    const deviceToken = jwt.sign(
+      { deviceId: device.id, parentId: device.parentId, role: 'child', jti },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await tx.insert(childDeviceTokens).values({
+      deviceId: device.id,
+      parentId: device.parentId,
+      currentJti: jti,
+      refreshTokenHash: sha256(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        IsGuardBind: true,
+        UserId: device.id,
+        UserToken: deviceToken,
+        RefreshToken: refreshToken,
+        GuardUserId: parent.id,
+        GuardUserName: parent.fullName || maskEmail(parent.email),
+      },
+    };
+  });
 }

@@ -9,6 +9,8 @@ import {
   deliveryWindow,
   enrollmentStatus,
   getOrCreateParentPairCode,
+  getOrCreatePermanentBindCode,
+  bindDeviceByHardware,
   isDeliveryExpired,
   previewChildQr,
   retireExpiredUnacknowledgedSession,
@@ -131,6 +133,55 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     if (!body.success) return reply.code(400).send({ message: 'Invalid pair-code request' });
     return getOrCreateParentPairCode(parentId, body.data.regenerate === true);
   });
+
+  app.get('/guards/bind-code', { preHandler: [requireParentAuth] }, async (request) => {
+    const parentId = request.parentUser!.id;
+    const code = await getOrCreatePermanentBindCode(parentId);
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        bindCode: code,
+        code,
+      },
+    };
+  });
+
+  const parentGuardActiveSchema = z.object({
+    SN: z.string().optional(),
+    sn: z.string().optional(),
+    Model: z.string().optional(),
+    model: z.string().optional(),
+    Brand: z.string().optional(),
+    brand: z.string().optional(),
+    MAC: z.string().optional(),
+    mac: z.string().optional(),
+    GuardUserId: z.string().optional(),
+    guardUserId: z.string().optional(),
+  });
+
+  const handleParentGuardActive = async (request: any, reply: any) => {
+    const parsed = parentGuardActiveSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ statusCode: 400, message: 'Invalid active payload' });
+    }
+    const b = parsed.data;
+    const sn = b.SN || b.sn;
+    const guardUserId = b.GuardUserId || b.guardUserId || request.parentUser?.id;
+    if (!sn || !guardUserId) {
+      return reply.code(400).send({ statusCode: 400, message: 'SN and GuardUserId are required' });
+    }
+    return bindDeviceByHardware({
+      sn,
+      guardUserId,
+      brand: b.Brand || b.brand,
+      model: b.Model || b.model,
+      mac: b.MAC || b.mac,
+    });
+  };
+
+  app.post('/guards/active', { preHandler: [requireParentAuth, approvalLimiter] }, handleParentGuardActive);
+  app.post('/bind-hardware', { preHandler: [requireParentAuth, approvalLimiter] }, handleParentGuardActive);
 
   app.post('/qr-preview', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
     const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode }).strict().safeParse(request.body);

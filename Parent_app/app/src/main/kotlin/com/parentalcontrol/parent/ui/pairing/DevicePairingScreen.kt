@@ -142,6 +142,12 @@ import kotlinx.coroutines.launch
  *            with countdown timer and single-use expiry, and manual entry dialog.
  */
 sealed class ChildQrValidationResult {
+    data class HardwareBinding(
+        val sn: String,
+        val brand: String,
+        val model: String,
+        val mac: String
+    ) : ChildQrValidationResult()
     data class Valid(val code: String, val sessionId: String, val expiresAt: String) : ChildQrValidationResult()
     data class Expired(val code: String, val expiresAt: String? = null) : ChildQrValidationResult()
     data class Invalid(val reason: String) : ChildQrValidationResult()
@@ -149,15 +155,38 @@ sealed class ChildQrValidationResult {
 
 /**
  * Validates the typed Child QR Contract.
- * Rejects wrong version, wrong type, missing UUID sessionId, non-9-digit codes, or expired timestamps.
+ * Supports reference static hardware URL:
+ * https://parentalcontrol.app/#/parentactivate?type=licence&brand={brand}&model={model}&sn={sn}&mac={mac}
+ * as well as legacy JSON child_pair contracts.
  */
 internal fun parseChildQrContract(
     raw: String,
     nowMs: Long = System.currentTimeMillis()
 ): ChildQrValidationResult {
     val trimmed = raw.trim()
+
+    // 1. Check for Static Hardware URL
+    if (trimmed.contains("sn=") || trimmed.contains("parentactivate")) {
+        try {
+            val urlString = trimmed.replace("/#/", "/")
+            val uri = Uri.parse(urlString)
+            val sn = uri.getQueryParameter("sn") ?: ""
+            if (sn.isNotBlank()) {
+                val brand = uri.getQueryParameter("brand") ?: "Android"
+                val model = uri.getQueryParameter("model") ?: "Device"
+                val mac = uri.getQueryParameter("mac") ?: ""
+                return ChildQrValidationResult.HardwareBinding(
+                    sn = sn,
+                    brand = brand,
+                    model = model,
+                    mac = mac
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
     if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-        return ChildQrValidationResult.Invalid("Invalid pairing QR format: expected JSON child_pair contract")
+        return ChildQrValidationResult.Invalid("Invalid pairing QR format: expected JSON child_pair contract or hardware URL")
     }
 
     return try {
@@ -229,6 +258,7 @@ internal fun parseChildQrContract(
 
 internal fun extractPairingCode(raw: String): String {
     return when (val res = parseChildQrContract(raw)) {
+        is ChildQrValidationResult.HardwareBinding -> res.sn
         is ChildQrValidationResult.Valid -> res.code
         is ChildQrValidationResult.Expired -> res.code
         is ChildQrValidationResult.Invalid -> raw.filter { it.isDigit() }.takeIf { it.length in 6..16 } ?: raw.trim()
@@ -269,6 +299,7 @@ fun DevicePairingScreen(
     onLogout: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val client = FastifyRestClient.shared
     var session by remember { mutableStateOf<String?>(null) }
@@ -367,7 +398,33 @@ fun DevicePairingScreen(
         }
     }
 
-    LaunchedEffect(Unit) { issueOrResume(regenerate = false) }
+    LaunchedEffect(Unit) {
+        client.getPermanentBindCode().onSuccess { code ->
+            approvalCode = code
+            status = "waiting_for_child"
+        }.onFailure {
+            issueOrResume(regenerate = false)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        var initialDeviceIds = setOf<String>()
+        client.getDevices().onSuccess { devices ->
+            initialDeviceIds = devices.map { it.id }.toSet()
+        }
+        while (true) {
+            delay(3000)
+            if (!busy) {
+                client.getDevices().onSuccess { devices ->
+                    val newDevice = devices.firstOrNull { it.id !in initialDeviceIds }
+                    if (newDevice != null) {
+                        onPairingSuccess(newDevice.id, newDevice.deviceName ?: newDevice.model ?: "Child Device")
+                        return@LaunchedEffect
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(session, status) {
         val currentSession = session ?: return@LaunchedEffect
@@ -448,6 +505,21 @@ fun DevicePairingScreen(
                 LiveCameraQrScanner(onQrCodeDetected = { raw ->
                     scanning = false
                     when (val qr = parseChildQrContract(raw)) {
+                        is ChildQrValidationResult.HardwareBinding -> {
+                            busy = true
+                            scope.launch {
+                                client.bindHardwareDevice(qr.sn, qr.brand, qr.model, qr.mac)
+                                    .onSuccess {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        Toast.makeText(context, "Device connected successfully!", Toast.LENGTH_SHORT).show()
+                                        onPairingSuccess(java.util.UUID.randomUUID().toString(), "${qr.brand} ${qr.model}")
+                                    }
+                                    .onFailure { err ->
+                                        message = err.message ?: "Unable to link device."
+                                    }
+                                busy = false
+                            }
+                        }
                         is ChildQrValidationResult.Valid -> {
                             busy = true
                             scope.launch {
