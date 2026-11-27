@@ -592,18 +592,19 @@ export async function getOrCreatePermanentBindCode(parentId: string): Promise<{ 
 
     const permanentExpiry = new Date('2099-12-31T23:59:59.999Z');
 
+    // Rule: Exactly ONE permanent code per parent account under all circumstances.
     const [existing] = await tx
       .select()
       .from(pairingSessions)
-      .where(and(eq(pairingSessions.parentId, parentId), isNull(pairingSessions.installationId)))
+      .where(eq(pairingSessions.parentId, parentId))
       .orderBy(desc(pairingSessions.createdAt))
       .limit(1);
 
     if (existing) {
-      if (existing.expiresAt.getFullYear() < 2099 || existing.status !== 'pending') {
+      if (existing.expiresAt.getFullYear() < 2099) {
         await tx
           .update(pairingSessions)
-          .set({ expiresAt: permanentExpiry, status: 'pending' })
+          .set({ expiresAt: permanentExpiry })
           .where(eq(pairingSessions.id, existing.id));
       }
       return { code: existing.pairingCode, sessionId: existing.id };
@@ -763,7 +764,7 @@ export async function activateByChildCdkey(params: {
     const [session] = await tx
       .select()
       .from(pairingSessions)
-      .where(and(eq(pairingSessions.pairingCode, cleanCode), isNull(pairingSessions.installationId)))
+      .where(eq(pairingSessions.pairingCode, cleanCode))
       .limit(1);
 
     if (!session || !session.parentId) {
@@ -853,7 +854,6 @@ export async function activateByChildCdkey(params: {
         status: 'paired',
         childDeviceId: deviceId,
         claimedAt: now,
-        installationId,
         deviceModel: model || 'Android Device',
       })
       .where(eq(pairingSessions.id, session.id));
@@ -997,7 +997,7 @@ export async function probeChildCdkey(params: { cdkey: string }) {
   const [session] = await db
     .select()
     .from(pairingSessions)
-    .where(and(eq(pairingSessions.pairingCode, cleanCode), isNull(pairingSessions.installationId)))
+    .where(eq(pairingSessions.pairingCode, cleanCode))
     .limit(1);
 
   if (!session || !session.parentId) {
