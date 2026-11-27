@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { and, desc, eq, gt, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { childDevices, childDeviceTokens, pairingSessions, parentConsents, parentUsers, PairingSession } from '../db/schema/parental-control';
@@ -103,7 +103,8 @@ export async function retireExpiredUnacknowledgedSession(
 
 export async function issueSession(tx: Tx, parentId: string | null, deviceModel?: string, explicitExpiresAt?: Date) {
   const {pairingCodeExpirySeconds} = await getAppSettingsStrict(tx);
-  const expiresAt = explicitExpiresAt ?? new Date(Date.now() + (parentId ? 30 * 24 * 60 * 60 : pairingCodeExpirySeconds) * 1000);
+  const permanentExpiry = new Date('2099-12-31T23:59:59.999Z');
+  const expiresAt = explicitExpiresAt ?? (parentId ? permanentExpiry : new Date(Date.now() + pairingCodeExpirySeconds * 1000));
   // ON CONFLICT permits a fresh draw without aborting the transaction.
   for (let i = 0; i < 5; i++) {
     const [session] = await tx.insert(pairingSessions).values({
@@ -119,8 +120,7 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
   return db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
     await authorizedParent(tx, parentId);
-    const now = new Date();
-    const extendedExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days persistent code
+    const permanentExpiry = new Date('2099-12-31T23:59:59.999Z'); // Permanent pairing code, never expires
 
     const [existing] = await tx
       .select()
@@ -137,13 +137,13 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
 
     if (existing) {
       if (!regenerate) {
-        // Keep code active and persistent without creating new rows
-        if (existing.expiresAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000) {
+        // Keep code active and permanent without creating new rows
+        if (existing.expiresAt.getFullYear() < 2099) {
           await tx
             .update(pairingSessions)
-            .set({ expiresAt: extendedExpiry })
+            .set({ expiresAt: permanentExpiry })
             .where(eq(pairingSessions.id, existing.id));
-          existing.expiresAt = extendedExpiry;
+          existing.expiresAt = permanentExpiry;
         }
         return {
           code: existing.pairingCode,
@@ -165,9 +165,10 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
         if (!newCode) return rejectEnrollment(503, 'Please try generating a new code', 'CODE_GENERATION_UNAVAILABLE');
         const [updated] = await tx
           .update(pairingSessions)
-          .set({ pairingCode: newCode, expiresAt: extendedExpiry })
+          .set({ pairingCode: newCode, expiresAt: permanentExpiry })
           .where(eq(pairingSessions.id, existing.id))
           .returning();
+        if (!updated) return rejectEnrollment(500, 'Failed to update pairing code');
         return {
           code: updated.pairingCode,
           sessionId: updated.id,
@@ -177,7 +178,7 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
       }
     }
 
-    const s = await issueSession(tx, parentId, undefined, extendedExpiry);
+    const s = await issueSession(tx, parentId, undefined, permanentExpiry);
     return {
       code: s.pairingCode,
       sessionId: s.id,
