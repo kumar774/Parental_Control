@@ -580,7 +580,7 @@ export async function restoreBinding(hardwareId: string, _deviceBrand?: string, 
   return unwrapTx(res);
 }
 
-export async function getOrCreatePermanentBindCode(parentId: string): Promise<string> {
+export async function getOrCreatePermanentBindCode(parentId: string): Promise<{ code: string; sessionId: string }> {
   return db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
     const [parent] = await tx.select().from(parentUsers).where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active'))).limit(1);
@@ -602,7 +602,7 @@ export async function getOrCreatePermanentBindCode(parentId: string): Promise<st
           .set({ expiresAt: permanentExpiry, status: 'pending' })
           .where(eq(pairingSessions.id, existing.id));
       }
-      return existing.pairingCode;
+      return { code: existing.pairingCode, sessionId: existing.id };
     }
 
     for (let i = 0; i < 10; i++) {
@@ -614,14 +614,14 @@ export async function getOrCreatePermanentBindCode(parentId: string): Promise<st
         .limit(1);
 
       if (!duplicate) {
-        await tx.insert(pairingSessions).values({
+        const [inserted] = await tx.insert(pairingSessions).values({
           pairingCode: code,
           parentId,
           expiresAt: permanentExpiry,
           qrPayload: '',
           status: 'pending',
-        });
-        return code;
+        }).returning();
+        return { code, sessionId: inserted!.id };
       }
     }
     return rejectEnrollment(503, 'Failed to allocate permanent binding code', 'CODE_ALLOCATION_FAILED');
@@ -843,6 +843,17 @@ export async function activateByChildCdkey(params: {
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
+    await tx
+      .update(pairingSessions)
+      .set({
+        status: 'paired',
+        childDeviceId: deviceId,
+        claimedAt: now,
+        installationId,
+        deviceModel: model || 'Android Device',
+      })
+      .where(eq(pairingSessions.id, session.id));
+
     return {
       code: 200,
       message: 'success',
@@ -967,3 +978,41 @@ export async function deviceUsersSignin(params: {
     };
   });
 }
+
+export async function probeChildCdkey(params: { cdkey: string }) {
+  const { cdkey } = params;
+  if (!cdkey || !/^[0-9]{9}$/.test(cdkey.trim())) {
+    rejectEnrollment(400, 'Valid 9-digit Cdkey is required', 'INVALID_CDKEY');
+  }
+  const cleanCode = cdkey.trim();
+  const [session] = await db
+    .select()
+    .from(pairingSessions)
+    .where(and(eq(pairingSessions.pairingCode, cleanCode), isNull(pairingSessions.installationId)))
+    .limit(1);
+
+  if (!session || !session.parentId) {
+    rejectEnrollment(404, 'Invalid pairing code', 'INVALID_PAIRING_CODE');
+  }
+
+  const [parent] = await db
+    .select()
+    .from(parentUsers)
+    .where(and(eq(parentUsers.id, session.parentId), eq(parentUsers.status, 'active')))
+    .limit(1);
+
+  if (!parent) {
+    rejectEnrollment(404, 'Parent account associated with code not found', 'PARENT_NOT_FOUND');
+  }
+
+  return {
+    code: 200,
+    message: 'success',
+    data: {
+      valid: true,
+      parentEmail: maskEmail(parent.email),
+      parentName: parent.fullName || maskEmail(parent.email),
+    },
+  };
+}
+

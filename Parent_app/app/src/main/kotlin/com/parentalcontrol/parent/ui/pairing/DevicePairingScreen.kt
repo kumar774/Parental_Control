@@ -316,27 +316,45 @@ fun DevicePairingScreen(
     var pendingApproval by remember { mutableStateOf<PendingApprovalInfo?>(null) }
 
     fun checkStatus() {
-        val id = session ?: return
         if (busy) return
         busy = true
         message = null
         scope.launch {
-            client.checkPairingStatus(id).onSuccess { result ->
-                status = result.status
-                if (result.status in setOf("expired", "canceled", "paired", "finalizing", "waiting_for_child_confirmation")) {
-                    approvalCode = null
+            try {
+                val id = session
+                if (id != null) {
+                    client.checkPairingStatus(id).onSuccess { result ->
+                        status = result.status
+                        if (result.status in setOf("expired", "canceled", "paired", "finalizing", "waiting_for_child_confirmation")) {
+                            approvalCode = null
+                        }
+                        if (!result.deviceName.isNullOrBlank()) {
+                            reportedDeviceModel = result.deviceName
+                        }
+                        if (result.status == "paired") {
+                            val device = result.deviceId
+                            if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess) {
+                                onPairingSuccess(device, result.deviceName.orEmpty())
+                                return@launch
+                            }
+                        }
+                    }
                 }
-                if (!result.deviceName.isNullOrBlank()) {
-                    reportedDeviceModel = result.deviceName
+                client.getDevices().onSuccess { devices ->
+                    if (devices.isNotEmpty()) {
+                        val device = devices.first()
+                        onPairingSuccess(device.id, device.deviceName ?: device.model ?: "Child Device")
+                    } else {
+                        message = "Device not connected yet. Enter the code in Child App."
+                    }
+                }.onFailure { err ->
+                    if (message == null) message = err.message ?: "Failed to check status."
                 }
-                if (result.status == "paired") {
-                    val device = result.deviceId
-                    if (device != null && runCatching { java.util.UUID.fromString(device) }.isSuccess)
-                        onPairingSuccess(device, result.deviceName.orEmpty())
-                    else message = "Could not identify the paired device."
-                }
-            }.onFailure { message = it.message }
-            busy = false
+            } catch (e: Exception) {
+                message = e.message
+            } finally {
+                busy = false
+            }
         }
     }
 
@@ -399,8 +417,9 @@ fun DevicePairingScreen(
     }
 
     LaunchedEffect(Unit) {
-        client.getPermanentBindCode().onSuccess { code ->
-            approvalCode = code
+        client.getPermanentBindCode().onSuccess { result ->
+            approvalCode = result.code
+            session = result.sessionId
             status = "waiting_for_child"
         }.onFailure {
             issueOrResume(regenerate = false)
@@ -480,7 +499,7 @@ fun DevicePairingScreen(
             }
             PurpleCapsuleButton(
                 text = "Check binding status",
-                enabled = !busy && session != null,
+                enabled = !busy,
                 onClick = { checkStatus() }
             )
         }

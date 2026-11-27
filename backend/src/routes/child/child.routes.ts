@@ -8,7 +8,7 @@ import { childDevices, pairingSessions, childDeviceTokens, parentUsers } from '.
 import { env } from '../../config/env';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { requireChildDeviceAuth, ChildDeviceJwtPayload } from '../../middleware/child-auth.guard';
-import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth, restoreBinding, activateByChildCdkey, deviceUsersSignin } from '../../services/enrollment.service';
+import { enrollmentInput, bindingCode, startChild, childSession, ackChildWithDeviceAuth, restoreBinding, activateByChildCdkey, deviceUsersSignin, probeChildCdkey } from '../../services/enrollment.service';
 
 const childPairSessionRateLimiter = createParentRateLimiter({
   windowSeconds: 3600,
@@ -102,6 +102,19 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
   app.post('/systems/active', { preHandler: [childPairAttemptRateLimiter] }, handleChildActive);
   app.post('/device/activate-code', { preHandler: [childPairAttemptRateLimiter] }, handleChildActive);
+
+  const childProbeSchema = z.object({
+    Cdkey: z.string().optional(),
+    cdkey: z.string().optional(),
+  });
+
+  app.post('/systems/probe', { preHandler: [childPairAttemptRateLimiter] }, async (request, reply) => {
+    const parsed = childProbeSchema.safeParse(request.body || {});
+    if (!parsed.success) return reply.code(400).send({ statusCode: 400, message: 'Invalid payload' });
+    const cdkey = parsed.data.Cdkey || parsed.data.cdkey;
+    if (!cdkey) return reply.code(400).send({ statusCode: 400, message: 'Cdkey is required' });
+    return probeChildCdkey({ cdkey });
+  });
 
   const childSigninSchema = z.object({
     SN: z.string().optional(),

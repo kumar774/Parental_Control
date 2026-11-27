@@ -639,7 +639,9 @@ class FastifyRestClient(
         }
     }
 
-    suspend fun getPermanentBindCode(): Result<String> = withContext(Dispatchers.IO) {
+    data class PermanentBindCode(val code: String, val sessionId: String?)
+
+    suspend fun getPermanentBindCode(): Result<PermanentBindCode> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to get binding code"))
@@ -650,8 +652,9 @@ class FastifyRestClient(
                 val json = JSONObject(response.body)
                 val data = json.optJSONObject("data") ?: json
                 val code = data.optString("bindCode", data.optString("code", ""))
+                val sessionId = data.optString("sessionId", "").takeIf { it.isNotBlank() }
                 if (code.isNotBlank()) {
-                    Result.success(code)
+                    Result.success(PermanentBindCode(code, sessionId))
                 } else {
                     Result.failure(Exception("Empty binding code received"))
                 }

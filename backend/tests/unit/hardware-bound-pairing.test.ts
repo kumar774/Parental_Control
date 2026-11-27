@@ -8,6 +8,7 @@ import {
   bindDeviceByHardware,
   deviceUsersSignin,
   getOrCreatePermanentBindCode,
+  probeChildCdkey,
 } from '../../src/services/enrollment.service';
 
 describe('Hardware-Bound Device Pairing & Auto-Restore Unit Tests', () => {
@@ -78,6 +79,16 @@ describe('Hardware-Bound Device Pairing & Auto-Restore Unit Tests', () => {
         await assert.rejects(
           async () => {
             await activateByChildCdkey({ cdkey: badCode, sn: 'AnID1fa384298fbf91f7' });
+          },
+          (err: any) => {
+            assert.equal(err.statusCode, 400);
+            assert.equal(err.errorCode, 'INVALID_CDKEY');
+            return true;
+          }
+        );
+        await assert.rejects(
+          async () => {
+            await probeChildCdkey({ cdkey: badCode });
           },
           (err: any) => {
             assert.equal(err.statusCode, 400);

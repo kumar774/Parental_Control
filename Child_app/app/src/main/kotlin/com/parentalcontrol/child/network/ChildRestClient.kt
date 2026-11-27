@@ -186,6 +186,36 @@ class ChildRestClient(
         val message: String? = null
     )
 
+    data class ProbeResult(
+        val valid: Boolean,
+        val parentEmail: String? = null,
+        val parentName: String? = null,
+        val message: String? = null
+    )
+
+    suspend fun probeHardwareCode(cdkey: String): ProbeResult = withContext(Dispatchers.IO) {
+        val body = JSONObject().apply {
+            put("Cdkey", cdkey.trim())
+        }
+        val res = executeRequest("/api/v1/child/systems/probe", "POST", body.toString())
+        if (res.code in 200..299) {
+            val json = JSONObject(res.body)
+            val data = json.optJSONObject("data") ?: json
+            ProbeResult(
+                valid = true,
+                parentEmail = data.optionalText("parentEmail"),
+                parentName = data.optionalText("parentName")
+            )
+        } else {
+            val msg = try {
+                JSONObject(res.body).optString("message", "Invalid binding code")
+            } catch (_: Exception) {
+                "Invalid binding code (HTTP ${res.code})"
+            }
+            ProbeResult(valid = false, message = msg)
+        }
+    }
+
     suspend fun activateHardwareCode(
         cdkey: String,
         sn: String,

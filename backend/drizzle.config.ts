@@ -1,6 +1,22 @@
+import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
 
-const databaseUrl = process.env.DATABASE_URL;
+declare const process: {
+  env: Record<string, string | undefined>;
+  argv: string[];
+};
+
+let rawDatabaseUrl = process.env.DATABASE_URL?.trim();
+if (rawDatabaseUrl) {
+  try {
+    const parsed = new URL(rawDatabaseUrl);
+    parsed.pathname = parsed.pathname.trim();
+    rawDatabaseUrl = parsed.toString().trim();
+  } catch {
+    rawDatabaseUrl = rawDatabaseUrl.trim();
+  }
+}
+const databaseUrl = rawDatabaseUrl;
 
 // Enforce migration safety: Require explicit DATABASE_URL for database connection commands.
 // Never provide an implicit fallback to any application or production database.
@@ -20,3 +36,4 @@ export default defineConfig({
   verbose: true,
   strict: true,
 });
+

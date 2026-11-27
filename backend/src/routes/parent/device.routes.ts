@@ -136,13 +136,14 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
 
   app.get('/guards/bind-code', { preHandler: [requireParentAuth] }, async (request) => {
     const parentId = request.parentUser!.id;
-    const code = await getOrCreatePermanentBindCode(parentId);
+    const { code, sessionId } = await getOrCreatePermanentBindCode(parentId);
     return {
       code: 200,
       message: 'success',
       data: {
         bindCode: code,
         code,
+        sessionId,
       },
     };
   });

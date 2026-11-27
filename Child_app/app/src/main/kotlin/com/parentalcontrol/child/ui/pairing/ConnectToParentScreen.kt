@@ -57,11 +57,14 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
     var error by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var showAcquireHelp by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var pendingParentEmail by remember { mutableStateOf("") }
 
     fun clear() {
         storage.clearEnrollment()
         attempt = null
         message = ""
+        showConfirmDialog = false
     }
     fun start(parentCode: String?) {
         if (busy) return
@@ -71,9 +74,36 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
         error = ""
         scope.launch {
             try {
+                val probe = client.probeHardwareCode(currentCode)
+                if (probe.valid) {
+                    pendingParentEmail = probe.parentEmail ?: "Parent Account"
+                    showConfirmDialog = true
+                } else {
+                    error = probe.message ?: "Invalid binding code. Please check and retry."
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("ConnectToParent", "Probe failed", e)
+                error = e.localizedMessage ?: "Could not verify binding code. Check network connection."
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun confirmBinding() {
+        if (busy) return
+        val currentCode = code.trim()
+        if (currentCode.length != 9) return
+        busy = true
+        error = ""
+        scope.launch {
+            try {
                 val hid = storage.getHardwareId()
                 val result = client.activateHardwareCode(currentCode, hid)
                 if (result.success && result.deviceId != null && result.deviceToken != null && result.parentId != null) {
+                    showConfirmDialog = false
                     storage.acceptPolicy()
                     storage.savePairingSession(
                         deviceId = result.deviceId,
@@ -177,7 +207,8 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
 
         // Card 1: Static Hardware QR Code
         val staticQrUrl = remember {
-            "https://parentalcontrol.app/#/parentactivate?type=licence&brand=${android.os.Build.BRAND}&model=${android.os.Build.MODEL}&sn=${storage.getHardwareId()}&mac="
+            val apiOrigin = com.parentalcontrol.child.BuildConfig.API_ORIGIN.trimEnd('/')
+            "$apiOrigin/#/parentactivate?type=licence&brand=${android.os.Build.BRAND}&model=${android.os.Build.MODEL}&sn=${storage.getHardwareId()}&mac="
         }
         val qrBitmap = remember(staticQrUrl) {
             QrCodeGenerator.generateQrBitmap(staticQrUrl)
@@ -348,6 +379,100 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                 }
             }
         )
+    }
+
+    if (showConfirmDialog) {
+        Dialog(onDismissRequest = { if (!busy) showConfirmDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(BrandPurple.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = null,
+                            tint = BrandPurple,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Bind device",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+
+                    Text(
+                        text = "Confirm to bind with the parent account?",
+                        fontSize = 14.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = pendingParentEmail,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BrandPurple,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (error.isNotBlank()) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Button(
+                        onClick = ::confirmBinding,
+                        enabled = !busy,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandPurple,
+                            disabledContainerColor = BrandPurple.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Confirm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { if (!busy) showConfirmDialog = false },
+                        enabled = !busy
+                    ) {
+                        Text("Cancel", color = Color(0xFF64748B), fontSize = 14.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
