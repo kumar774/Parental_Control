@@ -697,6 +697,7 @@ export async function bindDeviceByHardware(params: {
           isUnpaired: false,
         })
         .returning();
+      if (!inserted) throw new Error('Failed to register child device');
       deviceId = inserted.id;
     }
 
@@ -818,6 +819,7 @@ export async function activateByChildCdkey(params: {
           isUnpaired: false,
         })
         .returning();
+      if (!inserted) throw new Error('Failed to register child device');
       deviceId = inserted.id;
     }
 
