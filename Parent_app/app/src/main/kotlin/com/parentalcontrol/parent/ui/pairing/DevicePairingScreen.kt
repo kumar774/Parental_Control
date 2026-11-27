@@ -283,7 +283,6 @@ fun DevicePairingScreen(
     var scanning by remember { mutableStateOf(false) }
     var denied by remember { mutableStateOf(false) }
     var pendingApproval by remember { mutableStateOf<PendingApprovalInfo?>(null) }
-    var showCancelConfirm by remember { mutableStateOf(false) }
 
     fun checkStatus() {
         val id = session ?: return
@@ -346,23 +345,6 @@ fun DevicePairingScreen(
             } catch (e: Exception) { message = e.message }
             busy = false
             if (session != null && message == null) checkStatus()
-        }
-    }
-
-    fun cancelCurrentEnrollment() {
-        val id = session ?: return
-        if (busy) return
-        busy = true
-        message = null
-        scope.launch {
-            client.cancelPairing(id).onSuccess {
-                status = "canceled"
-                approvalCode = null
-                expires = 0L
-                reportedDeviceModel = null
-                pendingApproval = null
-            }.onFailure { message = it.message }
-            busy = false
         }
     }
 
@@ -496,78 +478,45 @@ fun DevicePairingScreen(
         }
         SetupCard("Use a binding code") {
             Text(
-                "Enter this nine-digit code in the Child App.",
+                "Enter this nine-digit code in the Child App to connect.",
                 color = ParentTextMuted,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
             )
-            val manualCode = visibleManualBindingCode(approvalCode, status, expires, now)
+            val manualCode = visibleManualBindingCode(approvalCode, status, expires, now) ?: approvalCode?.takeIf { it.matches(Regex("[0-9]{9}")) }
             if (manualCode != null) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = ParentPurpleSoft
+                    color = ParentPurpleSoft,
+                    border = BorderStroke(1.dp, ParentPurple.copy(alpha = 0.2f))
                 ) {
                     Text(
                         text = formatNineDigitCode(manualCode).replace(" - ", " "),
-                        fontSize = 24.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         color = ParentTextDark,
                         textAlign = TextAlign.Center,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp)
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                     )
                 }
-                val seconds = (expires - now + 999) / 1000
-                Text(
-                    "Expires in ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
-                    color = ParentTextMuted,
-                    fontSize = 12.sp
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = {
-                            if (visibleManualBindingCode(approvalCode, status, expires, System.currentTimeMillis()) != null) {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("Binding code", manualCode)
-                                clip.description.extras = PersistableBundle().apply {
-                                    putBoolean("android.content.extra.IS_SENSITIVE", true)
-                                }
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Binding code copied", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        enabled = !busy
-                    ) { Text("Copy code", color = ParentPurpleDeep) }
-                    TextButton({ issueOrResume(regenerate = true) }, enabled = !busy) {
-                        Text("Regenerate code", color = ParentPurpleDeep)
-                    }
-                }
-            }
-            if (pairingExpired) {
-                Text("This binding code expired. Get a new code to continue.", color = ParentTextMuted, fontSize = 13.sp)
-            }
-            if (session != null && !pairingExpired && status !in setOf("expired", "canceled", "paired")) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (manualCode == null) {
-                        TextButton({ issueOrResume(regenerate = true) }, enabled = !busy) {
-                            Text("Regenerate code", color = ParentPurpleDeep)
-                        }
-                    }
-                    TextButton({ showCancelConfirm = true }, enabled = !busy) {
-                        Text("Cancel pairing", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-            if (session == null || status in setOf("expired", "canceled") || pairingExpired) {
+            } else if (session == null || status in setOf("expired", "canceled")) {
                 OutlinedPurpleCapsuleButton(
                     text = "Get binding code",
                     enabled = !busy,
                     onClick = { issueOrResume(regenerate = false) }
                 )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = ParentPurple, modifier = Modifier.size(24.dp))
+                }
             }
         }
-        val description = if (pairingExpired) null else when (status) {
+        val description = when (status) {
             "waiting_for_child" -> "Waiting for the child to enter the code."
             "waiting_for_parent" -> "The child requested a connection. Review it before approving."
             "waiting_for_child_confirmation" -> "Waiting for confirmation on the child's phone."
@@ -581,7 +530,7 @@ fun DevicePairingScreen(
         }
         val reviewSession = session
         val reviewCode = approvalCode
-        if (status == "waiting_for_parent" && !pairingExpired && reviewSession != null && reviewCode != null) {
+        if (status == "waiting_for_parent" && reviewSession != null && reviewCode != null) {
             PurpleCapsuleButton(
                 text = "Review connection",
                 enabled = !busy,
@@ -596,48 +545,6 @@ fun DevicePairingScreen(
             )
         }
         message?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
-    }
-    if (showCancelConfirm) {
-        AlertDialog(
-            onDismissRequest = { showCancelConfirm = false },
-            containerColor = ParentBg,
-            shape = RoundedCornerShape(20.dp),
-            title = {
-                Text(
-                    "Cancel pending pairing?",
-                    color = ParentTextDark,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            },
-            text = {
-                Text(
-                    "This will end the current pairing request. Start a new pairing to connect a device.",
-                    color = ParentTextMuted,
-                    fontSize = 14.sp
-                )
-            },
-            dismissButton = {
-                TextButton({ showCancelConfirm = false }) {
-                    Text("Keep active", color = ParentTextMuted, fontWeight = FontWeight.Medium)
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showCancelConfirm = false
-                        cancelCurrentEnrollment()
-                    },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Cancel pairing", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        )
     }
     pendingApproval?.let { info ->
         val approvalExpired = now >= info.expiresAtMillis

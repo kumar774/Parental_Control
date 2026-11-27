@@ -101,9 +101,9 @@ export async function retireExpiredUnacknowledgedSession(
   return updated ?? s;
 }
 
-export async function issueSession(tx: Tx, parentId: string | null, deviceModel?: string) {
+export async function issueSession(tx: Tx, parentId: string | null, deviceModel?: string, explicitExpiresAt?: Date) {
   const {pairingCodeExpirySeconds} = await getAppSettingsStrict(tx);
-  const expiresAt = new Date(Date.now() + pairingCodeExpirySeconds * 1000);
+  const expiresAt = explicitExpiresAt ?? new Date(Date.now() + (parentId ? 30 * 24 * 60 * 60 : pairingCodeExpirySeconds) * 1000);
   // ON CONFLICT permits a fresh draw without aborting the transaction.
   for (let i = 0; i < 5; i++) {
     const [session] = await tx.insert(pairingSessions).values({
@@ -120,58 +120,64 @@ export async function getOrCreateParentPairCode(parentId: string, regenerate: bo
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
     await authorizedParent(tx, parentId);
     const now = new Date();
-    // Retire expired untouched manual codes so the partial unique index stays clean.
-    await tx
-      .update(pairingSessions)
-      .set({ status: 'expired' })
+    const extendedExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days persistent code
+
+    const [existing] = await tx
+      .select()
+      .from(pairingSessions)
       .where(
         and(
           eq(pairingSessions.parentId, parentId),
           eq(pairingSessions.status, 'pending'),
-          isNull(pairingSessions.installationId),
-          lte(pairingSessions.expiresAt, now)
+          isNull(pairingSessions.installationId)
         )
-      );
+      )
+      .orderBy(desc(pairingSessions.createdAt))
+      .limit(1);
 
-    if (!regenerate) {
-      const [existing] = await tx
-        .select()
-        .from(pairingSessions)
-        .where(
-          and(
-            eq(pairingSessions.parentId, parentId),
-            eq(pairingSessions.status, 'pending'),
-            gt(pairingSessions.expiresAt, now),
-            isNull(pairingSessions.installationId)
-          )
-        )
-        .orderBy(desc(pairingSessions.createdAt))
-        .limit(1);
-      if (existing) {
+    if (existing) {
+      if (!regenerate) {
+        // Keep code active and persistent without creating new rows
+        if (existing.expiresAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000) {
+          await tx
+            .update(pairingSessions)
+            .set({ expiresAt: extendedExpiry })
+            .where(eq(pairingSessions.id, existing.id));
+          existing.expiresAt = extendedExpiry;
+        }
         return {
           code: existing.pairingCode,
           sessionId: existing.id,
           expiresAt: existing.expiresAt,
           expiresInSeconds: Math.max(0, Math.ceil((existing.expiresAt.getTime() - Date.now()) / 1000)),
         };
-      }
-    } else {
-      // D4: Cleanly retire/invalidate ANY active unfinished enrollment (even if partially approved or unacknowledged finalizing)
-      await tx
-        .update(pairingSessions)
-        .set({ status: 'canceled' })
-        .where(and(eq(pairingSessions.parentId, parentId), eq(pairingSessions.status, 'pending')));
-
-      const unackPaired = await tx
-        .select()
-        .from(pairingSessions)
-        .where(and(eq(pairingSessions.parentId, parentId), eq(pairingSessions.status, 'paired'), isNull(pairingSessions.acknowledgedAt)))
-        .for('update');
-      for (const s of unackPaired) {
-        await retireExpiredUnacknowledgedSession(tx, s, 'parent_regenerated');
+      } else {
+        // In-place refresh: update existing code in place to prevent database pollution
+        let newCode = '';
+        for (let i = 0; i < 5; i++) {
+          const candidate = crypto.randomInt(100000000, 1000000000).toString();
+          const [duplicate] = await tx.select({ id: pairingSessions.id }).from(pairingSessions).where(eq(pairingSessions.pairingCode, candidate)).limit(1);
+          if (!duplicate) {
+            newCode = candidate;
+            break;
+          }
+        }
+        if (!newCode) return rejectEnrollment(503, 'Please try generating a new code', 'CODE_GENERATION_UNAVAILABLE');
+        const [updated] = await tx
+          .update(pairingSessions)
+          .set({ pairingCode: newCode, expiresAt: extendedExpiry })
+          .where(eq(pairingSessions.id, existing.id))
+          .returning();
+        return {
+          code: updated.pairingCode,
+          sessionId: updated.id,
+          expiresAt: updated.expiresAt,
+          expiresInSeconds: Math.max(0, Math.ceil((updated.expiresAt.getTime() - Date.now()) / 1000)),
+        };
       }
     }
-    const s = await issueSession(tx, parentId);
+
+    const s = await issueSession(tx, parentId, undefined, extendedExpiry);
     return {
       code: s.pairingCode,
       sessionId: s.id,
