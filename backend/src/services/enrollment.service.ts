@@ -727,6 +727,15 @@ export async function bindDeviceByHardware(params: {
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
+    await tx
+      .update(pairingSessions)
+      .set({
+        childDeviceId: deviceId,
+        acknowledgedAt: now,
+        status: 'paired',
+      })
+      .where(eq(pairingSessions.parentId, parent.id));
+
     return {
       code: 200,
       message: 'success',

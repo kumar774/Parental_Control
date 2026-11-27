@@ -1,10 +1,6 @@
+/// <reference types="node" />
 import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
-
-declare const process: {
-  env: Record<string, string | undefined>;
-  argv: string[];
-};
 
 let rawDatabaseUrl = process.env.DATABASE_URL?.trim();
 if (rawDatabaseUrl) {
