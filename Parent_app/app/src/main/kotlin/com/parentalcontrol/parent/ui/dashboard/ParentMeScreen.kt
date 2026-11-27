@@ -204,7 +204,7 @@ fun ParentMeScreen(
 
         Spacer(modifier = Modifier.height(Space8))
 
-        // Profile Card (FlashGet Kids Style)
+        // Profile Card
         Column(
             modifier = Modifier
                 .fillMaxWidth()

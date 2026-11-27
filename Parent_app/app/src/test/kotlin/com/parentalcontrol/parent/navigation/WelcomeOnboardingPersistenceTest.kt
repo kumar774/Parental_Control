@@ -9,7 +9,7 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Unit tests verifying FlashGet Kids-style onboarding persistence:
+ * Unit tests verifying onboarding persistence:
  * - Unauthenticated first launch with !hasCompletedOnboarding routes to WELCOME_CAROUSEL.
  * - Completing or skipping onboarding persists hasCompletedOnboarding = true.
  * - Subsequent unauthenticated launches route directly to LOGIN (never show WELCOME_CAROUSEL).

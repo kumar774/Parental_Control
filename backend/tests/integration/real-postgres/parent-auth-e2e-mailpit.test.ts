@@ -217,7 +217,7 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     const { otp: validOtp } = await getEmailWithOtp(testEmail, ['verification code', 'Verify Your Email']);
     assert.ok(validOtp, 'Verification OTP must be available from Mailpit');
 
-    // A0. Login when email is unverified succeeds with requiresEmailVerification: true (FlashGet Kids flow)
+    // A0. Login when email is unverified succeeds with requiresEmailVerification: true (unverified session flow)
     const unverifiedLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',

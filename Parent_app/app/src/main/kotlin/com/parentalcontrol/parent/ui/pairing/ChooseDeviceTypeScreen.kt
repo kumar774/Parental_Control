@@ -35,19 +35,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.parentalcontrol.core.designsystem.theme.*
 import com.parentalcontrol.core.network.rest.FastifyRestClient
-import com.parentalcontrol.parent.ui.common.FlashGetTopOptionsMenu
+import com.parentalcontrol.parent.ui.common.ParentTopOptionsMenu
 import kotlin.math.floor
 
-internal val ParentBg = Color(0xFFFFFFFF)
-internal val ParentPurple = Color(0xFF7C4DFF)
-internal val ParentPurpleDeep = Color(0xFF6243AA)
-internal val ParentPurpleSoft = Color(0xFFF3EEFF)
-internal val ParentTextDark = Color(0xFF1A1A2E)
-internal val ParentTextMuted = Color(0xFF6B7280)
-internal val ParentBorder = Color(0xFFE5E7EB)
-internal val ParentSurfaceMuted = Color(0xFFF3F4F6)
-internal val ParentYellowAccent = Color(0xFFFFC107)
+internal val ParentBg = BrandSurfaceBg
+internal val ParentPurple = BrandPrimary
+internal val ParentPurpleDeep = BrandPrimaryDeep
+internal val ParentPurpleSoft = BrandPrimarySoft
+internal val ParentTextDark = BrandTextDark
+internal val ParentTextMuted = BrandTextMuted
+internal val ParentBorder = BrandBorder
+internal val ParentSurfaceMuted = BrandSurfaceMuted
+internal val ParentYellowAccent = BrandYellowAccent
 
 @Composable
 internal fun SetupPage(
@@ -96,7 +97,7 @@ internal fun SetupPage(
             if (headerActions != null) {
                 headerActions()
             } else {
-                FlashGetTopOptionsMenu(
+                ParentTopOptionsMenu(
                     isAuthenticated = true,
                     onLogout = onLogout
                 )

@@ -14,9 +14,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.parentalcontrol.parent.ui.common.FlashGetSupportButton
-import com.parentalcontrol.parent.ui.common.FlashGetSupportDialog
-import com.parentalcontrol.parent.ui.common.FlashGetTopOptionsMenu
+import com.parentalcontrol.parent.ui.common.ParentSupportButton
+import com.parentalcontrol.parent.ui.common.ParentSupportDialog
+import com.parentalcontrol.parent.ui.common.ParentTopOptionsMenu
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -103,7 +103,7 @@ internal fun AuthMethodScreen(
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top Action Bar matching FlashGet Kids (Support + 3-dots Menu)
+        // Top Action Bar (Support + 3-dots Menu)
         Row(
             Modifier
                 .fillMaxWidth()
@@ -120,9 +120,9 @@ internal fun AuthMethodScreen(
                 }
             }
             Spacer(Modifier.weight(1f))
-            FlashGetSupportButton(onClick = { showSupportDialog = true })
+            ParentSupportButton(onClick = { showSupportDialog = true })
             Spacer(Modifier.width(4.dp))
-            FlashGetTopOptionsMenu(isAuthenticated = false)
+            ParentTopOptionsMenu(isAuthenticated = false)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -249,6 +249,6 @@ internal fun AuthMethodScreen(
     }
 
     if (showSupportDialog) {
-        FlashGetSupportDialog(onDismiss = { showSupportDialog = false })
+        ParentSupportDialog(onDismiss = { showSupportDialog = false })
     }
 }

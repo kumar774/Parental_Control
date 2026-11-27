@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
- * Screen 04: RegisterScreen (FlashGet Kids In-Place Bottom Sheet Architecture)
+ * Screen 04: RegisterScreen (In-Place Bottom Sheet Architecture)
  *
  * User lands on the clean, light [AuthMethodScreen].
  * When "Sign up with Email" is tapped, a [ModalBottomSheet] slides up in-place on the same screen:
@@ -142,7 +142,7 @@ fun RegisterScreen(
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
-    // Base landing screen: FlashGet Kids Light Auth Method Selector
+    // Base landing screen: Light Auth Method Selector
     AuthMethodScreen(
         register = true,
         settings = appSettings,
@@ -412,7 +412,7 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Clean 2-line Policy notice matching FlashGet Kids
+                // Clean 2-line Policy notice
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -85,7 +85,7 @@ import kotlinx.coroutines.launch
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
- * Screen 03: LoginScreen (FlashGet Kids In-Place Bottom Sheet Architecture)
+ * Screen 03: LoginScreen (In-Place Bottom Sheet Architecture)
  *
  * User lands on the clean, light [AuthMethodScreen].
  * When "Sign in with Email" is clicked, a [ModalBottomSheet] slides up in-place on the same screen,
@@ -140,7 +140,7 @@ fun LoginScreen(
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
-    // Base landing screen: FlashGet Kids Light Auth Method Selector
+    // Base landing screen: Light Auth Method Selector
     AuthMethodScreen(
         register = false,
         settings = appSettings,

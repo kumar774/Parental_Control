@@ -62,8 +62,6 @@ import androidx.compose.ui.unit.sp
 
 val BrandPurple = Color(0xFF6C5CE7)
 val BrandLightPurple = Color(0xFFF1F0FF)
-val FlashGetPurple = BrandPurple
-val FlashGetLightPurple = BrandLightPurple
 
 /**
  * Child Guard Screen 1: Device Role Selection ("Whose device is this?")
@@ -131,7 +129,7 @@ fun KidDeviceSelectScreen(
                 .height(54.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = FlashGetPurple,
+                containerColor = BrandPurple,
                 contentColor = Color.White
             )
         ) {
@@ -152,9 +150,9 @@ fun KidDeviceSelectScreen(
                 .padding(horizontal = 24.dp)
                 .height(54.dp),
             shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.5.dp, FlashGetPurple),
+            border = BorderStroke(1.5.dp, BrandPurple),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = FlashGetPurple
+                contentColor = BrandPurple
             )
         ) {
             Text(
@@ -170,7 +168,7 @@ fun KidDeviceSelectScreen(
     if (showParentDialog) {
         AlertDialog(
             onDismissRequest = { showParentDialog = false },
-            icon = { Icon(Icons.Default.Home, null, tint = FlashGetPurple) },
+            icon = { Icon(Icons.Default.Home, null, tint = BrandPurple) },
             title = {
                 Text(
                     text = "Download the Parent App",
@@ -204,7 +202,7 @@ fun KidDeviceSelectScreen(
                         }
                     },
                     enabled = !fetching,
-                    colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
                 ) {
                     Text(if (fetching) "Checking download…" else "Download Parent App")
                 }
@@ -233,7 +231,7 @@ private fun ChildDeviceHeroIllustration() {
             modifier = Modifier
                 .size(240.dp)
                 .clip(CircleShape)
-                .background(FlashGetLightPurple.copy(alpha = 0.7f))
+                .background(BrandLightPurple.copy(alpha = 0.7f))
         )
 
         // Cute Speech bubble: "Hello!" (Pinkish)

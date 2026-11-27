@@ -224,7 +224,7 @@ private fun ConsentHeroIllustration() {
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(FlashGetPurple.copy(alpha = 0.3f))
+                        .background(BrandPurple.copy(alpha = 0.3f))
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(
@@ -232,7 +232,7 @@ private fun ConsentHeroIllustration() {
                         .fillMaxWidth(0.8f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(FlashGetPurple.copy(alpha = 0.5f))
+                        .background(BrandPurple.copy(alpha = 0.5f))
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -240,7 +240,7 @@ private fun ConsentHeroIllustration() {
                         .fillMaxWidth(0.6f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(FlashGetPurple.copy(alpha = 0.3f))
+                        .background(BrandPurple.copy(alpha = 0.3f))
                 )
             }
         }

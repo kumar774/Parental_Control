@@ -406,7 +406,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
             },
             confirmButton = {
                 TextButton(onClick = { showAcquireHelp = false }) {
-                    Text("Got it", color = FlashGetPurple)
+                    Text("Got it", color = BrandPurple)
                 }
             }
         )

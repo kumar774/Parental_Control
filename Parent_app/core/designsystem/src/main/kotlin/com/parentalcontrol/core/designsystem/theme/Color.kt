@@ -50,3 +50,17 @@ val AccentLight = Color(0xFF4F46E5)
 val BgCanvasOled = Color(0xFF000000)
 val GlassSurfaceOled = Color(0xBF0B0F17)      // 75% alpha
 val GlassBorderOled = Color(0xCC1E293B)       // 80% alpha
+
+// ============================================================================
+// Brand Color Tokens (Single Source of Truth for App-Wide Theming)
+// ============================================================================
+val BrandPrimary = Color(0xFF6C5CE7)           // Primary Brand Purple (#6C5CE7)
+val BrandPrimaryDeep = Color(0xFF5A4BC7)       // Deep Purple for Gradients
+val BrandPrimarySoft = Color(0xFFF3EEFF)       // Soft Lavender Tint for Containers
+val BrandTextDark = Color(0xFF1A1A2E)          // Charcoal Dark Heading & Body Text
+val BrandTextMuted = Color(0xFF6B7280)         // Slate Muted Secondary Text
+val BrandBorder = Color(0xFFE5E7EB)            // Light Subtle Border
+val BrandDivider = Color(0xFFF1F2F6)           // Very Light Card/List Divider
+val BrandSurfaceBg = Color(0xFFFFFFFF)         // Clean Pure White Surface Background
+val BrandSurfaceMuted = Color(0xFFF8F9FA)      // Very Soft Off-White Background
+val BrandYellowAccent = Color(0xFFFFC107)      // Accent Amber/Yellow for Badges

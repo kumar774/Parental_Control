@@ -930,7 +930,7 @@ describe('Parent Auth & Database — Real PostgreSQL Integration Suite', () => {
     });
     assert.equal(regRes.statusCode, 201);
 
-    // 2. Attempt login BEFORE verifying email -> succeeds with requiresEmailVerification: true (matching FlashGet Kids)
+    // 2. Attempt login BEFORE verifying email -> succeeds with requiresEmailVerification: true (unverified session flow)
     const loginRes = await readyApp!.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
