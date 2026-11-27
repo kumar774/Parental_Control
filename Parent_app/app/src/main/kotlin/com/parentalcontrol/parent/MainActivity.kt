@@ -1831,7 +1831,13 @@ fun ParentAppMainContent(
                             onPrivacy = { selectedLegalDocType = "privacy"; legalScreenReturnTarget = AppScreen.MAIN_SHELL; currentScreen = AppScreen.NATIVE_LEGAL },
                             allowAutoResumeOnboarding = allowAutoResumeOnboarding,
                             onAutoResumeConsumed = { allowAutoResumeOnboarding = false },
-                            onHasConnectedChild = { firstChildSetup = !it }
+                            onHasConnectedChild = { firstChildSetup = !it },
+                            onUsageReport = { currentScreen = AppScreen.USAGE_ANALYTICS },
+                            onRemoteCamera = { currentScreen = AppScreen.REMOTE_CAMERA_VIEWER },
+                            onScreenMirror = { currentScreen = AppScreen.SCREEN_MIRROR_VIEWER },
+                            onAmbientAudio = { currentScreen = AppScreen.LIVE_AMBIENT_AUDIO },
+                            onLiveLocation = { currentScreen = AppScreen.LIVE_LOCATION_MAP },
+                            onRulesConfig = { currentScreen = AppScreen.SCREEN_TIME_LIMIT }
                         )
                     }
                 }
