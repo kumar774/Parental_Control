@@ -9,10 +9,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import com.parentalcontrol.parent.ui.common.FlashGetSupportButton
+import com.parentalcontrol.parent.ui.common.FlashGetSupportDialog
+import com.parentalcontrol.parent.ui.common.FlashGetTopOptionsMenu
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -87,6 +91,7 @@ internal fun AuthMethodScreen(
     val allowed = !register || settings?.registrationEnabled == true
     val configured = settings?.googleClientId?.matches(Regex("[a-zA-Z0-9-]+[.]apps[.]googleusercontent[.]com")) == true
     val showGoogle = allowed && configured && settings?.googleAuthEnabled == true
+    var showSupportDialog by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -95,10 +100,32 @@ internal fun AuthMethodScreen(
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(72.dp))
+        // Top Action Bar matching FlashGet Kids (Support + 3-dots Menu)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (register) {
+                IconButton(onClick = onSwitch) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = ParentTextDark
+                    )
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            FlashGetSupportButton(onClick = { showSupportDialog = true })
+            Spacer(Modifier.width(4.dp))
+            FlashGetTopOptionsMenu(isAuthenticated = false)
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         Text(
             text = if (register) "You need to create an account" else "You need to sign in",
@@ -219,5 +246,9 @@ internal fun AuthMethodScreen(
                 )
             }
         }
+    }
+
+    if (showSupportDialog) {
+        FlashGetSupportDialog(onDismiss = { showSupportDialog = false })
     }
 }

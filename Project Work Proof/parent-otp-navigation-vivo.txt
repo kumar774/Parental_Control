@@ -1,0 +1,9 @@
+Vivo I2220 over Tailscale. Parent standard debug APK.
+APK SHA-256: 42d049e415055c8d5d9fd7bbfd7661c826c2b59338d54213cebee93f7fe986c6
+Final build installed. Ready on sign-in for fresh QA signup.
+Signup opened OTP.
+OTP top Back opened Cancel verification; No kept the OTP screen.
+Wrong OTP rejected; verification screen remains visible.
+Valid OTP from signup signed in automatically and opened Device Selection.
+toolbar Back: Add New Device -> consent -> Device Selection; Dashboard did not open.
+Android Back: Add New Device -> consent -> Device Selection; Dashboard did not open.

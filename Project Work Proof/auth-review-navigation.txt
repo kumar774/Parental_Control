@@ -1,0 +1,4 @@
+reference-signup: You need to create an account; Back control: False
+reference-signin: You need to sign in; Back control: False
+parent-signin: You need to sign in; Back control: True
+parent-signup: You need to create an account; Back control: True

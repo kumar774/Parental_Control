@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.parentalcontrol.core.network.rest.FastifyRestClient
+import com.parentalcontrol.parent.ui.common.FlashGetTopOptionsMenu
 import kotlin.math.floor
 
 internal val ParentBg = Color(0xFFFFFFFF)
@@ -55,6 +56,7 @@ internal fun SetupPage(
     showBack: Boolean = true,
     step: Int = 0,
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
+    onLogout: (() -> Unit)? = null,
     headerActions: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -65,36 +67,39 @@ internal fun SetupPage(
             .systemBarsPadding()
             .imePadding()
     ) {
-        if (showBack || title.isNotEmpty() || headerActions != null) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (showBack) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = ParentTextDark
-                        )
-                    }
-                } else {
-                    Spacer(Modifier.width(12.dp))
-                }
-                if (title.isNotEmpty()) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ParentTextDark
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showBack) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = ParentTextDark
                     )
                 }
-                if (headerActions != null) {
-                    Spacer(Modifier.weight(1f))
-                    headerActions()
-                }
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
+            if (title.isNotEmpty()) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ParentTextDark
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            if (headerActions != null) {
+                headerActions()
+            } else {
+                FlashGetTopOptionsMenu(
+                    isAuthenticated = true,
+                    onLogout = onLogout
+                )
             }
         }
 
@@ -337,26 +342,11 @@ private fun DeviceLinkHeroIllustration(modifier: Modifier = Modifier) {
 @Composable
 fun ChooseDeviceTypeScreen(onLogout: (() -> Unit)?, onSelectParentDevice: () -> Unit) {
     var showDownload by rememberSaveable { mutableStateOf(false) }
-    val headerActions: (@Composable () -> Unit)? = onLogout?.let { logout ->
-        {
-            var showMenu by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = ParentTextDark)
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Log out") },
-                        onClick = {
-                            showMenu = false
-                            logout()
-                        }
-                    )
-                }
-            }
-        }
-    }
-    SetupPage(title = "", showBack = false, headerActions = headerActions) {
+    SetupPage(
+        title = "",
+        showBack = false,
+        onLogout = onLogout
+    ) {
         Spacer(Modifier.height(12.dp))
         DeviceLinkHeroIllustration(Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(8.dp))

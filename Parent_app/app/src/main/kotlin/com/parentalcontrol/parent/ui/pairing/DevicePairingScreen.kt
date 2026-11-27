@@ -262,8 +262,12 @@ internal fun visibleManualBindingCode(
 }
 
 @Composable
-fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, String) -> Unit,
-                        modifier: Modifier = Modifier) {
+fun DevicePairingScreen(
+    onNavigateBack: () -> Unit,
+    onPairingSuccess: (String, String) -> Unit,
+    modifier: Modifier = Modifier,
+    onLogout: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val client = FastifyRestClient.shared
@@ -403,6 +407,7 @@ fun DevicePairingScreen(onNavigateBack: () -> Unit, onPairingSuccess: (String, S
         title = "Add New Device",
         onBack = onNavigateBack,
         step = 1,
+        onLogout = onLogout,
         bottomBar = {
             if (busy) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

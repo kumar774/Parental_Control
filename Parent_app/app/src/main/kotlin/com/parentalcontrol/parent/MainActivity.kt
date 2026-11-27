@@ -1045,7 +1045,8 @@ fun ParentAppMainContent(
                                 setupDeviceId = id
                                 lastPairedDeviceName = model
                                 currentScreen = AppScreen.PAIRING_SUCCESS
-                            }
+                            },
+                            onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null
                         )
                     }
                 }
@@ -1560,12 +1561,16 @@ fun ParentAppMainContent(
                 // Phase 10 Screens (Completing all 66 screens)
                 AppScreen.PAIRING_SUCCESS -> {
                     com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
-                        setupDeviceId, lastPairedDeviceName, 2,
-                        {
+                        deviceId = setupDeviceId,
+                        model = lastPairedDeviceName,
+                        step = 2,
+                        onBack = {
                             allowAutoResumeOnboarding = false
                             currentScreen = AppScreen.MAIN_SHELL
                         },
-                        { currentScreen = AppScreen.CHILD_PROFILE_EDIT })
+                        onSaved = { currentScreen = AppScreen.CHILD_PROFILE_EDIT },
+                        onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null
+                    )
                 }
 
                 AppScreen.CHOOSE_DEVICE_TYPE -> {
@@ -1594,15 +1599,21 @@ fun ParentAppMainContent(
                                 selectedLegalDocType = "privacy"
                                 legalScreenReturnTarget = AppScreen.PARENT_CONSENT
                                 currentScreen = AppScreen.NATIVE_LEGAL
-                            }
+                            },
+                            onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null
                         )
                     }
                 }
 
                 AppScreen.CHILD_PROFILE_EDIT -> {
                     com.parentalcontrol.parent.ui.pairing.PairedDeviceSetup(
-                        setupDeviceId, lastPairedDeviceName, 3, { currentScreen = AppScreen.PAIRING_SUCCESS },
-                        { navigateToAuthenticatedRoot() })
+                        deviceId = setupDeviceId,
+                        model = lastPairedDeviceName,
+                        step = 3,
+                        onBack = { currentScreen = AppScreen.PAIRING_SUCCESS },
+                        onSaved = { navigateToAuthenticatedRoot() },
+                        onLogout = if (isSessionAuthenticated) ({ showLogoutConfirmModal = true }) else null
+                    )
                 }
 
                 AppScreen.CHILD_UNINSTALL_GUIDE -> {
