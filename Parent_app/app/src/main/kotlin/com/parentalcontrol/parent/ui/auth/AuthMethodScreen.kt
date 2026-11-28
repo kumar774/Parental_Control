@@ -13,7 +13,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import com.parentalcontrol.parent.ui.common.ParentSupportButton
+import com.parentalcontrol.parent.ui.common.ParentSupportDialog
+import com.parentalcontrol.parent.ui.common.ParentTopOptionsMenu
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -82,13 +85,13 @@ internal fun AuthMethodScreen(
     onGoogle: () -> Unit,
     onEmail: () -> Unit,
     onSwitch: () -> Unit,
-    onBack: () -> Unit,
     onRetry: () -> Unit
 ) {
     val action = if (register) "Sign up" else "Sign in"
     val allowed = !register || settings?.registrationEnabled == true
     val configured = settings?.googleClientId?.matches(Regex("[a-zA-Z0-9-]+[.]apps[.]googleusercontent[.]com")) == true
     val showGoogle = allowed && configured && settings?.googleAuthEnabled == true
+    var showSupportDialog by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -97,16 +100,32 @@ internal fun AuthMethodScreen(
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ParentTextDark)
+        // Top Action Bar (Support + 3-dots Menu)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (register) {
+                IconButton(onClick = onSwitch) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = ParentTextDark
+                    )
+                }
             }
+            Spacer(Modifier.weight(1f))
+            ParentSupportButton(onClick = { showSupportDialog = true })
+            Spacer(Modifier.width(4.dp))
+            ParentTopOptionsMenu(isAuthenticated = false)
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
         Text(
             text = if (register) "You need to create an account" else "You need to sign in",
@@ -227,5 +246,9 @@ internal fun AuthMethodScreen(
                 )
             }
         }
+    }
+
+    if (showSupportDialog) {
+        ParentSupportDialog(onDismiss = { showSupportDialog = false })
     }
 }

@@ -1,5 +1,12 @@
 package com.parentalcontrol.parent.ui.onboarding
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,26 +22,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -42,25 +55,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parentalcontrol.core.designsystem.theme.AccentCyan
 import com.parentalcontrol.core.designsystem.theme.AccentIndigo
+import com.parentalcontrol.core.designsystem.theme.AccentViolet
 import com.parentalcontrol.core.designsystem.theme.BgCanvas
+import com.parentalcontrol.core.designsystem.theme.GlassBorderHighlight
+import com.parentalcontrol.core.designsystem.theme.GlassSurfaceBase
 import com.parentalcontrol.core.designsystem.theme.NeonCyan
 import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
-import com.parentalcontrol.core.designsystem.theme.RadiusLarge
 import com.parentalcontrol.core.designsystem.theme.Space12
 import com.parentalcontrol.core.designsystem.theme.Space16
 import com.parentalcontrol.core.designsystem.theme.Space20
+import com.parentalcontrol.core.designsystem.theme.Space24
 import com.parentalcontrol.core.designsystem.theme.Space8
 import com.parentalcontrol.core.designsystem.theme.TextPrimary
 import com.parentalcontrol.core.designsystem.theme.TextSecondary
+import kotlinx.coroutines.launch
 
-/** Entry point for the existing Parent sign-in and device-pairing flow. */
 @Composable
 fun WelcomeCarouselScreen(
-    onGetStarted: () -> Unit,
-    onLoginClick: () -> Unit,
+    onFinish: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
     Column(
@@ -69,139 +87,207 @@ fun WelcomeCarouselScreen(
             .background(BgCanvas)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = Space20),
+            .padding(horizontal = Space20, vertical = Space12),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Top Header: Branding on Left, Skip Button on Right (visible on slides 1 & 2)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = Space12, bottom = Space8),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = Space8),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), AccentIndigo))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Shield, contentDescription = null, tint = Color.White)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), AccentIndigo))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Shield Logo",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(Space12))
+                Column {
+                    Text(
+                        text = "PARENTAL CONTROL",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary,
+                        letterSpacing = 1.2.sp
+                    )
+                    Text(
+                        text = "Parent setup",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NeonCyan
+                    )
+                }
             }
-            Spacer(Modifier.width(Space12))
-            Column {
-                Text(
-                    "PARENTAL CONTROL",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = TextPrimary,
-                    letterSpacing = 1.sp
-                )
-                Text("Parent and Child apps", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
+
+            // Skip button visible on slides 0 & 1, hidden on slide 2
+            AnimatedVisibility(
+                visible = pagerState.currentPage < 2,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                TextButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onFinish()
+                    }
+                ) {
+                    Text(
+                        text = "Skip",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(Space8))
 
-        Box(
+        // 3-Slide Horizontal Pager
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) { pageIndex ->
+            when (pageIndex) {
+                0 -> SetupSlide(
+                    icon = Icons.Default.Devices,
+                    accent = AccentCyan,
+                    title = "Set up your parent account",
+                    description = "Sign in or create an account, then choose this phone as the parent device."
+                )
+                1 -> SetupSlide(
+                    icon = Icons.Default.QrCodeScanner,
+                    accent = AccentViolet,
+                    title = "Connect a child's device",
+                    description = "Scan the pairing QR shown by the Child App, or enter the binding code on the child's phone."
+                )
+                2 -> SetupSlide(
+                    icon = Icons.Default.Security,
+                    accent = NeonCyan,
+                    title = "Confirm the connection",
+                    description = "Review the connection request. Both devices must confirm before they are linked."
+                )
+            }
+        }
+
+        // Animated Pill / Dot Indicator
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(vertical = Space16)
+        ) {
+            repeat(3) { index ->
+                val isSelected = pagerState.currentPage == index
+                val width by animateDpAsState(
+                    targetValue = if (isSelected) 26.dp else 8.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "indicatorWidth"
+                )
+                val color by animateColorAsState(
+                    targetValue = if (isSelected) AccentIndigo else Color(0xFF334155),
+                    label = "indicatorColor"
+                )
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .height(8.dp)
+                        .width(width)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
+        }
+
+        // Single Full-Width Primary Bottom Button: "Next" for slides 0 & 1, "Got it" for slide 2
+        Button(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (pagerState.currentPage < 2) {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                } else {
+                    onFinish()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(270.dp)
-                .clip(RadiusLarge)
-                .background(Color(0xFF0F172A))
-                .border(1.5.dp, Color(0xFF26334A), RadiusLarge),
-            contentAlignment = Alignment.Center
+                .height(56.dp),
+            shape = RadiusCapsule,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AccentIndigo,
+                contentColor = Color.White
+            )
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Space20),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                AppRoleCard(
-                    label = "Parent",
-                    icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = NeonCyan) }
-                )
-                Icon(Icons.Default.Link, contentDescription = "Connect the apps", tint = AccentIndigo, modifier = Modifier.size(34.dp))
-                AppRoleCard(
-                    label = "Child",
-                    icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = Color.White) }
-                )
-            }
+            val isLastPage = pagerState.currentPage == 2
+            Text(
+                text = if (isLastPage) "Got it" else "Next",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(Space8))
+            Icon(
+                imageVector = if (isLastPage) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
         }
 
-        Spacer(Modifier.height(Space20))
+        Spacer(Modifier.height(Space8))
+    }
+}
+
+@Composable
+private fun SetupSlide(icon: ImageVector, accent: Color, title: String, description: String) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = Space12),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .clip(CircleShape)
+                .background(GlassSurfaceBase)
+                .border(1.dp, GlassBorderHighlight, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(64.dp))
+        }
+        Spacer(Modifier.height(Space24))
         Text(
-            "Connect your Parent and Child apps",
+            text = title,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold,
             color = TextPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(Space8))
+        Spacer(Modifier.height(Space12))
         Text(
-            "Sign in to your Parent account to set up a secure device connection.",
+            text = description,
             style = MaterialTheme.typography.bodyMedium,
             color = TextSecondary,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = Space16)
+            lineHeight = 22.sp
         )
-
-        Spacer(Modifier.weight(1f))
-
-        Button(
-            onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onGetStarted()
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RadiusCapsule,
-            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo, contentColor = Color.White)
-        ) {
-            Text("Get Started", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(Space8))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-        }
-
-        Spacer(Modifier.height(Space12))
-        OutlinedButton(
-            onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onLoginClick()
-            },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RadiusCapsule,
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8))
-        ) {
-            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(Space8))
-            Text("Already have an account? Sign In", fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(Space16))
     }
 }
 
-@Composable
-private fun AppRoleCard(label: String, icon: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .size(width = 105.dp, height = 128.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF151F32))
-            .border(1.dp, Color(0xFF334155), RoundedCornerShape(20.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier.size(54.dp).clip(CircleShape).background(AccentIndigo.copy(alpha = 0.22f)),
-            contentAlignment = Alignment.Center
-        ) { icon() }
-        Spacer(Modifier.height(Space8))
-        Text(label, color = TextPrimary, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF080C14)
+@Preview(showBackground = true, backgroundColor = 0xFF070B16)
 @Composable
 fun WelcomeCarouselScreenPreview() {
-    WelcomeCarouselScreen(onGetStarted = {}, onLoginClick = {})
+    WelcomeCarouselScreen(onFinish = {})
 }

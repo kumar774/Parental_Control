@@ -217,14 +217,15 @@ describe('Parent App End-to-End & SMTP Mailpit Testing Suite', () => {
     const { otp: validOtp } = await getEmailWithOtp(testEmail, ['verification code', 'Verify Your Email']);
     assert.ok(validOtp, 'Verification OTP must be available from Mailpit');
 
-    // A0. Rejection of login when email is unverified (HTTP 403)
+    // A0. Login when email is unverified succeeds with requiresEmailVerification: true (unverified session flow)
     const unverifiedLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: testEmail, password: initialPassword },
     });
-    assert.strictEqual(unverifiedLogin.statusCode, 403);
-    assert.strictEqual(unverifiedLogin.json().message, 'Email not verified. Please verify your email before logging in.');
+    assert.strictEqual(unverifiedLogin.statusCode, 200);
+    assert.strictEqual(unverifiedLogin.json().requiresEmailVerification, true);
+    assert.ok(unverifiedLogin.json().accessToken);
 
     // A0.1 Unauthenticated protected endpoint access returns 401 Unauthorized
     const unauthMe = await app.inject({

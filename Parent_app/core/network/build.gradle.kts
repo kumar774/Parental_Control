@@ -21,7 +21,7 @@ android {
     }
   }
   buildTypes {
-    debug { buildConfigField("String", "API_ORIGIN", "\"${endpoint.ifEmpty { "http://127.0.0.1:3000" }}\"") }
+    debug { buildConfigField("String", "API_ORIGIN", "\"${endpoint.ifEmpty { "http://100.86.72.5:3000" }}\"") }
     release { buildConfigField("String", "API_ORIGIN", "\"$endpoint\"") }
   }
 

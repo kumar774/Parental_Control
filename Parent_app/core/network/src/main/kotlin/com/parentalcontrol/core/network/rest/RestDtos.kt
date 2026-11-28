@@ -11,15 +11,13 @@ data class LoginRequestDto(
 data class RegisterRequestDto(
     val fullName: String,
     val email: String,
-    val password: String,
-    val familyCardNo: String? = null
+    val password: String
 )
 
 data class AuthUserDto(
     val id: String,
     val email: String,
     val fullName: String,
-    val familyCardNo: String,
     val isGuest: Boolean
 )
 
@@ -69,6 +67,12 @@ data class PairingCodeResponseDto(
     val pairingCode: String,
     val sessionId: String,
     val expiresAtEpochMs: Long
+)
+
+data class HardwareBindResultDto(
+    val deviceId: String,
+    val sessionId: String?,
+    val alreadyConnected: Boolean
 )
 
 data class PairingStatusDto(

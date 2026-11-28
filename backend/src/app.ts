@@ -128,6 +128,11 @@ export async function buildApp() {
 
   // Child Mobile Device Pairing Routes
   await app.register(childRoutes, { prefix: '/api/v1/child' });
+  await app.register(childRoutes, { prefix: '/api' });
+
+  // Guard & Hardware Binding Route Aliases (1:1 decompiled client compatibility)
+  await app.register(parentDeviceRoutes, { prefix: '/api/v1/parent/guards' });
+  await app.register(parentDeviceRoutes, { prefix: '/api/guards' });
 
   // Process Liveness Probe: Verifies Node.js event loop and process health (does not depend on downstream DB)
   app.get('/health', async (_request, reply) => {

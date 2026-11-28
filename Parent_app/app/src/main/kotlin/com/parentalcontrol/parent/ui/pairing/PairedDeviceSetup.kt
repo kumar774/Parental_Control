@@ -80,7 +80,14 @@ private fun GuidanceRow(icon: ImageVector, text: String) {
 }
 
 @Composable
-fun PairedDeviceSetup(deviceId: String, model: String, step: Int, onBack: () -> Unit, onSaved: () -> Unit) {
+fun PairedDeviceSetup(
+    deviceId: String,
+    model: String,
+    step: Int,
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+    onLogout: (() -> Unit)? = null
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var busy by remember { mutableStateOf(false) }
@@ -120,6 +127,7 @@ fun PairedDeviceSetup(deviceId: String, model: String, step: Int, onBack: () -> 
         title = "Add New Device",
         onBack = onBack,
         step = step,
+        onLogout = onLogout,
         bottomBar = {
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
             PurpleCapsuleButton(

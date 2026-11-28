@@ -98,7 +98,8 @@ fun ParentConsentScreen(
     onNavigateBack: () -> Unit,
     onConsentAccepted: () -> Unit,
     onOpenTerms: () -> Unit,
-    onOpenPrivacy: () -> Unit
+    onOpenPrivacy: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -107,6 +108,7 @@ fun ParentConsentScreen(
     SetupPage(
         title = "",
         onBack = onNavigateBack,
+        onLogout = onLogout,
         bottomBar = {
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)

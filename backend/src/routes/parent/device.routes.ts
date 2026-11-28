@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { eq, and, or, gt, isNull, count, sql, desc } from 'drizzle-orm';
+import { eq, and, or, gt, isNull, isNotNull, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   approveParent,
@@ -9,13 +9,16 @@ import {
   deliveryWindow,
   enrollmentStatus,
   getOrCreateParentPairCode,
+  getOrCreatePermanentBindCode,
+  bindDeviceByHardware,
+  pairingEventBus,
   isDeliveryExpired,
   previewChildQr,
   retireExpiredUnacknowledgedSession,
 } from '../../services/enrollment.service';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { db } from '../../db/index';
-import { childDevices, pairingSessions, parentConsents, childDeviceTokens } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions, parentConsents, childDeviceTokens, parentUsers } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
@@ -68,9 +71,11 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const page = parsedQuery.page;
     const pageSize = parsedQuery.pageSize;
 
-    const visibleDevices = and(eq(childDevices.parentId, parent.id), eq(childDevices.isUnpaired, false),
-      or(isNull(childDevices.installationId),sql`EXISTS (SELECT 1 FROM ${pairingSessions}
-        WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.acknowledgedAt} IS NOT NULL)`));
+    const visibleDevices = and(
+      eq(childDevices.parentId, parent.id),
+      eq(childDevices.isUnpaired, false),
+      isNotNull(childDevices.bindingCompletedAt)
+    );
 
     const [totalRes] = await db
       .select({ total: count() })
@@ -95,7 +100,6 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
@@ -132,6 +136,110 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     return getOrCreateParentPairCode(parentId, body.data.regenerate === true);
   });
 
+  app.get('/guards/bind-code', { preHandler: [requireParentAuth] }, async (request) => {
+    const parentId = request.parentUser!.id;
+    const { code, sessionId } = await getOrCreatePermanentBindCode(parentId);
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        bindCode: code,
+        code,
+        sessionId,
+      },
+    };
+  });
+
+  app.get<{ Params: { sessionId: string } }>(
+    '/guards/pairing-event/:sessionId',
+    { preHandler: [requireParentAuth] },
+    async (request, reply) => {
+      const parentId = request.parentUser!.id;
+      const { sessionId } = request.params;
+
+      const [session] = await db
+        .select()
+        .from(pairingSessions)
+        .where(and(eq(pairingSessions.id, sessionId), eq(pairingSessions.parentId, parentId)))
+        .limit(1);
+
+      if (!session) {
+        return reply.code(404).send({ statusCode: 404, message: 'Pairing session not found' });
+      }
+
+      if (session.status === 'paired' && session.acknowledgedAt !== null && session.childDeviceId) {
+        const name = session.deviceModel || 'Child Device';
+        return {
+          status: 'paired',
+          deviceId: session.childDeviceId,
+          deviceName: name,
+          childName: name,
+        };
+      }
+
+      return new Promise((resolve) => {
+        let timer: NodeJS.Timeout | null = null;
+
+        const onPaired = (data: { deviceId: string; childName?: string }) => {
+          if (timer) clearTimeout(timer);
+          const name = data.childName || 'Child Device';
+          resolve({
+            status: 'paired',
+            deviceId: data.deviceId,
+            deviceName: name,
+            childName: name,
+          });
+        };
+
+        const eventName = `paired:${sessionId}`;
+        pairingEventBus.once(eventName, onPaired);
+
+        timer = setTimeout(() => {
+          pairingEventBus.removeListener(eventName, onPaired);
+          resolve({
+            status: 'waiting',
+          });
+        }, 30000);
+      });
+    }
+  );
+
+  const parentGuardActiveSchema = z.object({
+    SN: z.string().optional(),
+    sn: z.string().optional(),
+    Model: z.string().optional(),
+    model: z.string().optional(),
+    Brand: z.string().optional(),
+    brand: z.string().optional(),
+    MAC: z.string().optional(),
+    mac: z.string().optional(),
+    GuardUserId: z.string().optional(),
+    guardUserId: z.string().optional(),
+  });
+
+  const handleParentGuardActive = async (request: any, reply: any) => {
+    const parsed = parentGuardActiveSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ statusCode: 400, message: 'Invalid active payload' });
+    }
+    const b = parsed.data;
+    const sn = b.SN || b.sn;
+    const guardUserId = request.parentUser!.id;
+    if (!sn) {
+      return reply.code(400).send({ statusCode: 400, message: 'SN is required' });
+    }
+    return bindDeviceByHardware({
+      sn,
+      guardUserId,
+      brand: b.Brand || b.brand,
+      model: b.Model || b.model,
+      mac: b.MAC || b.mac,
+    });
+  };
+
+  app.post('/guards/active', { preHandler: [requireParentAuth, approvalLimiter] }, handleParentGuardActive);
+  app.post('/bind-hardware', { preHandler: [requireParentAuth, approvalLimiter] }, handleParentGuardActive);
+
   app.post('/qr-preview', {preHandler:[requireParentAuth,approvalLimiter]}, async (request, reply) => {
     const parsed = z.object({ sessionId: z.string().uuid(), code: bindingCode }).strict().safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ statusCode: 400, error: 'Bad Request', code: 'ENROLLMENT_INVALID_SESSION', message: 'Invalid session or code' });
@@ -156,10 +264,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       let [s] = await tx.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),
         eq(pairingSessions.parentId,request.parentUser!.id))).for('update');
       if (!s) return reply.code(404).send({message:'Enrollment unavailable'});
-      if (s.status === 'pending' && s.expiresAt.getTime() <= Date.now()) {
-        const [expired] = await tx.update(pairingSessions).set({ status: 'expired' }).where(eq(pairingSessions.id, s.id)).returning();
-        if (expired) s = expired;
-      } else if (isDeliveryExpired(s)) {
+      if (isDeliveryExpired(s)) {
         s = await retireExpiredUnacknowledgedSession(tx, s);
       }
       return {
@@ -167,9 +272,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         sessionId: s.id,
         deviceId: s.status === 'paired' ? s.childDeviceId : null,
         deviceModel: s.deviceModel,
-        childConfirmed: s.childConfirmed,
-        parentApproved: s.parentApproved,
-        expiresAt: s.expiresAt,
+        expiresAt: null,
         deliveryExpiresAt: s.claimedAt ? new Date(s.claimedAt.getTime() + deliveryWindow) : null,
       };
     });
@@ -184,18 +287,19 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
   app.get('/onboarding',{preHandler:[requireParentAuth]},async request => {
     const parentId = request.parentUser!.id;
     const [consent] = await db.select({id:parentConsents.id}).from(parentConsents).where(consentFor(parentId)).limit(1);
+    const [parent] = await db.select({bindingCode:parentUsers.bindingCode}).from(parentUsers).where(eq(parentUsers.id,parentId)).limit(1);
     const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.parentId,parentId),or(
-      and(eq(pairingSessions.status,'pending'),gt(pairingSessions.expiresAt,new Date())),
+      eq(pairingSessions.status,'pending'),
       and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-deliveryWindow)),
           sql`${pairingSessions.installationId} IS NOT NULL`))))
       .orderBy(sql`CASE WHEN ${pairingSessions.status} = 'paired' THEN 0 WHEN ${pairingSessions.installationId} IS NOT NULL THEN 1 ELSE 2 END`,desc(pairingSessions.createdAt)).limit(1);
     return {
       consentAccepted: Boolean(consent),
       pendingSessionId: s?.id ?? null,
-      pendingCode: s?.pairingCode ?? null,
+      pendingCode: parent?.bindingCode ?? null,
       pendingStatus: s ? enrollmentStatus(s, true) : null,
       pendingDeviceModel: s?.deviceModel ?? null,
-      expiresAt: s?.expiresAt ?? null,
+      expiresAt: null,
     };
   });
 
@@ -209,9 +313,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       const data = input.data;
       if (data.setupStep > d.setupStep + 1) return reply.code(409).send({message:'Complete the preceding step first'});
       if (d.setupStep < data.setupStep) {
-        const [ack] = await tx.select({at:pairingSessions.acknowledgedAt}).from(pairingSessions)
-          .where(and(eq(pairingSessions.childDeviceId,d.id),eq(pairingSessions.status,'paired'))).limit(1);
-        if (!ack?.at) return reply.code(409).send({message:'Waiting for child credential receipt'});
+        if (!d.bindingCompletedAt) return reply.code(409).send({ message: 'Waiting for child credential receipt' });
       }
       const profile: Record<string, any> = {};
       if (data.setupStep === 4 || d.setupStep >= 4) {
@@ -280,7 +382,6 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         isCharging: device.isCharging,
         accessibilityHealthy: device.accessibilityHealthy,
         deviceAdminActive: device.deviceAdminActive,
-        knoxActive: device.knoxActive,
         lastSeenAt: device.lastSeenAt,
       },
     });
@@ -380,7 +481,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       // 3. Clear active pairing sessions
       await tx
         .update(pairingSessions)
-        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .set({ status: 'expired' })
         .where(eq(pairingSessions.childDeviceId, device.id));
     });
 

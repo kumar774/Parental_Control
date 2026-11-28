@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,34 +14,48 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockReset
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,37 +65,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parentalcontrol.core.designsystem.theme.BrandBorder
+import com.parentalcontrol.core.designsystem.theme.BrandDivider
+import com.parentalcontrol.core.designsystem.theme.BrandPrimary
+import com.parentalcontrol.core.designsystem.theme.BrandPrimaryDeep
+import com.parentalcontrol.core.designsystem.theme.BrandPrimarySoft
+import com.parentalcontrol.core.designsystem.theme.BrandSurfaceBg
+import com.parentalcontrol.core.designsystem.theme.BrandSurfaceMuted
+import com.parentalcontrol.core.designsystem.theme.BrandTextDark
+import com.parentalcontrol.core.designsystem.theme.BrandTextMuted
 import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
-import com.parentalcontrol.core.designsystem.theme.AccentIndigo
-import com.parentalcontrol.core.designsystem.theme.AccentIndigoLight
-import com.parentalcontrol.core.designsystem.theme.BgCanvas
-import com.parentalcontrol.core.designsystem.theme.GlassBorderSubtle
-import com.parentalcontrol.core.designsystem.theme.GlassSurfaceCard
-import com.parentalcontrol.core.designsystem.theme.RadiusLarge
-import com.parentalcontrol.core.designsystem.theme.RadiusMedium
-import com.parentalcontrol.core.designsystem.theme.Space12
-import com.parentalcontrol.core.designsystem.theme.Space16
-import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space32
-import com.parentalcontrol.core.designsystem.theme.Space4
-import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.TextMuted
-import com.parentalcontrol.core.designsystem.theme.TextPrimary
-import com.parentalcontrol.core.designsystem.theme.TextSecondary
-import com.parentalcontrol.core.designsystem.theme.liquidGlassCard
 import com.parentalcontrol.parent.R
+import com.parentalcontrol.parent.ui.common.ParentSupportButton
+import com.parentalcontrol.parent.ui.common.ParentSupportDialog
+import com.parentalcontrol.parent.ui.common.ParentTopOptionsMenu
 import kotlinx.coroutines.delay
 
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
@@ -88,10 +103,11 @@ private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".
 /**
  * Screen 05: Forgot Password & Verification Flow
  *
- * Provides real email dispatch, 6-digit OTP verification with 60s cooldown timer,
- * and new password reset fields strictly backed by AuthViewModel.
- * If the backend reports email delivery unavailable, displays honest guidance.
+ * Fully redesigned with a modern, high-end white & soft-purple theme,
+ * progressive 2-step flow (Email -> OTP & Password Reset),
+ * interactive real-time password policy criteria, and centralized design tokens.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit,
@@ -110,20 +126,27 @@ fun ForgotPasswordScreen(
     var cooldownSeconds by remember { mutableIntStateOf(60) }
 
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
+    var showSupportDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var stepTwoOverride by remember { mutableStateOf<Boolean?>(null) }
+
+    val isStepTwo = stepTwoOverride ?: uiState.isOtpSent
 
     // Listen to ViewModel side-effects
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
-                is AuthUiEffect.PasswordResetComplete -> onPasswordResetSuccess()
+                is AuthUiEffect.PasswordResetComplete -> {
+                    showSuccessDialog = true
+                }
                 else -> {}
             }
         }
     }
 
     // Auto-decrement cooldown timer once code is sent
-    LaunchedEffect(uiState.isOtpSent) {
-        if (uiState.isOtpSent) {
+    LaunchedEffect(isStepTwo) {
+        if (isStepTwo) {
             cooldownSeconds = 60
             while (cooldownSeconds > 0) {
                 delay(1000L)
@@ -134,483 +157,735 @@ fun ForgotPasswordScreen(
 
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BgCanvas)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Space24, vertical = Space32),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top Navigation Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = TextPrimary
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = BrandSurfaceBg,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (isStepTwo) "Reset Password" else "Forgot Password",
+                        color = BrandTextDark,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            // Header Title & Subtitle
-            Text(
-                text = stringResource(R.string.forgot_password_title),
-                color = TextPrimary,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(Space8))
-
-            Text(
-                text = stringResource(R.string.forgot_password_subtitle),
-                color = TextSecondary,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-                modifier = Modifier.padding(horizontal = Space12)
-            )
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            // Error Alert Banner
-            if (displayErrorMessage != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF7F1D1D).copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = Color(0xFFFCA5A5),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Space12))
-                        Text(
-                            text = displayErrorMessage,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(Space16))
-            }
-
-            // Honest Guidance Notice for Unavailable Email Infrastructure
-            if (uiState.isEmailServiceUnavailable) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF1E293B), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Space12))
-                        Column {
-                            Text(
-                                text = "Email Service Notice",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(Space4))
-                            Text(
-                                text = "Automated email delivery is not configured on this server environment. Please contact your administrator or sign in using your existing account password.",
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp
-                            )
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            if (isStepTwo) {
+                                stepTwoOverride = false
+                                otpCode = ""
+                                newPassword = ""
+                                confirmNewPassword = ""
+                                localErrorMessage = null
+                            } else {
+                                onNavigateBack()
+                            }
                         }
-                    }
-                }
-                Spacer(modifier = Modifier.height(Space16))
-            }
-
-            // Success Alert Banner
-            if (uiState.statusMessage != null && !uiState.isEmailServiceUnavailable) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF064E3B).copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFF10B981), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color(0xFF6EE7B7),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Space12))
-                        Text(
-                            text = uiState.statusMessage!!,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = BrandTextDark
                         )
                     }
-                }
-                Spacer(modifier = Modifier.height(Space16))
-            }
-
-            // Main Liquid Glass Form Card
+                },
+                actions = {
+                    ParentSupportButton(onClick = { showSupportDialog = true })
+                    ParentTopOptionsMenu(isAuthenticated = false)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = BrandSurfaceBg
+                )
+            )
+        }
+    ) { innerPadding ->
+        CompositionLocalProvider(
+            LocalContentColor provides BrandTextDark,
+            LocalTextStyle provides TextStyle(color = BrandTextDark)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(BrandSurfaceBg)
+            ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlassCard(shape = RadiusLarge)
-                    .padding(Space24)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .imePadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Email Field
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Hero Icon Badge
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(BrandPrimarySoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isStepTwo) Icons.Default.MarkEmailRead else Icons.Default.LockReset,
+                        contentDescription = null,
+                        tint = BrandPrimary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Header Title & Subtitle
                 Text(
-                    text = stringResource(R.string.email_label),
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = if (isStepTwo) "Verify Code & Set Password" else "Forgot Your Password?",
+                    color = BrandTextDark,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(Space4))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = {
-                        email = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.email_placeholder),
-                            color = TextMuted
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Email,
-                            contentDescription = null,
-                            tint = AccentIndigoLight
-                        )
-                    },
-                    singleLine = true,
-                    enabled = !uiState.isOtpSent && !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = AccentIndigo,
-                        unfocusedBorderColor = GlassBorderSubtle,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = if (isStepTwo)
+                        "Enter the 6-digit verification code sent to your email and choose a strong new password."
+                    else
+                        "Enter your registered account email and we'll send you a 6-digit verification code to reset your password.",
+                    color = BrandTextMuted,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
 
-                Spacer(modifier = Modifier.height(Space16))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                if (!uiState.isOtpSent) {
-                    Button(
-                        onClick = {
-                            val trimmedEmail = email.trim()
-                            if (trimmedEmail.isEmpty()) {
-                                localErrorMessage = "Please enter your registered parent email address"
-                                return@Button
-                            }
-                            if (!EMAIL_PATTERN.matches(trimmedEmail)) {
-                                localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
-                                return@Button
-                            }
-
-                            localErrorMessage = null
-                            viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(trimmedEmail))
-                        },
-                        enabled = email.isNotBlank() && !uiState.isLoading,
-                        shape = RadiusMedium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentIndigo,
-                            contentColor = Color.White,
-                            disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.7f)
-                        ),
+                // Error Alert Banner
+                if (displayErrorMessage != null) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .background(Color(0xFFFEF2F2), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(20.dp)
                             )
-                        } else {
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = stringResource(R.string.action_send_reset_code),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = displayErrorMessage,
+                                color = Color(0xFF991B1B),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
-                } else {
-                    // OTP Verification Code Inputs
-                    Text(
-                        text = stringResource(R.string.otp_description),
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-                    Spacer(modifier = Modifier.height(Space12))
-
-                    OtpInputField(
-                        code = otpCode,
-                        onCodeChange = {
-                            if (it.length <= 6) {
-                                otpCode = it
-                                if (localErrorMessage != null) localErrorMessage = null
-                                if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                // Email Service Notice (if SMTP unavailable)
+                if (uiState.isEmailServiceUnavailable) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF0F9FF), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFBAE6FD), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFF0284C7),
+                                modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Email Service Notice",
+                                    color = Color(0xFF0369A1),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Automated email delivery is not configured on this server environment. Please contact your administrator or sign in using your existing password.",
+                                    color = Color(0xFF075985),
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
                             }
                         }
-                    )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-                    Spacer(modifier = Modifier.height(Space12))
+                // Success Status Message
+                if (uiState.statusMessage != null && !uiState.isEmailServiceUnavailable) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF6EE7B7), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = uiState.statusMessage!!,
+                                color = Color(0xFF065F46),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-                    // Resend Timer Row
+                // ==========================================
+                // STEP 1: ENTER REGISTERED EMAIL
+                // ==========================================
+                if (!isStepTwo) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BrandSurfaceBg, RoundedCornerShape(16.dp))
+                            .border(1.dp, BrandBorder, RoundedCornerShape(16.dp))
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = "Registered Email Address",
+                            color = BrandTextDark,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = {
+                                email = it
+                                if (localErrorMessage != null) localErrorMessage = null
+                                if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                            },
+                            textStyle = TextStyle(color = BrandTextDark, fontSize = 15.sp),
+                            placeholder = {
+                                Text(
+                                    text = "name@example.com",
+                                    color = BrandTextMuted,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = null,
+                                    tint = if (email.isNotEmpty()) BrandPrimary else BrandTextMuted
+                                )
+                            },
+                            trailingIcon = {
+                                if (email.isNotEmpty()) {
+                                    IconButton(onClick = { email = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Clear",
+                                            tint = BrandTextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            enabled = !uiState.isLoading,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BrandTextDark,
+                                unfocusedTextColor = BrandTextDark,
+                                focusedBorderColor = BrandPrimary,
+                                unfocusedBorderColor = BrandBorder,
+                                focusedContainerColor = BrandSurfaceMuted,
+                                unfocusedContainerColor = BrandSurfaceMuted,
+                                cursorColor = BrandPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = {
+                                val trimmedEmail = email.trim()
+                                if (trimmedEmail.isEmpty()) {
+                                    localErrorMessage = "Please enter your registered parent email address"
+                                    return@Button
+                                }
+                                if (!EMAIL_PATTERN.matches(trimmedEmail)) {
+                                    localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
+                                    return@Button
+                                }
+
+                                localErrorMessage = null
+                                viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(trimmedEmail))
+                                stepTwoOverride = true
+                            },
+                            enabled = email.isNotBlank() && !uiState.isLoading,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BrandPrimary,
+                                contentColor = Color.White,
+                                disabledContainerColor = BrandPrimary.copy(alpha = 0.45f),
+                                disabledContentColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    text = "Send Verification Code",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Bottom Link back to sign in
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (cooldownSeconds > 0) {
-                            Text(
-                                text = stringResource(R.string.resend_code_cooldown, cooldownSeconds),
-                                color = TextMuted,
-                                fontSize = 12.sp
-                            )
-                        } else {
-                            TextButton(
-                                onClick = {
-                                    localErrorMessage = null
-                                    viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(email.trim()))
-                                },
-                                enabled = !uiState.isLoading
+                        Text(
+                            text = "Remember your password? ",
+                            color = BrandTextMuted,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "Sign in",
+                            color = BrandPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onNavigateBack() }
+                        )
+                    }
+                } else {
+                    // ==========================================
+                    // STEP 2: VERIFY OTP & SET NEW PASSWORD
+                    // ==========================================
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BrandSurfaceBg, RoundedCornerShape(16.dp))
+                            .border(1.dp, BrandBorder, RoundedCornerShape(16.dp))
+                            .padding(20.dp)
+                    ) {
+                        // Email Pill with Change action
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(BrandPrimarySoft, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Refresh,
+                                    imageVector = Icons.Default.Email,
                                     contentDescription = null,
-                                    tint = AccentIndigoLight,
+                                    tint = BrandPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(Space4))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = stringResource(R.string.action_resend_code),
-                                    color = AccentIndigoLight,
-                                    fontSize = 12.sp,
+                                    text = email.trim(),
+                                    color = BrandPrimaryDeep,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
+                            Text(
+                                text = "Change",
+                                color = BrandPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier.clickable {
+                                    stepTwoOverride = false
+                                    localErrorMessage = null
+                                }
+                            )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(Space24))
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                    // New Password Field
-                    Text(
-                        text = stringResource(R.string.new_password_label),
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        // OTP Description
+                        Text(
+                            text = "6-Digit Verification Code",
+                            color = BrandTextDark,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
-                    Spacer(modifier = Modifier.height(Space4))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = {
-                            newPassword = it
-                            if (localErrorMessage != null) localErrorMessage = null
-                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                        },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.password_placeholder),
-                                color = TextMuted
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = AccentIndigoLight
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { isNewPasswordVisible = !isNewPasswordVisible }) {
+                        // Clean 6-Box OTP Input Grid
+                        OtpInputField(
+                            code = otpCode,
+                            onCodeChange = {
+                                if (it.length <= 6) {
+                                    otpCode = it
+                                    if (localErrorMessage != null) localErrorMessage = null
+                                    if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Resend Countdown Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (cooldownSeconds > 0) {
+                                Text(
+                                    text = "Resend code in ${cooldownSeconds}s",
+                                    color = BrandTextMuted,
+                                    fontSize = 12.sp
+                                )
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        localErrorMessage = null
+                                        viewModel.handleIntent(AuthUiIntent.RequestPasswordReset(email.trim()))
+                                        cooldownSeconds = 60
+                                    },
+                                    enabled = !uiState.isLoading
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = BrandPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Resend Code",
+                                        color = BrandPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(BrandDivider))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // New Password Field
+                        Text(
+                            text = "New Password",
+                            color = BrandTextDark,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = {
+                                newPassword = it
+                                if (localErrorMessage != null) localErrorMessage = null
+                                if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                            },
+                            textStyle = TextStyle(color = BrandTextDark, fontSize = 15.sp),
+                            placeholder = {
+                                Text(
+                                    text = "Enter new password",
+                                    color = BrandTextMuted,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            leadingIcon = {
                                 Icon(
-                                    imageVector = if (isNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Toggle password visibility",
-                                    tint = TextMuted
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = if (newPassword.isNotEmpty()) BrandPrimary else BrandTextMuted
                                 )
-                            }
-                        },
-                        visualTransformation = if (isNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
-                        enabled = !uiState.isLoading,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = AccentIndigo,
-                            unfocusedBorderColor = GlassBorderSubtle,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { isNewPasswordVisible = !isNewPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (isNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility",
+                                        tint = BrandTextMuted
+                                    )
+                                }
+                            },
+                            visualTransformation = if (isNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            enabled = !uiState.isLoading,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BrandTextDark,
+                                unfocusedTextColor = BrandTextDark,
+                                focusedBorderColor = BrandPrimary,
+                                unfocusedBorderColor = BrandBorder,
+                                focusedContainerColor = BrandSurfaceMuted,
+                                unfocusedContainerColor = BrandSurfaceMuted,
+                                cursorColor = BrandPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    Spacer(modifier = Modifier.height(Space16))
+                        // Real-time Password Requirements Checklist
+                        if (newPassword.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            PasswordRequirementsView(password = newPassword)
+                        }
 
-                    // Confirm New Password
-                    Text(
-                        text = stringResource(R.string.confirm_password_label),
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(Space4))
+                        // Confirm New Password Field
+                        Text(
+                            text = "Confirm New Password",
+                            color = BrandTextDark,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
-                    OutlinedTextField(
-                        value = confirmNewPassword,
-                        onValueChange = {
-                            confirmNewPassword = it
-                            if (localErrorMessage != null) localErrorMessage = null
-                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                        },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.confirm_password_placeholder),
-                                color = TextMuted
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = AccentIndigoLight
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { isConfirmNewPasswordVisible = !isConfirmNewPasswordVisible }) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = confirmNewPassword,
+                            onValueChange = {
+                                confirmNewPassword = it
+                                if (localErrorMessage != null) localErrorMessage = null
+                                if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                            },
+                            textStyle = TextStyle(color = BrandTextDark, fontSize = 15.sp),
+                            placeholder = {
+                                Text(
+                                    text = "Re-enter new password",
+                                    color = BrandTextMuted,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            leadingIcon = {
                                 Icon(
-                                    imageVector = if (isConfirmNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Toggle confirm password visibility",
-                                    tint = TextMuted
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = if (confirmNewPassword.isNotEmpty()) BrandPrimary else BrandTextMuted
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { isConfirmNewPasswordVisible = !isConfirmNewPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (isConfirmNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle confirm password visibility",
+                                        tint = BrandTextMuted
+                                    )
+                                }
+                            },
+                            visualTransformation = if (isConfirmNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            enabled = !uiState.isLoading,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BrandTextDark,
+                                unfocusedTextColor = BrandTextDark,
+                                focusedBorderColor = BrandPrimary,
+                                unfocusedBorderColor = BrandBorder,
+                                focusedContainerColor = BrandSurfaceMuted,
+                                unfocusedContainerColor = BrandSurfaceMuted,
+                                cursorColor = BrandPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Update Password Submit Button
+                        Button(
+                            onClick = {
+                                val trimmedCode = otpCode.trim()
+                                if (trimmedCode.length != 6) {
+                                    localErrorMessage = "Please enter the 6-digit verification code"
+                                    return@Button
+                                }
+                                val passwordValidation = ParentPasswordPolicy.validate(newPassword)
+                                if (!passwordValidation.isValid) {
+                                    localErrorMessage = passwordValidation.errorMessage
+                                    return@Button
+                                }
+                                if (confirmNewPassword.isEmpty()) {
+                                    localErrorMessage = "Please confirm your new password"
+                                    return@Button
+                                }
+                                if (newPassword != confirmNewPassword) {
+                                    localErrorMessage = "Passwords do not match. Please re-enter."
+                                    return@Button
+                                }
+
+                                localErrorMessage = null
+                                viewModel.handleIntent(
+                                    AuthUiIntent.ResetPassword(
+                                        email = email.trim(),
+                                        otpCode = trimmedCode,
+                                        newPassword = newPassword
+                                    )
+                                )
+                            },
+                            enabled = otpCode.length == 6 && newPassword.isNotBlank() && confirmNewPassword.isNotBlank() && !uiState.isLoading,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BrandPrimary,
+                                contentColor = Color.White,
+                                disabledContainerColor = BrandPrimary.copy(alpha = 0.45f),
+                                disabledContentColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    text = "Reset Password",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                        },
-                        visualTransformation = if (isConfirmNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
-                        enabled = !uiState.isLoading,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = AccentIndigo,
-                            unfocusedBorderColor = GlassBorderSubtle,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(Space24))
-
-                    Button(
-                        onClick = {
-                            val trimmedCode = otpCode.trim()
-                            if (trimmedCode.length != 6) {
-                                localErrorMessage = "Please enter the 6-digit verification code"
-                                return@Button
-                            }
-                            val passwordValidation = ParentPasswordPolicy.validate(newPassword)
-                            if (!passwordValidation.isValid) {
-                                localErrorMessage = passwordValidation.errorMessage
-                                return@Button
-                            }
-                            if (confirmNewPassword.isEmpty()) {
-                                localErrorMessage = "Please confirm your new password"
-                                return@Button
-                            }
-                            if (newPassword != confirmNewPassword) {
-                                localErrorMessage = "Passwords do not match. Please re-enter."
-                                return@Button
-                            }
-
-                            localErrorMessage = null
-                            viewModel.handleIntent(
-                                AuthUiIntent.ResetPassword(
-                                    email = email.trim(),
-                                    otpCode = trimmedCode,
-                                    newPassword = newPassword
-                                )
-                            )
-                        },
-                        enabled = otpCode.length == 6 && newPassword.isNotBlank() && confirmNewPassword.isNotBlank() && !uiState.isLoading,
-                        shape = RadiusMedium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentIndigo,
-                            contentColor = Color.White,
-                            disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.7f)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.action_update_password),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
+        }
+    }
+
+    // Support Dialog
+    if (showSupportDialog) {
+        ParentSupportDialog(
+            onDismiss = { showSupportDialog = false }
+        )
+    }
+
+    // Password Reset Success Modal Dialog
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Require deliberate button press */ },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = BrandSurfaceBg,
+            titleContentColor = BrandTextDark,
+            textContentColor = BrandTextMuted,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFECFDF5)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Success",
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Password Reset Successful",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    text = "Your password has been successfully updated. You can now sign in with your new credentials.",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        onPasswordResetSuccess()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BrandPrimary,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Sign In Now",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        )
     }
 }
 
 /**
  * 6-Digit OTP Box Grid Composable
+ *
+ * Full-width touch-target BasicTextField with transparent text overlay so that
+ * tapping anywhere on any of the 6 visual boxes immediately brings up the numeric keyboard
+ * and binds input seamlessly.
  */
 @Composable
 private fun OtpInputField(
@@ -619,58 +894,144 @@ private fun OtpInputField(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
+    var fieldFocused by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        // Hidden transparent text field to capture input
-        BasicTextField(
-            value = code,
-            onValueChange = { text ->
-                if (text.length <= 6 && text.all { it.isDigit() }) {
-                    onCodeChange(text)
+    LaunchedEffect(Unit) {
+        delay(200L)
+        try {
+            focusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
+
+    BasicTextField(
+        value = code,
+        onValueChange = { value ->
+            val digits = value.filter { it in '0'..'9' }.take(6)
+            onCodeChange(digits)
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        cursorBrush = SolidColor(Color.Transparent),
+        textStyle = TextStyle(color = Color.Transparent, fontSize = 22.sp),
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { fieldFocused = it.isFocused },
+        decorationBox = { editor ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { focusRequester.requestFocus() },
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    repeat(6) { index ->
+                        val digit = code.getOrNull(index)
+                        val isCurrentActive = fieldFocused && (index == code.length || (code.length == 6 && index == 5))
+                        val shape = RoundedCornerShape(12.dp)
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .clip(shape)
+                                .background(
+                                    when {
+                                        digit != null -> BrandPrimarySoft
+                                        isCurrentActive -> BrandPrimarySoft.copy(alpha = 0.5f)
+                                        else -> BrandSurfaceMuted
+                                    },
+                                    shape
+                                )
+                                .border(
+                                    width = if (isCurrentActive) 2.dp else 1.dp,
+                                    color = when {
+                                        isCurrentActive -> BrandPrimary
+                                        digit != null -> BrandPrimary.copy(alpha = 0.7f)
+                                        else -> BrandBorder
+                                    },
+                                    shape = shape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (digit != null) {
+                                Text(
+                                    text = digit.toString(),
+                                    color = BrandTextDark,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                 }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            cursorBrush = SolidColor(Color.Transparent),
-            modifier = Modifier
-                .size(1.dp)
-                .focusRequester(focusRequester)
-        )
-
-        // Visual 6-box row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            for (i in 0 until 6) {
-                val char = code.getOrNull(i)?.toString() ?: ""
-                val isFocused = code.length == i
-
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .background(
-                            color = GlassSurfaceCard,
-                            shape = RadiusMedium
-                        )
-                        .border(
-                            width = if (isFocused) 1.5.dp else 1.dp,
-                            color = if (isFocused) AccentIndigoLight else GlassBorderSubtle,
-                            shape = RadiusMedium
-                        ),
-                    contentAlignment = Alignment.Center
+                        .matchParentSize()
+                        .alpha(0f),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(
-                        text = char,
-                        color = TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
+                    editor()
                 }
             }
         }
+    )
+}
+
+/**
+ * Real-time password requirement checklist view
+ */
+@Composable
+private fun PasswordRequirementsView(password: String) {
+    val hasMinLength = password.length >= 10
+    val hasUpper = password.any { it.isUpperCase() }
+    val hasLower = password.any { it.isLowerCase() }
+    val hasDigit = password.any { it.isDigit() }
+    val hasSpecial = "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]".toRegex().containsMatchIn(password)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BrandSurfaceMuted, RoundedCornerShape(10.dp))
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "Password requirements:",
+            color = BrandTextDark,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        PasswordCheckItem("At least 10 characters", hasMinLength)
+        PasswordCheckItem("At least one uppercase letter (A-Z)", hasUpper)
+        PasswordCheckItem("At least one lowercase letter (a-z)", hasLower)
+        PasswordCheckItem("At least one number (0-9)", hasDigit)
+        PasswordCheckItem("At least one special character (!@#$...)", hasSpecial)
+    }
+}
+
+@Composable
+private fun PasswordCheckItem(label: String, passed: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Icon(
+            imageVector = if (passed) Icons.Default.Check else Icons.Default.Close,
+            contentDescription = null,
+            tint = if (passed) Color(0xFF10B981) else BrandTextMuted,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = if (passed) Color(0xFF065F46) else BrandTextMuted,
+            fontSize = 11.sp,
+            fontWeight = if (passed) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }

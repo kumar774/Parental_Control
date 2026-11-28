@@ -33,7 +33,6 @@ export interface AppSettingsFormValues {
   googleAuthEnabled: boolean;
   googleClientId: string;
   registrationEnabled: boolean;
-  pairingCodeExpirySeconds: string;
   childAppDownloadUrl: string;
   parentAppDownloadUrl: string;
   childAppLatestVersion: string;
@@ -48,14 +47,6 @@ export function validateAppSettingsForm(
     return {
       ok: false,
       error: 'A valid Google Web Client ID (*.apps.googleusercontent.com) is required to enable Google Authentication.',
-    };
-  }
-
-  const expiryNum = Number(values.pairingCodeExpirySeconds);
-  if (!Number.isInteger(expiryNum) || expiryNum < 60 || expiryNum > 3600) {
-    return {
-      ok: false,
-      error: 'Binding code lifetime must be an integer between 60 and 3600 seconds.',
     };
   }
 
@@ -88,7 +79,6 @@ export function validateAppSettingsForm(
       googleAuthEnabled: values.googleAuthEnabled,
       googleClientId: trimmedClientId || null,
       registrationEnabled: values.registrationEnabled,
-      pairingCodeExpirySeconds: expiryNum,
       parentAppDownloadUrl: values.parentAppDownloadUrl.trim() || null,
       childAppDownloadUrl: values.childAppDownloadUrl.trim() || null,
       childAppLatestVersion: latestVersion,
@@ -111,7 +101,6 @@ export const AppSettingsPanel: React.FC = () => {
 
   const [parentUrl, setParentUrl] = useState('');
   const [registration, setRegistration] = useState(false);
-  const [expiry, setExpiry] = useState('');
 
   // Alerts
   const [banner, setBanner] = useState<{
@@ -126,7 +115,6 @@ export const AppSettingsPanel: React.FC = () => {
     setChildAppDownloadUrl(data.childAppDownloadUrl || '');
     setParentUrl(data.parentAppDownloadUrl || '');
     setRegistration(Boolean(data.registrationEnabled));
-    setExpiry(String(data.pairingCodeExpirySeconds ?? ''));
     setChildAppLatestVersion(data.childAppLatestVersion || '1.0.0');
     setChildAppMinVersion(data.childAppMinVersion || '1.0.0');
   }, []);
@@ -160,7 +148,6 @@ export const AppSettingsPanel: React.FC = () => {
       googleAuthEnabled,
       googleClientId,
       registrationEnabled: registration,
-      pairingCodeExpirySeconds: expiry,
       childAppDownloadUrl,
       parentAppDownloadUrl: parentUrl,
       childAppLatestVersion,
@@ -250,12 +237,6 @@ export const AppSettingsPanel: React.FC = () => {
           <label className="flex items-center gap-3 text-sm text-white">
             <input type="checkbox" checked={registration} onChange={e => setRegistration(e.target.checked)} />
             Allow new parent accounts
-          </label>
-          <label className="block text-sm text-white">
-            Binding code lifetime (seconds)
-            <input type="number" required min="60" max="3600" value={expiry}
-              onChange={e => setExpiry(e.target.value)}
-              className="ml-3 p-2 rounded bg-slate-800 border border-slate-700" />
           </label>
         </div>
         {/* SECTION 1: GOOGLE SIGN-IN */}

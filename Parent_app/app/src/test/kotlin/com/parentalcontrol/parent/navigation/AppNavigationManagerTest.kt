@@ -424,15 +424,15 @@ class AppNavigationManagerTest {
     }
 
     @Test
-    fun testEmailVerificationBack_FromRegistrationOrigin_ReturnsToRegister() {
+    fun testEmailVerificationBack_FromRegistrationOrigin_ReturnsToLogin() {
         navManager.emailVerificationOrigin = AppScreen.REGISTER
         navManager.navigateTo(AppScreen.PARENT_EMAIL_VERIFICATION)
         assertEquals(AppScreen.PARENT_EMAIL_VERIFICATION, navManager.currentScreen)
 
         val consumed = navManager.navigateBack(hasValidAuthSession = false)
         assertTrue(consumed)
-        assertEquals(AppScreen.REGISTER, navManager.currentScreen)
-        assertEquals(listOf(AppScreen.REGISTER), navManager.screenBackstack)
+        assertEquals(AppScreen.LOGIN, navManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), navManager.screenBackstack)
     }
 
     @Test
@@ -448,7 +448,7 @@ class AppNavigationManagerTest {
     }
 
     @Test
-    fun testEmailVerificationBack_ProcessRecreation_PreservesOrigin() {
+    fun testEmailVerificationBack_ProcessRecreation_ReturnsToLogin() {
         // Restored after process death with origin = REGISTER
         val restoredRegisterManager = AppNavigationManager(
             initialScreen = AppScreen.PARENT_EMAIL_VERIFICATION,
@@ -457,8 +457,8 @@ class AppNavigationManagerTest {
         )
         val consumedRegister = restoredRegisterManager.navigateBack(hasValidAuthSession = false)
         assertTrue(consumedRegister)
-        assertEquals(AppScreen.REGISTER, restoredRegisterManager.currentScreen)
-        assertEquals(listOf(AppScreen.REGISTER), restoredRegisterManager.screenBackstack)
+        assertEquals(AppScreen.LOGIN, restoredRegisterManager.currentScreen)
+        assertEquals(listOf(AppScreen.LOGIN), restoredRegisterManager.screenBackstack)
 
         // Restored after process death with origin = LOGIN
         val restoredLoginManager = AppNavigationManager(
@@ -486,5 +486,20 @@ class AppNavigationManagerTest {
         assertEquals(AppScreen.LOGIN, manager.currentScreen)
         assertFalse(manager.screenBackstack.contains(AppScreen.MAIN_SHELL))
         assertFalse(manager.screenBackstack.contains(AppScreen.REGISTER))
+    }
+    @Test
+    fun firstChildSetupBackReturnsThroughConsentWithoutOpeningDashboard() {
+        val manager = AppNavigationManager(
+            initialScreen = AppScreen.DEVICE_PAIRING,
+            initialBackstack = listOf(AppScreen.MAIN_SHELL, AppScreen.DEVICE_PAIRING),
+            hasAuthenticatedSession = true
+        ).apply { isFirstChildSetup = { true } }
+
+        assertTrue(manager.navigateBack())
+        assertEquals(AppScreen.PARENT_CONSENT, manager.currentScreen)
+        assertTrue(manager.navigateBack())
+        assertEquals(AppScreen.CHOOSE_DEVICE_TYPE, manager.currentScreen)
+        assertFalse(manager.navigateBack())
+        assertEquals(AppScreen.CHOOSE_DEVICE_TYPE, manager.currentScreen)
     }
 }

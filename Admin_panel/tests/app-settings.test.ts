@@ -43,7 +43,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
         childAppDownloadUrl: null,
         parentAppDownloadUrl: null,
         registrationEnabled: true,
-        pairingCodeExpirySeconds: 600,
         childAppLatestVersion: '1.0.0',
         childAppMinVersion: '1.0.0',
         updatedBy: null,
@@ -66,7 +65,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
       assert.strictEqual(interceptedRequests[0].options.method, 'GET');
       assert.strictEqual(interceptedRequests[0].options.credentials, 'include');
       assert.strictEqual(res.registrationEnabled, true);
-      assert.strictEqual(res.pairingCodeExpirySeconds, 600);
       assert.strictEqual(res.childAppDownloadUrl, null);
       assert.strictEqual(res.parentAppDownloadUrl, null);
     });
@@ -76,7 +74,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
         googleAuthEnabled: true,
         googleClientId: '123456-abc.apps.googleusercontent.com',
         registrationEnabled: false,
-        pairingCodeExpirySeconds: 900,
         childAppDownloadUrl: 'https://downloads.example.com/child.apk',
         parentAppDownloadUrl: 'https://downloads.example.com/parent.apk',
         childAppLatestVersion: '1.2.0',
@@ -131,7 +128,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
         googleAuthEnabled: true,
         googleClientId: '',
         registrationEnabled: true,
-        pairingCodeExpirySeconds: '600',
         childAppDownloadUrl: '',
         parentAppDownloadUrl: '',
         childAppLatestVersion: '1.0.0',
@@ -139,23 +135,10 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
       });
       assert.strictEqual(invalidGoogle.ok, false);
 
-      const invalidExpiry = validateAppSettingsForm({
-        googleAuthEnabled: false,
-        googleClientId: '',
-        registrationEnabled: true,
-        pairingCodeExpirySeconds: '30',
-        childAppDownloadUrl: '',
-        parentAppDownloadUrl: '',
-        childAppLatestVersion: '1.0.0',
-        childAppMinVersion: '1.0.0',
-      });
-      assert.strictEqual(invalidExpiry.ok, false);
-
       const valid = validateAppSettingsForm({
         googleAuthEnabled: true,
         googleClientId: '  12345-abc.apps.googleusercontent.com  ',
         registrationEnabled: false,
-        pairingCodeExpirySeconds: '600',
         childAppDownloadUrl: '  https://cdn.example.com/child.apk  ',
         parentAppDownloadUrl: '   ',
         childAppLatestVersion: '1.0.0',
@@ -167,7 +150,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
         assert.strictEqual(valid.payload.childAppDownloadUrl, 'https://cdn.example.com/child.apk');
         assert.strictEqual(valid.payload.parentAppDownloadUrl, null);
         assert.strictEqual(valid.payload.registrationEnabled, false);
-        assert.strictEqual(valid.payload.pairingCodeExpirySeconds, 600);
       }
     });
   });
@@ -177,7 +159,6 @@ describe('Admin App Settings Integration & Validation Test Suite', () => {
       const html = renderToStaticMarkup(React.createElement(AppSettingsPanel));
       assert.ok(html.includes('General &amp; Mobile App Settings'));
       assert.ok(html.includes('Allow new parent accounts'));
-      assert.ok(html.includes('Binding code lifetime (seconds)'));
       assert.ok(html.includes('Google OAuth Authentication'));
       assert.ok(html.includes('Child App Download URL'));
       assert.ok(html.includes('Parent App Download URL'));

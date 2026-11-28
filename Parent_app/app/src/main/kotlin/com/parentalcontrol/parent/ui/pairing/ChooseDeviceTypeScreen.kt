@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,26 +35,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.parentalcontrol.core.designsystem.theme.*
 import com.parentalcontrol.core.network.rest.FastifyRestClient
+import com.parentalcontrol.parent.ui.common.ParentTopOptionsMenu
 import kotlin.math.floor
 
-internal val ParentBg = Color(0xFFFFFFFF)
-internal val ParentPurple = Color(0xFF7C4DFF)
-internal val ParentPurpleDeep = Color(0xFF6243AA)
-internal val ParentPurpleSoft = Color(0xFFF3EEFF)
-internal val ParentTextDark = Color(0xFF1A1A2E)
-internal val ParentTextMuted = Color(0xFF6B7280)
-internal val ParentBorder = Color(0xFFE5E7EB)
-internal val ParentSurfaceMuted = Color(0xFFF3F4F6)
-internal val ParentYellowAccent = Color(0xFFFFC107)
+internal val ParentBg = BrandSurfaceBg
+internal val ParentPurple = BrandPrimary
+internal val ParentPurpleDeep = BrandPrimaryDeep
+internal val ParentPurpleSoft = BrandPrimarySoft
+internal val ParentTextDark = BrandTextDark
+internal val ParentTextMuted = BrandTextMuted
+internal val ParentBorder = BrandBorder
+internal val ParentSurfaceMuted = BrandSurfaceMuted
+internal val ParentYellowAccent = BrandYellowAccent
 
 @Composable
 internal fun SetupPage(
     title: String,
-    onBack: () -> Unit,
+    onBack: () -> Unit = {},
     showBack: Boolean = true,
     step: Int = 0,
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
+    onLogout: (() -> Unit)? = null,
+    headerActions: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -63,32 +68,39 @@ internal fun SetupPage(
             .systemBarsPadding()
             .imePadding()
     ) {
-        if (showBack || title.isNotEmpty()) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (showBack) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = ParentTextDark
-                        )
-                    }
-                } else {
-                    Spacer(Modifier.width(12.dp))
-                }
-                if (title.isNotEmpty()) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ParentTextDark
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showBack) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = ParentTextDark
                     )
                 }
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
+            if (title.isNotEmpty()) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ParentTextDark
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            if (headerActions != null) {
+                headerActions()
+            } else {
+                ParentTopOptionsMenu(
+                    isAuthenticated = true,
+                    onLogout = onLogout
+                )
             }
         }
 
@@ -329,9 +341,13 @@ private fun DeviceLinkHeroIllustration(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ChooseDeviceTypeScreen(onNavigateBack: () -> Unit, onSelectParentDevice: () -> Unit) {
+fun ChooseDeviceTypeScreen(onLogout: (() -> Unit)?, onSelectParentDevice: () -> Unit) {
     var showDownload by rememberSaveable { mutableStateOf(false) }
-    SetupPage("", onNavigateBack) {
+    SetupPage(
+        title = "",
+        showBack = false,
+        onLogout = onLogout
+    ) {
         Spacer(Modifier.height(12.dp))
         DeviceLinkHeroIllustration(Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(8.dp))

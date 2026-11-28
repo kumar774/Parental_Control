@@ -1,0 +1,12 @@
+Vivo I2220 via Tailscale ADB; com.parentalcontrol.parent.debug
+APK SHA-256: 39864b6bf39c61163a530eb66d42c1839a48fcb4a7fd6db57f7045c913b806c6
+Sign-in and sign-up method screens: no Back arrow (device).
+Email signup opens verification on the final APK (device).
+Final APK accepts six digits in verification field (device).
+Invalid OTP rejected. Cancel No holds OTP. Skip opens guest device selection. System Back returns to sign-in (device).
+Unrecognized test login rejected; Sign in available for retry (device).
+Final APK: visible "Signing in..." and "Creating account..." labels with spinners captured on device.
+Earlier APK with the same editor and navigation: six digit copy/paste, delete, keyboard reopening, Resend timer reset, and Cancel Yes back to signup checked.
+Final APK unit tests: 133 passed, 0 failed, 0 errors, 0 skipped.
+Pending physical verification: successful OTP from a test inbox and signed-in three-dot logout confirmation.
+VERDICT: PASS for the checks recorded above.

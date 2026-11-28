@@ -37,6 +37,7 @@ import com.parentalcontrol.child.network.ChildRestClient
 import com.parentalcontrol.child.network.PairAckRetryManager
 import com.parentalcontrol.child.storage.DeviceStorage
 import com.parentalcontrol.child.storage.Enrollment
+import com.parentalcontrol.child.storage.SetupStage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -55,120 +56,118 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
-    var cancelPrompt by remember { mutableStateOf(false) }
     var showAcquireHelp by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var pendingParentEmail by remember { mutableStateOf("") }
 
     fun clear() {
         storage.clearEnrollment()
         attempt = null
         message = ""
+        showConfirmDialog = false
     }
     fun start(parentCode: String?) {
-        if (busy || attempt?.sessionId != null) return
-        val current = attempt ?: Enrollment(UUID.randomUUID().toString(), parentCode)
+        if (busy) return
+        val currentCode = parentCode?.trim().orEmpty()
+        if (currentCode.length != 9) return
         busy = true
         error = ""
         scope.launch {
             try {
-                storage.saveEnrollment(current)
-                attempt = current
-                val issued = client.startEnrollment(current, storage)
-                storage.saveEnrollment(issued)
-                attempt = issued
+                val probe = client.probeHardwareCode(currentCode)
+                if (probe.valid) {
+                    pendingParentEmail = probe.parentEmail ?: "Parent Account"
+                    showConfirmDialog = true
+                } else {
+                    error = probe.message ?: "Invalid binding code. Please check and retry."
+                }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: ChildRestClient.EnrollmentException) {
-                if (e.status in listOf(400, 403, 404, 409, 410, 422)) clear()
-                error = e.message.orEmpty()
-            } catch (_: Exception) {
-                error = "Could not start pairing. Check the connection and retry."
-            } finally { busy = false }
+            } catch (e: Exception) {
+                android.util.Log.e("ConnectToParent", "Probe failed", e)
+                error = e.localizedMessage ?: "Could not verify binding code. Check network connection."
+            } finally {
+                busy = false
+            }
         }
     }
-    fun decide(confirm: Boolean) {
-        val current = attempt ?: return
+
+    fun confirmBinding() {
         if (busy) return
+        val currentCode = code.trim()
+        if (currentCode.length != 9) return
         busy = true
         error = ""
         scope.launch {
             try {
-                client.decideEnrollment(current, confirm)
-                if (confirm) {
-                    val approved = current.copy(confirmed = true)
-                    storage.saveEnrollment(approved)
-                    attempt = approved
-                } else clear()
+                val hid = storage.getHardwareId()
+                val result = client.activateHardwareCode(currentCode, hid)
+                if (result.success && result.deviceId != null && result.parentId != null) {
+                    showConfirmDialog = false
+                    storage.acceptPolicy()
+                    if (result.deviceToken != null) {
+                        storage.savePairingSession(
+                            deviceId = result.deviceId,
+                            deviceToken = result.deviceToken,
+                            parentId = result.parentId,
+                            childName = result.childName ?: "Child",
+                            refreshToken = result.refreshToken
+                        )
+                    }
+                    storage.setupStage = SetupStage.STARTED
+                    if (result.sessionId != null && !result.alreadyConnected && result.deviceToken != null) {
+                        val ackSuccess = client.sendSetupAck(result.sessionId, storage)
+                        if (!ackSuccess) {
+                            PairAckRetryManager.scheduleBackgroundRetry(context)
+                        }
+                    }
+                    onCredentialsStored()
+                } else {
+                    error = result.message ?: "Invalid binding code. Please check and retry."
+                }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                error = "Could not verify the decision. Reconnect and try again."
-            } finally { busy = false }
+            } catch (e: Exception) {
+                android.util.Log.e("ConnectToParent", "Activation failed", e)
+                error = e.localizedMessage ?: "Could not complete pairing. Check network connection."
+            } finally {
+                busy = false
+            }
         }
     }
     fun back() {
-        if (attempt == null) onNavigateBack() else cancelPrompt = true
+        onNavigateBack()
     }
     BackHandler { back() }
 
-    LaunchedEffect(attempt, busy) {
-        val current = attempt ?: return@LaunchedEffect
-        val sid = current.sessionId ?: return@LaunchedEffect
-        val token = current.pollingToken ?: return@LaunchedEffect
-        if (busy) return@LaunchedEffect
+    LaunchedEffect(Unit) {
+        val hid = storage.getHardwareId()
         while (true) {
-            val status = client.checkPairStatus(sid, token)
-            if (busy || current != attempt) return@LaunchedEffect
-            when (status.status) {
-                "paired" -> {
-                    if (!storage.isValidUuid(status.deviceId) || !storage.isValidUuid(status.parentId) ||
-                        status.deviceToken.isNullOrBlank() || status.refreshToken.isNullOrBlank()) {
-                        error = "The server could not deliver a complete device session. Reconnecting…"
-                    } else {
-                        try {
-                            storage.savePairingSessionWithPendingAck(status.deviceId!!, status.deviceToken,
-                                status.parentId!!, status.childName.orEmpty(), sid, token, status.refreshToken)
-                            PairAckRetryManager.scheduleBackgroundRetry(context)
-                            PairAckRetryManager.retryPendingAckIfNeeded(context, storage)
-                            onCredentialsStored()
-                            return@LaunchedEffect
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            error = "Could not safely save the device session. Retrying…"
+            delay(3000)
+            if (!busy) {
+                runCatching {
+                    val restore = client.restoreBinding(hid)
+                    if (restore.restored && restore.deviceId != null && restore.deviceToken != null && restore.parentId != null) {
+                        storage.acceptPolicy()
+                        storage.savePairingSession(
+                            deviceId = restore.deviceId,
+                            deviceToken = restore.deviceToken,
+                            parentId = restore.parentId,
+                            childName = restore.childName ?: "Child",
+                            refreshToken = restore.refreshToken
+                        )
+                        storage.setupStage = SetupStage.STARTED
+                        if (restore.sessionId != null) {
+                            val ackSuccess = client.sendSetupAck(restore.sessionId, storage)
+                            if (!ackSuccess) {
+                                PairAckRetryManager.scheduleBackgroundRetry(context)
+                            }
                         }
-                    }
-                }
-                "expired", "canceled", "not_found", "unauthorized" -> {
-                    clear()
-                    error = when (status.status) {
-                        "expired" -> "This pairing attempt expired. Start again."
-                        "canceled" -> "Pairing was canceled."
-                        "unauthorized" -> "Pairing session authorization failed. Start again."
-                        else -> "Pairing session is no longer available. Start again."
-                    }
-                    return@LaunchedEffect
-                }
-                "rate_limited" -> {
-                    message = "Too many checks. Waiting before retrying…"
-                    delay(((status.retryAfterSeconds ?: 10L).coerceIn(3L, 60L)) * 1000L)
-                    continue
-                }
-                "error" -> message = "Reconnecting to the pairing service…"
-                else -> {
-                    val email = status.maskedParentEmail
-                    if (!email.isNullOrBlank() && (current.maskedEmail != email || current.confirmed != status.childConfirmed)) {
-                        val updated = current.copy(maskedEmail = email, confirmed = status.childConfirmed)
-                        storage.saveEnrollment(updated)
-                        attempt = updated
-                    }
-                    message = when {
-                        current.confirmed -> "Waiting for the parent to approve this device."
-                        current.maskedEmail != null -> "Confirm the parent account to continue."
-                        else -> "Waiting for the Parent App."
+                        onCredentialsStored()
+                        return@LaunchedEffect
                     }
                 }
             }
-            delay(3500)
         }
     }
 
@@ -220,7 +219,15 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
             lineHeight = 20.sp
         )
 
-        // Card 1: Generate QR Code
+        // Card 1: Static Hardware QR Code
+        val staticQrUrl = remember {
+            val apiOrigin = com.parentalcontrol.child.BuildConfig.API_ORIGIN.trimEnd('/')
+            "$apiOrigin/#/parentactivate?type=licence&brand=${android.os.Build.BRAND}&model=${android.os.Build.MODEL}&sn=${storage.getHardwareId()}&mac="
+        }
+        val qrBitmap = remember(staticQrUrl) {
+            QrCodeGenerator.generateQrBitmap(staticQrUrl)
+        }
+
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -238,39 +245,20 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                 ) {
                     Icon(Icons.Default.QrCode, null, tint = BrandPurple, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Generate QR code", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("QR Code Binding", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 Text(
-                    text = "Ask your parent to scan this code with the Parent App.",
+                    text = "Scan this QR code using the Parent App camera scanner.",
                     fontSize = 13.sp,
                     color = Color(0xFF64748B),
                     modifier = Modifier.fillMaxWidth()
                 )
-                val qr = attempt?.qr
-                if (qr != null) {
-                    val bitmap = remember(qr) { QrCodeGenerator.generateQrBitmap(qr) }
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Child enrollment QR code",
-                            modifier = Modifier.size(200.dp)
-                        )
-                    }
-                    Text(
-                        text = "Expires at " + DateFormat.getTimeInstance().format(Date(attempt!!.expiresAt)),
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                if (qrBitmap != null) {
+                    Image(
+                        bitmap = qrBitmap.asImageBitmap(),
+                        contentDescription = "Child QR code",
+                        modifier = Modifier.size(200.dp)
                     )
-                } else {
-                    Button(
-                        onClick = { start(null) },
-                        enabled = !busy && attempt?.code == null,
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                        shape = RoundedCornerShape(23.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
-                    ) {
-                        Text(if (attempt == null) "Generate QR code" else "Retry", fontWeight = FontWeight.SemiBold)
-                    }
                 }
             }
         }
@@ -306,7 +294,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                         val normalized = raw.filter { c -> c in '0'..'9' }.take(9)
                         code = normalized
                     },
-                    enabled = !busy && attempt == null,
+                    enabled = !busy,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -369,7 +357,7 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
 
                 Button(
                     onClick = { start(code) },
-                    enabled = !busy && code.length == 9 && (attempt == null || attempt?.code == code && attempt?.sessionId == null),
+                    enabled = !busy && code.length == 9,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(25.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -386,11 +374,6 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, fontSize = 13.sp, color = Color(0xFF475569))
         if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-        if (attempt != null) {
-            TextButton(onClick = { cancelPrompt = true }, enabled = !busy) {
-                Text("Cancel pairing", color = Color(0xFFE53935))
-            }
-        }
     }
 
     if (showAcquireHelp) {
@@ -406,105 +389,97 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
             },
             confirmButton = {
                 TextButton(onClick = { showAcquireHelp = false }) {
-                    Text("Got it", color = FlashGetPurple)
+                    Text("Got it", color = BrandPurple)
                 }
             }
         )
     }
 
-    val current = attempt
-    if (!cancelPrompt && current?.maskedEmail != null && !current.confirmed) {
-        Dialog(onDismissRequest = { if (!busy) cancelPrompt = true }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+    if (showConfirmDialog) {
+        Dialog(onDismissRequest = { if (!busy) showConfirmDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(
-                            onClick = { if (!busy) cancelPrompt = true },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B))
-                        }
-                    }
-
-                    // Linking Illustration matching 3rd screen2
                     Box(
-                        modifier = Modifier.size(130.dp, 100.dp),
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(BrandPurple.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp, 90.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(BrandPurple.copy(alpha = 0.12f))
-                                .border(2.dp, BrandPurple, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Link,
-                                contentDescription = null,
-                                tint = BrandPurple,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = null,
+                            tint = BrandPurple,
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
 
-                    Spacer(Modifier.height(12.dp))
-
                     Text(
-                        text = "Binding Confirmation",
-                        fontSize = 20.sp,
+                        text = "Bind device",
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E293B)
                     )
 
-                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Confirm to bind with the parent account?",
+                        fontSize = 14.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    )
 
                     Text(
-                        text = "Your device will be bound to:",
-                        fontSize = 14.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = current.maskedEmail ?: "",
+                        text = pendingParentEmail,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = BrandPurple
+                        color = BrandPurple,
+                        textAlign = TextAlign.Center
                     )
 
                     if (error.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(4.dp))
 
                     Button(
-                        onClick = { decide(true) },
+                        onClick = ::confirmBinding,
                         enabled = !busy,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
                         shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandPurple,
+                            disabledContainerColor = BrandPurple.copy(alpha = 0.45f)
+                        )
                     ) {
-                        Text("Confirm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (busy) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Confirm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    Spacer(Modifier.height(6.dp))
-
                     TextButton(
-                        onClick = { decide(false) },
+                        onClick = { if (!busy) showConfirmDialog = false },
                         enabled = !busy
                     ) {
                         Text("Cancel", color = Color(0xFF64748B), fontSize = 14.sp)
@@ -512,35 +487,6 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                 }
             }
         }
-    }
-    if (cancelPrompt) {
-        AlertDialog(
-            onDismissRequest = { cancelPrompt = false },
-            title = { Text("Cancel pairing?") },
-            text = { Text("You can start a new pairing attempt later.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        cancelPrompt = false
-                        if (current?.sessionId != null) {
-                            decide(false)
-                        } else if (current != null) {
-                            start(current.code)
-                        } else {
-                            onNavigateBack()
-                        }
-                    },
-                    enabled = !busy
-                ) {
-                    Text(if (current != null && current.sessionId == null) "Recover attempt" else "Cancel pairing")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { cancelPrompt = false }) {
-                    Text("Keep pairing")
-                }
-            }
-        )
     }
 }
 

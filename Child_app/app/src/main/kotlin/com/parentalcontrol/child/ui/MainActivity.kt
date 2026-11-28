@@ -49,7 +49,45 @@ class MainActivity : ComponentActivity() {
                 var ackManualTrigger by remember { mutableIntStateOf(0) }
 
                 LaunchedEffect(Unit) {
-                    if (splash) { delay(500); splash = false }
+                    if (splash) {
+                        val client = com.parentalcontrol.child.network.ChildRestClient.instance
+                        if (storage.isPaired()) {
+                            runCatching {
+                                val outcome = client.verifyAssociation(storage)
+                                if (outcome is com.parentalcontrol.child.network.AssociationCheckOutcome.RevokedOrInvalid) {
+                                    storage.clearPairingSession()
+                                    storage.setupStage = SetupStage.NOT_STARTED
+                                    paired = false
+                                    setupStage = SetupStage.NOT_STARTED
+                                    step = if (storage.hasConsent) 2 else 0
+                                    repairMessage = "Device was unpaired or removed by guardian."
+                                }
+                            }
+                        }
+                        if (!storage.isPaired()) {
+                            val hid = storage.getHardwareId()
+                            runCatching {
+                                val restore = client.restoreBinding(hid)
+                                if (restore.restored && restore.deviceId != null && restore.deviceToken != null && restore.parentId != null) {
+                                    storage.acceptPolicy()
+                                    storage.savePairingSession(
+                                        deviceId = restore.deviceId,
+                                        deviceToken = restore.deviceToken,
+                                        parentId = restore.parentId,
+                                        childName = restore.childName ?: "Child",
+                                        refreshToken = restore.refreshToken
+                                    )
+                                    storage.setupStage = SetupStage.STARTED
+                                    paired = true
+                                    setupStage = SetupStage.STARTED
+                                    step = 2
+                                    repairMessage = null
+                                }
+                            }
+                        }
+                        delay(500)
+                        splash = false
+                    }
                 }
                 when {
                     splash -> CenteredStatus("Child Guard")

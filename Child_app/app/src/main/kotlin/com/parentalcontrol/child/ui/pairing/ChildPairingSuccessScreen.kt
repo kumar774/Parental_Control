@@ -42,7 +42,7 @@ fun ChildPairingSuccessScreen(onSetup: () -> Unit) {
             imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
             modifier = Modifier.size(96.dp),
-            tint = FlashGetPurple
+            tint = BrandPurple
         )
         Text(
             text = "Connected Successfully!",
@@ -69,7 +69,7 @@ fun ChildPairingSuccessScreen(onSetup: () -> Unit) {
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(26.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
         ) {
             Text("Setup", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
@@ -181,7 +181,7 @@ fun InitialSetupScreen(
                     onClick = { retry++ },
                     modifier = Modifier.height(48.dp),
                     shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = FlashGetPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
                 ) {
                     Text("Retry check", fontWeight = FontWeight.Bold)
                 }
@@ -202,7 +202,7 @@ private fun PermissionCheckHeroIllustration() {
                 .size(100.dp, 160.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color.White)
-                .border(3.dp, FlashGetPurple, RoundedCornerShape(20.dp)),
+                .border(3.dp, BrandPurple, RoundedCornerShape(20.dp)),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -211,14 +211,14 @@ private fun PermissionCheckHeroIllustration() {
                     modifier = Modifier
                         .size(24.dp, 4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(FlashGetPurple.copy(alpha = 0.4f))
+                        .background(BrandPurple.copy(alpha = 0.4f))
                 )
                 Spacer(Modifier.height(24.dp))
                 // Gears inside phone
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = null,
-                    tint = FlashGetPurple.copy(alpha = 0.5f),
+                    tint = BrandPurple.copy(alpha = 0.5f),
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -231,7 +231,7 @@ private fun PermissionCheckHeroIllustration() {
                 .size(54.dp)
                 .clip(CircleShape)
                 .background(Color.White)
-                .border(3.dp, FlashGetPurple, CircleShape),
+                .border(3.dp, BrandPurple, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -271,7 +271,7 @@ private fun StripedProgressBar(modifier: Modifier = Modifier) {
             .background(Color(0xFFE0E7FF))
     ) {
         val stripeWidth = 14.dp.toPx()
-        val stripeColor = FlashGetPurple.copy(alpha = 0.45f)
+        val stripeColor = BrandPurple.copy(alpha = 0.45f)
         var x = -stripeWidth
         while (x < size.width + stripeWidth) {
             drawLine(

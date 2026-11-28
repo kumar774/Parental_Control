@@ -24,8 +24,10 @@ interface IMmkvStorage {
     var userPhone: String?
     var userFullName: String?
     var userPlanCode: String?
+    var bindingCode: String?
     var familyCardNo: String?
     var familyPin: String?
+    var hasCompletedOnboarding: Boolean
 
     fun clearSession(preserveEmail: Boolean = false)
 }
@@ -86,6 +88,7 @@ class FastMmkvStorage(
         sp.getString(KEY_STREAM_RESOLUTION, null)?.let { cache[KEY_STREAM_RESOLUTION] = it }
         if (sp.contains(KEY_WIFI_ONLY_STREAMING)) cache[KEY_WIFI_ONLY_STREAMING] = sp.getBoolean(KEY_WIFI_ONLY_STREAMING, false)
         if (sp.contains(KEY_RETENTION_DAYS)) cache[KEY_RETENTION_DAYS] = sp.getInt(KEY_RETENTION_DAYS, 7)
+        if (sp.contains(KEY_HAS_COMPLETED_ONBOARDING)) cache[KEY_HAS_COMPLETED_ONBOARDING] = sp.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false)
     }
 
     override var userId: String?
@@ -221,16 +224,22 @@ class FastMmkvStorage(
             }
         }
 
-    override var familyCardNo: String?
-        get() = cache[KEY_FAMILY_CARD_NO] as? String ?: prefs?.getString(KEY_FAMILY_CARD_NO, null)
+    override var bindingCode: String?
+        get() = cache[KEY_BINDING_CODE] as? String ?: prefs?.getString(KEY_BINDING_CODE, null)
         set(value) {
             if (value != null) {
-                cache[KEY_FAMILY_CARD_NO] = value
-                prefs?.edit()?.putString(KEY_FAMILY_CARD_NO, value)?.apply()
+                cache[KEY_BINDING_CODE] = value
+                prefs?.edit()?.putString(KEY_BINDING_CODE, value)?.apply()
             } else {
-                cache.remove(KEY_FAMILY_CARD_NO)
-                prefs?.edit()?.remove(KEY_FAMILY_CARD_NO)?.apply()
+                cache.remove(KEY_BINDING_CODE)
+                prefs?.edit()?.remove(KEY_BINDING_CODE)?.apply()
             }
+        }
+
+    override var familyCardNo: String?
+        get() = bindingCode
+        set(value) {
+            bindingCode = value
         }
 
     override var familyPin: String?
@@ -246,6 +255,13 @@ class FastMmkvStorage(
             }
         }
 
+    override var hasCompletedOnboarding: Boolean
+        get() = cache[KEY_HAS_COMPLETED_ONBOARDING] as? Boolean ?: prefs?.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false) ?: false
+        set(value) {
+            cache[KEY_HAS_COMPLETED_ONBOARDING] = value
+            prefs?.edit()?.putBoolean(KEY_HAS_COMPLETED_ONBOARDING, value)?.apply()
+        }
+
     override fun clearSession(preserveEmail: Boolean) {
         cache.remove(KEY_USER_ID)
         cache.remove(KEY_ACCESS_TOKEN)
@@ -257,6 +273,7 @@ class FastMmkvStorage(
         cache.remove(KEY_USER_PHONE)
         cache.remove(KEY_USER_FULL_NAME)
         cache.remove(KEY_USER_PLAN)
+        cache.remove(KEY_BINDING_CODE)
         cache.remove(KEY_FAMILY_CARD_NO)
         cache.remove(KEY_FAMILY_PIN)
         val editor = prefs?.edit()
@@ -267,6 +284,7 @@ class FastMmkvStorage(
             ?.remove(KEY_USER_PHONE)
             ?.remove(KEY_USER_FULL_NAME)
             ?.remove(KEY_USER_PLAN)
+            ?.remove(KEY_BINDING_CODE)
             ?.remove(KEY_FAMILY_CARD_NO)
             ?.remove(KEY_FAMILY_PIN)
         if (!preserveEmail) {
@@ -290,8 +308,10 @@ class FastMmkvStorage(
         private const val KEY_USER_PHONE = "auth_user_phone"
         private const val KEY_USER_FULL_NAME = "auth_user_full_name"
         private const val KEY_USER_PLAN = "auth_user_plan"
+        private const val KEY_BINDING_CODE = "binding_code"
         private const val KEY_FAMILY_CARD_NO = "family_card_no"
         private const val KEY_FAMILY_PIN = "family_pin"
+        private const val KEY_HAS_COMPLETED_ONBOARDING = "has_completed_onboarding"
 
         @Volatile
         private var appContext: Context? = null

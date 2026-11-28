@@ -65,17 +65,18 @@ class LocalAuthRepository(
             database.mmkv.userId = user.id
             database.mmkv.userEmail = user.email
             database.mmkv.userFullName = user.fullName
-            database.mmkv.familyCardNo = user.familyCardNo
             database.mmkv.accessToken = authDto.accessToken
             database.mmkv.refreshToken = authDto.refreshToken
+            restClient.accessToken = authDto.accessToken
+            restClient.refreshToken = authDto.refreshToken
 
             val account = ParentAccount(
                 id = user.id,
                 email = user.email,
                 fullName = user.fullName,
-                familyCardId = user.familyCardNo,
                 isBiometricsRequired = database.mmkv.isBiometricEnabled,
-                isEmailDeliveryFailed = false
+                isEmailDeliveryFailed = false,
+                requiresEmailVerification = authDto.requiresEmailVerification
             )
             accountFlow.value = account
             account
@@ -95,11 +96,12 @@ class LocalAuthRepository(
             database.mmkv.userId = user.id
             database.mmkv.userEmail = user.email
             database.mmkv.userFullName = user.fullName
-            database.mmkv.familyCardNo = user.familyCardNo
 
-            if (!authDto.accessToken.isNullOrBlank() && !authDto.requiresEmailVerification) {
+            if (!authDto.accessToken.isNullOrBlank()) {
                 database.mmkv.accessToken = authDto.accessToken
                 database.mmkv.refreshToken = authDto.refreshToken
+                restClient.accessToken = authDto.accessToken
+                restClient.refreshToken = authDto.refreshToken
             } else {
                 database.mmkv.accessToken = null
                 database.mmkv.refreshToken = null
@@ -109,9 +111,9 @@ class LocalAuthRepository(
                 id = user.id,
                 email = user.email,
                 fullName = user.fullName,
-                familyCardId = user.familyCardNo,
                 isBiometricsRequired = database.mmkv.isBiometricEnabled,
-                isEmailDeliveryFailed = !authDto.verificationEmailSent
+                isEmailDeliveryFailed = !authDto.verificationEmailSent,
+                requiresEmailVerification = authDto.requiresEmailVerification
             )
             accountFlow.value = account
             account
@@ -157,13 +159,11 @@ class LocalAuthRepository(
             database.mmkv.userId = user.id
             database.mmkv.userEmail = user.email
             database.mmkv.userFullName = user.fullName
-            database.mmkv.familyCardNo = user.familyCardNo
 
             val account = ParentAccount(
                 id = user.id,
                 email = user.email,
                 fullName = user.fullName,
-                familyCardId = user.familyCardNo,
                 isBiometricsRequired = database.mmkv.isBiometricEnabled,
                 isEmailDeliveryFailed = false
             )

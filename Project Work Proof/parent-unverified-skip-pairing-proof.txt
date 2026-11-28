@@ -1,0 +1,19 @@
+Physical Device Verification: Vivo I2220 (Tailscale ADB 100.80.27.76:5555)
+Flow: FlashGet Kids parity - Deferred Email Verification Onboarding & Back Navigation
+
+Test Results:
+1. Registered fresh account (ak_test_161704@parent.com) via App UI.
+2. Form submitted successfully and opened 6-box OTP Verification Screen.
+3. Tapped 'Skip' on OTP Screen: User session preserved with authenticated state (email_verified=false).
+4. Navigated cleanly to 'Whose device is this?' (Device Selection screen).
+5. Tapped 'Parents' devices':
+   - ZERO toast bounce to login screen!
+   - Successfully opened Parental Consent Screen ('Agree and bind new device').
+6. Tapped 'Agree and bind new device':
+   - Successfully opened 'Add New Device' Pairing Screen with 9-digit binding code and QR code scanner.
+7. Tested hierarchical Back button navigation:
+   - Hardware Back: Pairing Screen -> Parental Consent Screen.
+   - Hardware Back: Parental Consent Screen -> Device Selection Screen.
+   - Dashboard remained closed until child device is connected.
+
+All acceptance criteria PASSED.

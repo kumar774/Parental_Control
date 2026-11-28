@@ -1,654 +1,575 @@
 package com.parentalcontrol.parent.ui.auth
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.rounded.Email
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.SecureFlagPolicy
+import com.parentalcontrol.parent.BuildConfig
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
-import com.parentalcontrol.core.network.rest.FastifyRestClient
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.OutlinedButton
-import com.parentalcontrol.core.designsystem.theme.AccentIndigo
-import com.parentalcontrol.core.designsystem.theme.BgCanvas
-import com.parentalcontrol.core.designsystem.theme.LiquidGlassTheme
-import com.parentalcontrol.core.designsystem.theme.NeonCyan
 import com.parentalcontrol.core.designsystem.theme.RadiusCapsule
-import com.parentalcontrol.core.designsystem.theme.RadiusLarge
-import com.parentalcontrol.core.designsystem.theme.Space12
-import com.parentalcontrol.core.designsystem.theme.Space16
-import com.parentalcontrol.core.designsystem.theme.Space20
-import com.parentalcontrol.core.designsystem.theme.Space24
-import com.parentalcontrol.core.designsystem.theme.Space8
-import com.parentalcontrol.core.designsystem.theme.StatusDangerRed
-import com.parentalcontrol.core.designsystem.theme.StatusSafeGreen
-import com.parentalcontrol.core.designsystem.theme.StatusWarningAmber
-import com.parentalcontrol.core.designsystem.theme.TextPrimary
-import com.parentalcontrol.core.designsystem.theme.TextSecondary
+import com.parentalcontrol.core.model.auth.ParentPasswordPolicy
+import com.parentalcontrol.core.network.rest.AppSettingsDto
+import com.parentalcontrol.parent.ui.pairing.ParentBg
+import com.parentalcontrol.parent.ui.pairing.ParentBorder
+import com.parentalcontrol.parent.ui.pairing.ParentPurple
+import com.parentalcontrol.parent.ui.pairing.ParentPurpleSoft
+import com.parentalcontrol.parent.ui.pairing.ParentTextDark
+import com.parentalcontrol.parent.ui.pairing.ParentTextMuted
+import kotlinx.coroutines.launch
 
-private val Space4 = 4.dp
-private val Space6 = 6.dp
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
 /**
- * Screen 04: RegisterScreen
- * Family account registration with real-time 4-segment password strength meter,
- * strict input validation, confirm password validation, ViewModel UDF integration,
- * loading states, and terms confirmation.
+ * Screen 04: RegisterScreen (In-Place Bottom Sheet Architecture)
+ *
+ * User lands on the clean, light [AuthMethodScreen].
+ * When "Sign up with Email" is tapped, a [ModalBottomSheet] slides up in-place on the same screen:
+ * - Field 1: "Email" (Placeholder: "Please enter a valid and real email")
+ * - Field 2: "Password" (Placeholder: "Please enter password", with Eye toggle)
+ * - Field 3: "Confirm" (Placeholder: "Re-enter the same password", with Eye toggle)
+ * - Field 4: "Nickname" (Placeholder: "Please set a nickname")
+ * - Clean 2-line Policy notice without mandatory checkboxes.
+ * - Single full-width primary capsule button "Sign up".
+ * - Smooth swipe-down / backdrop / back-press dismissal.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
+    onAuthenticated: () -> Unit = onRegisterSuccess,
     onLoginClick: () -> Unit,
-    onBackClick: () -> Unit = {},
     onTermsClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {},
     onGoogleSignUpClick: () -> Unit = {},
-    appSettings: com.parentalcontrol.core.network.rest.AppSettingsDto? = null,
+    appSettings: AppSettingsDto? = null,
     onReloadSettings: () -> Unit = {},
     viewModel: AuthViewModel = remember { AuthViewModelFactory.create() },
     modifier: Modifier = Modifier
 ) {
+    val keyboard = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
-    var showEmail by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    androidx.activity.compose.BackHandler(showEmail) { showEmail = false }
-    if (!showEmail) {
-        AuthMethodScreen(true, appSettings, onGoogleSignUpClick, { showEmail = true }, onLoginClick, onBackClick, onReloadSettings)
-        return
-    }
 
+    var showEmailSheet by rememberSaveable { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
-    var isTermsAccepted by remember { mutableStateOf(false) }
-    var localErrorMessage by remember { mutableStateOf<String?>(null) }
+    var nickname by rememberSaveable { mutableStateOf("") }
 
-    val scrollState = rememberScrollState()
+    var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var isConfirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Listen to ViewModel side-effects
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
-                is AuthUiEffect.NavigateToDashboard,
-                is AuthUiEffect.NavigateToEmailVerification -> onRegisterSuccess()
+                is AuthUiEffect.NavigateToDashboard -> {
+                    showEmailSheet = false
+                    onAuthenticated()
+                }
+                is AuthUiEffect.NavigateToEmailVerification -> {
+                    showEmailSheet = false
+                    onRegisterSuccess()
+                }
                 else -> {}
             }
         }
     }
 
-    // 4-stage strength calculation aligned with backend enterprise policy
-    val hasLength = password.length >= 10
-    val hasNumber = password.any { it.isDigit() }
-    val hasUpperLower = password.any { it.isUpperCase() } && password.any { it.isLowerCase() }
-    val hasSpecial = "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]".toRegex().containsMatchIn(password)
-    val strengthScore = listOf(hasLength, hasNumber, hasUpperLower, hasSpecial).count { it }
-
     val displayErrorMessage = localErrorMessage ?: uiState.errorMessage
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BgCanvas)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = Space20, vertical = Space16),
-            horizontalAlignment = Alignment.CenterHorizontally
+    // Base landing screen: Light Auth Method Selector
+    AuthMethodScreen(
+        register = true,
+        settings = appSettings,
+        onGoogle = onGoogleSignUpClick,
+        onEmail = {
+            localErrorMessage = null
+            viewModel.handleIntent(AuthUiIntent.ClearError)
+            showEmailSheet = true
+        },
+        onSwitch = onLoginClick,
+        onRetry = onReloadSettings
+    )
+
+    // In-Place Email Sign-Up Bottom Sheet Popup
+    if (showEmailSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showEmailSheet = false
+                localErrorMessage = null
+                viewModel.handleIntent(AuthUiIntent.ClearError)
+            },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            containerColor = Color.White,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFFD1D5DB)) },
+            properties = ModalBottomSheetDefaults.properties(
+                securePolicy = if (BuildConfig.DEBUG) SecureFlagPolicy.SecureOff else SecureFlagPolicy.Inherit
+            ),
+            modifier = Modifier.imePadding()
         ) {
-            // Top Navigation Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = Space12),
-                verticalAlignment = Alignment.CenterVertically
+            CompositionLocalProvider(
+                LocalContentColor provides ParentTextDark,
+                LocalTextStyle provides LocalTextStyle.current.copy(color = ParentTextDark)
             ) {
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showEmail = false
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E293B))
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(Space12))
-                Text(
-                    text = "Create Guardian Account",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-
-            // Shield Crest Header
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF0284C7), Color(0xFF4F46E5))
-                        )
-                    )
-                    .shadow(16.dp, RoundedCornerShape(18.dp), spotColor = NeonCyan),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(34.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space12))
-
-            Text(
-                text = "Join Family Guardian",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(Space6))
-            Text(
-                text = "Setup secure parent controls in under 60 seconds",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
-
-            Spacer(modifier = Modifier.height(Space16))
-
-            // Error Alert Banner
-            if (displayErrorMessage != null) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF7F1D1D).copy(alpha = 0.85f))
-                        .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
-                        .padding(horizontal = Space16, vertical = Space12)
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Header with Title & Close button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sign up with Email",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ParentTextDark
+                        )
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    sheetState.hide()
+                                    showEmailSheet = false
+                                    localErrorMessage = null
+                                    viewModel.handleIntent(AuthUiIntent.ClearError)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = ParentTextMuted
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Field 1: Email
+                    Text(
+                        text = "Email",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Please enter a valid and real email",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 2: Password
+                    Text(
+                        text = "Password",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Please enter password",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                    contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                    tint = ParentTextMuted
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 3: Confirm Password
+                    Text(
+                        text = "Confirm",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = {
+                            confirmPassword = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Re-enter the same password",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isConfirmPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                    contentDescription = if (isConfirmPasswordVisible) "Hide password" else "Show password",
+                                    tint = ParentTextMuted
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 4: Nickname
+                    Text(
+                        text = "Nickname",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ParentTextDark
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = nickname,
+                        onValueChange = {
+                            nickname = it
+                            if (localErrorMessage != null) localErrorMessage = null
+                            if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
+                        },
+                        textStyle = TextStyle(color = ParentTextDark, fontSize = 15.sp),
+                        placeholder = {
+                            Text(
+                                text = "Please set a nickname",
+                                color = ParentTextMuted,
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ParentPurple,
+                            unfocusedBorderColor = ParentBorder,
+                            focusedTextColor = ParentTextDark,
+                            unfocusedTextColor = ParentTextDark,
+                            focusedContainerColor = ParentBg,
+                            unfocusedContainerColor = ParentBg,
+                            cursorColor = ParentPurple
+                        )
+                    )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Clean 2-line Policy notice
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "1. After successful registration, a verification code will be sent to your email. Once the verification is successful, you can sign in.",
+                        fontSize = 12.sp,
+                        color = ParentTextMuted,
+                        lineHeight = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "2. By tapping the 'Sign up' button, you accept ",
+                            fontSize = 12.sp,
+                            color = ParentTextMuted
+                        )
+                        Text(
+                            text = "Terms of Service",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ParentPurple,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable {
+                                onTermsClick()
+                            }
+                        )
+                        Text(
+                            text = " and ",
+                            fontSize = 12.sp,
+                            color = ParentTextMuted
+                        )
+                        Text(
+                            text = "Privacy Policy",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ParentPurple,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable {
+                                onPrivacyPolicyClick()
+                            }
+                        )
+                    }
+                }
+
+                // Inline error display if registration fails
+                if (!displayErrorMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFEF2F2))
+                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = null,
-                            tint = Color(0xFFFCA5A5),
-                            modifier = Modifier.size(20.dp)
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(Space12))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = displayErrorMessage,
-                            color = Color.White,
+                            color = Color(0xFFDC2626),
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(Space16))
-            }
-
-            // Main High-Contrast Register Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RadiusLarge)
-                    .background(Color(0xFF0F172A))
-                    .border(1.5.dp, Color(0xFF1E293B), RadiusLarge)
-                    .padding(Space20)
-            ) {
-                // Full Name
-                Text(
-                    text = "Parent / Guardian Name",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = {
-                        fullName = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = { Text("e.g. Rajesh Kumar", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Person, contentDescription = null, tint = NeonCyan)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(Space16))
-
-                // Email
-                Text(
-                    text = "Email Address",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = {
-                        email = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = { Text("parent@example.com", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Email, contentDescription = null, tint = NeonCyan)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(Space16))
-
-                // Master Password
-                Text(
-                    text = "Master Password (min 8 characters)",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = {
-                        password = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = { Text("At least 8 characters", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = NeonCyan)
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = "Toggle password visibility",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    },
-                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(Space8))
-
-                // 4-Segment Password Strength Indicator
-                if (password.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        repeat(4) { index ->
-                            val isActive = index < strengthScore
-                            val segmentColor = when (strengthScore) {
-                                1 -> StatusDangerRed
-                                2 -> StatusWarningAmber
-                                3 -> Color(0xFF38BDF8)
-                                else -> StatusSafeGreen
-                            }
-                            val animatedColor by animateColorAsState(
-                                targetValue = if (isActive) segmentColor else Color(0xFF334155),
-                                label = "strengthColor"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(4.dp)
-                                    .clip(CircleShape)
-                                    .background(animatedColor)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(Space4))
-                    val strengthLabel = when (strengthScore) {
-                        0, 1 -> "Weak"
-                        2 -> "Fair"
-                        3 -> "Good"
-                        else -> "Strong"
-                    }
-                    Text(
-                        text = "Password strength: $strengthLabel",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF94A3B8)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(Space16))
-
-                // Confirm Password Field
-                Text(
-                    text = "Confirm Master Password",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFE2E8F0)
-                )
-                Spacer(modifier = Modifier.height(Space8))
-                OutlinedTextField(
-                    value = confirmPassword,
-                    onValueChange = {
-                        confirmPassword = it
-                        if (localErrorMessage != null) localErrorMessage = null
-                        if (uiState.errorMessage != null) viewModel.handleIntent(AuthUiIntent.ClearError)
-                    },
-                    placeholder = { Text("Re-enter master password", color = Color(0xFF64748B)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = NeonCyan)
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isConfirmPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = "Toggle confirm password visibility",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    },
-                    visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF070B16),
-                        unfocusedContainerColor = Color(0xFF070B16),
-                        cursorColor = NeonCyan
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(Space16))
-
-                // Terms of Service & Privacy Policy Checkbox with clickable legal links
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = isTermsAccepted,
-                        onCheckedChange = { isTermsAccepted = it },
-                        enabled = !uiState.isLoading,
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = NeonCyan,
-                            uncheckedColor = Color(0xFF64748B),
-                            checkmarkColor = Color(0xFF0F172A)
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(Space8))
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "I accept ",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "Terms of Service",
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                color = NeonCyan,
-                                fontSize = 12.sp,
-                                modifier = Modifier.clickable { onTermsClick() }
-                            )
-                            Text(
-                                text = " & ",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "Privacy Policy",
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                color = NeonCyan,
-                                fontSize = 12.sp,
-                                modifier = Modifier.clickable { onPrivacyPolicyClick() }
-                            )
-                        }
-                        Text(
-                            text = "and grant COPPA-compliant parental supervision consent.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(Space20))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Register Button (Strictly ViewModel-driven)
+                // Single full-width primary capsule button "Sign up"
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        localErrorMessage = null
-                        val trimmedName = fullName.trim()
                         val trimmedEmail = email.trim()
+                        val trimmedNickname = nickname.trim()
 
-                        if (trimmedName.isEmpty()) {
-                            localErrorMessage = "Please enter your full name"
+                        if (trimmedEmail.isEmpty()) {
+                            localErrorMessage = "Please enter a valid and real email"
                             return@Button
                         }
-                        if (trimmedEmail.isEmpty() || !EMAIL_PATTERN.matches(trimmedEmail)) {
+                        if (!EMAIL_PATTERN.matches(trimmedEmail)) {
                             localErrorMessage = "Please enter a valid email address (e.g. name@domain.com)"
+                            return@Button
+                        }
+                        if (password.isEmpty()) {
+                            localErrorMessage = "Please enter password"
                             return@Button
                         }
                         val passwordValidation = ParentPasswordPolicy.validate(password)
                         if (!passwordValidation.isValid) {
-                            localErrorMessage = passwordValidation.errorMessage
+                            localErrorMessage = passwordValidation.errorMessage ?: "Password does not meet complexity requirements"
                             return@Button
                         }
                         if (confirmPassword.isEmpty()) {
-                            localErrorMessage = "Please confirm your password"
+                            localErrorMessage = "Please re-enter the same password"
                             return@Button
                         }
                         if (password != confirmPassword) {
-                            localErrorMessage = "Passwords do not match. Please verify."
+                            localErrorMessage = "Passwords do not match"
                             return@Button
                         }
-                        if (!isTermsAccepted) {
-                            localErrorMessage = "Please accept the parental terms and conditions to proceed"
+                        if (trimmedNickname.isEmpty()) {
+                            localErrorMessage = "Please set a nickname"
                             return@Button
                         }
 
+                        localErrorMessage = null
+                        keyboard?.hide()
                         viewModel.handleIntent(
                             AuthUiIntent.Register(
                                 email = trimmedEmail,
                                 password = password,
-                                fullName = trimmedName
+                                fullName = trimmedNickname
                             )
                         )
                     },
                     enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
-                        .shadow(12.dp, RadiusCapsule, spotColor = AccentIndigo),
+                        .height(52.dp),
                     shape = RadiusCapsule,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentIndigo,
+                        containerColor = ParentPurple,
                         contentColor = Color.White,
-                        disabledContainerColor = AccentIndigo.copy(alpha = 0.5f),
-                        disabledContentColor = Color.White.copy(alpha = 0.7f)
+                        disabledContainerColor = ParentPurpleSoft,
+                        disabledContentColor = ParentTextDark
                     )
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp
+                            modifier = Modifier.size(18.dp),
+                            color = ParentPurple,
+                            strokeWidth = 2.dp
                         )
-                    } else {
-                        Text(
-                            text = "Create Account",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(Modifier.width(10.dp))
                     }
+                    Text(
+                        text = if (uiState.isLoading) "Creating account..." else "Sign up",
+                        color = if (uiState.isLoading) ParentTextDark else Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
-
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(Space20))
-
-            // Sign In Link
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Already have an account?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.width(Space8))
-                Text(
-                    text = "Sign In",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = NeonCyan,
-                    modifier = Modifier.clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLoginClick()
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Space20))
         }
     }
 }
-
-@Preview(showBackground = true, backgroundColor = 0xFF080C14)
-@Composable
-fun RegisterScreenPreview() {
-    LiquidGlassTheme(darkTheme = true) {
-        RegisterScreen(
-            onRegisterSuccess = {},
-            onLoginClick = {}
-        )
-    }
 }

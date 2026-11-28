@@ -53,11 +53,34 @@ sealed interface AuthUiEffect {
 
 private val EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
 
+// Holds only the credentials for the current email flow, never saved to disk or a Bundle.
+class EmailSignInContinuation {
+    private class Attempt(val email: String, val password: String, val startedAtNanos: Long)
+    private var attempt: Attempt? = null
+
+    internal fun start(email: String, password: String) {
+        attempt = Attempt(email, password, System.nanoTime())
+    }
+
+    internal fun takePassword(email: String): String? {
+        val current = attempt
+        clear()
+        return current?.takeIf {
+            it.email == email && System.nanoTime() - it.startedAtNanos < 15 * 60 * 1_000_000_000L
+        }?.password
+    }
+
+    fun clear() {
+        attempt = null
+    }
+}
+
 class AuthViewModel(
     private val authenticateParentUseCase: AuthenticateParentUseCase,
     private val verifyEmailOtpUseCase: VerifyEmailOtpUseCase,
     private val generatePairingCodeUseCase: GeneratePairingCodeUseCase,
-    private val authRepository: IAuthRepository? = null
+    private val authRepository: IAuthRepository? = null,
+    private val emailContinuation: EmailSignInContinuation = EmailSignInContinuation()
 ) : BaseMviViewModel<AuthUiState, AuthUiIntent, AuthUiEffect>(AuthUiState()) {
 
     override fun handleIntent(intent: AuthUiIntent) {
@@ -75,6 +98,8 @@ class AuthViewModel(
     }
 
     private fun login(email: String, password: String) {
+        if (uiState.value.isLoading) return
+        emailContinuation.clear()
         val trimmedEmail = email.trim()
         val normalizedEmail = trimmedEmail.lowercase()
 
@@ -95,12 +120,19 @@ class AuthViewModel(
         viewModelScope.launch {
             val result = authenticateParentUseCase.login(normalizedEmail, password)
             result.onSuccess { account ->
-                updateState { copy(isLoading = false, currentAccount = account) }
-                sendEffect(AuthUiEffect.ShowToast("Welcome back, ${account.fullName}!"))
-                sendEffect(AuthUiEffect.NavigateToDashboard)
+                if (account.requiresEmailVerification) {
+                    emailContinuation.start(normalizedEmail, password)
+                    updateState { copy(isLoading = false, currentAccount = account) }
+                    sendEffect(AuthUiEffect.NavigateToEmailVerification)
+                } else {
+                    updateState { copy(isLoading = false, currentAccount = account) }
+                    sendEffect(AuthUiEffect.ShowToast("Welcome back, ${account.fullName}!"))
+                    sendEffect(AuthUiEffect.NavigateToDashboard)
+                }
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Authentication failed. Please check credentials."
                 if (err is UnverifiedEmailException || errorMsg.contains("EMAIL_NOT_VERIFIED")) {
+                    if (err is UnverifiedEmailException) emailContinuation.start(normalizedEmail, password)
                     updateState { copy(isLoading = false, errorMessage = null) }
                     sendEffect(AuthUiEffect.ShowToast(errorMsg, isSuccess = false))
                     sendEffect(AuthUiEffect.NavigateToEmailVerification)
@@ -116,6 +148,8 @@ class AuthViewModel(
     }
 
     private fun register(email: String, password: String, fullName: String) {
+        if (uiState.value.isLoading) return
+        emailContinuation.clear()
         val trimmedName = fullName.trim()
         val trimmedEmail = email.trim()
         val normalizedEmail = trimmedEmail.lowercase()
@@ -138,6 +172,12 @@ class AuthViewModel(
         viewModelScope.launch {
             val result = authenticateParentUseCase.register(normalizedEmail, password, trimmedName)
             result.onSuccess { account ->
+                if (!account.requiresEmailVerification) {
+                    updateState { copy(isLoading = false, currentAccount = account) }
+                    sendEffect(AuthUiEffect.NavigateToDashboard)
+                    return@onSuccess
+                }
+                emailContinuation.start(normalizedEmail, password)
                 val emailFailed = account.isEmailDeliveryFailed
                 updateState {
                     copy(
@@ -282,6 +322,7 @@ class AuthViewModel(
     }
 
     private fun verifyOtp(email: String, otpCode: String) {
+        if (uiState.value.isLoading) return
         val trimmedCode = otpCode.trim()
         if (trimmedCode.length != 6) {
             updateState { copy(errorMessage = "Please enter the 6-digit verification code") }
@@ -290,11 +331,13 @@ class AuthViewModel(
 
         updateState { copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
-            val result = verifyEmailOtpUseCase(email.trim().lowercase(), trimmedCode)
+            val normalizedEmail = email.trim().lowercase()
+            val result = verifyEmailOtpUseCase(normalizedEmail, trimmedCode)
             result.onSuccess {
-                updateState { copy(isLoading = false) }
-                sendEffect(AuthUiEffect.ShowToast("Email verified successfully! Please log in."))
-                sendEffect(AuthUiEffect.NavigateToLogin)
+                val password = emailContinuation.takePassword(normalizedEmail)
+                val account = password?.let { authenticateParentUseCase.login(normalizedEmail, it).getOrNull() }
+                updateState { copy(isLoading = false, currentAccount = account) }
+                sendEffect(if (account != null) AuthUiEffect.NavigateToDashboard else AuthUiEffect.NavigateToLogin)
             }.onFailure { err ->
                 val msg = err.message ?: ""
                 val isUnavailable = msg.contains("501") ||
@@ -395,13 +438,15 @@ class AuthViewModel(
 object AuthViewModelFactory {
     fun create(
         authRepository: IAuthRepository = LocalAuthRepository(ParentalDatabase.getInstance()),
-        childDeviceRepository: IChildDeviceRepository = LocalChildDeviceRepository(ParentalDatabase.getInstance())
+        childDeviceRepository: IChildDeviceRepository = LocalChildDeviceRepository(ParentalDatabase.getInstance()),
+        emailContinuation: EmailSignInContinuation = EmailSignInContinuation()
     ): AuthViewModel {
         return AuthViewModel(
             authenticateParentUseCase = AuthenticateParentUseCase(authRepository),
             verifyEmailOtpUseCase = VerifyEmailOtpUseCase(authRepository),
             generatePairingCodeUseCase = GeneratePairingCodeUseCase(childDeviceRepository),
-            authRepository = authRepository
+            authRepository = authRepository,
+            emailContinuation = emailContinuation
         )
     }
 }

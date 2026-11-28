@@ -795,6 +795,12 @@ describe('2. Session & API Integration Tests (admin-session.test.ts)', () => {
   // Test 13: Recovery Code Regeneration Replay
   // -------------------------------------------------------------
   it('Test 13: Recovery Code Regeneration Replay invalidates previous codes and prevents timestep replay', async () => {
+    // 0. Reset timestep before establishing session to ensure TOTP verify succeeds
+    await db
+      .update(adminMfa)
+      .set({ lastUsedTimestep: 0 })
+      .where(eq(adminMfa.adminId, superAdminId));
+
     // 1. Establish session
     const loginRes = await app.inject({
       method: 'POST',

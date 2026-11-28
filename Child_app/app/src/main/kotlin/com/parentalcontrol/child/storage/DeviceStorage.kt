@@ -47,18 +47,43 @@ data class DeviceSession(
 )
 
 class DeviceStorage internal constructor(
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val appContext: Context? = null
 ) {
     private val uuidRegex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
+    fun getHardwareId(): String {
+        val ctx = appContext
+        if (ctx != null) {
+            val aid = android.provider.Settings.Secure.getString(
+                ctx.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" && !it.equals("unknown", ignoreCase = true) }
+            if (aid != null) {
+                return "AnID$aid"
+            }
+            throw IllegalStateException("Valid Android ID is required for device identity")
+        }
+        val existing = prefs.getString("installation", null)
+        if (existing != null) return existing
+        val testAid = prefs.getString("test_android_id", null)
+        if (testAid != null) return "AnID$testAid"
+        throw IllegalStateException("Context or configured test ID required to obtain hardware device identity")
+    }
+
+    fun getHardwareUuid(): String {
+        return java.util.UUID.nameUUIDFromBytes(getHardwareId().toByteArray(Charsets.UTF_8)).toString()
+    }
+
     fun acceptPolicy() {
+        val hid = if (appContext != null) getHardwareUuid() else (installationId ?: java.util.UUID.randomUUID().toString())
         check(prefs.edit().putString("policy", POLICY_VERSION)
             .putString("acceptedAt", java.time.Instant.now().toString())
-            .putString("installation", installationId ?: java.util.UUID.randomUUID().toString())
+            .putString("installation", hid)
             .commit())
     }
 
-    val installationId: String? get() = prefs.getString("installation", null)
+    val installationId: String? get() = prefs.getString("installation", null) ?: appContext?.let { getHardwareUuid() }
     val acceptedAt: String? get() = prefs.getString("acceptedAt", null)
     val hasConsent: Boolean get() = prefs.getString("policy", null) == POLICY_VERSION &&
         acceptedAt != null && installationId != null
@@ -337,7 +362,7 @@ class DeviceStorage internal constructor(
             return instance ?: synchronized(this) {
                 instance ?: run {
                     val sp = createSecurePreferences(context.applicationContext)
-                    DeviceStorage(sp).also { instance = it }
+                    DeviceStorage(sp, context.applicationContext).also { instance = it }
                 }
             }
         }

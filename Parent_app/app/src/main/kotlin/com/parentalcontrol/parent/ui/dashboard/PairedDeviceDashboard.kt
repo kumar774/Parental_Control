@@ -47,7 +47,6 @@ import kotlinx.coroutines.launch
 
 internal sealed class DashboardRouteDecision {
     data object OpenDeviceTypeSelection : DashboardRouteDecision()
-    data object OpenPairing : DashboardRouteDecision()
     data class OpenDeviceSetup(val device: DeviceDto) : DashboardRouteDecision()
     data class ShowDashboard(
         val devices: List<DeviceDto>,
@@ -72,22 +71,7 @@ internal fun resolveDashboardState(
     val unfinishedSetupDevice = devices.firstOrNull { it.setupStep in 2..3 }
     val pendingEnrollment = enrollment.takeIf { it.pendingSessionId != null }
 
-    if (devices.isEmpty()) {
-        return if (allowAutoResumeOnboarding) {
-            if (!enrollment.consentAccepted) {
-                DashboardRouteDecision.OpenDeviceTypeSelection
-            } else {
-                DashboardRouteDecision.OpenPairing
-            }
-        } else {
-            DashboardRouteDecision.ShowDashboard(
-                devices = emptyList(),
-                selectedDeviceId = null,
-                pendingEnrollment = pendingEnrollment,
-                pendingSetupDevice = null
-            )
-        }
-    }
+    if (devices.isEmpty()) return DashboardRouteDecision.OpenDeviceTypeSelection
 
     if (completedDevices.isEmpty() && unfinishedSetupDevice != null) {
         return if (allowAutoResumeOnboarding) {
@@ -253,6 +237,7 @@ internal fun DeviceAvatar(id: Int, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PairedDeviceDashboard(
     account: String,
@@ -267,7 +252,14 @@ fun PairedDeviceDashboard(
     onPrivacy: () -> Unit,
     allowAutoResumeOnboarding: Boolean = true,
     onAutoResumeConsumed: () -> Unit = {},
-    onCancelPending: suspend (String) -> Result<Unit> = { FastifyRestClient.shared.cancelPairing(it) }
+    onHasConnectedChild: (Boolean) -> Unit = {},
+    onCancelPending: suspend (String) -> Result<Unit> = { FastifyRestClient.shared.cancelPairing(it) },
+    onUsageReport: () -> Unit = {},
+    onRemoteCamera: () -> Unit = {},
+    onScreenMirror: () -> Unit = {},
+    onAmbientAudio: () -> Unit = {},
+    onLiveLocation: () -> Unit = {},
+    onRulesConfig: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -281,7 +273,8 @@ fun PairedDeviceDashboard(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var menu by remember { mutableStateOf(false) }
+    var showDevicePickerSheet by remember { mutableStateOf(false) }
+    var blockAllApps by remember { mutableStateOf(false) }
 
     LaunchedEffect(account, attempt) {
         loading = true
@@ -293,15 +286,12 @@ fun PairedDeviceDashboard(
             val client = FastifyRestClient.shared
             val enrollment = client.getOnboarding().getOrThrow()
             val list = client.getDevices().getOrThrow()
+            onHasConnectedChild(list.isNotEmpty())
             consent = enrollment.consentAccepted
             when (val decision = resolveDashboardState(list, enrollment, selected, allowAutoResumeOnboarding)) {
                 DashboardRouteDecision.OpenDeviceTypeSelection -> {
                     onAutoResumeConsumed()
                     onSelectType()
-                }
-                DashboardRouteDecision.OpenPairing -> {
-                    onAutoResumeConsumed()
-                    onPair()
                 }
                 is DashboardRouteDecision.OpenDeviceSetup -> {
                     onAutoResumeConsumed()
@@ -321,6 +311,24 @@ fun PairedDeviceDashboard(
             error = e.message
         }
         loading = false
+    }
+
+    // The server's device list excludes connections that have not been acknowledged.
+    // Until an eligible device is loaded, keep the dashboard (including tabs) out of the UI.
+    if (devices.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (error == null) {
+                CircularProgressIndicator(color = ParentPurple)
+            } else {
+                Text("Could not load your connected devices.", color = ParentTextDark)
+                TextButton({ attempt++ }) { Text("Retry", color = ParentPurple) }
+            }
+        }
+        return
     }
 
     val device = devices.firstOrNull { it.id == selected }
@@ -412,15 +420,19 @@ fun PairedDeviceDashboard(
                                     .size(50.dp)
                                     .clip(CircleShape)
                                     .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                                    .clickable { showDevicePickerSheet = true }
                             ) {
                                 DeviceAvatar(device.childAvatarId, Modifier.fillMaxSize())
                             }
                             Spacer(Modifier.width(12.dp))
-                            Box(Modifier.weight(1f)) {
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .clickable { showDevicePickerSheet = true }
+                            ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.clickable { menu = true }
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
                                             text = device.nickname ?: device.model ?: device.deviceName,
@@ -435,34 +447,403 @@ fun PairedDeviceDashboard(
                                             tint = Color.White
                                         )
                                     }
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color.White.copy(alpha = 0.22f)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Text(
-                                            text = if (device.setupStep in 2..3) "Setup pending" else "Device paired",
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                }
-                                DropdownMenu(menu, { menu = false }) {
-                                    devices.forEach { item ->
-                                        DropdownMenuItem(
-                                            text = { Text(item.nickname ?: item.model ?: item.deviceName) },
-                                            onClick = {
-                                                selected = item.id
-                                                storage.edit().putString(account, item.id).apply()
-                                                menu = false
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color.White.copy(alpha = 0.22f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.BatteryStd,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = "${device.batteryPct}%",
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
                                             }
-                                        )
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color.White.copy(alpha = 0.22f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.SignalCellularAlt,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = if (device.setupStep in 2..3) "Setup pending" else "Mobile Data",
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                             IconButton(onClick = { if (consent) onPair() else onConsent() }) {
                                 Icon(Icons.Default.Add, contentDescription = "Add New Device", tint = Color.White)
+                            }
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Trial / Status banner
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF3EDFF),
+                            border = BorderStroke(1.dp, Color(0xFFE5D9FD))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Your trial has expired",
+                                    fontSize = 13.sp,
+                                    color = ParentPurpleDeep,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = "Upgrade >",
+                                    fontSize = 13.sp,
+                                    color = ParentPurple,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { onRulesConfig() }
+                                )
+                            }
+                        }
+
+                        // Usage Report Card
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onUsageReport() },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Usage Report",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ParentTextDark
+                                        )
+                                        Icon(
+                                            Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            tint = ParentTextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = ParentPurpleSoft,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    Icons.Default.AccessTime,
+                                                    contentDescription = null,
+                                                    tint = ParentPurple,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Column {
+                                            Text("Screen Time", fontSize = 11.sp, color = ParentTextMuted)
+                                            Text("7 hr 5 min", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ParentTextDark)
+                                        }
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp, 45.dp)
+                                        .background(Color(0xFFF5F3FF), RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.Bottom,
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    ) {
+                                        Box(Modifier.size(8.dp, 18.dp).background(Color(0xFF38BDF8), RoundedCornerShape(2.dp)))
+                                        Box(Modifier.size(8.dp, 28.dp).background(Color(0xFF818CF8), RoundedCornerShape(2.dp)))
+                                        Box(Modifier.size(8.dp, 22.dp).background(Color(0xFFF59E0B), RoundedCornerShape(2.dp)))
+                                    }
+                                }
+                            }
+                        }
+
+                        // Live Monitoring Card
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Live Monitoring",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ParentTextDark
+                                    )
+                                    IconButton(
+                                        onClick = onRulesConfig,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Settings,
+                                            contentDescription = "Settings",
+                                            tint = ParentTextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(14.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    MonitoringFeatureButton(
+                                        title = "Remote Camera",
+                                        icon = Icons.Default.CameraAlt,
+                                        onClick = onRemoteCamera
+                                    )
+                                    MonitoringFeatureButton(
+                                        title = "Screen Mirroring",
+                                        icon = Icons.Default.PhoneAndroid,
+                                        onClick = onScreenMirror
+                                    )
+                                    MonitoringFeatureButton(
+                                        title = "One-Way Audio",
+                                        icon = Icons.Default.Headphones,
+                                        onClick = onAmbientAudio
+                                    )
+                                }
+                            }
+                        }
+
+                        // Block All Apps Card
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(Color(0xFFEDE9FE), RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = ParentPurple,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Block All Apps",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ParentTextDark
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = "All apps except for \"Allowed Apps\" will be blocked",
+                                        fontSize = 12.sp,
+                                        color = ParentTextMuted,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Switch(
+                                    checked = blockAllApps,
+                                    onCheckedChange = { blockAllApps = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = ParentPurple
+                                    )
+                                )
+                            }
+                        }
+
+                        // Live Location Card
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onLiveLocation() },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Live Location",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ParentTextDark
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(7.dp)
+                                                .background(Color.Red, CircleShape)
+                                        )
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = ParentTextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF1E293B)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .background(Color.White, CircleShape)
+                                            .padding(3.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        DeviceAvatar(device.childAvatarId, Modifier.fillMaxSize())
+                                    }
+                                }
+                            }
+                        }
+
+                        pendingEnrollment?.let { pending ->
+                            val sessionId = pending.pendingSessionId
+                            if (sessionId != null) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = ParentBg,
+                                    border = BorderStroke(1.dp, ParentBorder)
+                                ) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("Unfinished device pairing", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
+                                        val codeText = pending.pendingCode?.let { "Code ${formatNineDigitCode(it)} is waiting to connect." }
+                                            ?: "A child device pairing is in progress."
+                                        Text(codeText, fontSize = 13.sp, color = ParentTextMuted)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            Button(
+                                                onClick = onPair,
+                                                enabled = !cancellingPending,
+                                                shape = RoundedCornerShape(50),
+                                                colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
+                                            ) {
+                                                Text("Resume")
+                                            }
+                                            OutlinedButton(
+                                                onClick = {
+                                                    if (!cancellingPending) {
+                                                        cancellingPending = true
+                                                        scope.launch {
+                                                            onCancelPending(sessionId)
+                                                                .onSuccess { attempt++ }
+                                                                .onFailure { error = it.message ?: "Unable to cancel pairing" }
+                                                            cancellingPending = false
+                                                        }
+                                                    }
+                                                },
+                                                enabled = !cancellingPending,
+                                                shape = RoundedCornerShape(50)
+                                            ) {
+                                                Text(if (cancellingPending) "Canceling..." else "Cancel")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        pendingSetupDevice?.let { setupDev ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = ParentBg,
+                                border = BorderStroke(1.dp, ParentBorder)
+                            ) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Finish device setup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
+                                    Text(
+                                        "${setupDev.nickname ?: setupDev.model ?: setupDev.deviceName} has unfinished setup steps.",
+                                        fontSize = 13.sp,
+                                        color = ParentTextMuted
+                                    )
+                                    Button(
+                                        onClick = { onSetup(setupDev) },
+                                        shape = RoundedCornerShape(50),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
+                                    ) {
+                                        Text("Continue setup")
+                                    }
+                                }
                             }
                         }
                     }
@@ -488,79 +869,130 @@ fun PairedDeviceDashboard(
                         }
                     }
                 }
+            }
+        }
+    }
 
-                pendingEnrollment?.let { pending ->
-                    val sessionId = pending.pendingSessionId
-                    if (sessionId != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = ParentBg,
-                            border = BorderStroke(1.dp, ParentBorder)
-                        ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Unfinished device pairing", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
-                                val codeText = pending.pendingCode?.let { "Code ${formatNineDigitCode(it)} is waiting to connect." }
-                                    ?: "A child device pairing is in progress."
-                                Text(codeText, fontSize = 13.sp, color = ParentTextMuted)
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Button(
-                                        onClick = onPair,
-                                        enabled = !cancellingPending,
-                                        shape = RoundedCornerShape(50),
-                                        colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
-                                    ) {
-                                        Text("Resume")
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (!cancellingPending) {
-                                                cancellingPending = true
-                                                scope.launch {
-                                                    onCancelPending(sessionId)
-                                                        .onSuccess { attempt++ }
-                                                        .onFailure { error = it.message ?: "Unable to cancel pairing" }
-                                                    cancellingPending = false
-                                                }
-                                            }
-                                        },
-                                        enabled = !cancellingPending,
-                                        shape = RoundedCornerShape(50)
-                                    ) {
-                                        Text(if (cancellingPending) "Canceling..." else "Cancel")
-                                    }
-                                }
-                            }
-                        }
+    if (showDevicePickerSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showDevicePickerSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            dragHandle = null
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 32.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Select Device",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ParentTextDark
+                    )
+                    IconButton(
+                        onClick = { showDevicePickerSheet = false },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ParentTextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
-                pendingSetupDevice?.let { setupDev ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = ParentBg,
-                        border = BorderStroke(1.dp, ParentBorder)
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Finish device setup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = ParentTextDark)
-                            Text(
-                                "${setupDev.nickname ?: setupDev.model ?: setupDev.deviceName} has unfinished setup steps.",
-                                fontSize = 13.sp,
-                                color = ParentTextMuted
-                            )
-                            Button(
-                                onClick = { onSetup(setupDev) },
-                                shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(containerColor = ParentPurple)
-                            ) {
-                                Text("Continue setup")
+                Spacer(Modifier.height(8.dp))
+
+                devices.forEach { item ->
+                    val isCurrent = item.id == (selected ?: device?.id)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selected = item.id
+                                storage.edit().putString(account, item.id).apply()
+                                showDevicePickerSheet = false
                             }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                        ) {
+                            DeviceAvatar(item.childAvatarId, Modifier.fillMaxSize())
                         }
+                        Spacer(Modifier.width(14.dp))
+                        Text(
+                            text = item.nickname ?: item.model ?: item.deviceName,
+                            fontSize = 16.sp,
+                            fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isCurrent) ParentPurple else ParentTextDark,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isCurrent) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = ParentPurple,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    if (item != devices.last()) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            color = ParentBorder.copy(alpha = 0.5f),
+                            thickness = 0.5.dp
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MonitoringFeatureButton(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .background(Color(0xFFF3EDFF), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = ParentPurple,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            color = ParentTextDark,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

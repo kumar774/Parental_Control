@@ -1,0 +1,13 @@
+Physical Device Live Test Report: Vivo I2220 (100.80.27.76:5555)
+Flow: FlashGet Kids Parity - Unverified Login, Skip OTP, Pairing & Back Hierarchy
+
+Results:
+- Unverified Login -> OTP Screen: FAIL
+- Skip OTP -> Device Selection: FAIL
+- 'Parents' devices' -> Consent Screen (NO TOAST BOUNCE): FAIL
+- 'Agree and bind new device' -> Pairing Screen (9-digit code): FAIL
+- Back 1 -> Parental Consent Screen: FAIL
+- Back 2 -> Device Selection Screen: FAIL
+- Dashboard Guard (Closed until child paired): PASS
+
+OVERALL STATUS: NEEDS REVIEW

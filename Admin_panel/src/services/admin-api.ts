@@ -58,7 +58,6 @@ export interface AppSettingsResponse {
   childAppDownloadUrl: string | null;
   parentAppDownloadUrl: string | null;
   registrationEnabled: boolean;
-  pairingCodeExpirySeconds: number;
   childAppLatestVersion: string;
   childAppMinVersion: string;
   updatedBy: string | null;
@@ -71,7 +70,6 @@ export interface UpdateAppSettingsPayload {
   childAppDownloadUrl?: string | null;
   parentAppDownloadUrl?: string | null;
   registrationEnabled?: boolean;
-  pairingCodeExpirySeconds?: number;
   childAppLatestVersion?: string;
   childAppMinVersion?: string;
 }
@@ -144,7 +142,7 @@ export interface DashboardDevice {
   isCharging: boolean;
   accessibilityHealthy: boolean;
   deviceAdminActive: boolean;
-  knoxActive: boolean;
+  knoxActive?: boolean;
   lastSeenAt: string | null;
   isOnline: boolean;
 }

@@ -88,8 +88,6 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   fullName: z.string().min(1).max(100).optional(),
-  familyCardNo: z.string().max(64).optional(),
-  phone: z.string().max(32).optional(),
 });
 
 const loginSchema = z.object({
@@ -227,7 +225,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           .values({
             email: normalizedEmail,
             fullName: derivedFullName,
-            phone: parsed.data.phone || null,
             passwordHash,
             status: 'active',
             emailVerified,
@@ -237,8 +234,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         if (!newUser) {
           throw new Error('Failed to create user account');
         }
-
-        const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
 
         if (!emailVerified) {
           // SMTP / Email verification is enabled:
@@ -264,8 +259,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
               id: newUser.id,
               email: newUser.email,
               fullName: newUser.fullName || derivedFullName,
-              familyCardNo: derivedFamilyCard,
-              phone: newUser.phone,
               isGuest: false,
               status: newUser.status,
             },
@@ -289,7 +282,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           await tx.insert(parentRefreshTokens).values({
             parentId: newUser.id,
             tokenHash,
-            familyCardNo: derivedFamilyCard,
             deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
             ipAddress: request.ip,
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -300,8 +292,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
               id: newUser.id,
               email: newUser.email,
               fullName: newUser.fullName || derivedFullName,
-              familyCardNo: derivedFamilyCard,
-              phone: newUser.phone,
               isGuest: false,
               status: newUser.status,
             },
@@ -430,20 +420,9 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       });
     }
 
-    // Zero-trust email verification enforcement:
-    // Reject unverified parent login with HTTP 403 Forbidden until email is verified.
     const isVerified = await isParentEmailVerified(user.id);
-    if (!isVerified) {
-      return reply.status(403).send({
-        statusCode: 403,
-        code: 'EMAIL_NOT_VERIFIED',
-        error: 'Forbidden',
-        message: 'Email not verified. Please verify your email before logging in.',
-      });
-    }
-
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: 'parent', emailVerified: true },
+      { userId: user.id, email: user.email, role: 'parent', emailVerified: isVerified },
       env.JWT_ACCESS_SECRET,
       { expiresIn: '15m' }
     );
@@ -451,13 +430,11 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     // Persist hashed refresh token for real session lifecycle
     await db.insert(parentRefreshTokens).values({
       parentId: user.id,
       tokenHash,
-      familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -468,14 +445,13 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
       },
       accessToken: token,
       refreshToken: rawRefreshToken,
       expiresIn: 900,
+      requiresEmailVerification: !isVerified,
     });
   });
 
@@ -699,12 +675,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     await db.insert(parentRefreshTokens).values({
       parentId: user.id,
       tokenHash,
-      familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Auth)',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -715,8 +689,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
       },
@@ -863,12 +835,10 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = hashRefreshToken(rawRefreshToken);
       const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-      const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
       await tx.insert(parentRefreshTokens).values({
         parentId: user.id,
         tokenHash,
-        familyCardNo: derivedFamilyCard,
         deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
         ipAddress: request.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -879,8 +849,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           id: user.id,
           email: user.email,
           fullName: resolvedFullName,
-          familyCardNo: derivedFamilyCard,
-          phone: user.phone,
           isGuest: false,
           status: user.status,
         },
@@ -911,15 +879,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
   app.get('/me', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const user = request.parentUser!;
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     return reply.send({
       user: {
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
         createdAt: user.createdAt,
@@ -976,7 +941,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .select({
           id: parentUsers.id,
           email: parentUsers.email,
-          phone: parentUsers.phone,
           status: parentUsers.status,
         })
         .from(parentUsers)
@@ -993,17 +957,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         };
       }
 
-      // 2b. Zero-trust email verification check: reject refresh if email is not verified
-      const isVerified = await isParentEmailVerified(user.id);
-      if (!isVerified) {
-        return {
-          ok: false,
-          status: 403,
-          code: 'EMAIL_NOT_VERIFIED',
-          error: 'Forbidden',
-          message: 'Email not verified. Please verify your email before refreshing session.',
-        };
-      }
 
       // 3. Token reuse detection: if a revoked token is presented, compromise is suspected
       if (record.isRevoked) {
@@ -1078,7 +1031,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       await tx.insert(parentRefreshTokens).values({
         parentId: user.id,
         tokenHash: newTokenHash,
-        familyCardNo: record.familyCardNo,
         deviceInfo: (request.headers['user-agent'] as string) || record.deviceInfo,
         ipAddress: request.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days

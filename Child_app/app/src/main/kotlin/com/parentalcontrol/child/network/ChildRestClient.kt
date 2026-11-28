@@ -24,7 +24,9 @@ data class PairResult(
     val refreshToken: String? = null,
     val parentId: String? = null,
     val childName: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val sessionId: String? = null,
+    val alreadyConnected: Boolean = false
 )
 
 data class PairSessionResult(
@@ -93,10 +95,17 @@ class ChildRestClient(
     companion object {
         const val TAG = "ChildRestClient"
         val DEFAULT_BASE_URL = com.parentalcontrol.child.BuildConfig.API_ORIGIN
+        private val DEBUG_ALLOWED_HOSTS = setOf(
+            "127.0.0.1", "localhost", "10.0.2.2", "100.86.72.5", "192.168.31.178"
+        )
+
         internal fun isAllowedOrigin(url: URL, debug: Boolean): Boolean {
             if (url.host.isBlank() || url.userInfo != null || url.query != null ||
                 url.ref != null || url.path.trim('/').isNotEmpty()) return false
-            return url.protocol == "https" || debug && url.protocol == "http" && url.host == "127.0.0.1"
+            if (url.protocol == "https") return true
+            if (!debug || url.protocol != "http") return false
+            val host = url.host
+            return host in DEBUG_ALLOWED_HOSTS || host.startsWith("100.")
         }
 
         val instance: ChildRestClient by lazy { ChildRestClient() }
@@ -167,6 +176,140 @@ class ChildRestClient(
         } else check(json.optString("status") == "canceled")
     }
 
+    data class RestoredBindingResult(
+        val restored: Boolean,
+        val deviceId: String? = null,
+        val parentId: String? = null,
+        val childName: String? = null,
+        val setupStep: Int? = null,
+        val parentEmail: String? = null,
+        val deviceToken: String? = null,
+        val refreshToken: String? = null,
+        val sessionId: String? = null,
+        val message: String? = null
+    )
+
+    data class ProbeResult(
+        val valid: Boolean,
+        val parentEmail: String? = null,
+        val parentName: String? = null,
+        val message: String? = null
+    )
+
+    suspend fun probeHardwareCode(cdkey: String): ProbeResult = withContext(Dispatchers.IO) {
+        val body = JSONObject().apply {
+            put("Cdkey", cdkey.trim())
+        }
+        val res = executeRequest("/api/v1/child/systems/probe", "POST", body.toString())
+        if (res.code in 200..299) {
+            val json = JSONObject(res.body)
+            val data = json.optJSONObject("data") ?: json
+            ProbeResult(
+                valid = true,
+                parentEmail = data.optionalText("parentEmail"),
+                parentName = data.optionalText("parentName")
+            )
+        } else {
+            val msg = try {
+                JSONObject(res.body).optString("message", "Invalid binding code")
+            } catch (_: Exception) {
+                "Invalid binding code (HTTP ${res.code})"
+            }
+            ProbeResult(valid = false, message = msg)
+        }
+    }
+
+    suspend fun activateHardwareCode(
+        cdkey: String,
+        sn: String,
+        brand: String = Build.BRAND,
+        model: String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+    ): PairResult = withContext(Dispatchers.IO) {
+        val body = JSONObject().apply {
+            put("SN", sn)
+            put("Cdkey", cdkey)
+            put("Brand", brand)
+            put("Model", model)
+            put("MAC", "")
+            put("IsGuardUserActive", true)
+        }
+        val res = executeRequest("/api/v1/child/systems/active", "POST", body.toString())
+        if (res.code in 200..299) {
+            val json = JSONObject(res.body)
+            val data = json.optJSONObject("data") ?: json
+            val isAlready = data.optBoolean("alreadyConnected", data.optBoolean("isAlreadyBound", false))
+            PairResult(
+                success = true,
+                deviceId = data.optionalText("childDeviceId") ?: data.optionalText("deviceId"),
+                deviceToken = data.optionalText("token") ?: data.optionalText("deviceToken"),
+                refreshToken = data.optionalText("refreshToken"),
+                parentId = data.optionalText("parentId"),
+                childName = data.optionalText("parentName") ?: "Guardian",
+                sessionId = data.optionalText("sessionId"),
+                alreadyConnected = isAlready
+            )
+        } else {
+            PairResult(
+                success = false,
+                message = try { JSONObject(res.body).optString("message", "Activation failed") } catch (_: Exception) { "Activation failed (HTTP ${res.code})" }
+            )
+        }
+    }
+
+    suspend fun restoreBinding(hardwareId: String): RestoredBindingResult = withContext(Dispatchers.IO) {
+        val body = JSONObject().apply {
+            put("SN", hardwareId)
+            put("Brand", Build.BRAND)
+            put("Model", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+            put("MAC", "")
+            put("Timestamp", System.currentTimeMillis())
+            put("hardwareId", hardwareId)
+            put("installationId", java.util.UUID.nameUUIDFromBytes(hardwareId.toByteArray(Charsets.UTF_8)).toString())
+            put("deviceBrand", Build.BRAND)
+            put("deviceModel", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+        }
+        val result = executeRequest("/api/v1/child/device-users/signin", "POST", body.toString())
+        if (result.code in 200..299) {
+            val json = JSONObject(result.body)
+            val data = json.optJSONObject("data") ?: json
+            val isBound = data.optBoolean("IsGuardBind", data.optBoolean("restored", false))
+            if (isBound) {
+                return@withContext RestoredBindingResult(
+                    restored = true,
+                    deviceId = data.optionalText("UserId") ?: data.optionalText("deviceId"),
+                    parentId = data.optionalText("GuardUserId") ?: data.optionalText("parentId"),
+                    childName = data.optionalText("GuardUserName") ?: data.optionalText("childName"),
+                    setupStep = 4,
+                    parentEmail = data.optionalText("GuardUserName") ?: data.optionalText("parentEmail"),
+                    deviceToken = data.optionalText("UserToken") ?: data.optionalText("deviceToken"),
+                    refreshToken = data.optionalText("RefreshToken") ?: data.optionalText("refreshToken"),
+                    sessionId = data.optionalText("SessionId") ?: data.optionalText("sessionId")
+                )
+            } else {
+                return@withContext RestoredBindingResult(restored = false, message = "Device not bound")
+            }
+        }
+        val legacyResult = executeRequest("/api/v1/child/device/restore-binding", "POST", body.toString())
+        if (legacyResult.code in 200..299) {
+            val json = JSONObject(legacyResult.body)
+            val restored = json.optBoolean("restored", false)
+            if (!restored) {
+                return@withContext RestoredBindingResult(restored = false, message = json.optString("message"))
+            }
+            return@withContext RestoredBindingResult(
+                restored = true,
+                deviceId = json.optionalText("deviceId"),
+                parentId = json.optionalText("parentId"),
+                childName = json.optionalText("childName"),
+                setupStep = json.optInt("setupStep", 4),
+                parentEmail = json.optionalText("parentEmail"),
+                deviceToken = json.optionalText("deviceToken"),
+                refreshToken = json.optionalText("refreshToken")
+            )
+        }
+        RestoredBindingResult(restored = false, message = result.body)
+    }
+
     suspend fun parentDownloadUrl(): String? = withContext(Dispatchers.IO) {
         val response = executeRequest("/api/v1/config/app-settings", "GET", null)
         if (response.code != 200) throw IOException()
@@ -216,7 +359,13 @@ class ChildRestClient(
                         AssociationCheckOutcome.RevokedOrInvalid(200, "Device association is no longer valid.")
                     }
                 }
-                else -> if (response.backendCode() == "ASSOCIATION_REVOKED") AssociationCheckOutcome.RevokedOrInvalid(
+                404 -> {
+                    AssociationCheckOutcome.RevokedOrInvalid(
+                        404,
+                        "Device pairing was revoked or removed."
+                    )
+                }
+                else -> if (response.backendCode() in setOf("ASSOCIATION_REVOKED", "INVALID_DEVICE")) AssociationCheckOutcome.RevokedOrInvalid(
                     response.code,
                     "Device pairing was revoked or removed."
                 ) else AssociationCheckOutcome.TransientError(
@@ -346,6 +495,15 @@ class ChildRestClient(
                 "Network transport failure: ${e.message ?: "Unknown network error"}"
             )
         }
+    }
+
+    suspend fun sendSetupAck(sessionId: String, storage: DeviceStorage): Boolean = withContext(Dispatchers.IO) {
+        val res = authenticated(
+            storage,
+            "/api/v1/child/setup/ack",
+            JSONObject().put("sessionId", sessionId).toString()
+        )
+        res.code in 200..299
     }
 
     private fun parseAckSuccess(response: HttpResponse, storage: DeviceStorage): AckOutcome {
@@ -530,7 +688,9 @@ class ChildRestClient(
     ): HttpResponse {
         requestOverride?.let { return it(path, method, jsonBody, bearerToken, extraHeaders) }
         val endpoint = URL(baseUrl)
-        require(isAllowedOrigin(endpoint, com.parentalcontrol.child.BuildConfig.DEBUG))
+        require(isAllowedOrigin(endpoint, com.parentalcontrol.child.BuildConfig.DEBUG)) {
+            "Origin not permitted: $baseUrl"
+        }
         return executeHttpRequest(baseUrl.trimEnd('/') + path, method, jsonBody, bearerToken, extraHeaders)
     }
 

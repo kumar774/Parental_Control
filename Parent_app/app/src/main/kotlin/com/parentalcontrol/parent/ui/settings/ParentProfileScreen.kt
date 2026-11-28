@@ -219,7 +219,7 @@ fun ParentProfileScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = mmkv.familyCardNo ?: "FAM-0000",
+                                text = mmkv.bindingCode ?: "---",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextMuted
                             )
