@@ -1,0 +1,56 @@
+.class public final Lcom/tencent/mmkv/BuildConfig;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# static fields
+.field public static final BUILD_TYPE:Ljava/lang/String;
+
+.field public static final DEBUG:Z
+
+.field public static final FLAVOR:Ljava/lang/String;
+
+.field public static final LIBRARY_PACKAGE_NAME:Ljava/lang/String;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    const-string v0, "\u3d62"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lcom/tencent/mmkv/BuildConfig;->BUILD_TYPE:Ljava/lang/String;
+
+    const-string v0, "\u3d63"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lcom/tencent/mmkv/BuildConfig;->LIBRARY_PACKAGE_NAME:Ljava/lang/String;
+
+    const-string v0, "\u3d64"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lcom/tencent/mmkv/BuildConfig;->FLAVOR:Ljava/lang/String;
+
+    return-void
+.end method
+
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method

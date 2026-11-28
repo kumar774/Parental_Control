@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center" android:orientation="vertical" android:background="@color/color_bg_2" android:layout_width="match_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="20.0sp" android:textColor="@color/color_text_primary" android:gravity="center" android:id="@id/txtTitle" android:paddingTop="20.0dp" android:paddingBottom="20.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="locale" style="@style/TextStyle.Center" />
+    <Button android:textColor="@color/color_text_white" android:id="@id/btnOk" android:layout_width="100.0dp" android:layout_height="40.0dp" android:layout_marginBottom="20.0dp" android:text="@string/Common_Confirm" android:textAllCaps="false" />
+</LinearLayout>

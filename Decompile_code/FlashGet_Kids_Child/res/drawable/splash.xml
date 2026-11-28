@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/color_bg_1" />
+    <item android:top="110.0dp">
+        <bitmap android:gravity="center|top" android:src="@drawable/ic_airdroidkid_start" />
+    </item>
+    <item android:top="300.0dp">
+        <bitmap android:gravity="fill_horizontal|bottom" android:src="@drawable/pic_airdroidkid_start" />
+    </item>
+</layer-list>

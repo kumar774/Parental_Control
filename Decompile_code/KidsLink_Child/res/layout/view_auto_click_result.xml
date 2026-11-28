@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.constraintlayout.widget.ConstraintLayout android:background="#ffffffff" android:padding="20.0dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <TextView android:textSize="22.0sp" android:textColor="@color/text_black" android:id="@id/tv_tips" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20.0dp" android:text="@string/permission_open_or_skip_tip" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <Button android:textSize="18.0sp" android:textColor="#ffffffff" android:id="@id/bt_sure" android:background="@drawable/round_bt_agree_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20.0dp" android:text="@string/open_or_skip" android:textAllCaps="false" android:paddingStart="10.0dp" android:paddingEnd="10.0dp" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_tips" />
+        <Button android:textSize="18.0sp" android:textColor="#ffffffff" android:id="@id/bt_again" android:background="@drawable/round_bt_agree_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/not_opened" android:textAllCaps="false" android:paddingStart="10.0dp" android:paddingEnd="10.0dp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="@id/bt_sure" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

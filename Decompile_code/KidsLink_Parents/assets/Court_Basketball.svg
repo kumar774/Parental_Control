@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="122px" height="72px" viewBox="0 0 122 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Basketballfield</title>
+    <g id="Basketballfield" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="矩形" fill="#FD8680" fill-rule="nonzero" x="0" y="0" width="121.263158" height="72"></rect>
+		<rect id="矩形备份-16" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero" x="7.57894737" y="7.57894737" width="106.105263" height="56.8421053"></rect>
+		<path d="M7.578947,12.315789 L12.3157891,12.315789 C25.3962174,12.315789 35.9999996,22.9195712 35.9999996,35.9999995 C35.9999996,49.0804278 25.3962174,59.6842101 12.3157891,59.6842101 L7.578947,59.6842101 L7.578947,59.6842101 L7.578947,12.315789 Z" id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero"></path>
+		<circle id="椭圆形" fill="#B4E3AA" fill-rule="nonzero" cx="29.5578944" cy="35.9999995" r="4.54736842"></circle>
+		<path d="M29.5578944,40.5473679 C32.0693366,40.5473679 34.1052628,38.5114417 34.1052628,35.9999995 C34.1052628,33.4885573 32.0693366,31.4526311 29.5578944,31.4526311" id="路径" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero"></path>
+		<polygon id="矩形备份-17" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero" points="7.578947 24.6315785 29.5578944 31.4526311 29.5578944 40.5473679 7.578947 47.3684206"></polygon>
+		<path d="M29.5578944,31.4526311 C27.0464521,31.4526311 25.0105259,33.4885573 25.0105259,35.9999995 C25.0105259,38.5114418 27.0464521,40.5473679 29.5578944,40.5473679" id="路径" stroke="#FFFFFF" stroke-width="0.757894737" stroke-dasharray="1.515789473684211,1.515789473684211"></path>
+		<path d="M85.2631584,12.315789 L90.0000005,12.315789 C103.080429,12.315789 113.684211,22.9195712 113.684211,35.9999995 C113.684211,49.0804278 103.080429,59.6842101 90.0000005,59.6842101 L85.2631584,59.6842101 L85.2631584,59.6842101 L85.2631584,12.315789 Z" id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero" transform="translate(99.473685, 36.000000) scale(-1, 1) translate(-99.473685, -36.000000) "></path>
+		<circle id="椭圆形" fill="#B4E3AA" fill-rule="nonzero" transform="translate(91.705264, 36.000000) scale(-1, 1) translate(-91.705264, -36.000000) " cx="91.7052636" cy="35.9999995" r="4.54736842"></circle>
+		<path d="M87.1578952,40.5473679 C89.6693374,40.5473679 91.7052636,38.5114417 91.7052636,35.9999995 C91.7052636,33.4885573 89.6693374,31.4526311 87.1578952,31.4526311" id="路径" stroke="#FFFFFF" stroke-width="0.76" fill-rule="nonzero" transform="translate(89.431579, 36.000000) scale(-1, 1) translate(-89.431579, -36.000000) "></path>
+		<polygon id="矩形备份-17" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" fill-rule="nonzero" transform="translate(102.694737, 36.000000) scale(-1, 1) translate(-102.694737, -36.000000) " points="91.7052636 24.6315785 113.684211 31.4526311 113.684211 40.5473679 91.7052636 47.3684206"></polygon>
+		<path d="M96.2526321,31.4526311 C93.7411898,31.4526311 91.7052636,33.4885573 91.7052636,35.9999995 C91.7052636,38.5114418 93.7411898,40.5473679 96.2526321,40.5473679" id="路径" stroke="#FFFFFF" stroke-width="0.757894737" stroke-dasharray="1.515789473684211,1.515789473684211" transform="translate(93.978948, 36.000000) scale(-1, 1) translate(-93.978948, -36.000000) "></path>
+		<circle id="椭圆形" stroke="#FFFFFF" stroke-width="0.76" fill="#FD8680" fill-rule="nonzero" cx="60.6315789" cy="36" r="4.54736842"></circle>
+		<line x1="60.6315789" y1="7.57894737" x2="60.6315789" y2="64.4210526" id="路径-2" stroke="#FFFFFF" stroke-width="0.757894737"></line>
+    </g>
+</svg>

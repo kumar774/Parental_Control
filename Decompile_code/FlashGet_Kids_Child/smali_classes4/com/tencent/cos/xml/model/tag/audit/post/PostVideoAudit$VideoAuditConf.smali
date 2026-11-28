@@ -1,0 +1,49 @@
+.class public Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$VideoAuditConf;
+.super Lcom/tencent/cos/xml/model/tag/audit/bean/AuditConf;
+.source "PostVideoAudit.java"
+
+
+# annotations
+.annotation build Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean;
+    method = .enum Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean$GenerateMethod;->TO:Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean$GenerateMethod;
+    name = "Conf"
+.end annotation
+
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x9
+    name = "VideoAuditConf"
+.end annotation
+
+
+# instance fields
+.field public callbackVersion:Ljava/lang/String;
+
+.field public detectContent:I
+
+.field public snapshot:Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$Snapshot;
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Lcom/tencent/cos/xml/model/tag/audit/bean/AuditConf;-><init>()V
+
+    .line 4
+    new-instance v0, Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$Snapshot;
+
+    .line 6
+    invoke-direct {v0}, Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$Snapshot;-><init>()V
+
+    .line 9
+    iput-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$VideoAuditConf;->snapshot:Lcom/tencent/cos/xml/model/tag/audit/post/PostVideoAudit$Snapshot;
+
+    .line 11
+    return-void
+.end method

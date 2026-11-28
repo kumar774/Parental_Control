@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:id="@id/rl_home_loading" android:padding="2.0dp" android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <View android:id="@id/pb_main" android:background="@drawable/circle_dot" android:layout_width="1.0dp" android:layout_height="1.0dp" />
+</RelativeLayout>

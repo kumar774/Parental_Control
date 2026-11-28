@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "name": "map style basic",
+  "sources": {
+    "composite": {
+      "url": "",
+      "type": "vector"
+    }
+  },
+ 
+  "layers": [
+    {
+      "coments": "marker",
+      "id": "marker",
+      "interactive": true,
+      "visibility": true,
+      "layout": {
+        "texture": "navi_mark",
+        "icon-image": {
+          "base": "huawei",
+          "stops": [[3, "huawei"]]
+        },
+        "icon-size": {
+          "base": [0,128],
+          "stops": [ [16, [96,128]],[17, [96,128]], [18, [96,128]], [19, [96,128]], [20, [96,128]], [21, [96,128]], [22, [96,128]], [23, [96,128]], [24, [96,128]]]
+        },
+        "icon-anchor" : [0,0],
+        "icon-offset" : [0,0],
+        "text-anchor": ["center"],
+        "text-size": {
+          "base": 32,
+          "stops": [[6, 32],[19, 32]]
+        },
+        "text-style": "regular"
+      },
+      "type": "symbol",
+      "paint": {
+        "icon-opacity": 1,
+        "text-fill-color": {
+          "base": "#4d4d4d",
+          "stops": [[3, "#4d4d4d"]]
+        },
+        "options-collide": {
+          "base": false,
+          "stops": [[3,false]]
+        },
+        "text-stroke-width": 1.0,
+        "text-stroke-color": "#FFFFFF",
+        "text-stroke-opacity": 0.8
+      },
+      "source-layer": "marker"
+    },
+    {
+      "comment":"marker line",
+      "interactive": true,
+      "visibility": true,
+      "layout": {
+        "line-join": "round"
+      },
+      "type": "line",
+      "id": "marker_line",
+      "paint": {
+        "line-width": {
+          "base": 0.5,
+          "stops": [[6, 0.5], [7, 0.75]]
+        },
+        "line-color": {
+          "base": "#f6c86a",
+          "stops": [[3, "#f6c86a"]]
+        },
+        "line-order": [[3, 500]]
+      },
+      "source-layer": "marker"
+    }
+  ]
+}

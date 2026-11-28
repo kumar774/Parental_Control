@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView android:id="@id/admin_scroll" android:background="#ffe0e0e0" android:paddingTop="12.0dp" android:paddingBottom="24.0dp" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:orientation="vertical" android:id="@id/admin_auth_request" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:layout_marginBottom="12.0dp" android:layout_marginStart="10.0dp" android:layout_marginEnd="10.0dp">
+            <TextView android:textSize="16.0sp" android:gravity="start" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8.0dp" android:text="@string/request_code" />
+            <TextView android:id="@id/tv_request_code" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="4.0dp" />
+            <ImageView android:layout_gravity="center_horizontal" android:id="@id/admin_request_qr" android:layout_width="match_parent" android:layout_height="wrap_content" android:scaleType="fitCenter" android:adjustViewBounds="true" android:maxWidth="180.0dp" android:maxHeight="180.0dp" android:contentDescription="@string/request_code" />
+            <com.fundot.p4bu.setting.view.AdminResponseEditText android:textSize="16.0sp" android:gravity="start|center" android:id="@id/et_code" android:paddingTop="4.0dp" android:paddingBottom="4.0dp" android:saveEnabled="false" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2.0dp" android:minHeight="40.0dp" android:maxLines="4" android:minLines="1" android:inputType="textVisiblePassword|textMultiLine|textNoSuggestions" android:contentDescription="@string/verify_code" android:importantForAutofill="no" />
+            <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <Button android:id="@id/btn_verify" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="@string/verify_code" android:layout_weight="1.0" android:textAllCaps="false" />
+                <Button android:id="@id/admin_auth_scan" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="@string/admin_auth_scan" android:layout_weight="1.0" android:textAllCaps="false" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/layout_verify" android:visibility="visible" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="10.0dp">
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/version_code" />
+                <TextView android:id="@id/tv_version_info" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <Button android:id="@id/btn_update" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/check_update" android:textAllCaps="false" />
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/phone_model" />
+                <TextView android:id="@id/model" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_serial_number" />
+                <TextView android:id="@id/serial_number" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_androidid" />
+                <TextView android:id="@id/tv_androidid" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_mac_address" />
+                <TextView android:id="@id/mac_address" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_channel" />
+                <TextView android:id="@id/channel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title_realchannel" />
+                <TextView android:id="@id/realchannel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/status" />
+                <TextView android:id="@id/device_status" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/card_no" />
+                <TextView android:id="@id/device_cardno" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/api_status" />
+                <TextView android:id="@id/network_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/is_deviceowner" />
+                <TextView android:id="@id/to_class" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10.0dp" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="IsProfileOwner" />
+                <TextView android:id="@id/tv_isProfileOwner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="10.0dp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content">
+            <Button android:id="@id/btn_set_brightness" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="设置亮度" />
+            <Button android:id="@id/btn_set_volum" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="设置音量" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content">
+            <Button android:id="@id/btn_simple_settings" android:visibility="visible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/open_app_setting" android:textAllCaps="false" />
+            <Button android:id="@id/btn_sync_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/synchronize_device_time" android:textAllCaps="false" android:layout_marginStart="10.0dp" />
+            <Button android:id="@id/btn_finish" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/word_close" android:textAllCaps="false" android:layout_marginStart="10.0dp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content">
+            <Button android:id="@id/btn_open_MMItest" android:visibility="visible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="打开MMItest" />
+            <Button android:id="@id/btnOpenHuaweiGuide" android:visibility="visible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/bootloader" android:textAllCaps="false" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@id/layout_operation" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:layout_marginBottom="@dimen/dp_100" android:layout_marginStart="10.0dp" android:layout_marginEnd="10.0dp">
+            <Button android:id="@id/btn_enable_adb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/enable_adb" android:textAllCaps="false" />
+            <Button android:id="@id/btn_disable_adb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/disable_adb" android:textAllCaps="false" />
+            <Button android:id="@id/btn_enable_usb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/enable_usb" android:textAllCaps="false" />
+            <Button android:id="@id/btn_disable_usb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/disable_usb" android:textAllCaps="false" />
+            <Button android:id="@id/btn_factory_reset" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/factory_reset" android:textAllCaps="false" />
+            <Button android:id="@id/btn_settings" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/jump_settings" android:textAllCaps="false" />
+            <Button android:id="@id/btn_clear_owner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/clear_owner" android:textAllCaps="false" />
+            <Button android:id="@id/btn_clear_ProfileOwner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/clear_ProfileOwner" android:textAllCaps="false" />
+            <Button android:id="@id/btn_remove_force_activate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/remove_forced_activation" android:textAllCaps="false" />
+            <Button android:id="@id/btn_clean_ssid" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="@string/clean_wifi_limit" android:textAllCaps="false" />
+            <LinearLayout android:orientation="horizontal" android:id="@id/layout_dns" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp">
+                <EditText android:id="@id/et_dns" android:layout_width="140.0dp" android:layout_height="wrap_content" android:text="8.8.8.8,114.114.114.114" />
+                <Button android:id="@id/btn_dns" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/use_input_dns" android:textAllCaps="false" />
+                <Button android:id="@id/btn_sys_dns" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/use_system_dns" android:textAllCaps="false" />
+            </LinearLayout>
+            <TextView android:id="@id/tvCurrentAPI" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" android:text="CurrentAPI：" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5.0dp">
+                <TextView android:layout_width="@dimen/dp_60" android:layout_height="wrap_content" android:text="LocalAPI：" />
+                <EditText android:id="@id/et_intranetconfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:id="@id/layout_intranetconfig" android:layout_width="wrap_content" android:layout_height="wrap_content">
+                <Button android:id="@id/btn_change_producthost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/change_producthost" android:textAllCaps="false" />
+                <Button android:id="@id/btn_change_testhost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/change_testhost" android:textAllCaps="false" />
+                <Button android:id="@id/btn_intranetconfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/update_local_service_api" android:textAllCaps="false" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

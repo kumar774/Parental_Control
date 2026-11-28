@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:background="#fff4f4f4" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:id="@id/rl_title" android:background="#ffffffff" android:layout_width="match_parent" android:layout_height="@dimen/dp_44" android:layout_centerHorizontal="true">
+        <TextView android:textSize="@dimen/sp_20" android:textColor="#ff000000" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/dp_10" android:text="@string/setting_app" android:layout_centerVertical="true" />
+    </RelativeLayout>
+    <LinearLayout android:orientation="horizontal" android:id="@id/rl_category" android:background="#ffffffff" android:layout_width="match_parent" android:layout_height="60.0dp" android:layout_marginTop="@dimen/dp_10" android:layout_below="@id/rl_title">
+        <TextView android:textSize="@dimen/sp_16" android:textColor="#ff333333" android:gravity="center" android:id="@id/tv_allow_use" android:layout_width="wrap_content" android:layout_height="match_parent" android:text="@string/allow_usage" android:layout_weight="1.0" />
+        <TextView android:textSize="@dimen/sp_16" android:textStyle="bold" android:textColor="#ff333333" android:gravity="center" android:id="@id/tv_wait_approval" android:layout_width="wrap_content" android:layout_height="match_parent" android:text="@string/waiting_approval" android:layout_weight="1.0" android:layout_marginStart="@dimen/dp_10" android:layout_marginEnd="@dimen/dp_10" />
+        <TextView android:textSize="@dimen/sp_16" android:textStyle="bold" android:textColor="#ff333333" android:gravity="center" android:id="@id/tv_app_disable" android:layout_width="wrap_content" android:layout_height="match_parent" android:text="@string/usage_prohibited" android:layout_weight="1.0" />
+    </LinearLayout>
+    <RelativeLayout android:visibility="visible" android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="5.0dp" android:layout_below="@id/rl_category" android:layout_centerHorizontal="true">
+        <androidx.recyclerview.widget.RecyclerView android:id="@id/lv_app_list" android:layout_width="match_parent" android:layout_height="match_parent" />
+    </RelativeLayout>
+</RelativeLayout>

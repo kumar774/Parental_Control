@@ -1,0 +1,2388 @@
+{
+	"userStyle": [{
+			"mapFeature": "road-lane.crossroads",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#61666E"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-background",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#61666E"
+			}
+		}, {
+			"mapFeature": "road-lane.center-line",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#F4D81C"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.double",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#61666E"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.double",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.single",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "road-lane.stop-line",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "road-lane.crosswalk",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CCCCCC"
+			}
+		}, {
+			"mapFeature": "road-lane.shoulder",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "road-lane.shoulder",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#939DBD"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.short-dash",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.long-dash",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "all",
+			"options": "labels.icon",
+			"paint": {
+			  "icon-type": "simple"
+			}
+		}, {
+			"mapFeature": "all",
+			"options": "labels.text.stroke",
+			"paint": {
+			  "color": "#FFFFFF",
+			  "text-stroke-opacity": 0.7,
+			  "text-stroke-width": 1.5
+			}
+		}, {
+			"mapFeature": "poi.landmark.ParisTower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.ArcdeTriomphe",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Colosseum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.LondonEye",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.BurjKhalifaTower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.BasiliqueduSacreCoeur",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.OperadeParis",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Deoksugung",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.NotreDamedeParis",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.MuseeduLouvre",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.PuertadelSol",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.StatueofLiberty",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Masjid_Sultan",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Buddha_Tooth_Relic_Temple",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.National_Museum_of_Singapore",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Esplanade_Theatres_on_the_Bay",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museum_of_Arts_and_Sciences",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Red_Dot_Design_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Thian_Hock_Keng_Temple_Mural",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Merlion_Park",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Singapore_Flyer",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Raffles_Singapore",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Marina_Bay_Sands",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Gardens_by_the_Bay",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sri_Veeramakaliamman_Temple",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Raffles_Landing_Site",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_British_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Kensington_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Tower_of_London",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Buckingham_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Big_Ben",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Paul_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Trafalgar_Square",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.PICCADILLY_CIRCUS",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Shakespeare's_Globe_Theatre",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Marble_Arch",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Royal_Albert_Hall",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.City_Hall",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.30_Saint_Mary_Axe",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palace_of_Westminster",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Tower_Bridge",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Shard",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Westminster_Abbey",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Scottish_National_Gallery_of_Art",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Edinburgh_Castle",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.National_Museum_of_Scotland",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Scott_Monument",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Giles_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Greyfriars_Church_Cemetery",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Place_de_la_Concorde",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Veterans_Academy",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Pantheon",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sainte-Chapelle",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Fondation_Louis_Vuitton",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Father_Lachaise_Cemetery",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Georges_Pompidou_Centre",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Orsay_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Moulin_Rouge",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Grand_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Place_de_la_Bastille",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Colonne_Vendome",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Piazza_Trocadero",
+			"visibility": false,
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Place_des_Vosges",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Conciergerie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Pont_des_Arts",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palace_of_Versailles",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Rijksmuseum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Anne_Frank_House",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.NEMO_Science_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Oude_Kerk",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Royal_Palace_Amsterdam",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Rembrandt_House_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_National_Maritime_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Van_Gogh_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Stedelijk_Museum_Amsterdam",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Begijnhof",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Amsterdam_Centraal",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Ridderzaal",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Brandenburger_Tor",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Kaiser_Wilhelm_Memorial_Church",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Memorial_to_the_Murdered_Jews_of_Europe",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Pergamon_museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Parliament_Building",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Berliner_Dom",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Berliner_Fernsehturm",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Wall_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Victory_Column",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Gedenkstatte_Berliner_Mauer",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Haus_der_Kulturen_der_Welt",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Europa-Center",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Luftbruckendenkmal",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Charlottenburg_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Botanischen_Gartens_und_Botanischen_Museums_Berlin",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Funkturm_Berlin",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Konzerthaus_Berlin",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Checkpoint_Charlie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sowjetisches_Ehrenmal_im_Tiergarten",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Berlin_Hauptbahnhof",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Nymphenburg_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Hofbrauhaus",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Munich_Residence",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Frauenkirche",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sankt_Peter_Kirche",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Olympiapark",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Bmw_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Alte_Pinakothek",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Rathaus_Munchen",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Kolner_Dom",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.KolnTriangle",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Schokoladenmuseum_Koln",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Colonius-Fernsehturm",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		},  {
+			"mapFeature": "poi.landmark.Great_St_Martin_Church",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		},  {
+			"mapFeature": "poi.landmark.Museum_Ludwig",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		},  {
+			"mapFeature": "poi.landmark.Museum_Schnutgen",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Schloss_Augustusburg",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Frankfurt_Old_Opera_House",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Staedel_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Main_Tower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Romer_City_Hall",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Goethe_House",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museum_fur_Moderne_Kunst",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Frankfurt_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Historisches_Museum_Frankfurt",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Alte_Nikolaikirche",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		},  		{
+			"mapFeature": "poi.landmark.Kiev_Pechersk_Lavra",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Gorodetsky_House",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Sophia_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Ukrainian_State_Museum_of_the_Great_Patriotic_War",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Michael_Gold_Domed_Monastery",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Volodymyr_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Andrew_Church",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Mariyinski_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Golden_Gate",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Estadio_Santiago_Bernabeu",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museo_Nacional_del_Prado",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palacio_Real_de_Madrid",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Plaza_de_Espana",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Catedral_de_Santa_Maria_la_Real_de_la_Almudena",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Plaza_Mayor",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Puerta_de_Alcala",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palacio_de_Cristal",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Plaza_de_Castilla",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Parque_de_El_Retiro",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museo_Nacional_Centro_de_Arte_Reina_Sofia",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Temple_of_Debod",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Plaza_de_Cibeles",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sagrada_Familia",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Casa_Mila",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Camp_Nou",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Placa_de_Catalunya",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museu_de_la_Catedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Columbus_Monument",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Casa_Batllo",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Pantheon_ita",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_di_Santa_Maria_Maggiore",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Roman_Forum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Castel_Sant_Angelo",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Piazza_Navona",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Fontana_di_Trevi",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.St_Peter_Basilica",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Piazza_del_Campidoglio",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Galleria_Borghese",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Scalinata_Di_Trinita_Dei_Monti",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Duomo_di_Milano",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Santa_Maria_delle_Grazie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Brera_Picture_Gallery",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_di_Sant_Ambrogio",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Teatro_alla_Scala",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Sforza_Castle",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Galleria_Vittorio_Emanuele_II",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palazzo_Reale",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_San_Lorenzo_Maggiore",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_Santa_Maria_Gloriosa_dei_Frari",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_di_Santa_Maria_della_Salute",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palazzo_Ducale",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_di_San_Marco",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Ca_Pesaro",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palazzo_Vecchio",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Giardino_di_Ninfa",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Torre_Pontina",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palazzo_M",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museo_Soumaya",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museo_Nacional_de_Antropologia",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.El_Angel_de_la_Independencia",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Castillo_de_Chapultepec",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palacio_de_Bellas_Artes",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palacio_Nacional",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Catedral_Metropolitana_de_la_Ciudad_de_Mexico",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Monumento_a_la_Revolucion",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_de_Guadalupe",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Templo_Expiatorio_del_Santisimo_Sacramento",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Hospicio_Cabanas",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Guadalajara_Cathedral",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Basilica_of_Our_Lady_of_Zapopan",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Window_of_the_World",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Ping_An_Finance_Center",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.KK100",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Summer_Palace",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Yonghe_Temple",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Palace_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Temple_of_Heaven",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Tiananmen",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Oriental_Pearl_Television_Tower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Shanghai_Tower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_City_Temple_of_Shanghai",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Menara_Berkembar_Petronas",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Menara_Kuala_Lumpur",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Tokong_Thean_Hou",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Merdeka_Square",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Masjid_Negara",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Muzium_Negara",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Masjid_Jamek",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Muzium_Kesenian_Islam_Malaysia",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Bangunan_Sultan_Abdul_Samad",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Batu_Caves",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.King_Khalid_Grand_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Al_Rajhi_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_Public_Investment_Fund_Tower",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.At_Turaif_District",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Al_Masmak_Palace_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.The_National_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Kingdom_Centre",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Nassif_House_Museum",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Al_Juffali_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Fakieh_Aquarium",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Al_Rahma_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.King_Saud_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Jumeirah_Mosque",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Dubai_Frame",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Dubai_fountain_broadwalk",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Piramide_del_Sol",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Auditorio_Nacional",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Museo_Nacional_de_Arte",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Estadio_Olimpico_Universitario",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Central_Market",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Aquaria_KLCC",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Riyadh_Gallery_Mall",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Casa_del_Guarda",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Fira_Barcelona_Gran_Via",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Muzeum_Palacu_Króla_Jana_III_w_Wilanowie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Zamek_Królewski_w_Warszawie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Muzeum_Powstania_Warszawskiego",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Presidential_Palace_Warsaw",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Centrum_Nauki_Kopernik",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palac_Kultury_i_Nauki",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Muzeum_Fryderyka_Chopina_w_Warszawie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.POLIN_Muzeum_Historii_Żydów_Polskich",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Palac_na_Wyspie",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark1"
+			}
+		}, {
+			"mapFeature": "poi.landmark.Kaaba",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "pois landmark2"
+			}
+		}, {
+			"mapFeature": "administrative",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#3F3F3F"
+			}
+		}, {
+			"mapFeature": "administrative.province",
+			"options": "geometry",
+			"paint": {
+			  "color": "#D9C3C3"
+			}
+		}, {
+			"mapFeature": "administrative.country",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#3F3F3F"
+			}
+		}, {
+			"mapFeature": "administrative.capital",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#3F3F3F"
+			}
+		}, {
+			"mapFeature": "administrative.major-city",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#3F3F3F"
+			}
+		}, {
+		    "mapFeature": "landcover",
+			"options": "geometry",
+			"paint": {
+			  "color": "#DCDEE0"
+			}
+		}, {
+			"mapFeature": "landcover.natural",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#667799"
+			}
+		}, {
+			"mapFeature": "landcover.natural",
+			"options": "geometry",
+			"paint": {
+				"color": "#EBF0E9"
+			}
+		}, {
+			"mapFeature": "landcover.parkland",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#6B996B"
+			}
+		}, {
+			"mapFeature": "landcover.parkland",
+			"options": "geometry",
+			"paint": {
+				"color": "#DAEDD5"
+			}
+		}, {
+			"mapFeature": "landcover.parkland.natural.forest",
+			"options": "geometry",
+			"paint": {
+				"color": "#D3E6CF"
+			}
+		}, {
+			"mapFeature": "landcover.parkland.natural.woodland",
+			"options": "geometry",
+			"paint": {
+				"color": "#DDEBDA"
+			}
+		}, {
+			"mapFeature": "landcover.attraction",
+			"options": "geometry",
+			"paint": {
+			  "color": "#DAEDD5"
+			}
+		}, {
+			"mapFeature": "landcover.attraction",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#6B996B"
+			}
+		}, {
+			"mapFeature": "landcover.hospital",
+			"options": "geometry",
+			"paint": {
+			  "color": "#FAEDED"
+			}
+		}, {
+			"mapFeature": "landcover.hospital",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#AF8787"
+			}
+		}, {
+			"mapFeature": "landcover.college",
+			"options": "geometry",
+			"paint": {
+			  "color": "#D1E8E6"
+			}
+		}, {
+			"mapFeature": "landcover.college",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#87AF9E"
+			}
+		}, {
+			"mapFeature": "landcover.business",
+			"options": "geometry",
+			"paint": {
+			  "color": "#FAF7E6"
+			}
+		},  {
+			"mapFeature": "landcover.business",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#86608A"
+			}
+		},{
+			"mapFeature": "landcover.human-made.building",
+			"options": "geometry.fill",
+			"paint": {
+			  "outline-color": "#E8E8E8",
+			  "top-color": "#FFFFFF",
+			  "side-face-color": "#E3E5E8",
+			  "geometry.fill.opacity": 0.7
+			}
+		  }, {
+			"mapFeature": "landcover.human-made.buildingA",
+			"options": "geometry.fill",
+			"paint": {
+			  "outline-color": "#E8E8E8",
+			  "top-color": "#FFFFFF",
+			  "side-face-color": "#CDD2D6",
+			  "geometry.fill.opacity": 0.7
+			}
+		  }, {
+			"mapFeature": "landcover.human-made.buildingB",
+			"options": "geometry.fill",
+			"paint": {
+			  "outline-color": "#E8E8E8",
+			  "top-color": "#FFFFFF",
+			  "side-face-color": "#CDD2D6",
+			  "geometry.fill.opacity": 0.7
+			}
+		  }, {
+			"mapFeature": "landcover.human-made.buildingC",
+			"options": "geometry.fill",
+			"paint": {
+			  "outline-color": "#E8E8E8",
+			  "top-color": "#FFFFFF",
+			  "side-face-color": "#CDD2D6",
+			  "geometry.fill.opacity": 0.7
+			}
+		  }, {
+			"mapFeature": "landcover.human-made.buildingD",
+			"options": "geometry.fill",
+			"paint": {
+			  "outline-color": "#E8E8E8",
+			  "top-color": "#FFFFFF",
+			  "side-face-color": "#CDD2D6",
+			  "geometry.fill.opacity": 0.7
+			}
+		}, {
+			"mapFeature": "landcover.human_made",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FF9696",
+				"fill-opacity": 0.2
+			}
+		}, {
+			"mapFeature": "landcover.human_made",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#D85B5B",
+				"geometry-stroke-opacity": 0.4,
+				"geometry-stroke-width": 0.5
+			}
+		}, {
+			"mapFeature": "landcover.human-made.urban agglomeration",
+			"options": "geometry.fill",
+			"zoomRange": [3, 16],
+			"paint": {
+				"color": "#EDF0F2"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.urban agglomeration",
+			"options": "geometry.fill",
+			"zoomRange": [17, 20],
+			"paint": {
+				"color": "#DCDEE0"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Garden Path",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CAE0B4"
+			}	
+		}, {
+			"mapFeature": "landcover.human-made.Green Space",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#DAEDD5"
+			}	
+		}, {
+			"mapFeature": "poi",
+			"options": "labels.text.fill",
+			"paint": {
+			   "color": "#6C7680"
+			}
+		}, {
+			"mapFeature": "poi.sports.outdoor",
+			"options": "labels.text.fill",
+			"paint": {
+			   "color": "#6B996B"
+			}
+		}, {
+			"mapFeature": "poi.natural",
+			"options": "labels.text.fill",
+			"paint": {
+			   "color": "#6B996B"
+			}
+		}, {
+			"mapFeature": "road.highway",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#6F757C"
+			}
+		}, {
+			"mapFeature": "road.highway.country",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#C2C9CC"
+			}
+		}, {
+			"mapFeature": "road.highway.country",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.highway.city",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#C2C9CC"
+			}
+		}, {
+			"mapFeature": "road.highway.city",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.highway",
+			"options": "geometry.stroke",
+			"paint": {
+			  "color": "#FFFFFF",
+			  "geometry-stroke-opacity":0.7
+			}
+		},  {
+			"mapFeature": "road.national",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#6F757C"
+			}
+		},  {
+			"mapFeature": "road.national",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#C2C9CC"
+			}
+		}, {
+			"mapFeature": "road.national",
+			"options": "geometry.stroke",
+			"paint": {
+			  "color": "#FFFFFF",
+			  "geometry-stroke-opacity":0.7
+			}
+		}, {
+			"mapFeature": "road.national",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.province",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#909090"
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#CED5D9"
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "geometry.stroke",
+			"paint": {
+			 "color": "#FFFFFF",
+			  "geometry-stroke-opacity":0.7
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#909090"
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#CED5D9"
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "geometry.stroke",
+			"paint": {
+			  "color": "#FFFFFF",
+			  "geometry-stroke-opacity":0.7
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#909090"
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#CED5D9"
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "geometry.stroke",
+			"paint": {
+			  "color": "#FFFFFF",
+			  "geometry-stroke-opacity":0.7
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#909090"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#EBEBD3"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "geometry.stroke",
+			"paint": {
+			  "color": "#D3D0C7"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}	
+		}, {
+			"mapFeature": "road.sidewalk.Garden Path",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#909090"
+			}
+		}, {
+			"mapFeature": "road.sidewalk.Garden Path",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CAE0B4"
+			}
+		}, {
+			"mapFeature": "road.sidewalk.Garden Path",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#D3D0C7"
+			}
+		}, {
+			"mapFeature": "road.sidewalk.Garden Path",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#979797"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Pedestrain Overpass",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#F6F6F4"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Divider",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C8E0D6"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Tunnel",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#A8B0BF"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#A8B0BF"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 1",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#A8B0BF"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 2",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#A8B0BF"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 3",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#A8B0BF"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Bridge",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C5C9D1"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C5C9D1"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 1",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C5C9D1"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 2",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C5C9D1"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 3",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C5C9D1"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Tunnel",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 1",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 2",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 3",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Tunnel",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Bridge",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Non_Display Interval",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 1",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 2",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 3",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E6EB"
+			}
+		}, {
+			"mapFeature": "road.minor-road.Sidewalk Polygon",
+			"visibility": false,
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2E7EB"
+			}
+		}, {
+			"mapFeature": "trafficInfo.closed",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#D38B8B"
+			}	
+		}, {
+			"mapFeature": "trafficInfo.closed",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#FFFFFF"
+			}		
+		}, {
+			"mapFeature": "trafficInfo.extremelycongestion",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C48484"
+			}
+		}, {
+			"mapFeature": "trafficInfo.congestion",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FFADAD"
+			}
+		}, {
+			"mapFeature": "trafficInfo.amble",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FBD68A"
+			}
+		}, {
+			"mapFeature": "trafficInfo.smooth",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#8BE5AA"
+			}
+		}, {
+		    "mapFeature": "transit",
+			"options": "geometry",
+			"paint": {
+			  "color": "#EEF0F3"
+			}
+		}, {
+			"mapFeature": "transit",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#3271B3"
+			}
+		}, {
+			"mapFeature": "transit.metro-station-entrance-exit",
+			"options": "labels.text.fill",
+			"paint": {
+			  "color": "#6C7680"
+			}
+		}, {
+			"mapFeature": "transit.railway",
+			"options": "geometry.fill",
+			"paint": {
+			  "color": "#D8D8D8"
+			}
+		}, {
+			"mapFeature": "transit.railway_chn",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#D1D1CD"		
+			}
+		}, {
+			"mapFeature": "transit.railway_chn",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#D1D1CD"
+			}
+		}, {
+			"mapFeature": "transit.railway_chn",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "transit.railway.high-speed-chn",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E2CACA"
+			}
+		}, {
+			"mapFeature": "transit.railway.high-speed-chn",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#E2CACA"
+			}
+		}, {
+			"mapFeature": "transit.railway.high-speed-chn",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#FFFFFF"
+			}
+		}, {
+			"mapFeature": "transit.rail-station.ground",
+			"options": "geometry",
+			"paint": {
+				"color": "#DCE0E8"
+			}
+		}, {
+			"mapFeature": "transit.ferry-line",
+			"options": "geometry",
+			"paint": {
+				"color": "#91B5D0"
+			}
+		}, {
+			"mapFeature": "transit.ferry-line",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#779CB7"
+			}
+		}, {
+			"mapFeature": "transit.airport",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#8794AF"
+			}
+		}, {
+			"mapFeature": "transit.airport",
+			"options": "geometry",
+			"paint": {
+				"color": "#DCE0E8"
+			}
+		}, {
+			"mapFeature": "transit.airport.runway",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#B6BCBF"
+			}		
+		}, {
+			"mapFeature": "transit.airport runway",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#B6BCBF"
+			}	
+		}, {
+			"mapFeature": "transit.airport runway taxiway",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CED5D9"
+			}	
+		}, {
+			"mapFeature": "transit.metro-line",
+			"visibility": false
+		}, {
+			"mapFeature": "water",
+			"options": "geometry",
+			"paint": {
+				"color": "#C3DAEB"
+			}
+		}, {
+			"mapFeature": "water",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#779CB7"
+			}
+		}, {
+			"mapFeature": "water.waterline",
+			"options": "geometry",
+			"paint": {
+				"color": "#C3DAEB"
+			}
+		}, {
+			"mapFeature": "water.waterline",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#779CB7"
+			}
+		}, {
+			"mapFeature": "water.ocean",
+			"options": "geometry",
+			"paint": {
+				"color": "#C3DAEB"
+			}
+		}, {
+			"mapFeature": "water.ocean",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#779CB7"
+			}
+		}, {
+			"mapFeature": "water.ocean.bathymetry.200m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.1000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.2000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.3000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.4000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.5000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.6000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.7000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.8000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.9000m",
+			"visibility": false
+		}, {
+			"mapFeature": "water.ocean.bathymetry.10000m",
+			"visibility": false
+		}, {
+			"mapFeature": "terrain",
+			"visibility": false
+		}
+	]
+}

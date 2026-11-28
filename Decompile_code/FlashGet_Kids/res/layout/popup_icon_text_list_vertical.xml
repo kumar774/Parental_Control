@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:background="@drawable/bg_white_16" android:layout_width="match_parent" android:layout_height="wrap_content" android:clipToOutline="true"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:gravity="center_horizontal" android:orientation="vertical" android:id="@id/header" android:paddingTop="24.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="20.0dp" android:paddingEnd="20.0dp">
+            <ImageView android:id="@id/iv_icon" android:layout_width="108.0dp" android:layout_height="108.0dp" android:scaleType="fitCenter" android:importantForAccessibility="no" />
+            <androidx.appcompat.widget.AppCompatTextView android:textSize="16.0sp" android:textColor="@color/color_text_primary" android:id="@id/tv_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dp" android:includeFontPadding="false" app:lineHeight="22.0sp" style="@style/TextStyle.Center" />
+        </LinearLayout>
+        <androidx.core.widget.NestedScrollView android:scrollbarStyle="insideOverlay" android:id="@id/body_scroll" android:scrollbars="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_weight="1.0" android:overScrollMode="never">
+            <LinearLayout android:orientation="vertical" android:id="@id/body_content" android:paddingTop="16.0dp" android:paddingBottom="16.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="20.0dp" android:paddingEnd="20.0dp">
+                <androidx.appcompat.widget.AppCompatTextView android:textSize="14.0sp" android:textColor="@color/color_text_secondary" android:id="@id/tv_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:includeFontPadding="false" app:lineHeight="20.0sp" style="@style/TextStyle.Start" />
+                <androidx.appcompat.widget.AppCompatTextView android:textSize="14.0sp" android:textColor="@color/color_text_secondary" android:id="@id/tv_sub_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8.0dp" android:includeFontPadding="false" app:lineHeight="20.0sp" style="@style/TextStyle.Start" />
+                <LinearLayout android:orientation="vertical" android:id="@id/item_container" android:background="@drawable/corners_rectangle_107e5ded_12" android:padding="12.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dp" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+        <LinearLayout android:orientation="vertical" android:id="@id/footer" android:paddingTop="16.0dp" android:paddingBottom="24.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="20.0dp" android:paddingEnd="20.0dp">
+            <androidx.appcompat.widget.AppCompatTextView android:id="@id/btn_confirm" android:paddingTop="10.0dp" android:paddingBottom="10.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="44.0dp" android:includeFontPadding="false" android:lineSpacingMultiplier="1.0" app:lineHeight="24.0sp" style="@style/ButtonStyle" />
+            <androidx.appcompat.widget.AppCompatTextView android:id="@id/btn_cancel" android:paddingTop="11.0dp" android:paddingBottom="11.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dp" android:minHeight="44.0dp" android:includeFontPadding="false" android:lineSpacingMultiplier="1.0" app:lineHeight="22.0sp" style="@style/BorderButtonStyle" />
+        </LinearLayout>
+    </LinearLayout>
+    <ImageView android:layout_gravity="end|top" android:id="@id/iv_close" android:padding="13.0dp" android:layout_width="40.0dp" android:layout_height="40.0dp" android:layout_marginTop="1.0dp" android:src="@drawable/btn_pop_close" android:contentDescription="@string/Common_close" android:layout_marginEnd="1.0dp" />
+</FrameLayout>

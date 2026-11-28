@@ -1,0 +1,326 @@
+.class public abstract Lcom/google/common/collect/i2;
+.super Lcom/google/common/collect/q1;
+.source "ForwardingQueue.java"
+
+# interfaces
+.implements Ljava/util/Queue;
+
+
+# annotations
+.annotation build Lb5/b;
+.end annotation
+
+.annotation runtime Lcom/google/common/collect/w0;
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "<E:",
+        "Ljava/lang/Object;",
+        ">",
+        "Lcom/google/common/collect/q1<",
+        "TE;>;",
+        "Ljava/util/Queue<",
+        "TE;>;"
+    }
+.end annotation
+
+
+# direct methods
+.method protected constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+
+# virtual methods
+.method protected abstract S0()Ljava/util/Queue;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()",
+            "Ljava/util/Queue<",
+            "TE;>;"
+        }
+    .end annotation
+.end method
+
+.method protected U0(Ljava/lang/Object;)Z
+    .locals 0
+    .param p1    # Ljava/lang/Object;
+        .annotation runtime Lcom/google/common/collect/f5;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TE;)Z"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    :try_start_0
+    invoke-virtual {p0, p1}, Lcom/google/common/collect/q1;->add(Ljava/lang/Object;)Z
+
+    .line 4
+    move-result p1
+    :try_end_0
+    .catch Ljava/lang/IllegalStateException; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 5
+    return p1
+
+    .line 6
+    :catch_0
+    const/4 p1, 0x0
+
+    .line 7
+    return p1
+.end method
+
+.method protected V0()Ljava/lang/Object;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .annotation runtime Le8/a;
+    .end annotation
+
+    .prologue
+    .line 1
+    :try_start_0
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->element()Ljava/lang/Object;
+
+    .line 4
+    move-result-object v0
+    :try_end_0
+    .catch Ljava/util/NoSuchElementException; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 5
+    return-object v0
+
+    .line 6
+    :catch_0
+    const/4 v0, 0x0
+
+    .line 7
+    return-object v0
+.end method
+
+.method protected W0()Ljava/lang/Object;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .annotation runtime Le8/a;
+    .end annotation
+
+    .prologue
+    .line 1
+    :try_start_0
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->remove()Ljava/lang/Object;
+
+    .line 4
+    move-result-object v0
+    :try_end_0
+    .catch Ljava/util/NoSuchElementException; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 5
+    return-object v0
+
+    .line 6
+    :catch_0
+    const/4 v0, 0x0
+
+    .line 7
+    return-object v0
+.end method
+
+.method public element()Ljava/lang/Object;
+    .locals 1
+    .annotation runtime Lcom/google/common/collect/f5;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-interface {v0}, Ljava/util/Queue;->element()Ljava/lang/Object;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    return-object v0
+.end method
+
+.method public offer(Ljava/lang/Object;)Z
+    .locals 1
+    .param p1    # Ljava/lang/Object;
+        .annotation runtime Lcom/google/common/collect/f5;
+        .end annotation
+    .end param
+    .annotation build Ld5/a;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TE;)Z"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-interface {v0, p1}, Ljava/util/Queue;->offer(Ljava/lang/Object;)Z
+
+    .line 8
+    move-result p1
+
+    .line 9
+    return p1
+.end method
+
+.method public peek()Ljava/lang/Object;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .annotation runtime Le8/a;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-interface {v0}, Ljava/util/Queue;->peek()Ljava/lang/Object;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    return-object v0
+.end method
+
+.method public poll()Ljava/lang/Object;
+    .locals 1
+    .annotation build Ld5/a;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .annotation runtime Le8/a;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-interface {v0}, Ljava/util/Queue;->poll()Ljava/lang/Object;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    return-object v0
+.end method
+
+.method public remove()Ljava/lang/Object;
+    .locals 1
+    .annotation runtime Lcom/google/common/collect/f5;
+    .end annotation
+
+    .annotation build Ld5/a;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()TE;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-interface {v0}, Ljava/util/Queue;->remove()Ljava/lang/Object;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    return-object v0
+.end method
+
+.method protected bridge synthetic x0()Ljava/lang/Object;
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    return-object v0
+.end method
+
+.method protected bridge synthetic z0()Ljava/util/Collection;
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/common/collect/i2;->S0()Ljava/util/Queue;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    return-object v0
+.end method

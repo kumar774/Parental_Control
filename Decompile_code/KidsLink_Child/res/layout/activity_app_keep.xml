@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView android:textSize="50.0dp" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="应用保持界面" android:layout_centerInParent="true" />
+</RelativeLayout>

@@ -1,0 +1,30 @@
+.class public abstract Lorg/minidns/iterative/IterativeClientException;
+.super Lorg/minidns/MiniDnsException;
+.source "IterativeClientException.java"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lorg/minidns/iterative/IterativeClientException$NotAuthoritativeNorGlueRrFound;,
+        Lorg/minidns/iterative/IterativeClientException$MaxIterativeStepsReached;,
+        Lorg/minidns/iterative/IterativeClientException$LoopDetected;
+    }
+.end annotation
+
+
+# static fields
+.field private static final c:J = 0x1L
+
+
+# direct methods
+.method protected constructor <init>(Ljava/lang/String;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0, p1}, Ljava/io/IOException;-><init>(Ljava/lang/String;)V
+
+    .line 4
+    return-void
+.end method

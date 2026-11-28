@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <com.mukun.mkbase.view.CommonTitleBar android:id="@id/common_title" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" app:ctbShowBack="true" app:ctbShowClose="false" app:ctbTitle="" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" style="@style/CommonTitleBar" />
+    <FrameLayout android:id="@id/fl_content" android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="0.0dp" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/common_title">
+        <WebView android:id="@id/bridge_web_view" android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="match_parent" />
+        <include android:id="@id/web_error_view" android:visibility="gone" layout="@layout/mkwebview_error_page" />
+        <ProgressBar android:id="@id/web_loading_progress" android:visibility="gone" android:layout_width="match_parent" android:layout_height="@dimen/dp_3" android:max="10000" android:progress="0" android:indeterminate="false" android:progressDrawable="@drawable/mkwebview_progress_horizontal" style="?android:progressBarStyleHorizontal" />
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,53 @@
+.class public Lm7/a$a;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+# interfaces
+.implements Landroid/view/View$OnLayoutChangeListener;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lm7/a;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x1
+    name = null
+.end annotation
+
+
+# instance fields
+.field public final synthetic o:Lm7/a;
+
+
+# direct methods
+.method public constructor <init>(Lm7/a;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    iput-object p1, p0, Lm7/a$a;->o:Lm7/a;
+
+    .line 3
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public onLayoutChange(Landroid/view/View;IIIIIIII)V
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p2, p0, Lm7/a$a;->o:Lm7/a;
+
+    .line 3
+    invoke-static {p2, p1}, Lm7/a;->Q0(Lm7/a;Landroid/view/View;)V
+
+    .line 6
+    return-void
+.end method

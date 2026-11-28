@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView android:focusable="true" android:clickable="true" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="4.0dp" app:cardCornerRadius="8.0dp" app:cardElevation="2.0dp"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:padding="12.0dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:textSize="16.0sp" android:textStyle="bold" android:textColor="#212121" android:id="@id/tvKey" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="fieldKey" android:layout_weight="1.0" />
+            <TextView android:textSize="12.0sp" android:textColor="#ffffff" android:id="@id/tvType" android:background="@drawable/bg_type_tag" android:paddingTop="2.0dp" android:paddingBottom="2.0dp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="STRING" android:paddingStart="8.0dp" android:paddingEnd="8.0dp" android:layout_marginStart="8.0dp" />
+        </LinearLayout>
+        <TextView android:textSize="14.0sp" android:textColor="#757575" android:id="@id/tvDescription" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4.0dp" android:text="字段说明" />
+        <View android:background="#e0e0e0" android:layout_width="match_parent" android:layout_height="1.0dp" android:layout_marginTop="8.0dp" android:layout_marginBottom="8.0dp" />
+        <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:textSize="14.0sp" android:textColor="#424242" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前值: " />
+            <TextView android:textSize="14.0sp" android:textStyle="bold" android:textColor="#1976d2" android:id="@id/tvValue" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="value" android:layout_weight="1.0" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

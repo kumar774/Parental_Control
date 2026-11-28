@@ -1,0 +1,5529 @@
+{
+    "version": 1,
+    "name": "indoor style",
+    "layers": [
+        {
+            "comment": "物业",
+            "id": "994019:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "复印室/文印室",
+            "id": "994018:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "运动健身",
+            "id": "994017:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "宠物店",
+            "id": "994016:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "乐器店",
+            "id": "994015:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "花店",
+            "id": "994014:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "美甲",
+            "id": "994013:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "美容美发",
+            "id": "994012:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "皮具护理",
+            "id": "994011:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "服装修改",
+            "id": "994010:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "裁剪处",
+            "id": "994009:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "洗衣店",
+            "id": "994008:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "棋牌室",
+            "id": "994007:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "儿童娱乐",
+            "id": "994006:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "KTV",
+            "id": "994005:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "电子游戏",
+            "id": "994004:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "电影院",
+            "id": "994003:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "影剧院",
+            "id": "994002:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "休闲娱乐",
+            "id": "994001:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "生活",
+            "id": "994000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "交通工具销售",
+            "id": "993018:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "农副产品",
+            "id": "993017:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "文化办公",
+            "id": "993016:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "建材",
+            "id": "993015:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "家具",
+            "id": "993014:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "免税商店",
+            "id": "993013:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "纪念品商店",
+            "id": "993012:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "小卖部",
+            "id": "993011:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "超市",
+            "id": "993010:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "家居用品、便利店",
+            "id": "993009:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "数码电子",
+            "id": "993008:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "家电电子",
+            "id": "993007:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "钟表眼镜",
+            "id": "993006:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "金银珠宝",
+            "id": "993005:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "个护化妆",
+            "id": "993004:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "休闲运动",
+            "id": "993003:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "儿童母婴",
+            "id": "993002:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "服饰鞋帽皮具",
+            "id": "993001:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "商业",
+            "id": "993000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "飞机场",
+            "id": "995000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "候机厅",
+            "id": "995001:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "直升机场",
+            "id": "995002:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "空港快线服务点",
+            "id": "995003:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "航空公司服务处",
+            "id": "995004:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "头等舱候机室",
+            "id": "995005:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "登机手续",
+            "id": "995006:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "洗手间、残障洗手间、男洗手间、女洗手间",
+            "id": "995007:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "更衣室",
+            "id": "995008:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "试衣间",
+            "id": "995009:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "补妆间",
+            "id": "995010:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "吸烟室",
+            "id": "995011:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "婴儿换洗间",
+            "id": "995012:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "哺乳室",
+            "id": "995013:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "衣帽间",
+            "id": "995014:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F8EEFD",
+                "line-color": "#DECFE6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "清洁间",
+            "id": "995015:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "车库出入口、停车位",
+            "id": "995016:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "自行车停放处",
+            "id": "995017:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "候机厅",
+            "id": "995018:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "售票",
+            "id": "995019:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "商务中心",
+            "id": "995020:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "无障碍电梯",
+            "id": "995021:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#c5e8ff",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "无障碍扶梯",
+            "id": "995022:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#E6F7EB",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "无障碍楼梯",
+            "id": "995023:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#E6F7EB",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "货梯/客梯",
+            "id": "995024:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#E6F7EB",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "扶梯",
+            "id": "995025:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#E6F7EB",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "楼梯",
+            "id": "995026:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#c5e8ff",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "吸烟室",
+            "id": "995027:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "婴儿换洗间",
+            "id": "995028:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "育婴室",
+            "id": "995029:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "公共设施间",
+            "id": "995030:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "清洁间",
+            "id": "995031:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "储物间/库房",
+            "id": "995032:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#C7EFEF",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "自助值机",
+            "id": "995033:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "安全检查",
+            "id": "995034:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "垃圾房",
+            "id": "995035:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "服务台",
+            "id": "995036:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "行李服务",
+            "id": "995037:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "茶水间",
+            "id": "995038:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "大堂/大厅",
+            "id": "995039:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "备用间/空房",
+            "id": "995040:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "不可达区域/禁采区",
+            "id": "995041:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F7F7F7",
+                "line-color": "#E6E6E6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "禁止区",
+            "id": "995042:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F7F7F7",
+                "line-color": "#E6E6E6",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "阳台",
+            "id": "995043:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EEEEEE",
+                "line-color": "#C9CCCB",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "展厅",
+            "id": "995044:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "机要室",
+            "id": "995045:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "资料室",
+            "id": "995046:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "会议室",
+            "id": "995047:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "会议区",
+            "id": "995048:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "多功能厅/办公区",
+            "id": "995049:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "办公室/实验室/经理室/IT机房",
+            "id": "995050:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "经理室",
+            "id": "995051:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "接待室",
+            "id": "995052:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "接待区",
+            "id": "995053:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "休息室",
+            "id": "995054:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "计时休息室",
+            "id": "995055:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "空调机房",
+            "id": "995056:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "配电房",
+            "id": "995057:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "网络机房",
+            "id": "995058:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "其他动力设备用房",
+            "id": "995059:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "实验室设备间",
+            "id": "995060:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "线路中心",
+            "id": "995061:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "消防设备用房",
+            "id": "995062:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "其他附属用房",
+            "id": "995063:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "实验操作间",
+            "id": "995064:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "消防栓",
+            "id": "995065:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EEEEEE",
+                "line-color": "#C9CCCB",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "吧台",
+            "id": "995066:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "走廊（有门）",
+            "id": "995067:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#E6F7EB",
+                "line-color": "#CED9D1",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "普通教室（公共）、普通教室（专用）、阶梯教室",
+            "id": "992000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "医疗、医疗保健服务",
+            "id": "991000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "急诊室",
+            "id": "991001:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "候诊休息室",
+            "id": "991002:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "输液注射",
+            "id": "991003:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "收费划价",
+            "id": "991004:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "挂号",
+            "id": "991005:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "体检中心",
+            "id": "991006:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "理疗室",
+            "id": "991007:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "药房",
+            "id": "991008:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1200
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "护理部",
+            "id": "991009:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "挂号/收费/办卡/手续",
+            "id": "991010:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "护士台/分诊台/信息台",
+            "id": "991011:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#D5E6FA",
+                "line-color": "#AAC2DF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "分诊台",
+            "id": "991012:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "信息台",
+            "id": "991013:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#EDF5FA",
+                "line-color": "#C7D2D9",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "医疗科室",
+            "id": "991014:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "妇科",
+            "id": "991015:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "产房",
+            "id": "991016:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "妇产科",
+            "id": "991017:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "儿科",
+            "id": "991018:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "针灸科",
+            "id": "991019:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "中医科",
+            "id": "991020:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "性病专科",
+            "id": "991021:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "风湿科",
+            "id": "991022:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "手术室",
+            "id": "991023:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "五官科",
+            "id": "991024:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "口腔科",
+            "id": "991025:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "皮肤科",
+            "id": "991026:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "内科",
+            "id": "991027:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "心理医学室",
+            "id": "991028:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "消化科",
+            "id": "991029:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "呼吸科",
+            "id": "991030:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "免疫科",
+            "id": "991031:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "内分泌科",
+            "id": "991032:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "心血管科",
+            "id": "991033:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "泌尿科",
+            "id": "991034:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "肝病科",
+            "id": "991035:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "神经科",
+            "id": "991036:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "肿瘤科",
+            "id": "991037:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "血液科",
+            "id": "991038:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "外科",
+            "id": "991039:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "麻醉科",
+            "id": "991040:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "普通外科",
+            "id": "991041:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "胸外科",
+            "id": "991042:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "脑外科",
+            "id": "991043:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "传染科",
+            "id": "991044:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "医学整形科",
+            "id": "991045:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "胰腺外科",
+            "id": "991046:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "骨科",
+            "id": "991047:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "化验检查室",
+            "id": "991048:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "医疗用品租赁",
+            "id": "991049:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "眼科",
+            "id": "991050:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "耳鼻喉",
+            "id": "991051:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "中药",
+            "id": "991052:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "西药",
+            "id": "991053:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "抽血",
+            "id": "991054:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "放射",
+            "id": "991055:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "超声",
+            "id": "991056:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "心电图",
+            "id": "991057:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "验尿、验便",
+            "id": "991058:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "实验室",
+            "id": "991059:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "透析室",
+            "id": "991060:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "诊室",
+            "id": "991061:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "抢救室",
+            "id": "991062:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "住院部",
+            "id": "991063:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "隔离室",
+            "id": "991064:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "ICU重症监护室",
+            "id": "991065:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "病房",
+            "id": "991066:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FAE1E1",
+                "line-color": "#E6CFCF",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "餐饮区",
+            "id": "991067:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "餐饮",
+            "id": "990000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#FDF0D1",
+                "line-color": "#E6D9BA",
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [[17, 1.5]]
+                },
+                "z-order": 1150
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色",
+            "id": "999000:1",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F7F7F5",
+                "line-color": "#CACBCE",
+                "z-order": 1100
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色描边线",
+            "interactive": true,
+            "visibility": true,
+            "type": "line",
+            "id": "999000:11",
+            "paint": {
+                "line-width": {
+                    "base": 3,
+                    "stops": [[17, 3], [18, 1.5], [19, 0.75], [20, 0.375]]
+                },
+                "line-color": {
+                    "base": "#CACBCE",
+                    "stops": [[3, "#CACBCE"]]
+                },
+                "line-opacity": 1,
+                "line-order": [[3, 599]]
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色2",
+            "id": "999000:2",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F7F7F5",
+                "line-color": "#CACBCE",
+                "z-order": 1100
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色2描边线",
+            "interactive": true,
+            "visibility": true,
+            "type": "line",
+            "id": "999000:21",
+            "paint": {
+                "line-width": {
+                    "base": 3,
+                    "stops": [[17, 3], [18, 1.5], [19, 0.75], [20, 0.375]]
+                },
+                "line-color": {
+                    "base": "#CACBCE",
+                    "stops": [[3, "#CACBCE"]]
+                },
+                "line-opacity": 1,
+                "line-order": [[3, 599]]
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色3",
+            "id": "999000:3",
+            "type": "fill",
+            "paint": {
+                "fill-color": "#F7F7F5",
+                "line-color": "#CACBCE",
+                "z-order": 1100
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "室内面默认颜色3描边线",
+            "interactive": true,
+            "visibility": true,
+            "type": "line",
+            "id": "999000:31",
+            "paint": {
+                "line-width": {
+                    "base": 3,
+                    "stops": [[17, 3], [18, 1.5], [19, 0.75], [20, 0.375]]
+                },
+                "line-color": {
+                    "base": "#CACBCE",
+                    "stops": [[3, "#CACBCE"]]
+                },
+                "line-opacity": 1,
+                "line-order": [[3, 599]]
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "停车贴图",
+            "id": "parking-raster",
+            "visibility": true,
+            "type": "fill",
+            "paint": {
+                "texture": "img/parking.png",
+                "z-order": 1250
+            },
+            "source-layer": "region_info"
+        },
+        {
+            "comment": "商店",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Grocers",
+                    "stops": [[3, "Indoor_Grocers"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "930068:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#5f8bce",
+                    "stops": [[3, "#5f8bce"]]
+                },
+                "text-stroke-width": 0.75,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.5,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "复印室/文印室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Printing_Room",
+                    "stops": [[3, "Indoor_Printing_Room"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "940024:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "会议室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Conference_Room",
+                    "stops": [[3, "Indoor_Conference_Room"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950222:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "休息室/按摩椅/计时休息室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Rest_Area",
+                    "stops": [[3, "Indoor_Rest_Area"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950231:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "多功能厅/办公区/办公室/实验室/经理室/IT机房/经理室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Office",
+                    "stops": [[3, "Indoor_Office"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950224:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "图书馆/书店",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Library",
+                    "stops": [[3, "Indoor_Library"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "920009:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "商务中心",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Service_Center",
+                    "stops": [[3, "Indoor_Service_Center"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950098:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "吸烟室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Smoking_Room",
+                    "stops": [[3, "Indoor_Smoking_Room"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950119:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "茶水间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Café",
+                    "stops": [[3, "Indoor_Café"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950190:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "生活服务",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Indoor_Other",
+                    "stops": [[3, "Indoor_Indoor_Other"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "940008:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "女洗手间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Women_Toilet",
+                    "stops": [[3, "Indoor_Women_Toilet"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950114:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "区域注记",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_NA",
+                    "stops": [[3, "Indoor_NA"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "920011:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "男洗手间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Men_Toilet",
+                    "stops": [[3, "Indoor_Men_Toilet"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950113:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "洗手间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Toilet",
+                    "stops": [[3, "Indoor_Toilet"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950111:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "残障洗手间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Disabled_Toilet",
+                    "stops": [[3, "Indoor_Disabled_Toilet"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950112:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "无障碍电梯/无障碍扶梯/无障碍楼梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Accessible_Channel",
+                    "stops": [[3, "Indoor_Accessible_Channel"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950101:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "育婴室/婴儿换洗间",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Babycare_Room",
+                    "stops": [[3, "Indoor_Babycare_Room"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950122:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "楼梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Stairs",
+                    "stops": [[3, "Indoor_Stairs"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950110:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "扶梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Escalator",
+                    "stops": [[3, "Indoor_Escalator"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950107:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "安全检查",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Customs_Inspection",
+                    "stops": [[3, "Indoor_Customs_Inspection"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950147:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "停车位/停车场/停车缴费处",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["center"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950048:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "公交车站",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Bus",
+                    "stops": [[3, "Indoor_Bus"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950004:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "出租车站",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Taxi",
+                    "stops": [[3, "Indoor_Taxi"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950007:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "候机厅/头等舱候机室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Airport_Departure",
+                    "stops": [[3, "Indoor_Airport_Departure"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950062:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "行李提取",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_luggage",
+                    "stops": [[3, "Indoor_luggage"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950182:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "行李寄存/行李封包",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Luggage_Inquiry",
+                    "stops": [[3, "Indoor_Luggage_Inquiry"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950179:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "售票/自动售票机",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Ticket_Machine",
+                    "stops": [[3, "Indoor_Ticket_Machine"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950080:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "ATM",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Atm",
+                    "stops": [[3, "Indoor_Atm"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950130:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "登机口",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Boarding_Port",
+                    "stops": [[3, "Indoor_Boarding_Port"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 9.5,
+                    "stops": [[16, 9.5], [17, 9.5], [19, 9.5], [20, 9.5]]
+                },
+                "text-style": "bold conde"
+            },
+            "type": "symbol",
+            "id": "950061:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "外币兑换",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Exchange",
+                    "stops": [[3, "Indoor_Exchange"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950134:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "派出所/海关",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Police_Station",
+                    "stops": [[3, "Indoor_Police_Station"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "940058:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "美食",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Restaurant",
+                    "stops": [[3, "Indoor_Restaurant"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "900000:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "出入口/安全出口",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Access_Gateway",
+                    "stops": [[3, "Indoor_Access_Gateway"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950156:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "自助值机/边防检查/检验检疫",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Check_In",
+                    "stops": [[3, "Indoor_Check_In"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950135:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "公用电话",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Telephone",
+                    "stops": [[3, "Indoor_Telephone"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950187:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "医疗保健服务/医务室/急救室/医疗救护室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Medical",
+                    "stops": [[3, "Indoor_Medical"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "910001:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "更衣室/服装鞋帽皮具店/衣帽间/更衣室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Clothing",
+                    "stops": [[3, "Indoor_Clothing"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950115:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "工艺品/咨询台/客服",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Service_Center",
+                    "stops": [[3, "Indoor_Service_Center"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "930043:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "金银珠宝",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Shop",
+                    "stops": [[3, "Indoor_Shop"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "930041:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "配电房",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Indoor_Other",
+                    "stops": [[3, "Indoor_Indoor_Other"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950236:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "男/女沐浴室",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Shop",
+                    "stops": [[3, "Indoor_Shop"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950209:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "门",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Access_Gateway",
+                    "stops": [[3, "Indoor_Access_Gateway"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950348:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "飞机场",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Airport",
+                    "stops": [[3, "Indoor_Airport"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950058:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "值机服务",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Check_In",
+                    "stops": [[3, "Indoor_Check_In"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950065:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "机场到达",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Airport_Arrival",
+                    "stops": [[3, "Indoor_Airport_Arrival"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950059:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "机场出发",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Airport_Departure",
+                    "stops": [[3, "Indoor_Airport_Departure"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950060:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "航空公司服务处",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Service_Center",
+                    "stops": [[3, "Indoor_Service_Center"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950069:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "摆渡车站",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Bus",
+                    "stops": [[3, "Indoor_Bus"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950066:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "直升机场",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Heliport",
+                    "stops": [[3, "Indoor_Heliport"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950063:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "无障碍设施",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Accessible_Channel",
+                    "stops": [[3, "Indoor_Accessible_Channel"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950112:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "民航快递",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Air_Express",
+                    "stops": [[3, "Indoor_Air_Express"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950071:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "机场巴士",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Bus",
+                    "stops": [[3, "Indoor_Bus"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950067:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "查询机",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Query_Machine",
+                    "stops": [[3, "Indoor_Query_Machine"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950128:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "语音导览",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Audio_Guide",
+                    "stops": [[3, "Indoor_Audio_Guide"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950174:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "儿童看护处",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Babycare_Room",
+                    "stops": [[3, "Indoor_Babycare_Room"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "940061:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "团购",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Indoor_Other",
+                    "stops": [[3, "Indoor_Indoor_Other"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950132:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "商务中心",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Large_Building",
+                    "stops": [[3, "Indoor_Large_Building"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "920019:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "汽车站",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Bus",
+                    "stops": [[3, "Indoor_Bus"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950003:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "车棚",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Public_Other",
+                    "stops": [[3, "Indoor_Public_Other"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950027:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "登机手续",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Customs_Inspection",
+                    "stops": [[3, "Indoor_Customs_Inspection"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950355:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "海关征税",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Customs_Inspection",
+                    "stops": [[3, "Indoor_Customs_Inspection"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950143:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "入口",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Entrance",
+                    "stops": [[3, "Indoor_Entrance"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950154:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "超规行李托运",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Luggage_Transportation",
+                    "stops": [[3, "Indoor_Luggage_Transportation"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950185:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "安全出口",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Exit",
+                    "stops": [[3, "Indoor_Exit"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950155:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "空港快线服务点",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Bus",
+                    "stops": [[3, "Indoor_Bus"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950068:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "机场快轨",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Tram",
+                    "stops": [[3, "Indoor_Tram"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950064:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "灭火器",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Fire_Extinguisher",
+                    "stops": [[3, "Indoor_Fire_Extinguisher"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950289:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "航空意外险",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Insurance",
+                    "stops": [[3, "Indoor_Insurance"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950070:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "中转柜台",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Turnaround",
+                    "stops": [[3, "Indoor_Turnaround"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950172:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "行李查询",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Luggage_Inquiry",
+                    "stops": [[3, "Indoor_Luggage_Inquiry"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950181:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "打包处",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Public_Other",
+                    "stops": [[3, "Indoor_Public_Other"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950184:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "自动拍照机",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Famous_Scenery",
+                    "stops": [[3, "Indoor_Famous_Scenery"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950142:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "服务中心",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Service_Center",
+                    "stops": [[3, "Indoor_Service_Center"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950167:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "空港之旅接待柜台",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Counter",
+                    "stops": [[3, "Indoor_Counter"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950171:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "签证",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Visa_Processing",
+                    "stops": [[3, "Indoor_Visa_Processing"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950148:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#333333",
+                    "stops": [[3, "#333333"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#FFFFFF",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "电梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Elevator",
+                    "stops": [[3, "Indoor_Elevator"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950105:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "上行扶梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Ascending_Escalator",
+                    "stops": [[3, "Indoor_Ascending_Escalator"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950108:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "下行扶梯",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Down_Escalator",
+                    "stops": [[3, "Indoor_Down_Escalator"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950109:1",
+            "paint": {
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        },
+        {
+            "comment": "停车场出入口",
+            "interactive": true,
+            "layout": {
+                "visibility": true,
+                "texture": "indoor_pois",
+                "icon-image": {
+                    "base": "Indoor_Access_Gateway",
+                    "stops": [[3, "Indoor_Access_Gateway"]]
+                },
+                "icon-size": {
+                    "base": [16, 16],
+                    "stops": [[17, [16, 16]]]
+                },
+                "text-anchor": ["bottom", "right", "left", "top"],
+                "text-outline-size": 60,
+                "text-size": {
+                    "base": 12,
+                    "stops": [[16, 12], [17, 12], [19, 12], [20, 12]]
+                },
+                "text-style": "regular"
+            },
+            "type": "symbol",
+            "id": "950046:1",
+            "paint": {
+                "text-fill-color": {
+                    "base": "#c5e8ff",
+                    "stops": [[3, "#c5e8ff"]]
+                },
+                "text-stroke-width": 1.5,
+                "text-stroke-color": "#acddfd",
+                "text-stroke-opacity": 0.7,
+                "icon-opacity": 1
+            },
+            "source-layer": "poi_info"
+        }
+    ]
+}

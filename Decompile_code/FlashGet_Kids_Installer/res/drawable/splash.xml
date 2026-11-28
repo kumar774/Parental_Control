@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+    <item android:gravity="center|top" android:height="200.0dp" android:drawable="@drawable/gradient_up2down" android:top="0.0dp" />
+    <item android:gravity="center|top" android:drawable="@drawable/pic_start_logo_title" android:top="@dimen/splash_logo_top_margin" />
+    <item android:gravity="fill_horizontal|bottom" android:height="@dimen/splash_cloud_bottom_height" android:drawable="@drawable/pic_start_bottom_bg" />
+</layer-list>

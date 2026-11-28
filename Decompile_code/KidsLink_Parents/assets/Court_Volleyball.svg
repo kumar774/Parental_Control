@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="112px" height="72px" viewBox="0 0 112 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>VolleyballCcourt</title>
+    <g id="VolleyballCcourt" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="矩形" fill="#FD8680" x="0" y="0" width="112" height="72"></rect>
+        <rect id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" x="23.2727273" y="19.6363636" width="65.4545455" height="32.7272727"></rect>
+		<rect id="path-1" x="18.1818182" y="50.9090909" width="2.18181818" height="1.45454545" stroke="#FFFFFF" stroke-width="0.5"></rect>
+		<rect id="path-4" x="18.1818182" y="41.0909091" width="2.18181818" height="1.45454545" stroke="#FFFFFF" stroke-width="0.5"></rect>
+		<rect id="path-7" x="91.6363636" y="29.4545455" width="2.18181818" height="1.45454545" stroke="#FFFFFF" stroke-width="0.5"></rect>
+		<rect id="path-10" x="91.6363636" y="19.6363636" width="2.18181818" height="1.45454545" stroke="#FFFFFF" stroke-width="0.5"></rect>
+        <circle id="椭圆形" fill="#FFFFFF" cx="56" cy="54.5454545" r="1"></circle>
+        <circle id="椭圆形备份" fill="#FFFFFF" cx="56" cy="17.4545455" r="1"></circle>
+        <rect id="矩形备份-22" stroke="#FFFFFF" stroke-width="0.5" fill="#B4E3AA" x="45.0909091" y="19.6363636" width="21.8181818" height="32.7272727"></rect>
+        <line x1="56" y1="19.6363636" x2="56" y2="52.3636364" id="路径-5" stroke="#FFFFFF" stroke-width="0.5"></line>
+    </g>
+</svg>

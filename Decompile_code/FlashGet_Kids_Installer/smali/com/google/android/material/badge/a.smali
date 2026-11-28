@@ -1,0 +1,643 @@
+.class public Lcom/google/android/material/badge/a;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation build Ls6/a;
+.end annotation
+
+
+# static fields
+.field public static final a:Z
+
+.field public static final b:Ljava/lang/String;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .prologue
+    const-string v0, "\u182f"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lcom/google/android/material/badge/a;->b:Ljava/lang/String;
+
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    sput-boolean v0, Lcom/google/android/material/badge/a;->a:Z
+
+    .line 4
+    return-void
+.end method
+
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+.method public static a(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;)V
+    .locals 1
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroid/view/View;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    invoke-static {p0, p1, v0}, Lcom/google/android/material/badge/a;->b(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;Landroid/widget/FrameLayout;)V
+
+    .line 5
+    return-void
+.end method
+
+.method public static b(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;Landroid/widget/FrameLayout;)V
+    .locals 0
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroid/view/View;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # Landroid/widget/FrameLayout;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-static {p0, p1, p2}, Lcom/google/android/material/badge/a;->j(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;Landroid/widget/FrameLayout;)V
+
+    .line 4
+    invoke-virtual {p0}, Lcom/google/android/material/badge/BadgeDrawable;->p()Landroid/widget/FrameLayout;
+
+    .line 7
+    move-result-object p2
+
+    .line 8
+    if-eqz p2, :cond_0
+
+    .line 10
+    invoke-virtual {p0}, Lcom/google/android/material/badge/BadgeDrawable;->p()Landroid/widget/FrameLayout;
+
+    .line 13
+    move-result-object p1
+
+    .line 14
+    invoke-virtual {p1, p0}, Landroid/view/View;->setForeground(Landroid/graphics/drawable/Drawable;)V
+
+    .line 17
+    goto :goto_0
+
+    .line 18
+    :cond_0
+    sget-boolean p2, Lcom/google/android/material/badge/a;->a:Z
+
+    .line 20
+    if-nez p2, :cond_1
+
+    .line 22
+    invoke-virtual {p1}, Landroid/view/View;->getOverlay()Landroid/view/ViewOverlay;
+
+    .line 25
+    move-result-object p1
+
+    .line 26
+    invoke-virtual {p1, p0}, Landroid/view/ViewOverlay;->add(Landroid/graphics/drawable/Drawable;)V
+
+    .line 29
+    :goto_0
+    return-void
+
+    .line 30
+    :cond_1
+    new-instance p0, Ljava/lang/IllegalArgumentException;
+
+    .line 32
+    const-string p1, "\u1830"
+
+    invoke-static {p1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object p1
+
+    .line 34
+    invoke-direct {p0, p1}, Ljava/lang/IllegalArgumentException;-><init>(Ljava/lang/String;)V
+
+    .line 37
+    throw p0
+.end method
+
+.method public static c(Lcom/google/android/material/badge/BadgeDrawable;Landroidx/appcompat/widget/Toolbar;I)V
+    .locals 1
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroidx/appcompat/widget/Toolbar;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # I
+        .annotation build Lc/d0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    invoke-static {p0, p1, p2, v0}, Lcom/google/android/material/badge/a;->d(Lcom/google/android/material/badge/BadgeDrawable;Landroidx/appcompat/widget/Toolbar;ILandroid/widget/FrameLayout;)V
+
+    .line 5
+    return-void
+.end method
+
+.method public static d(Lcom/google/android/material/badge/BadgeDrawable;Landroidx/appcompat/widget/Toolbar;ILandroid/widget/FrameLayout;)V
+    .locals 1
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroidx/appcompat/widget/Toolbar;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # I
+        .annotation build Lc/d0;
+        .end annotation
+    .end param
+    .param p3    # Landroid/widget/FrameLayout;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/google/android/material/badge/a$a;
+
+    .line 3
+    invoke-direct {v0, p1, p2, p0, p3}, Lcom/google/android/material/badge/a$a;-><init>(Landroidx/appcompat/widget/Toolbar;ILcom/google/android/material/badge/BadgeDrawable;Landroid/widget/FrameLayout;)V
+
+    .line 6
+    invoke-virtual {p1, v0}, Landroid/view/View;->post(Ljava/lang/Runnable;)Z
+
+    .line 9
+    return-void
+.end method
+
+.method public static e(Landroid/content/Context;Lcom/google/android/material/internal/ParcelableSparseArray;)Landroid/util/SparseArray;
+    .locals 4
+    .param p1    # Lcom/google/android/material/internal/ParcelableSparseArray;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .annotation build Lc/o0;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Landroid/content/Context;",
+            "Lcom/google/android/material/internal/ParcelableSparseArray;",
+            ")",
+            "Landroid/util/SparseArray<",
+            "Lcom/google/android/material/badge/BadgeDrawable;",
+            ">;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Landroid/util/SparseArray;
+
+    .line 3
+    invoke-virtual {p1}, Landroid/util/SparseArray;->size()I
+
+    .line 6
+    move-result v1
+
+    .line 7
+    invoke-direct {v0, v1}, Landroid/util/SparseArray;-><init>(I)V
+
+    .line 10
+    const/4 v1, 0x0
+
+    .line 11
+    :goto_0
+    invoke-virtual {p1}, Landroid/util/SparseArray;->size()I
+
+    .line 14
+    move-result v2
+
+    .line 15
+    if-ge v1, v2, :cond_1
+
+    .line 17
+    invoke-virtual {p1, v1}, Landroid/util/SparseArray;->keyAt(I)I
+
+    .line 20
+    move-result v2
+
+    .line 21
+    invoke-virtual {p1, v1}, Landroid/util/SparseArray;->valueAt(I)Ljava/lang/Object;
+
+    .line 24
+    move-result-object v3
+
+    .line 25
+    check-cast v3, Lcom/google/android/material/badge/BadgeDrawable$SavedState;
+
+    .line 27
+    if-eqz v3, :cond_0
+
+    .line 29
+    invoke-static {p0, v3}, Lcom/google/android/material/badge/BadgeDrawable;->g(Landroid/content/Context;Lcom/google/android/material/badge/BadgeDrawable$SavedState;)Lcom/google/android/material/badge/BadgeDrawable;
+
+    .line 32
+    move-result-object v3
+
+    .line 33
+    invoke-virtual {v0, v2, v3}, Landroid/util/SparseArray;->put(ILjava/lang/Object;)V
+
+    .line 36
+    add-int/lit8 v1, v1, 0x1
+
+    .line 38
+    goto :goto_0
+
+    .line 39
+    :cond_0
+    new-instance p0, Ljava/lang/IllegalArgumentException;
+
+    .line 41
+    const-string p1, "\u1831"
+
+    invoke-static {p1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object p1
+
+    .line 43
+    invoke-direct {p0, p1}, Ljava/lang/IllegalArgumentException;-><init>(Ljava/lang/String;)V
+
+    .line 46
+    throw p0
+
+    .line 47
+    :cond_1
+    return-object v0
+.end method
+
+.method public static f(Landroid/util/SparseArray;)Lcom/google/android/material/internal/ParcelableSparseArray;
+    .locals 4
+    .param p0    # Landroid/util/SparseArray;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .annotation build Lc/o0;
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Landroid/util/SparseArray<",
+            "Lcom/google/android/material/badge/BadgeDrawable;",
+            ">;)",
+            "Lcom/google/android/material/internal/ParcelableSparseArray;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/google/android/material/internal/ParcelableSparseArray;
+
+    .line 3
+    invoke-direct {v0}, Landroid/util/SparseArray;-><init>()V
+
+    .line 6
+    const/4 v1, 0x0
+
+    .line 7
+    :goto_0
+    invoke-virtual {p0}, Landroid/util/SparseArray;->size()I
+
+    .line 10
+    move-result v2
+
+    .line 11
+    if-ge v1, v2, :cond_1
+
+    .line 13
+    invoke-virtual {p0, v1}, Landroid/util/SparseArray;->keyAt(I)I
+
+    .line 16
+    move-result v2
+
+    .line 17
+    invoke-virtual {p0, v1}, Landroid/util/SparseArray;->valueAt(I)Ljava/lang/Object;
+
+    .line 20
+    move-result-object v3
+
+    .line 21
+    check-cast v3, Lcom/google/android/material/badge/BadgeDrawable;
+
+    .line 23
+    if-eqz v3, :cond_0
+
+    .line 25
+    invoke-virtual {v3}, Lcom/google/android/material/badge/BadgeDrawable;->t()Lcom/google/android/material/badge/BadgeDrawable$SavedState;
+
+    .line 28
+    move-result-object v3
+
+    .line 29
+    invoke-virtual {v0, v2, v3}, Landroid/util/SparseArray;->put(ILjava/lang/Object;)V
+
+    .line 32
+    add-int/lit8 v1, v1, 0x1
+
+    .line 34
+    goto :goto_0
+
+    .line 35
+    :cond_0
+    new-instance p0, Ljava/lang/IllegalArgumentException;
+
+    .line 37
+    const-string v0, "\u1832"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 39
+    invoke-direct {p0, v0}, Ljava/lang/IllegalArgumentException;-><init>(Ljava/lang/String;)V
+
+    .line 42
+    throw p0
+
+    .line 43
+    :cond_1
+    return-object v0
+.end method
+
+.method public static g(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;)V
+    .locals 1
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+    .param p1    # Landroid/view/View;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    return-void
+
+    .line 4
+    :cond_0
+    sget-boolean v0, Lcom/google/android/material/badge/a;->a:Z
+
+    .line 6
+    if-nez v0, :cond_2
+
+    .line 8
+    invoke-virtual {p0}, Lcom/google/android/material/badge/BadgeDrawable;->p()Landroid/widget/FrameLayout;
+
+    .line 11
+    move-result-object v0
+
+    .line 12
+    if-eqz v0, :cond_1
+
+    .line 14
+    goto :goto_0
+
+    .line 15
+    :cond_1
+    invoke-virtual {p1}, Landroid/view/View;->getOverlay()Landroid/view/ViewOverlay;
+
+    .line 18
+    move-result-object p1
+
+    .line 19
+    invoke-virtual {p1, p0}, Landroid/view/ViewOverlay;->remove(Landroid/graphics/drawable/Drawable;)V
+
+    .line 22
+    goto :goto_1
+
+    .line 23
+    :cond_2
+    :goto_0
+    invoke-virtual {p0}, Lcom/google/android/material/badge/BadgeDrawable;->p()Landroid/widget/FrameLayout;
+
+    .line 26
+    move-result-object p0
+
+    .line 27
+    const/4 p1, 0x0
+
+    .line 28
+    invoke-virtual {p0, p1}, Landroid/view/View;->setForeground(Landroid/graphics/drawable/Drawable;)V
+
+    .line 31
+    :goto_1
+    return-void
+.end method
+
+.method public static h(Lcom/google/android/material/badge/BadgeDrawable;Landroidx/appcompat/widget/Toolbar;I)V
+    .locals 0
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+    .param p1    # Landroidx/appcompat/widget/Toolbar;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # I
+        .annotation build Lc/d0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    return-void
+
+    .line 4
+    :cond_0
+    invoke-static {p1, p2}, Lcom/google/android/material/internal/o;->a(Landroidx/appcompat/widget/Toolbar;I)Landroidx/appcompat/view/menu/ActionMenuItemView;
+
+    .line 7
+    move-result-object p1
+
+    .line 8
+    if-eqz p1, :cond_1
+
+    .line 10
+    invoke-static {p0}, Lcom/google/android/material/badge/a;->i(Lcom/google/android/material/badge/BadgeDrawable;)V
+
+    .line 13
+    invoke-static {p0, p1}, Lcom/google/android/material/badge/a;->g(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;)V
+
+    .line 16
+    :cond_1
+    return-void
+.end method
+
+.method public static i(Lcom/google/android/material/badge/BadgeDrawable;)V
+    .locals 1
+    .annotation build Lc/m1;
+    .end annotation
+
+    .prologue
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    invoke-virtual {p0, v0}, Lcom/google/android/material/badge/BadgeDrawable;->z(I)V
+
+    .line 5
+    invoke-virtual {p0, v0}, Lcom/google/android/material/badge/BadgeDrawable;->A(I)V
+
+    .line 8
+    return-void
+.end method
+
+.method public static j(Lcom/google/android/material/badge/BadgeDrawable;Landroid/view/View;Landroid/widget/FrameLayout;)V
+    .locals 1
+    .param p0    # Lcom/google/android/material/badge/BadgeDrawable;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroid/view/View;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # Landroid/widget/FrameLayout;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    new-instance v0, Landroid/graphics/Rect;
+
+    .line 3
+    invoke-direct {v0}, Landroid/graphics/Rect;-><init>()V
+
+    .line 6
+    invoke-virtual {p1, v0}, Landroid/view/View;->getDrawingRect(Landroid/graphics/Rect;)V
+
+    .line 9
+    invoke-virtual {p0, v0}, Landroid/graphics/drawable/Drawable;->setBounds(Landroid/graphics/Rect;)V
+
+    .line 12
+    invoke-virtual {p0, p1, p2}, Lcom/google/android/material/badge/BadgeDrawable;->S(Landroid/view/View;Landroid/widget/FrameLayout;)V
+
+    .line 15
+    return-void
+.end method
+
+.method public static k(Lcom/google/android/material/badge/BadgeDrawable;Landroid/content/res/Resources;)V
+    .locals 1
+    .annotation build Lc/m1;
+    .end annotation
+
+    .prologue
+    .line 1
+    sget v0, Lq6/a$f;->R2:I
+
+    .line 3
+    invoke-virtual {p1, v0}, Landroid/content/res/Resources;->getDimensionPixelOffset(I)I
+
+    .line 6
+    move-result v0
+
+    .line 7
+    invoke-virtual {p0, v0}, Lcom/google/android/material/badge/BadgeDrawable;->z(I)V
+
+    .line 10
+    sget v0, Lq6/a$f;->S2:I
+
+    .line 12
+    invoke-virtual {p1, v0}, Landroid/content/res/Resources;->getDimensionPixelOffset(I)I
+
+    .line 15
+    move-result p1
+
+    .line 16
+    invoke-virtual {p0, p1}, Lcom/google/android/material/badge/BadgeDrawable;->A(I)V
+
+    .line 19
+    return-void
+.end method
+
+.method public static l(Landroid/graphics/Rect;FFFF)V
+    .locals 2
+    .param p0    # Landroid/graphics/Rect;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    sub-float v0, p1, p3
+
+    .line 3
+    float-to-int v0, v0
+
+    .line 4
+    sub-float v1, p2, p4
+
+    .line 6
+    float-to-int v1, v1
+
+    .line 7
+    add-float/2addr p1, p3
+
+    .line 8
+    float-to-int p1, p1
+
+    .line 9
+    add-float/2addr p2, p4
+
+    .line 10
+    float-to-int p2, p2
+
+    .line 11
+    invoke-virtual {p0, v0, v1, p1, p2}, Landroid/graphics/Rect;->set(IIII)V
+
+    .line 14
+    return-void
+.end method

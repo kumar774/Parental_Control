@@ -1,0 +1,216 @@
+.class public abstract Lcom/google/common/collect/d7;
+.super Ljava/lang/Object;
+.source "TreeTraverser.java"
+
+
+# annotations
+.annotation build Lb5/a;
+.end annotation
+
+.annotation build Lb5/b;
+.end annotation
+
+.annotation runtime Lcom/google/common/collect/w0;
+.end annotation
+
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/google/common/collect/d7$e;,
+        Lcom/google/common/collect/d7$f;,
+        Lcom/google/common/collect/d7$g;,
+        Lcom/google/common/collect/d7$h;
+    }
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "<T:",
+        "Ljava/lang/Object;",
+        ">",
+        "Ljava/lang/Object;"
+    }
+.end annotation
+
+.annotation runtime Ljava/lang/Deprecated;
+.end annotation
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+.method public static g(Lcom/google/common/base/y;)Lcom/google/common/collect/d7;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "<T:",
+            "Ljava/lang/Object;",
+            ">(",
+            "Lcom/google/common/base/y<",
+            "TT;+",
+            "Ljava/lang/Iterable<",
+            "TT;>;>;)",
+            "Lcom/google/common/collect/d7<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .annotation runtime Ljava/lang/Deprecated;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    .line 4
+    new-instance v0, Lcom/google/common/collect/d7$a;
+
+    .line 6
+    invoke-direct {v0, p0}, Lcom/google/common/collect/d7$a;-><init>(Lcom/google/common/base/y;)V
+
+    .line 9
+    return-object v0
+.end method
+
+
+# virtual methods
+.method public final a(Ljava/lang/Object;)Lcom/google/common/collect/o1;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Lcom/google/common/collect/o1<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .annotation runtime Ljava/lang/Deprecated;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    .line 4
+    new-instance v0, Lcom/google/common/collect/d7$d;
+
+    .line 6
+    invoke-direct {v0, p0, p1}, Lcom/google/common/collect/d7$d;-><init>(Lcom/google/common/collect/d7;Ljava/lang/Object;)V
+
+    .line 9
+    return-object v0
+.end method
+
+.method public abstract b(Ljava/lang/Object;)Ljava/lang/Iterable;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Ljava/lang/Iterable<",
+            "TT;>;"
+        }
+    .end annotation
+.end method
+
+.method c(Ljava/lang/Object;)Lcom/google/common/collect/e7;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Lcom/google/common/collect/e7<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/google/common/collect/d7$f;
+
+    .line 3
+    invoke-direct {v0, p0, p1}, Lcom/google/common/collect/d7$f;-><init>(Lcom/google/common/collect/d7;Ljava/lang/Object;)V
+
+    .line 6
+    return-object v0
+.end method
+
+.method public final d(Ljava/lang/Object;)Lcom/google/common/collect/o1;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Lcom/google/common/collect/o1<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .annotation runtime Ljava/lang/Deprecated;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    .line 4
+    new-instance v0, Lcom/google/common/collect/d7$c;
+
+    .line 6
+    invoke-direct {v0, p0, p1}, Lcom/google/common/collect/d7$c;-><init>(Lcom/google/common/collect/d7;Ljava/lang/Object;)V
+
+    .line 9
+    return-object v0
+.end method
+
+.method e(Ljava/lang/Object;)Lcom/google/common/collect/e7;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Lcom/google/common/collect/e7<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/google/common/collect/d7$h;
+
+    .line 3
+    invoke-direct {v0, p0, p1}, Lcom/google/common/collect/d7$h;-><init>(Lcom/google/common/collect/d7;Ljava/lang/Object;)V
+
+    .line 6
+    return-object v0
+.end method
+
+.method public final f(Ljava/lang/Object;)Lcom/google/common/collect/o1;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)",
+            "Lcom/google/common/collect/o1<",
+            "TT;>;"
+        }
+    .end annotation
+
+    .annotation runtime Ljava/lang/Deprecated;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    .line 4
+    new-instance v0, Lcom/google/common/collect/d7$b;
+
+    .line 6
+    invoke-direct {v0, p0, p1}, Lcom/google/common/collect/d7$b;-><init>(Lcom/google/common/collect/d7;Ljava/lang/Object;)V
+
+    .line 9
+    return-object v0
+.end method

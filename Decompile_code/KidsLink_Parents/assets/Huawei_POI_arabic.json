@@ -1,0 +1,1321 @@
+{
+    "HW POI Classification": [{
+            "CategoryId": "1101001:1",
+            "type_name": "مطعم أفريقي"
+        }, {
+            "CategoryId": "1101002:1",
+            "type_name": "مطعم أمريكي"
+        }, {
+            "CategoryId": "1101003:1",
+            "type_name": "مطعم نمساوي"
+        }, {
+            "CategoryId": "1101004:1",
+            "type_name": "مطعم شواء"
+        }, {
+            "CategoryId": "1101005:1",
+            "type_name": "مطعم بلجيكي"
+        }, {
+            "CategoryId": "1101006:1",
+            "type_name": "مطعم صغير"
+        }, {
+            "CategoryId": "1101007:1",
+            "type_name": "مطعم بريطاني"
+        }, {
+            "CategoryId": "1101008:1",
+            "type_name": "مطعم كاليفورني"
+        }, {
+            "CategoryId": "1101009:1",
+            "type_name": "مطعم كندي"
+        }, {
+            "CategoryId": "1101010:1",
+            "type_name": "مطعم كاريبي"
+        }, {
+            "CategoryId": "1101011:1",
+            "type_name": "مطعم صيني"
+        }, {
+            "CategoryId": "1101012:1",
+            "type_name": "مطعم كريب"
+        }, {
+            "CategoryId": "1101013:1",
+            "type_name": "مطعم هولندي"
+        }, {
+            "CategoryId": "1101014:1",
+            "type_name": "مطعم وجبات سريعة"
+        }, {
+            "CategoryId": "1101015:1",
+            "type_name": "مطعم فلبيني"
+        }, {
+            "CategoryId": "1101016:1",
+            "type_name": "مطعم فرنسي"
+        }, {
+            "CategoryId": "1101017:1",
+            "type_name": "مطعم ألماني"
+        }, {
+            "CategoryId": "1101018:1",
+            "type_name": "مطعم يوناني"
+        }, {
+            "CategoryId": "1101019:1",
+            "type_name": "مشويات"
+        }, {
+            "CategoryId": "1101021:1",
+            "type_name": "مطعم مجري"
+        }, {
+            "CategoryId": "1101022:1",
+            "type_name": "مطعم هندي"
+        }, {
+            "CategoryId": "1101023:1",
+            "type_name": "مطعم إندونيسي"
+        }, {
+            "CategoryId": "1101024:1",
+            "type_name": "مطعم إيطالي"
+        }, {
+            "CategoryId": "1101025:1",
+            "type_name": "مطعم ياباني"
+        }, {
+            "CategoryId": "1101026:1",
+            "type_name": "مطعم يهودي"
+        }, {
+            "CategoryId": "1101027:1",
+            "type_name": "مطعم كوري"
+        }, {
+            "CategoryId": "1101028:1",
+            "type_name": "مطعم أمريكي لاتيني"
+        }, {
+            "CategoryId": "1101029:1",
+            "type_name": "مطعم لبناني"
+        }, {
+            "CategoryId": "1101030:1",
+            "type_name": "مطعم مالطي"
+        }, {
+            "CategoryId": "1101031:1",
+            "type_name": "مطعم البحر المتوسط"
+        }, {
+            "CategoryId": "1101032:1",
+            "type_name": "مطعم مكسيكي"
+        }, {
+            "CategoryId": "1101033:1",
+            "type_name": "مطعم شرق أوسطي"
+        }, {
+            "CategoryId": "1101035:1",
+            "type_name": "مطعم بيتزا"
+        }, {
+            "CategoryId": "1101036:1",
+            "type_name": "مطعم بولندي"
+        }, {
+            "CategoryId": "1101037:1",
+            "type_name": "مطعم برتغالي"
+        }, {
+            "CategoryId": "1101038:1",
+            "type_name": "وجبات عامة"
+        }, {
+            "CategoryId": "1101039:1",
+            "type_name": "مطعم روسي"
+        }, {
+            "CategoryId": "1101040:1",
+            "type_name": "على جانب الطريق"
+        }, {
+            "CategoryId": "1101041:1",
+            "type_name": "مطعم شطائر"
+        }, {
+            "CategoryId": "1101042:1",
+            "type_name": "مطعم مأكولات بحرية"
+        }, {
+            "CategoryId": "1101043:1",
+            "type_name": "مطعم إسباني"
+        }, {
+            "CategoryId": "1101044:1",
+            "type_name": "مطعم شرائح اللحوم"
+        }, {
+            "CategoryId": "1101045:1",
+            "type_name": "مطعم سورينامي"
+        }, {
+            "CategoryId": "1101046:1",
+            "type_name": "مطعم سويسري"
+        }, {
+            "CategoryId": "1101047:1",
+            "type_name": "مطعم تايلاندي"
+        }, {
+            "CategoryId": "1101048:1",
+            "type_name": "مطعم تركي"
+        }, {
+            "CategoryId": "1101049:1",
+            "type_name": "مطعم نباتي"
+        }, {
+            "CategoryId": "1101050:1",
+            "type_name": "مطعم فيتنامي"
+        }, {
+            "CategoryId": "1101051:1",
+            "type_name": "مطعم هوناني"
+        }, {
+            "CategoryId": "1101052:1",
+            "type_name": "مطعم أطباق شان دونغ"
+        }, {
+            "CategoryId": "1101053:1",
+            "type_name": "مطعم مأكولات كانتونية"
+        }, {
+            "CategoryId": "1101054:1",
+            "type_name": "مطعم مأكولات شنغهاي"
+        }, {
+            "CategoryId": "1101055:1",
+            "type_name": "مطعم مأكولات سيتشوانية"
+        }, {
+            "CategoryId": "1101056:1",
+            "type_name": "مطعم مأكولات دونغ بي"
+        }, {
+            "CategoryId": "1101057:1",
+            "type_name": "مطعم أطباق الوعاء الساخن"
+        }, {
+            "CategoryId": "1101058:1",
+            "type_name": "مطعم مأكولات تايوانية"
+        }, {
+            "CategoryId": "1101059:1",
+            "type_name": "مطعم غربي"
+        }, {
+            "CategoryId": "1101060:1",
+            "type_name": "مطعم بيروفي"
+        }, {
+            "CategoryId": "1101061:1",
+            "type_name": "مطعم آسيوي"
+        }, {
+            "CategoryId": "1101062:1",
+            "type_name": "مطعم كريولي كاجون"
+        }, {
+            "CategoryId": "1101063:1",
+            "type_name": "مطعم غذاء الروح"
+        }, {
+            "CategoryId": "1101064:1",
+            "type_name": "مطعم أيرلندي"
+        }, {
+            "CategoryId": "1101065:1",
+            "type_name": "مطعم جامايكي"
+        }, {
+            "CategoryId": "1101066:1",
+            "type_name": "مطعم كوشر"
+        }, {
+            "CategoryId": "1101067:1",
+            "type_name": "مطعم تشيكي"
+        }, {
+            "CategoryId": "1101068:1",
+            "type_name": "مطعم هامبرغر"
+        }, {
+            "CategoryId": "1101069:1",
+            "type_name": "مطعم دجاج"
+        }, {
+            "CategoryId": "1101070:1",
+            "type_name": "مطعم طعام متنوع الثقافات"
+        }, {
+            "CategoryId": "1101071:1",
+            "type_name": "مطعم برازيلي"
+        }, {
+            "CategoryId": "1101072:1",
+            "type_name": "فندق أطباق عالمية"
+        }, {
+            "CategoryId": "1101073:1",
+            "type_name": "مطعم مغربي"
+        }, {
+            "CategoryId": "1101074:1",
+            "type_name": "مطعم وجبات عضوية"
+        }, {
+            "CategoryId": "1101075:1",
+            "type_name": "مطعم مقبلات إسبانية"
+        }, {
+            "CategoryId": "1101076:1",
+            "type_name": "متجر مثلجات"
+        }, {
+            "CategoryId": "1101077:1",
+            "type_name": "متجر كعك مُحلى"
+        }, {
+            "CategoryId": "1101078:1",
+            "type_name": "مطعم سلوفاكي"
+        }, {
+            "CategoryId": "1101079:1",
+            "type_name": "مطعم أفغاني"
+        }, {
+            "CategoryId": "1101080:1",
+            "type_name": "مطعم جزائري"
+        }, {
+            "CategoryId": "1101081:1",
+            "type_name": "مطعم عربي"
+        }, {
+            "CategoryId": "1101082:1",
+            "type_name": "مطعم أرجنتيني"
+        }, {
+            "CategoryId": "1101083:1",
+            "type_name": "مطعم أرميني"
+        }, {
+            "CategoryId": "1101084:1",
+            "type_name": "مطعم أسترالي"
+        }, {
+            "CategoryId": "1101085:1",
+            "type_name": "مطعم باسكي"
+        }, {
+            "CategoryId": "1101086:1",
+            "type_name": "مطعم بوليفي"
+        }, {
+            "CategoryId": "1101087:1",
+            "type_name": "مطعم بوسني"
+        }, {
+            "CategoryId": "1101088:1",
+            "type_name": "مطعم بلغاري"
+        }, {
+            "CategoryId": "1101089:1",
+            "type_name": "مطعم بورمي"
+        }, {
+            "CategoryId": "1101090:1",
+            "type_name": "مطعم كمبودي"
+        }, {
+            "CategoryId": "1101091:1",
+            "type_name": "مطعم تشيلي"
+        }, {
+            "CategoryId": "1101092:1",
+            "type_name": "مطعم كولومبي"
+        }, {
+            "CategoryId": "1101093:1",
+            "type_name": "مطعم كورسيكي"
+        }, {
+            "CategoryId": "1101094:1",
+            "type_name": "مطعم كوبي"
+        }, {
+            "CategoryId": "1101095:1",
+            "type_name": "مطعم قبرصي"
+        }, {
+            "CategoryId": "1101096:1",
+            "type_name": "مطعم دانماركي"
+        }, {
+            "CategoryId": "1101097:1",
+            "type_name": "مطعم دومينيكي"
+        }, {
+            "CategoryId": "1101098:1",
+            "type_name": "مطعم مصري"
+        }, {
+            "CategoryId": "1101099:1",
+            "type_name": "مطعم إنجليزي"
+        }, {
+            "CategoryId": "1101100:1",
+            "type_name": "مطعم إثيوبي"
+        }, {
+            "CategoryId": "1101101:1",
+            "type_name": "مطعم فنلندي"
+        }, {
+            "CategoryId": "1101102:1",
+            "type_name": "مطعم إيراني"
+        }, {
+            "CategoryId": "1101103:1",
+            "type_name": "مطعم إسرائيلي"
+        }, {
+            "CategoryId": "1101104:1",
+            "type_name": "مطعم لكسمبورغي"
+        }, {
+            "CategoryId": "1101105:1",
+            "type_name": "مطعم مغربي"
+        }, {
+            "CategoryId": "1101106:1",
+            "type_name": "مطعم موريشي"
+        }, {
+            "CategoryId": "1101107:1",
+            "type_name": "مطعم منغولي"
+        }, {
+            "CategoryId": "1101108:1",
+            "type_name": "مطعم نيبالي"
+        }, {
+            "CategoryId": "1101109:1",
+            "type_name": "مطعم نرويجي"
+        }, {
+            "CategoryId": "1101110:1",
+            "type_name": "مطعم سافويي"
+        }, {
+            "CategoryId": "1101111:1",
+            "type_name": "مطعم اسكندنافي"
+        }, {
+            "CategoryId": "1101112:1",
+            "type_name": "مطعم اسكتلندي"
+        }, {
+            "CategoryId": "1101113:1",
+            "type_name": "مطعم صقلي"
+        }, {
+            "CategoryId": "1101114:1",
+            "type_name": "مطعم سلافي"
+        }, {
+            "CategoryId": "1101115:1",
+            "type_name": "مطعم سوداني"
+        }, {
+            "CategoryId": "1101116:1",
+            "type_name": "مطعم سويدي"
+        }, {
+            "CategoryId": "1101117:1",
+            "type_name": "مطعم سوري"
+        }, {
+            "CategoryId": "1101118:1",
+            "type_name": "مطعم تيبانياكي"
+        }, {
+            "CategoryId": "1101119:1",
+            "type_name": "مطعم تبتي"
+        }, {
+            "CategoryId": "1101120:1",
+            "type_name": "مطعم تونسي"
+        }, {
+            "CategoryId": "1101121:1",
+            "type_name": "مطعم أوروغوياني"
+        }, {
+            "CategoryId": "1101122:1",
+            "type_name": "مطعم فنزويلي"
+        }, {
+            "CategoryId": "1101123:1",
+            "type_name": "مطعم ويلزي"
+        }, {
+            "CategoryId": "1101124:1",
+            "type_name": "مطعم باكستاني"
+        }, {
+            "CategoryId": "1101125:1",
+            "type_name": "مطعم بولينيزي"
+        }, {
+            "CategoryId": "1101126:1",
+            "type_name": "مطعم بروفنسي"
+        }, {
+            "CategoryId": "1101127:1",
+            "type_name": "مطعم روماني"
+        }, {
+            "CategoryId": "1101129:1",
+            "type_name": "مطعم مأكولات غريبة"
+        }, {
+            "CategoryId": "1101130:1",
+            "type_name": "مطعم فوندي"
+        }, {
+            "CategoryId": "1101131:1",
+            "type_name": "مطعم نباتي"
+        }, {
+            "CategoryId": "1101132:1",
+            "type_name": "مطعم محار"
+        }, {
+            "CategoryId": "1101133:1",
+            "type_name": "وجبات خفيفة"
+        }, {
+            "CategoryId": "1101134:1",
+            "type_name": "مطعم حساء"
+        }, {
+            "CategoryId": "1101135:1",
+            "type_name": "بوفيه"
+        }, {
+            "CategoryId": "1101136:1",
+            "type_name": "بوفيه سَلطات"
+        }, {
+            "CategoryId": "1101137:1",
+            "type_name": "مطعم وجبات جاهزة"
+        }, {
+            "CategoryId": "1101138:1",
+            "type_name": "قاعة ولائم"
+        }, {
+            "CategoryId": "1101139:1",
+            "type_name": "كافيتريا"
+        }, {
+            "CategoryId": "1101140:1",
+            "type_name": "مطعم سوشي"
+        }, {
+            "CategoryId": "1101141:1",
+            "type_name": "مشرب عصائر/زبادي"
+        }, {
+            "CategoryId": "1102001:1",
+            "type_name": "مقهى"
+        }, {
+            "CategoryId": "1102002:1",
+            "type_name": "مشرب"
+        }, {
+            "CategoryId": "1102003:1",
+            "type_name": "مقهى إنترنت"
+        }, {
+            "CategoryId": "1102004:1",
+            "type_name": "مشرب شاي"
+        }, {
+            "CategoryId": "1102005:1",
+            "type_name": "مقهى"
+        }, {
+            "CategoryId": "1102006:1",
+            "type_name": "مصنع جعة صغير/حديقة جعة"
+        }, {
+            "CategoryId": "1201000:1",
+            "type_name": "متجر كبير"
+        }, {
+            "CategoryId": "1202000:1",
+            "type_name": "مركز التسوق"
+        }, {
+            "CategoryId": "1203001:1",
+            "type_name": "سوق غير رسمي"
+        }, {
+            "CategoryId": "1203002:1",
+            "type_name": "سوق عمومي"
+        }, {
+            "CategoryId": "1203003:1",
+            "type_name": "سوق مزارعين"
+        }, {
+            "CategoryId": "1203004:1",
+            "type_name": "متجر كبير ومتجر ضخم"
+        }, {
+            "CategoryId": "1203005:1",
+            "type_name": "سوق أغذية"
+        }, {
+            "CategoryId": "1204001:1",
+            "type_name": "محل بقالة"
+        }, {
+            "CategoryId": "1205001:1",
+            "type_name": "مكتبة"
+        }, {
+            "CategoryId": "1205002:1",
+            "type_name": "متجر أقراص CD وأقراص DVD وأشرطة فيديو"
+        }, {
+            "CategoryId": "1205003:1",
+            "type_name": "متجر ملابس وإكسسوارات"
+        }, {
+            "CategoryId": "1205004:1",
+            "type_name": "مغسلات تنظيف جاف"
+        }, {
+            "CategoryId": "1205005:1",
+            "type_name": "متجر أجهزة كهربائية"
+        }, {
+            "CategoryId": "1205006:1",
+            "type_name": "وكالة عقارات"
+        }, {
+            "CategoryId": "1205007:1",
+            "type_name": "المنافذ"
+        }, {
+            "CategoryId": "1205008:1",
+            "type_name": "بائعو زهور"
+        }, {
+            "CategoryId": "1205009:1",
+            "type_name": "محل أغذية ومشروبات"
+        }, {
+            "CategoryId": "1205010:1",
+            "type_name": "متجر هدايا"
+        }, {
+            "CategoryId": "1205011:1",
+            "type_name": "صالون تصفيف الشعر وصالون حلاقة"
+        }, {
+            "CategoryId": "1205012:1",
+            "type_name": "متجر أجهزة منزلية"
+        }, {
+            "CategoryId": "1205013:1",
+            "type_name": "متجر مجوهرات وساعات حائط وساعات يد"
+        }, {
+            "CategoryId": "1205015:1",
+            "type_name": "أخصائيو بصريات"
+        }, {
+            "CategoryId": "1205016:1",
+            "type_name": "متجر معدات رياضية"
+        }, {
+            "CategoryId": "1205017:1",
+            "type_name": "متجر دُمى وألعاب"
+        }, {
+            "CategoryId": "1205018:1",
+            "type_name": "وكالة سفريات"
+        }, {
+            "CategoryId": "1205019:1",
+            "type_name": "متجر معدات ومواد الإنشاءات"
+        }, {
+            "CategoryId": "1205020:1",
+            "type_name": "متجر معدات ومستلزمات طبية"
+        }, {
+            "CategoryId": "1205021:1",
+            "type_name": "مغسلة"
+        }, {
+            "CategoryId": "1205022:1",
+            "type_name": "متجر صور"
+        }, {
+            "CategoryId": "1205023:1",
+            "type_name": "متجر تصوير مستندات"
+        }, {
+            "CategoryId": "1205024:1",
+            "type_name": "متجر حيوانات أليفة"
+        }, {
+            "CategoryId": "1205025:1",
+            "type_name": "متجر تُحف قديمة/أعمال فنية"
+        }, {
+            "CategoryId": "1205026:1",
+            "type_name": "متجر مستلزمات تجميل"
+        }, {
+            "CategoryId": "1205027:1",
+            "type_name": "صيدلية"
+        }, {
+            "CategoryId": "1205028:1",
+            "type_name": "متجر هوايات"
+        }, {
+            "CategoryId": "1205029:1",
+            "type_name": "متجر أثاث"
+        }, {
+            "CategoryId": "1205030:1",
+            "type_name": "متجر أوانٍ زجاجية/خزفية"
+        }, {
+            "CategoryId": "1205031:1",
+            "type_name": "متجر منتجات خاصة محلية"
+        }, {
+            "CategoryId": "1205032:1",
+            "type_name": "ورشة إعادة تدوير"
+        }, {
+            "CategoryId": "1205033:1",
+            "type_name": "متجر حقائب وملبوسات جلدية"
+        }, {
+            "CategoryId": "1205034:1",
+            "type_name": "متجر آلات موسيقية"
+        }, {
+            "CategoryId": "1205035:1",
+            "type_name": "مركز خدمة التسوق"
+        }, {
+            "CategoryId": "1205036:1",
+            "type_name": "متجر كبير للبيع بالجملة"
+        }, {
+            "CategoryId": "1205037:1",
+            "type_name": "صالون تجميل"
+        }, {
+            "CategoryId": "1205038:1",
+            "type_name": "صالون تجميل الأظافر"
+        }, {
+            "CategoryId": "1205039:1",
+            "type_name": "متجر مكونات الكمبيوتر"
+        }, {
+            "CategoryId": "1205040:1",
+            "type_name": "مكتب رهونات"
+        }, {
+            "CategoryId": "1205041:1",
+            "type_name": "مكتب يانصيب"
+        }, {
+            "CategoryId": "1205042:1",
+            "type_name": "محطة مراهنات"
+        }, {
+            "CategoryId": "1205043:1",
+            "type_name": "متجر مستلزمات الزراعة"
+        }, {
+            "CategoryId": "1205044:1",
+            "type_name": "متجر طوابع بريدية"
+        }, {
+            "CategoryId": "1205046:1",
+            "type_name": "متجر خياطة"
+        }, {
+            "CategoryId": "1205047:1",
+            "type_name": "متجر منتجات أمنية"
+        }, {
+            "CategoryId": "1205048:1",
+            "type_name": "متجر متنوعات"
+        }, {
+            "CategoryId": "1205049:1",
+            "type_name": "متجر هدايا عيد الميلاد/العطلات"
+        }, {
+            "CategoryId": "1205050:1",
+            "type_name": "متجر إكسسوارات ومعدات القوارب"
+        }, {
+            "CategoryId": "1205052:1",
+            "type_name": "متجر مستلزمات وخدمات المكاتب"
+        }, {
+            "CategoryId": "1302000:1",
+            "type_name": "متنزه ملاهٍ"
+        }, {
+            "CategoryId": "1302001:1",
+            "type_name": "مبنى ترفيهي"
+        }, {
+            "CategoryId": "1303003:1",
+            "type_name": "ساحة معركة"
+        }, {
+            "CategoryId": "1303004:1",
+            "type_name": "مقابر"
+        }, {
+            "CategoryId": "1303005:1",
+            "type_name": "موقع تاريخي"
+        }, {
+            "CategoryId": "1303006:1",
+            "type_name": "متنزه تاريخي"
+        }, {
+            "CategoryId": "1303007:1",
+            "type_name": "بحيرة"
+        }, {
+            "CategoryId": "1303008:1",
+            "type_name": "نصب تذكاري"
+        }, {
+            "CategoryId": "1303009:1",
+            "type_name": "جادة"
+        }, {
+            "CategoryId": "1303010:1",
+            "type_name": "منطقة محمية"
+        }, {
+            "CategoryId": "1303011:1",
+            "type_name": "شاطئ بحر"
+        }, {
+            "CategoryId": "1303012:1",
+            "type_name": "منطقة حياة بريّة"
+        }, {
+            "CategoryId": "1303013:1",
+            "type_name": "منطقة غابات"
+        }, {
+            "CategoryId": "1303014:1",
+            "type_name": "منطقة قنص الأسماك وصيدها"
+        }, {
+            "CategoryId": "1303015:1",
+            "type_name": "أرض معارض"
+        }, {
+            "CategoryId": "1303016:1",
+            "type_name": "منطقة الرياضات الشتوية"
+        }, {
+            "CategoryId": "1303017:1",
+            "type_name": "منتجع تزلج"
+        }, {
+            "CategoryId": "1303018:1",
+            "type_name": "معالم سياحية طبيعية"
+        }, {
+            "CategoryId": "1303019:1",
+            "type_name": "رصيف إطلاق قوارب"
+        }, {
+            "CategoryId": "1303020:1",
+            "type_name": "منطقة نزهات"
+        }, {
+            "CategoryId": "1303021:1",
+            "type_name": "منطقة نهرية ذات مناظر خلابة"
+        }, {
+            "CategoryId": "1303022:1",
+            "type_name": "منطقة محمية"
+        }, {
+            "CategoryId": "1304001:1",
+            "type_name": "مشتل وحديقة نباتية"
+        }, {
+            "CategoryId": "1304002:1",
+            "type_name": "حديقة حيوان"
+        }, {
+            "CategoryId": "1304003:1",
+            "type_name": "حديقة حيوان مائية ومتنزه بحري"
+        }, {
+            "CategoryId": "1304004:1",
+            "type_name": "متنزه حياة برية"
+        }, {
+            "CategoryId": "1305001:1",
+            "type_name": "مركز حمام بخار وحمام شمسي وتدليك"
+        }, {
+            "CategoryId": "1305002:1",
+            "type_name": "صالة سنوكر وحمام سباحة وبلياردو"
+        }, {
+            "CategoryId": "1305003:1",
+            "type_name": "منتجع صحي"
+        }, {
+            "CategoryId": "1305004:1",
+            "type_name": "نادي طيران"
+        }, {
+            "CategoryId": "1306001:1",
+            "type_name": "ملهى ليلي"
+        }, {
+            "CategoryId": "1306002:1",
+            "type_name": "مشرب"
+        }, {
+            "CategoryId": "1306003:1",
+            "type_name": "عرض ترفيه/ملهى ليلي/مباشر"
+        }, {
+            "CategoryId": "1307000:1",
+            "type_name": "متحف"
+        }, {
+            "CategoryId": "1307001:1",
+            "type_name": "متحف علوم"
+        }, {
+            "CategoryId": "1307002:1",
+            "type_name": "متحف الطفل"
+        }, {
+            "CategoryId": "1307003:1",
+            "type_name": "متحف تاريخ"
+        }, {
+            "CategoryId": "1307004:1",
+            "type_name": "متحف فنون"
+        }, {
+            "CategoryId": "1308000:1",
+            "type_name": "مكتبة"
+        }, {
+            "CategoryId": "1309001:1",
+            "type_name": "مسرح"
+        }, {
+            "CategoryId": "1309002:1",
+            "type_name": "قاعة حفلات موسيقية"
+        }, {
+            "CategoryId": "1309003:1",
+            "type_name": "مركز موسيقى"
+        }, {
+            "CategoryId": "1309004:1",
+            "type_name": "أوبرا"
+        }, {
+            "CategoryId": "1309005:1",
+            "type_name": "ملهى ليلي"
+        }, {
+            "CategoryId": "1309006:1",
+            "type_name": "مسرح مدرج"
+        }, {
+            "CategoryId": "1309007:1",
+            "type_name": "مسرح العشاء"
+        }, {
+            "CategoryId": "1310001:1",
+            "type_name": "سينما"
+        }, {
+            "CategoryId": "1310002:1",
+            "type_name": "سينما السيارات"
+        }, {
+            "CategoryId": "1311000:1",
+            "type_name": "كازينو"
+        }, {
+            "CategoryId": "1312000:1",
+            "type_name": "أندية وجمعيات"
+        }, {
+            "CategoryId": "1312001:1",
+            "type_name": "نادي شاطئ"
+        }, {
+            "CategoryId": "1312002:1",
+            "type_name": "نادي الهوكي"
+        }, {
+            "CategoryId": "1312003:1",
+            "type_name": "نادي سيارات"
+        }, {
+            "CategoryId": "1313001:1",
+            "type_name": "درب دراجة جبلية"
+        }, {
+            "CategoryId": "1313002:1",
+            "type_name": "درب مركبة مغامرات"
+        }, {
+            "CategoryId": "1313003:1",
+            "type_name": "درب نزهة على الأقدام"
+        }, {
+            "CategoryId": "1313004:1",
+            "type_name": "درب ركوب الخيل"
+        }, {
+            "CategoryId": "1313005:1",
+            "type_name": "درب تسلق الصخور"
+        }, {
+            "CategoryId": "1313006:1",
+            "type_name": "مصعد تزلج"
+        }, {
+            "CategoryId": "1314000:1",
+            "type_name": "مركز اجتماعي"
+        }, {
+            "CategoryId": "1315000:1",
+            "type_name": "مركز ثقافي"
+        }, {
+            "CategoryId": "1315001:1",
+            "type_name": "المعرض"
+        }, {
+            "CategoryId": "1316000:1",
+            "type_name": "مرسى"
+        }, {
+            "CategoryId": "1316001:1",
+            "type_name": "مرسى"
+        }, {
+            "CategoryId": "1316002:1",
+            "type_name": "حوض يخوت"
+        }, {
+            "CategoryId": "1317000:1",
+            "type_name": "مصنع خمور"
+        }, {
+            "CategoryId": "1401001:1",
+            "type_name": "مركز رياضي"
+        }, {
+            "CategoryId": "1401002:1",
+            "type_name": "مركز ونادي لياقة بدنية"
+        }, {
+            "CategoryId": "1401003:1",
+            "type_name": "ساحة ركوب الخيل"
+        }, {
+            "CategoryId": "1401004:1",
+            "type_name": "صالة رياضة موضوعاتية"
+        }, {
+            "CategoryId": "1401005:1",
+            "type_name": "صالة اسكواش"
+        }, {
+            "CategoryId": "1401006:1",
+            "type_name": "صالة بولينج"
+        }, {
+            "CategoryId": "1401007:1",
+            "type_name": "ميدان رماية"
+        }, {
+            "CategoryId": "1402001:1",
+            "type_name": "استاد رياضي"
+        }, {
+            "CategoryId": "1402002:1",
+            "type_name": "ملعب كريكيت"
+        }, {
+            "CategoryId": "1402003:1",
+            "type_name": "ملعب كرة قدم"
+        }, {
+            "CategoryId": "1402004:1",
+            "type_name": "حلبة سباق خيول"
+        }, {
+            "CategoryId": "1402005:1",
+            "type_name": "استاد متعدد الأغراض"
+        }, {
+            "CategoryId": "1402006:1",
+            "type_name": "ملعب رغبي"
+        }, {
+            "CategoryId": "1402007:1",
+            "type_name": "ساحة هوكي الجليد"
+        }, {
+            "CategoryId": "1402008:1",
+            "type_name": "ملعب بيسبول"
+        }, {
+            "CategoryId": "1402009:1",
+            "type_name": "ملعب كرة القدم"
+        }, {
+            "CategoryId": "1402010:1",
+            "type_name": "ساحة رياضة السيارات"
+        }, {
+            "CategoryId": "1402011:1",
+            "type_name": "ملعب كرة سلة"
+        }, {
+            "CategoryId": "1402012:1",
+            "type_name": "مضمار السباق"
+        }, {
+            "CategoryId": "1402013:1",
+            "type_name": "ملعب كرة الشبكة"
+        }, {
+            "CategoryId": "1402014:1",
+            "type_name": "ملعب الهوكي"
+        }, {
+            "CategoryId": "1402015:1",
+            "type_name": "ملعب كرة الريشة"
+        }, {
+            "CategoryId": "1402016:1",
+            "type_name": "قاعة تنس طاولة"
+        }, {
+            "CategoryId": "1403000:1",
+            "type_name": "ملعب غولف"
+        }, {
+            "CategoryId": "1404000:1",
+            "type_name": "ساحة تزلج على الجليد"
+        }, {
+            "CategoryId": "1405000:1",
+            "type_name": "حمام سباحة"
+        }, {
+            "CategoryId": "1406000:1",
+            "type_name": "ملعب تنس"
+        }, {
+            "CategoryId": "1407001:1",
+            "type_name": "مركز غوص"
+        }, {
+            "CategoryId": "1501000:1",
+            "type_name": "مكتب استعلامات سياحية"
+        }, {
+            "CategoryId": "1502001:1",
+            "type_name": "مبنى"
+        }, {
+            "CategoryId": "1502002:1",
+            "type_name": "معلم تذكاري"
+        }, {
+            "CategoryId": "1502003:1",
+            "type_name": "معالم سياحية طبيعية"
+        }, {
+            "CategoryId": "1502004:1",
+            "type_name": "مرصد"
+        }, {
+            "CategoryId": "1502005:1",
+            "type_name": "قبة سماوية"
+        }, {
+            "CategoryId": "1502006:1",
+            "type_name": "سدّ"
+        }, {
+            "CategoryId": "1502007:1",
+            "type_name": "النفق"
+        }, {
+            "CategoryId": "1502008:1",
+            "type_name": "برج"
+        }, {
+            "CategoryId": "1502009:1",
+            "type_name": "جسر"
+        }, {
+            "CategoryId": "1502010:1",
+            "type_name": "ضريح/قبر"
+        }, {
+            "CategoryId": "1502011:1",
+            "type_name": "قوس"
+        }, {
+            "CategoryId": "1502012:1",
+            "type_name": "تمثال"
+        }, {
+            "CategoryId": "1502013:1",
+            "type_name": "بركة ماء"
+        }, {
+            "CategoryId": "1502014:1",
+            "type_name": "مصنع خمور"
+        }, {
+            "CategoryId": "1503001:1",
+            "type_name": "كنيسة"
+        }, {
+            "CategoryId": "1503002:1",
+            "type_name": "مسجد"
+        }, {
+            "CategoryId": "1503003:1",
+            "type_name": "معبد يهودي"
+        }, {
+            "CategoryId": "1503004:1",
+            "type_name": "معبد"
+        }, {
+            "CategoryId": "1503005:1",
+            "type_name": "غوردوارا"
+        }, {
+            "CategoryId": "1503006:1",
+            "type_name": "أشرم"
+        }, {
+            "CategoryId": "1503007:1",
+            "type_name": "باغودا"
+        }, {
+            "CategoryId": "1503008:1",
+            "type_name": "مزار شنتو"
+        }, {
+            "CategoryId": "1503009:1",
+            "type_name": "معبد هندوسي"
+        }, {
+            "CategoryId": "1503010:1",
+            "type_name": "معبد بوذي"
+        }, {
+            "CategoryId": "1503011:1",
+            "type_name": "معبد جاين"
+        }, {
+            "CategoryId": "1503012:1",
+            "type_name": "كنيسة المورمون"
+        }, {
+            "CategoryId": "1503013:1",
+            "type_name": "معبد دارما"
+        }, {
+            "CategoryId": "1504000:1",
+            "type_name": "شاطئ"
+        }, {
+            "CategoryId": "1505000:1",
+            "type_name": "ملتقى رياضات المغامرات"
+        }, {
+            "CategoryId": "1506000:1",
+            "type_name": "منصة مراقبة"
+        }, {
+            "CategoryId": "1601001:1",
+            "type_name": "مستشفى عام"
+        }, {
+            "CategoryId": "1601002:1",
+            "type_name": "مستشفى متخصص"
+        }, {
+            "CategoryId": "1601003:1",
+            "type_name": "مستشفى للطب الصيني"
+        }, {
+            "CategoryId": "1601004:1",
+            "type_name": "مستشفى للمرأة والطفل"
+        }, {
+            "CategoryId": "1602001:1",
+            "type_name": "مركز خدمات طبية شخصية يقدمها كبار الأطباء"
+        }, {
+            "CategoryId": "1602002:1",
+            "type_name": "مؤسسة رعاية طبية شخصية يقدمها أطقم التمريض والرعاية الصحية"
+        }, {
+            "CategoryId": "1602003:1",
+            "type_name": "بنك دم"
+        }, {
+            "CategoryId": "1602004:1",
+            "type_name": "وحدة إسعاف"
+        }, {
+            "CategoryId": "1602005:1",
+            "type_name": "دار تمريض"
+        }, {
+            "CategoryId": "1603000:1",
+            "type_name": "صيدلية"
+        }, {
+            "CategoryId": "1604000:1",
+            "type_name": "عيادة أسنان"
+        }, {
+            "CategoryId": "1605000:1",
+            "type_name": "غرفة طوارئ"
+        }, {
+            "CategoryId": "1606001:1",
+            "type_name": "عيادة علاج طبيعي"
+        }, {
+            "CategoryId": "1606002:1",
+            "type_name": "عيادة عامة"
+        }, {
+            "CategoryId": "1606003:1",
+            "type_name": "عيادة متخصصة"
+        }, {
+            "CategoryId": "1607000:1",
+            "type_name": "عيادة بيطرية"
+        }, {
+            "CategoryId": "1701001:1",
+            "type_name": "العقارات السكنية"
+        }, {
+            "CategoryId": "1701002:1",
+            "type_name": "مجمع سكني/شقق"
+        }, {
+            "CategoryId": "1701003:1",
+            "type_name": "مجمع منازل صغيرة"
+        }, {
+            "CategoryId": "1701004:1",
+            "type_name": "مجتمع تقاعد"
+        }, {
+            "CategoryId": "1701005:1",
+            "type_name": "مجمع سكني"
+        }, {
+            "CategoryId": "1702001:1",
+            "type_name": "نزل مبيت ونصف إقامة وضيافة"
+        }, {
+            "CategoryId": "1702004:1",
+            "type_name": "منتجع"
+        }, {
+            "CategoryId": "1702005:1",
+            "type_name": "نُزل"
+        }, {
+            "CategoryId": "1702006:1",
+            "type_name": "كبائن ومساكن"
+        }, {
+            "CategoryId": "1702007:1",
+            "type_name": "مخيمات استراحات"
+        }, {
+            "CategoryId": "1704001:1",
+            "type_name": "موقع استجمامي"
+        }, {
+            "CategoryId": "1704002:1",
+            "type_name": "موقع المقطورات السكنية"
+        }, {
+            "CategoryId": "1902000:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902001:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902002:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902003:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902004:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902005:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902006:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902007:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902008:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902009:1",
+            "type_name": "مكتب حكومي"
+        }, {
+            "CategoryId": "1902010:1",
+            "type_name": "منظمة محلية"
+        }, {
+            "CategoryId": "1902011:1",
+            "type_name": "منظمة دولية"
+        }, {
+            "CategoryId": "1902012:1",
+            "type_name": "مجلس مدينة"
+        }, {
+            "CategoryId": "1902013:1",
+            "type_name": "مجلس محلي"
+        }, {
+            "CategoryId": "1902014:1",
+            "type_name": "مركز اجتماعي/مدني"
+        }, {
+            "CategoryId": "1902015:1",
+            "type_name": "حكومة البلدة"
+        }, {
+            "CategoryId": "1903000:1",
+            "type_name": "محطة إطفاء/فرقة عسكرية"
+        }, {
+            "CategoryId": "1904001:1",
+            "type_name": "مركز شرطة"
+        }, {
+            "CategoryId": "1904002:1",
+            "type_name": "مركز شرطة"
+        }, {
+            "CategoryId": "1904003:1",
+            "type_name": "مركز شرطة"
+        }, {
+            "CategoryId": "1905001:1",
+            "type_name": "مكتب بريد عام"
+        }, {
+            "CategoryId": "1905002:1",
+            "type_name": "مكتب بريد محلي"
+        }, {
+            "CategoryId": "1906000:1",
+            "type_name": "محكمة"
+        }, {
+            "CategoryId": "1907000:1",
+            "type_name": "سفارة"
+        }, {
+            "CategoryId": "1908000:1",
+            "type_name": "قسم المراقبة المرورية"
+        }, {
+            "CategoryId": "1909000:1",
+            "type_name": "مكتب إدارة حركة المرور"
+        }, {
+            "CategoryId": "1910000:1",
+            "type_name": "قاعدة عسكرية"
+        }, {
+            "CategoryId": "1911001:1",
+            "type_name": "كلية/جامعة"
+        }, {
+            "CategoryId": "1911002:1",
+            "type_name": "كلية صغيرة/كلية تعليم متوسط"
+        }, {
+            "CategoryId": "1911003:1",
+            "type_name": "مرفق رعاية أطفال"
+        }, {
+            "CategoryId": "1911004:1",
+            "type_name": "حضانة أطفال"
+        }, {
+            "CategoryId": "1911005:1",
+            "type_name": "مدرسة ابتدائية"
+        }, {
+            "CategoryId": "1911006:1",
+            "type_name": "مدرسة ثانوية"
+        }, {
+            "CategoryId": "1911007:1",
+            "type_name": "مدرسة ثانوية عليا"
+        }, {
+            "CategoryId": "1911008:1",
+            "type_name": "مدرسة تدريب مهني"
+        }, {
+            "CategoryId": "1911009:1",
+            "type_name": "مدرسة فنية"
+        }, {
+            "CategoryId": "1911010:1",
+            "type_name": "مدرسة لغات"
+        }, {
+            "CategoryId": "1911011:1",
+            "type_name": "مدرسة رياضية"
+        }, {
+            "CategoryId": "1911012:1",
+            "type_name": "مدرسة فنون"
+        }, {
+            "CategoryId": "1911013:1",
+            "type_name": "مدرسة خاصة"
+        }, {
+            "CategoryId": "1911014:1",
+            "type_name": "مدرسة إعدادية"
+        }, {
+            "CategoryId": "1911015:1",
+            "type_name": "مدرسة طبخ"
+        }, {
+            "CategoryId": "1911016:1",
+            "type_name": "مدرسة قيادة"
+        }, {
+            "CategoryId": "1911017:1",
+            "type_name": "استوديو ومدرسة رقص"
+        }, {
+            "CategoryId": "1911018:1",
+            "type_name": "مدرسة"
+        }, {
+            "CategoryId": "1912001:1",
+            "type_name": "مكتب تذاكر شركات نقل الركاب"
+        }, {
+            "CategoryId": "1912002:1",
+            "type_name": "نفق مشاة"
+        }, {
+            "CategoryId": "1912003:1",
+            "type_name": "كابينة هاتف عمومي"
+        }, {
+            "CategoryId": "1912005:1",
+            "type_name": "إنقاذ الطريق"
+        }, {
+            "CategoryId": "1913001:1",
+            "type_name": "مؤسسة خدمات اجتماعية"
+        }, {
+            "CategoryId": "1913002:1",
+            "type_name": "مؤسسة غير حكومية"
+        }, {
+            "CategoryId": "1915000:1",
+            "type_name": "سجن"
+        }, {
+            "CategoryId": "1916000:1",
+            "type_name": "نقطة تجمع في حالة الطوارئ"
+        }, {
+            "CategoryId": "1916001:1",
+            "type_name": "نقطة تجمع في حالة تسونامي"
+        }, {
+            "CategoryId": "1916002:1",
+            "type_name": "نقطة تجمع في حالة الحرائق"
+        }, {
+            "CategoryId": "1916003:1",
+            "type_name": "نقطة تجمع في حالة الزلازل "
+        }, {
+            "CategoryId": "1916004:1",
+            "type_name": "نقطة تجمع في حالة اندلاع البراكين"
+        }, {
+            "CategoryId": "1916005:1",
+            "type_name": "نقطة تجمع في حالة الفيضانات"
+        }, {
+            "CategoryId": "2001000:1",
+            "type_name": "مصرف"
+        }, {
+            "CategoryId": "2002000:1",
+            "type_name": "ماكينة الصراف الآلي"
+        }, {
+            "CategoryId": "2005000:1",
+            "type_name": "مركز معارض ومؤتمرات"
+        }, {
+            "CategoryId": "2010003:1",
+            "type_name": "صرافة عملات"
+        }, {
+            "CategoryId": "2011000:1",
+            "type_name": "صندوق بريد"
+        }, {
+            "CategoryId": "2013000:1",
+            "type_name": "مركز خدمات طوارئ طبية"
+        }, {
+            "CategoryId": "2108001:1",
+            "type_name": "تأجير سيارات"
+        }, {
+            "CategoryId": "2108002:1",
+            "type_name": "نقطة الركوب والعودة"
+        }, {
+            "CategoryId": "2109001:1",
+            "type_name": "وكيل سيارات"
+        }, {
+            "CategoryId": "2109002:1",
+            "type_name": "وكيل دراجات نارية"
+        }, {
+            "CategoryId": "2109003:1",
+            "type_name": "وكيل قوارب"
+        }, {
+            "CategoryId": "2109004:1",
+            "type_name": "وكيل مركبات استجمامية"
+        }, {
+            "CategoryId": "2109005:1",
+            "type_name": "وكيل شاحنات"
+        }, {
+            "CategoryId": "2109006:1",
+            "type_name": "وكيل عربات كبيرة"
+        }, {
+            "CategoryId": "2109007:1",
+            "type_name": "وكيل حافلات"
+        }, {
+            "CategoryId": "2109008:1",
+            "type_name": "وكيل مركبة لجميع التضاريس/عربة الثلوج"
+        }, {
+            "CategoryId": "2109009:1",
+            "type_name": "وكيل سيارات مستعملة"
+        }, {
+            "CategoryId": "2110001:1",
+            "type_name": "ورش هياكل سيارات"
+        }, {
+            "CategoryId": "2110002:1",
+            "type_name": "ورشة استبدال زجاج السيارات"
+        }, {
+            "CategoryId": "2110003:1",
+            "type_name": "مركز خدمات إصلاح السيارات العامة"
+        }, {
+            "CategoryId": "2110004:1",
+            "type_name": "ورشة إصلاح"
+        }, {
+            "CategoryId": "2110005:1",
+            "type_name": "متجر إكسسوارات سيارات"
+        }, {
+            "CategoryId": "2110006:1",
+            "type_name": "ورشة إصلاح إطارات"
+        }, {
+            "CategoryId": "2110007:1",
+            "type_name": "ورشة إصلاح درجات نارية"
+        }, {
+            "CategoryId": "2110008:1",
+            "type_name": "ورشة إصلاح شاحنات"
+        }, {
+            "CategoryId": "2111000:1",
+            "type_name": "محطة شاحنات"
+        }, {
+            "CategoryId": "2112000:1",
+            "type_name": "مكتب مؤسسة قيادة السيارات"
+        }
+    ]
+}

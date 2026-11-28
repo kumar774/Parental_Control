@@ -1,0 +1,124 @@
+.class public final Lg1/c$f;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+# interfaces
+.implements Landroid/view/accessibility/AccessibilityManager$TouchExplorationStateChangeListener;
+
+
+# annotations
+.annotation build Lc/x0;
+    value = 0x13
+.end annotation
+
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lg1/c;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "f"
+.end annotation
+
+
+# instance fields
+.field public final a:Lg1/c$e;
+
+
+# direct methods
+.method public constructor <init>(Lg1/c$e;)V
+    .locals 0
+    .param p1    # Lg1/c$e;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    iput-object p1, p0, Lg1/c$f;->a:Lg1/c$e;
+
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public equals(Ljava/lang/Object;)Z
+    .locals 1
+
+    .prologue
+    .line 1
+    if-ne p0, p1, :cond_0
+
+    .line 3
+    const/4 p1, 0x1
+
+    .line 4
+    return p1
+
+    .line 5
+    :cond_0
+    instance-of v0, p1, Lg1/c$f;
+
+    .line 7
+    if-nez v0, :cond_1
+
+    .line 9
+    const/4 p1, 0x0
+
+    .line 10
+    return p1
+
+    .line 11
+    :cond_1
+    check-cast p1, Lg1/c$f;
+
+    .line 13
+    iget-object v0, p0, Lg1/c$f;->a:Lg1/c$e;
+
+    .line 15
+    iget-object p1, p1, Lg1/c$f;->a:Lg1/c$e;
+
+    .line 17
+    invoke-virtual {v0, p1}, Ljava/lang/Object;->equals(Ljava/lang/Object;)Z
+
+    .line 20
+    move-result p1
+
+    .line 21
+    return p1
+.end method
+
+.method public hashCode()I
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lg1/c$f;->a:Lg1/c$e;
+
+    .line 3
+    invoke-virtual {v0}, Ljava/lang/Object;->hashCode()I
+
+    .line 6
+    move-result v0
+
+    .line 7
+    return v0
+.end method
+
+.method public onTouchExplorationStateChanged(Z)V
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lg1/c$f;->a:Lg1/c$e;
+
+    .line 3
+    invoke-interface {v0, p1}, Lg1/c$e;->onTouchExplorationStateChanged(Z)V
+
+    .line 6
+    return-void
+.end method

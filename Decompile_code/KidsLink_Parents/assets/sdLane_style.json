@@ -1,0 +1,11 @@
+{
+  "userStyle": [
+    {
+      "mapFeature": "landcover",
+      "options": "geometry.fill",
+      "paint": {
+        "color": "#E8F2DD"
+      }
+    }
+  ]
+}

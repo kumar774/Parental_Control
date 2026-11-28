@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView android:textSize="12.0sp" android:textColor="@color/kid_gray_tip" android:id="@id/tvLimitAppTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/parent_usage_time_limit_app_title" android:layout_marginStart="16.0dp" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" style="@style/TextStyle.Start" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@id/rvLimitApp" android:background="@color/color_bg_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8.0dp" android:overScrollMode="never" app:layout_constraintTop_toBottomOf="@id/tvLimitAppTitle" />
+</androidx.constraintlayout.widget.ConstraintLayout>

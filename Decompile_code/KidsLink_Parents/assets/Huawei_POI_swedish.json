@@ -1,0 +1,1321 @@
+{
+    "HW POI Classification": [{
+            "type_name": "Afrikansk restaurang",
+            "CategoryId": "1101001:1"
+        }, {
+            "type_name": "Amerikansk restaurang",
+            "CategoryId": "1101002:1"
+        }, {
+            "type_name": "Österrikisk restaurang",
+            "CategoryId": "1101003:1"
+        }, {
+            "type_name": "Grillrestaurang",
+            "CategoryId": "1101004:1"
+        }, {
+            "type_name": "Belgisk restaurang",
+            "CategoryId": "1101005:1"
+        }, {
+            "type_name": "Bistro",
+            "CategoryId": "1101006:1"
+        }, {
+            "type_name": "Brittisk restaurang",
+            "CategoryId": "1101007:1"
+        }, {
+            "type_name": "Kalifornisk restaurang",
+            "CategoryId": "1101008:1"
+        }, {
+            "type_name": "Kanadensisk restaurang",
+            "CategoryId": "1101009:1"
+        }, {
+            "type_name": "Karibisk restaurang",
+            "CategoryId": "1101010:1"
+        }, {
+            "type_name": "Kinesisk restaurang",
+            "CategoryId": "1101011:1"
+        }, {
+            "type_name": "Crêperia",
+            "CategoryId": "1101012:1"
+        }, {
+            "type_name": "Nederländsk restaurang",
+            "CategoryId": "1101013:1"
+        }, {
+            "type_name": "Snabbmatrestaurang",
+            "CategoryId": "1101014:1"
+        }, {
+            "type_name": "Filippinsk restaurang",
+            "CategoryId": "1101015:1"
+        }, {
+            "type_name": "Fransk restaurang",
+            "CategoryId": "1101016:1"
+        }, {
+            "type_name": "Tysk restaurang",
+            "CategoryId": "1101017:1"
+        }, {
+            "type_name": "Grekisk restaurang",
+            "CategoryId": "1101018:1"
+        }, {
+            "type_name": "Grill",
+            "CategoryId": "1101019:1"
+        }, {
+            "type_name": "Ungersk restaurang",
+            "CategoryId": "1101021:1"
+        }, {
+            "type_name": "Indisk restaurang",
+            "CategoryId": "1101022:1"
+        }, {
+            "type_name": "Indonesisk restaurang",
+            "CategoryId": "1101023:1"
+        }, {
+            "type_name": "Italiensk restaurang",
+            "CategoryId": "1101024:1"
+        }, {
+            "type_name": "Japansk restaurang",
+            "CategoryId": "1101025:1"
+        }, {
+            "type_name": "Judisk restaurang",
+            "CategoryId": "1101026:1"
+        }, {
+            "type_name": "Koreansk restaurang",
+            "CategoryId": "1101027:1"
+        }, {
+            "type_name": "Latinamerikansk restaurang",
+            "CategoryId": "1101028:1"
+        }, {
+            "type_name": "Libanesisk restaurang",
+            "CategoryId": "1101029:1"
+        }, {
+            "type_name": "Maltesisk restaurang",
+            "CategoryId": "1101030:1"
+        }, {
+            "type_name": "Medelhavsrestaurang",
+            "CategoryId": "1101031:1"
+        }, {
+            "type_name": "Mexikansk restaurang",
+            "CategoryId": "1101032:1"
+        }, {
+            "type_name": "Restaurang med mat från Mellanöstern",
+            "CategoryId": "1101033:1"
+        }, {
+            "type_name": "Pizzarestaurang",
+            "CategoryId": "1101035:1"
+        }, {
+            "type_name": "Polsk restaurang",
+            "CategoryId": "1101036:1"
+        }, {
+            "type_name": "Portugisisk restaurang",
+            "CategoryId": "1101037:1"
+        }, {
+            "type_name": "Pubmat",
+            "CategoryId": "1101038:1"
+        }, {
+            "type_name": "Rysk restaurang",
+            "CategoryId": "1101039:1"
+        }, {
+            "type_name": "Vägkrog",
+            "CategoryId": "1101040:1"
+        }, {
+            "type_name": "Smörgåsrestaurang",
+            "CategoryId": "1101041:1"
+        }, {
+            "type_name": "Fisk- och skaldjursrestaurang",
+            "CategoryId": "1101042:1"
+        }, {
+            "type_name": "Spansk restaurang",
+            "CategoryId": "1101043:1"
+        }, {
+            "type_name": "Grill",
+            "CategoryId": "1101044:1"
+        }, {
+            "type_name": "Surinamesisk restaurant",
+            "CategoryId": "1101045:1"
+        }, {
+            "type_name": "Schweizisk restaurang",
+            "CategoryId": "1101046:1"
+        }, {
+            "type_name": "Thailändsk restaurang",
+            "CategoryId": "1101047:1"
+        }, {
+            "type_name": "Turkisk restaurang",
+            "CategoryId": "1101048:1"
+        }, {
+            "type_name": "Vegetarisk restaurang",
+            "CategoryId": "1101049:1"
+        }, {
+            "type_name": "Vietnamesisk restaurang",
+            "CategoryId": "1101050:1"
+        }, {
+            "type_name": "Hunan-restaurang",
+            "CategoryId": "1101051:1"
+        }, {
+            "type_name": "Shandong-restaurang",
+            "CategoryId": "1101052:1"
+        }, {
+            "type_name": "Guangdong-restaurang",
+            "CategoryId": "1101053:1"
+        }, {
+            "type_name": "Shanghai-restaurang",
+            "CategoryId": "1101054:1"
+        }, {
+            "type_name": "Sichuan-restaurang",
+            "CategoryId": "1101055:1"
+        }, {
+            "type_name": "Dongbei-restaurang",
+            "CategoryId": "1101056:1"
+        }, {
+            "type_name": "Hot Pot-restaurang",
+            "CategoryId": "1101057:1"
+        }, {
+            "type_name": "Taiwanesisk restaurang",
+            "CategoryId": "1101058:1"
+        }, {
+            "type_name": "Västerländsk restaurang",
+            "CategoryId": "1101059:1"
+        }, {
+            "type_name": "Peruansk restaurang",
+            "CategoryId": "1101060:1"
+        }, {
+            "type_name": "Asiatisk restaurang",
+            "CategoryId": "1101061:1"
+        }, {
+            "type_name": "Cajun-restaurang",
+            "CategoryId": "1101062:1"
+        }, {
+            "type_name": "Soulfood-restaurang",
+            "CategoryId": "1101063:1"
+        }, {
+            "type_name": "Irländsk restaurang",
+            "CategoryId": "1101064:1"
+        }, {
+            "type_name": "Jamaikansk restaurang",
+            "CategoryId": "1101065:1"
+        }, {
+            "type_name": "Kosherrestaurang",
+            "CategoryId": "1101066:1"
+        }, {
+            "type_name": "Tjeckisk restaurang",
+            "CategoryId": "1101067:1"
+        }, {
+            "type_name": "Hamburgarrestaurang",
+            "CategoryId": "1101068:1"
+        }, {
+            "type_name": "Kycklingrestaurang",
+            "CategoryId": "1101069:1"
+        }, {
+            "type_name": "Fusion-restaurang",
+            "CategoryId": "1101070:1"
+        }, {
+            "type_name": "Brasiliansk restaurang",
+            "CategoryId": "1101071:1"
+        }, {
+            "type_name": "Internationellt hotell",
+            "CategoryId": "1101072:1"
+        }, {
+            "type_name": "Marockansk restaurang",
+            "CategoryId": "1101073:1"
+        }, {
+            "type_name": "Ekologisk restaurang",
+            "CategoryId": "1101074:1"
+        }, {
+            "type_name": "Tapasrestaurang",
+            "CategoryId": "1101075:1"
+        }, {
+            "type_name": "Glassbutik",
+            "CategoryId": "1101076:1"
+        }, {
+            "type_name": "Munkbutik",
+            "CategoryId": "1101077:1"
+        }, {
+            "type_name": "Slovakisk restaurang",
+            "CategoryId": "1101078:1"
+        }, {
+            "type_name": "Afghansk restaurang",
+            "CategoryId": "1101079:1"
+        }, {
+            "type_name": "Algerisk restaurang",
+            "CategoryId": "1101080:1"
+        }, {
+            "type_name": "Arabisk restaurang",
+            "CategoryId": "1101081:1"
+        }, {
+            "type_name": "Argentinsk restaurang",
+            "CategoryId": "1101082:1"
+        }, {
+            "type_name": "Armenisk restaurang",
+            "CategoryId": "1101083:1"
+        }, {
+            "type_name": "Australisk restaurang",
+            "CategoryId": "1101084:1"
+        }, {
+            "type_name": "Baskisk restaurang",
+            "CategoryId": "1101085:1"
+        }, {
+            "type_name": "Boliviansk restaurang",
+            "CategoryId": "1101086:1"
+        }, {
+            "type_name": "Bosnisk restaurang",
+            "CategoryId": "1101087:1"
+        }, {
+            "type_name": "Bulgarisk restaurang",
+            "CategoryId": "1101088:1"
+        }, {
+            "type_name": "Burmesisk restaurang",
+            "CategoryId": "1101089:1"
+        }, {
+            "type_name": "Kambodjansk restaurang",
+            "CategoryId": "1101090:1"
+        }, {
+            "type_name": "Chilensk restaurang",
+            "CategoryId": "1101091:1"
+        }, {
+            "type_name": "Colombiansk restaurang",
+            "CategoryId": "1101092:1"
+        }, {
+            "type_name": "Korsikansk restaurang",
+            "CategoryId": "1101093:1"
+        }, {
+            "type_name": "Kubansk restaurang",
+            "CategoryId": "1101094:1"
+        }, {
+            "type_name": "Cypriotisk restaurang",
+            "CategoryId": "1101095:1"
+        }, {
+            "type_name": "Dansk restaurang",
+            "CategoryId": "1101096:1"
+        }, {
+            "type_name": "Dominikansk restaurang",
+            "CategoryId": "1101097:1"
+        }, {
+            "type_name": "Egyptisk restaurang",
+            "CategoryId": "1101098:1"
+        }, {
+            "type_name": "Engelsk restaurang",
+            "CategoryId": "1101099:1"
+        }, {
+            "type_name": "Etiopisk restaurang",
+            "CategoryId": "1101100:1"
+        }, {
+            "type_name": "Finsk restaurang",
+            "CategoryId": "1101101:1"
+        }, {
+            "type_name": "Iransk restaurang",
+            "CategoryId": "1101102:1"
+        }, {
+            "type_name": "Israelisk restaurang",
+            "CategoryId": "1101103:1"
+        }, {
+            "type_name": "Luxemburgsk restaurang",
+            "CategoryId": "1101104:1"
+        }, {
+            "type_name": "Maghrib-restaurang",
+            "CategoryId": "1101105:1"
+        }, {
+            "type_name": "Mauretansk restaurang",
+            "CategoryId": "1101106:1"
+        }, {
+            "type_name": "Mongolisk restaurang",
+            "CategoryId": "1101107:1"
+        }, {
+            "type_name": "Nepalesisk restaurang",
+            "CategoryId": "1101108:1"
+        }, {
+            "type_name": "Norsk restaurang",
+            "CategoryId": "1101109:1"
+        }, {
+            "type_name": "Savoyansk restaurang",
+            "CategoryId": "1101110:1"
+        }, {
+            "type_name": "Skandinavisk restaurang",
+            "CategoryId": "1101111:1"
+        }, {
+            "type_name": "Skotsk restaurang",
+            "CategoryId": "1101112:1"
+        }, {
+            "type_name": "Siciliansk restaurang",
+            "CategoryId": "1101113:1"
+        }, {
+            "type_name": "Slavisk restaurang",
+            "CategoryId": "1101114:1"
+        }, {
+            "type_name": "Sudanesisk restaurang",
+            "CategoryId": "1101115:1"
+        }, {
+            "type_name": "Svensk restaurang",
+            "CategoryId": "1101116:1"
+        }, {
+            "type_name": "Syrisk restaurang",
+            "CategoryId": "1101117:1"
+        }, {
+            "type_name": "Teppanyaki-restaurang",
+            "CategoryId": "1101118:1"
+        }, {
+            "type_name": "Tibetansk restaurang",
+            "CategoryId": "1101119:1"
+        }, {
+            "type_name": "Tunisisk restaurang",
+            "CategoryId": "1101120:1"
+        }, {
+            "type_name": "Uruguayansk restaurang",
+            "CategoryId": "1101121:1"
+        }, {
+            "type_name": "Venezuelansk restaurang",
+            "CategoryId": "1101122:1"
+        }, {
+            "type_name": "Walesisk restaurang",
+            "CategoryId": "1101123:1"
+        }, {
+            "type_name": "Pakistansk restaurang",
+            "CategoryId": "1101124:1"
+        }, {
+            "type_name": "Polynesisk restaurang",
+            "CategoryId": "1101125:1"
+        }, {
+            "type_name": "Provensalsk restaurang",
+            "CategoryId": "1101126:1"
+        }, {
+            "type_name": "Rumänsk restaurangen",
+            "CategoryId": "1101127:1"
+        }, {
+            "type_name": "Exotisk restaurang",
+            "CategoryId": "1101129:1"
+        }, {
+            "type_name": "Fonduerestaurang",
+            "CategoryId": "1101130:1"
+        }, {
+            "type_name": "Makrobiotisk restaurang",
+            "CategoryId": "1101131:1"
+        }, {
+            "type_name": "Musselrestaurang",
+            "CategoryId": "1101132:1"
+        }, {
+            "type_name": "Snacks",
+            "CategoryId": "1101133:1"
+        }, {
+            "type_name": "Sopprestaurang",
+            "CategoryId": "1101134:1"
+        }, {
+            "type_name": "Buffé",
+            "CategoryId": "1101135:1"
+        }, {
+            "type_name": "Salladsbar",
+            "CategoryId": "1101136:1"
+        }, {
+            "type_name": "Avhämtningsrestaurang",
+            "CategoryId": "1101137:1"
+        }, {
+            "type_name": "Festvåning",
+            "CategoryId": "1101138:1"
+        }, {
+            "type_name": "Kafeteria",
+            "CategoryId": "1101139:1"
+        }, {
+            "type_name": "Sushirestaurang",
+            "CategoryId": "1101140:1"
+        }, {
+            "type_name": "Yoghurt/juicebar",
+            "CategoryId": "1101141:1"
+        }, {
+            "type_name": "Café",
+            "CategoryId": "1102001:1"
+        }, {
+            "type_name": "Pub",
+            "CategoryId": "1102002:1"
+        }, {
+            "type_name": "Internetkafé",
+            "CategoryId": "1102003:1"
+        }, {
+            "type_name": "Tehus",
+            "CategoryId": "1102004:1"
+        }, {
+            "type_name": "Kaffeställe",
+            "CategoryId": "1102005:1"
+        }, {
+            "type_name": "Mikrobryggeri/ölträdgård",
+            "CategoryId": "1102006:1"
+        }, {
+            "type_name": "Varuhus",
+            "CategoryId": "1201000:1"
+        }, {
+            "type_name": "Köpcenter",
+            "CategoryId": "1202000:1"
+        }, {
+            "type_name": "Informell marknad",
+            "CategoryId": "1203001:1"
+        }, {
+            "type_name": "Öppen marknad",
+            "CategoryId": "1203002:1"
+        }, {
+            "type_name": "Bondens marknad",
+            "CategoryId": "1203003:1"
+        }, {
+            "type_name": "Snabbköp och stormarknad",
+            "CategoryId": "1203004:1"
+        }, {
+            "type_name": "Matmarknad",
+            "CategoryId": "1203005:1"
+        }, {
+            "type_name": "Livsmedel",
+            "CategoryId": "1204001:1"
+        }, {
+            "type_name": "Bokhandel",
+            "CategoryId": "1205001:1"
+        }, {
+            "type_name": "CD-/ DVD- och videobutik",
+            "CategoryId": "1205002:1"
+        }, {
+            "type_name": "Butik för kläder och tillbehör",
+            "CategoryId": "1205003:1"
+        }, {
+            "type_name": "Kemtvätt",
+            "CategoryId": "1205004:1"
+        }, {
+            "type_name": "Butik för elektrisk utrustning",
+            "CategoryId": "1205005:1"
+        }, {
+            "type_name": "Fastighetbyrå",
+            "CategoryId": "1205006:1"
+        }, {
+            "type_name": "Fabriksbutik",
+            "CategoryId": "1205007:1"
+        }, {
+            "type_name": "Blomsterbutik",
+            "CategoryId": "1205008:1"
+        }, {
+            "type_name": "Livsmedelsbutik",
+            "CategoryId": "1205009:1"
+        }, {
+            "type_name": "Presentbutik",
+            "CategoryId": "1205010:1"
+        }, {
+            "type_name": "Frisörsalong och barberare",
+            "CategoryId": "1205011:1"
+        }, {
+            "type_name": "Butik för hushållsapparater",
+            "CategoryId": "1205012:1"
+        }, {
+            "type_name": "Butik för smycken och klockor",
+            "CategoryId": "1205013:1"
+        }, {
+            "type_name": "Optiker",
+            "CategoryId": "1205015:1"
+        }, {
+            "type_name": "Sportbutik",
+            "CategoryId": "1205016:1"
+        }, {
+            "type_name": "Butik för leksaker och spel",
+            "CategoryId": "1205017:1"
+        }, {
+            "type_name": "Resebyrå",
+            "CategoryId": "1205018:1"
+        }, {
+            "type_name": "Bygg- och anläggningsmaterial",
+            "CategoryId": "1205019:1"
+        }, {
+            "type_name": "Butik för medicinska tillbehör och utrustning",
+            "CategoryId": "1205020:1"
+        }, {
+            "type_name": "Tvätt",
+            "CategoryId": "1205021:1"
+        }, {
+            "type_name": "Fotobutik",
+            "CategoryId": "1205022:1"
+        }, {
+            "type_name": "Kopieringsbutik",
+            "CategoryId": "1205023:1"
+        }, {
+            "type_name": "Husdjursbutik",
+            "CategoryId": "1205024:1"
+        }, {
+            "type_name": "Antikviteter/konst",
+            "CategoryId": "1205025:1"
+        }, {
+            "type_name": "Butik för skönhetsprodukter",
+            "CategoryId": "1205026:1"
+        }, {
+            "type_name": "Apotek",
+            "CategoryId": "1205027:1"
+        }, {
+            "type_name": "Hobbybutik",
+            "CategoryId": "1205028:1"
+        }, {
+            "type_name": "Möbelbutik",
+            "CategoryId": "1205029:1"
+        }, {
+            "type_name": "Butik för glasvaror/keramik",
+            "CategoryId": "1205030:1"
+        }, {
+            "type_name": "Butik för lokala specialiteter",
+            "CategoryId": "1205031:1"
+        }, {
+            "type_name": "Återvinningsbutik",
+            "CategoryId": "1205032:1"
+        }, {
+            "type_name": "Butik för väskor och läder",
+            "CategoryId": "1205033:1"
+        }, {
+            "type_name": "Musikaffär",
+            "CategoryId": "1205034:1"
+        }, {
+            "type_name": "Köpcenter",
+            "CategoryId": "1205035:1"
+        }, {
+            "type_name": "Lagerbutik",
+            "CategoryId": "1205036:1"
+        }, {
+            "type_name": "Skönhetssalong",
+            "CategoryId": "1205037:1"
+        }, {
+            "type_name": "Nagelsalong",
+            "CategoryId": "1205038:1"
+        }, {
+            "type_name": "Järnaffär",
+            "CategoryId": "1205039:1"
+        }, {
+            "type_name": "Pantbank",
+            "CategoryId": "1205040:1"
+        }, {
+            "type_name": "Lotteributik",
+            "CategoryId": "1205041:1"
+        }, {
+            "type_name": "Spelombud",
+            "CategoryId": "1205042:1"
+        }, {
+            "type_name": "Butik för jordbruksprodukter",
+            "CategoryId": "1205043:1"
+        }, {
+            "type_name": "Frimärkesbutik",
+            "CategoryId": "1205044:1"
+        }, {
+            "type_name": "Skrädderi",
+            "CategoryId": "1205046:1"
+        }, {
+            "type_name": "Säkerhetsbutik",
+            "CategoryId": "1205047:1"
+        }, {
+            "type_name": "Diversehandel",
+            "CategoryId": "1205048:1"
+        }, {
+            "type_name": "Butik med jultillbehör",
+            "CategoryId": "1205049:1"
+        }, {
+            "type_name": "Butik för båtutrustning och tillbehör",
+            "CategoryId": "1205050:1"
+        }, {
+            "type_name": "Kontorsmateriel och tjänster",
+            "CategoryId": "1205052:1"
+        }, {
+            "type_name": "Nöjesfält",
+            "CategoryId": "1302000:1"
+        }, {
+            "type_name": "Arkadhall",
+            "CategoryId": "1302001:1"
+        }, {
+            "type_name": "Slagfält",
+            "CategoryId": "1303003:1"
+        }, {
+            "type_name": "Kyrkogård",
+            "CategoryId": "1303004:1"
+        }, {
+            "type_name": "Historisk plats",
+            "CategoryId": "1303005:1"
+        }, {
+            "type_name": "Historisk park",
+            "CategoryId": "1303006:1"
+        }, {
+            "type_name": "Sjöstrand",
+            "CategoryId": "1303007:1"
+        }, {
+            "type_name": "Minnesmärke",
+            "CategoryId": "1303008:1"
+        }, {
+            "type_name": "Väg genom park",
+            "CategoryId": "1303009:1"
+        }, {
+            "type_name": "Naturreservat",
+            "CategoryId": "1303010:1"
+        }, {
+            "type_name": "Havsstrand",
+            "CategoryId": "1303011:1"
+        }, {
+            "type_name": "Vildmarksområde",
+            "CategoryId": "1303012:1"
+        }, {
+            "type_name": "Skogsområde",
+            "CategoryId": "1303013:1"
+        }, {
+            "type_name": "Fiske- och jaktområde",
+            "CategoryId": "1303014:1"
+        }, {
+            "type_name": "Fält",
+            "CategoryId": "1303015:1"
+        }, {
+            "type_name": "Vintersportområde",
+            "CategoryId": "1303016:1"
+        }, {
+            "type_name": "Skidort",
+            "CategoryId": "1303017:1"
+        }, {
+            "type_name": "Sevärdhet i naturen",
+            "CategoryId": "1303018:1"
+        }, {
+            "type_name": "Sjösättningsramp",
+            "CategoryId": "1303019:1"
+        }, {
+            "type_name": "Picknickområde",
+            "CategoryId": "1303020:1"
+        }, {
+            "type_name": "Naturskönt flodområde",
+            "CategoryId": "1303021:1"
+        }, {
+            "type_name": "Skyddat område",
+            "CategoryId": "1303022:1"
+        }, {
+            "type_name": "Botanisk trädgård",
+            "CategoryId": "1304001:1"
+        }, {
+            "type_name": "Djurpark",
+            "CategoryId": "1304002:1"
+        }, {
+            "type_name": "Havspark och marinpark",
+            "CategoryId": "1304003:1"
+        }, {
+            "type_name": "Naturpark",
+            "CategoryId": "1304004:1"
+        }, {
+            "type_name": "Bastu/ solarium och massage",
+            "CategoryId": "1305001:1"
+        }, {
+            "type_name": "Biljardhall",
+            "CategoryId": "1305002:1"
+        }, {
+            "type_name": "Spa",
+            "CategoryId": "1305003:1"
+        }, {
+            "type_name": "Flygplansklubb",
+            "CategoryId": "1305004:1"
+        }, {
+            "type_name": "Nattklubb",
+            "CategoryId": "1306001:1"
+        }, {
+            "type_name": "Bar",
+            "CategoryId": "1306002:1"
+        }, {
+            "type_name": "Underhållning/kabaré/live",
+            "CategoryId": "1306003:1"
+        }, {
+            "type_name": "Museum",
+            "CategoryId": "1307000:1"
+        }, {
+            "type_name": "Vetenskapsmuseum",
+            "CategoryId": "1307001:1"
+        }, {
+            "type_name": "Barnmuseum",
+            "CategoryId": "1307002:1"
+        }, {
+            "type_name": "Historiskt museum",
+            "CategoryId": "1307003:1"
+        }, {
+            "type_name": "Konstmuseum",
+            "CategoryId": "1307004:1"
+        }, {
+            "type_name": "Bibliotek",
+            "CategoryId": "1308000:1"
+        }, {
+            "type_name": "Teater",
+            "CategoryId": "1309001:1"
+        }, {
+            "type_name": "Konserthus",
+            "CategoryId": "1309002:1"
+        }, {
+            "type_name": "Musikcenter",
+            "CategoryId": "1309003:1"
+        }, {
+            "type_name": "Opera",
+            "CategoryId": "1309004:1"
+        }, {
+            "type_name": "Kabaré",
+            "CategoryId": "1309005:1"
+        }, {
+            "type_name": "Amfiteater",
+            "CategoryId": "1309006:1"
+        }, {
+            "type_name": "Middagsteater",
+            "CategoryId": "1309007:1"
+        }, {
+            "type_name": "Bio",
+            "CategoryId": "1310001:1"
+        }, {
+            "type_name": "Bio med drive-in",
+            "CategoryId": "1310002:1"
+        }, {
+            "type_name": "Casino",
+            "CategoryId": "1311000:1"
+        }, {
+            "type_name": "Klubb och förening",
+            "CategoryId": "1312000:1"
+        }, {
+            "type_name": "Strandklubb",
+            "CategoryId": "1312001:1"
+        }, {
+            "type_name": "Hockeyklubb",
+            "CategoryId": "1312002:1"
+        }, {
+            "type_name": "Bilklubb",
+            "CategoryId": "1312003:1"
+        }, {
+            "type_name": "Led för mountainbike",
+            "CategoryId": "1313001:1"
+        }, {
+            "type_name": "Led för äventyrsfordon",
+            "CategoryId": "1313002:1"
+        }, {
+            "type_name": "Vandringsled",
+            "CategoryId": "1313003:1"
+        }, {
+            "type_name": "Ridspår",
+            "CategoryId": "1313004:1"
+        }, {
+            "type_name": "Bergsklättringsled",
+            "CategoryId": "1313005:1"
+        }, {
+            "type_name": "Skidlift",
+            "CategoryId": "1313006:1"
+        }, {
+            "type_name": "Fritidscentrum",
+            "CategoryId": "1314000:1"
+        }, {
+            "type_name": "Kulturcentrum",
+            "CategoryId": "1315000:1"
+        }, {
+            "type_name": "Galleri",
+            "CategoryId": "1315001:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316000:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316001:1"
+        }, {
+            "type_name": "Yachthamn",
+            "CategoryId": "1316002:1"
+        }, {
+            "type_name": "Vingård",
+            "CategoryId": "1317000:1"
+        }, {
+            "type_name": "Sportcenter",
+            "CategoryId": "1401001:1"
+        }, {
+            "type_name": "Gym",
+            "CategoryId": "1401002:1"
+        }, {
+            "type_name": "Ridfält",
+            "CategoryId": "1401003:1"
+        }, {
+            "type_name": "Hall för särskild sport",
+            "CategoryId": "1401004:1"
+        }, {
+            "type_name": "Squashbana",
+            "CategoryId": "1401005:1"
+        }, {
+            "type_name": "Bowlinghall",
+            "CategoryId": "1401006:1"
+        }, {
+            "type_name": "Skjutbana",
+            "CategoryId": "1401007:1"
+        }, {
+            "type_name": "Friidrottsstadion",
+            "CategoryId": "1402001:1"
+        }, {
+            "type_name": "Cricketplan",
+            "CategoryId": "1402002:1"
+        }, {
+            "type_name": "Fotbollsplan",
+            "CategoryId": "1402003:1"
+        }, {
+            "type_name": "Hästkapplöpningsbana",
+            "CategoryId": "1402004:1"
+        }, {
+            "type_name": "Idrottsstadion",
+            "CategoryId": "1402005:1"
+        }, {
+            "type_name": "Rugbyplan",
+            "CategoryId": "1402006:1"
+        }, {
+            "type_name": "Ishockeyrink",
+            "CategoryId": "1402007:1"
+        }, {
+            "type_name": "Baseballplan",
+            "CategoryId": "1402008:1"
+        }, {
+            "type_name": "Fotbollsplan",
+            "CategoryId": "1402009:1"
+        }, {
+            "type_name": "Motorsportsarena",
+            "CategoryId": "1402010:1"
+        }, {
+            "type_name": "Basketplan",
+            "CategoryId": "1402011:1"
+        }, {
+            "type_name": "Kapplöpningsbana",
+            "CategoryId": "1402012:1"
+        }, {
+            "type_name": "Netballplan",
+            "CategoryId": "1402013:1"
+        }, {
+            "type_name": "Hockeyrink",
+            "CategoryId": "1402014:1"
+        }, {
+            "type_name": "Badmintonplan",
+            "CategoryId": "1402015:1"
+        }, {
+            "type_name": "Bordtennishall",
+            "CategoryId": "1402016:1"
+        }, {
+            "type_name": "Golfbana",
+            "CategoryId": "1403000:1"
+        }, {
+            "type_name": "Konståkningsrink",
+            "CategoryId": "1404000:1"
+        }, {
+            "type_name": "Pool",
+            "CategoryId": "1405000:1"
+        }, {
+            "type_name": "Tennisbana",
+            "CategoryId": "1406000:1"
+        }, {
+            "type_name": "Dykcenter",
+            "CategoryId": "1407001:1"
+        }, {
+            "type_name": "Turistbyrå",
+            "CategoryId": "1501000:1"
+        }, {
+            "type_name": "Byggnad",
+            "CategoryId": "1502001:1"
+        }, {
+            "type_name": "Monument",
+            "CategoryId": "1502002:1"
+        }, {
+            "type_name": "Sevärdhet i naturen",
+            "CategoryId": "1502003:1"
+        }, {
+            "type_name": "Observatorium",
+            "CategoryId": "1502004:1"
+        }, {
+            "type_name": "Planetarium",
+            "CategoryId": "1502005:1"
+        }, {
+            "type_name": "Damm",
+            "CategoryId": "1502006:1"
+        }, {
+            "type_name": "Tunnel",
+            "CategoryId": "1502007:1"
+        }, {
+            "type_name": "Torn",
+            "CategoryId": "1502008:1"
+        }, {
+            "type_name": "Brygga",
+            "CategoryId": "1502009:1"
+        }, {
+            "type_name": "Mausoleum/grav",
+            "CategoryId": "1502010:1"
+        }, {
+            "type_name": "Båge",
+            "CategoryId": "1502011:1"
+        }, {
+            "type_name": "Staty",
+            "CategoryId": "1502012:1"
+        }, {
+            "type_name": "Vattenhål",
+            "CategoryId": "1502013:1"
+        }, {
+            "type_name": "Vingård",
+            "CategoryId": "1502014:1"
+        }, {
+            "type_name": "Kyrka",
+            "CategoryId": "1503001:1"
+        }, {
+            "type_name": "Moské",
+            "CategoryId": "1503002:1"
+        }, {
+            "type_name": "Synagoga",
+            "CategoryId": "1503003:1"
+        }, {
+            "type_name": "Tempel",
+            "CategoryId": "1503004:1"
+        }, {
+            "type_name": "Gurudwara",
+            "CategoryId": "1503005:1"
+        }, {
+            "type_name": "Ashram",
+            "CategoryId": "1503006:1"
+        }, {
+            "type_name": "Pagod",
+            "CategoryId": "1503007:1"
+        }, {
+            "type_name": "Shinto-helgedom",
+            "CategoryId": "1503008:1"
+        }, {
+            "type_name": "Hindutempel",
+            "CategoryId": "1503009:1"
+        }, {
+            "type_name": "Buddhistiskt tempel",
+            "CategoryId": "1503010:1"
+        }, {
+            "type_name": "Jain-tempel",
+            "CategoryId": "1503011:1"
+        }, {
+            "type_name": "Mormonkyrka",
+            "CategoryId": "1503012:1"
+        }, {
+            "type_name": "Dharma-tempel",
+            "CategoryId": "1503013:1"
+        }, {
+            "type_name": "Strand",
+            "CategoryId": "1504000:1"
+        }, {
+            "type_name": "Arena för äventyrssport",
+            "CategoryId": "1505000:1"
+        }, {
+            "type_name": "Observationsplattform",
+            "CategoryId": "1506000:1"
+        }, {
+            "type_name": "Allmänt sjukhus",
+            "CategoryId": "1601001:1"
+        }, {
+            "type_name": "Specialistsjukhus",
+            "CategoryId": "1601002:1"
+        }, {
+            "type_name": "Sjukhus för kinesisk medicin",
+            "CategoryId": "1601003:1"
+        }, {
+            "type_name": "Sjukhus för kvinnor och barn",
+            "CategoryId": "1601004:1"
+        }, {
+            "type_name": "Personligt servicecenter",
+            "CategoryId": "1602001:1"
+        }, {
+            "type_name": "Institution för personlig vård",
+            "CategoryId": "1602002:1"
+        }, {
+            "type_name": "Blodbank",
+            "CategoryId": "1602003:1"
+        }, {
+            "type_name": "Ambulansenhet",
+            "CategoryId": "1602004:1"
+        }, {
+            "type_name": "Vårdhem",
+            "CategoryId": "1602005:1"
+        }, {
+            "type_name": "Apotek",
+            "CategoryId": "1603000:1"
+        }, {
+            "type_name": "Tandläkare",
+            "CategoryId": "1604000:1"
+        }, {
+            "type_name": "Akutmottagning",
+            "CategoryId": "1605000:1"
+        }, {
+            "type_name": "Sjukgymnastikklinik",
+            "CategoryId": "1606001:1"
+        }, {
+            "type_name": "Allmän klinik",
+            "CategoryId": "1606002:1"
+        }, {
+            "type_name": "Specialistklinik",
+            "CategoryId": "1606003:1"
+        }, {
+            "type_name": "Veterinärklinik",
+            "CategoryId": "1607000:1"
+        }, {
+            "type_name": "Bostadsfastighet",
+            "CategoryId": "1701001:1"
+        }, {
+            "type_name": "Område med lägenhetshus",
+            "CategoryId": "1701002:1"
+        }, {
+            "type_name": "Område med stadsvillor",
+            "CategoryId": "1701003:1"
+        }, {
+            "type_name": "Ålderdomshem",
+            "CategoryId": "1701004:1"
+        }, {
+            "type_name": "Område med ägarlägenheter",
+            "CategoryId": "1701005:1"
+        }, {
+            "type_name": "Värdshus och vandrarhem",
+            "CategoryId": "1702001:1"
+        }, {
+            "type_name": "Semesteranläggning",
+            "CategoryId": "1702004:1"
+        }, {
+            "type_name": "Motell",
+            "CategoryId": "1702005:1"
+        }, {
+            "type_name": "Stugor och loger",
+            "CategoryId": "1702006:1"
+        }, {
+            "type_name": "Viloläger",
+            "CategoryId": "1702007:1"
+        }, {
+            "type_name": "Fritidsanläggning",
+            "CategoryId": "1704001:1"
+        }, {
+            "type_name": "Husvagnsplats",
+            "CategoryId": "1704002:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902000:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902001:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902002:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902003:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902004:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902005:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902006:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902007:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902008:1"
+        }, {
+            "type_name": "Myndighetskontor",
+            "CategoryId": "1902009:1"
+        }, {
+            "type_name": "Nationell organisation",
+            "CategoryId": "1902010:1"
+        }, {
+            "type_name": "Internationell organisation",
+            "CategoryId": "1902011:1"
+        }, {
+            "type_name": "Stadshus",
+            "CategoryId": "1902012:1"
+        }, {
+            "type_name": "Landsting",
+            "CategoryId": "1902013:1"
+        }, {
+            "type_name": "Kommunhus",
+            "CategoryId": "1902014:1"
+        }, {
+            "type_name": "Stadsförvaltning",
+            "CategoryId": "1902015:1"
+        }, {
+            "type_name": "Brandstation",
+            "CategoryId": "1903000:1"
+        }, {
+            "type_name": "Polisstation",
+            "CategoryId": "1904001:1"
+        }, {
+            "type_name": "Polisstation",
+            "CategoryId": "1904002:1"
+        }, {
+            "type_name": "Polisstation",
+            "CategoryId": "1904003:1"
+        }, {
+            "type_name": "Allmänt postkontor",
+            "CategoryId": "1905001:1"
+        }, {
+            "type_name": "Lokalt postkontor",
+            "CategoryId": "1905002:1"
+        }, {
+            "type_name": "Domstol",
+            "CategoryId": "1906000:1"
+        }, {
+            "type_name": "Ambassad",
+            "CategoryId": "1907000:1"
+        }, {
+            "type_name": "Trafikstyrningsavdelning",
+            "CategoryId": "1908000:1"
+        }, {
+            "type_name": "Trafikledningsbyrå",
+            "CategoryId": "1909000:1"
+        }, {
+            "type_name": "Militärbas",
+            "CategoryId": "1910000:1"
+        }, {
+            "type_name": "Högskola/universitet",
+            "CategoryId": "1911001:1"
+        }, {
+            "type_name": "Folkhögskola",
+            "CategoryId": "1911002:1"
+        }, {
+            "type_name": "Barnomsorg",
+            "CategoryId": "1911003:1"
+        }, {
+            "type_name": "Förskola",
+            "CategoryId": "1911004:1"
+        }, {
+            "type_name": "Grundskola",
+            "CategoryId": "1911005:1"
+        }, {
+            "type_name": "Högstadieskola",
+            "CategoryId": "1911006:1"
+        }, {
+            "type_name": "Gymnasium",
+            "CategoryId": "1911007:1"
+        }, {
+            "type_name": "Yrkesutbildning",
+            "CategoryId": "1911008:1"
+        }, {
+            "type_name": "Teknisk skola",
+            "CategoryId": "1911009:1"
+        }, {
+            "type_name": "Språkskola",
+            "CategoryId": "1911010:1"
+        }, {
+            "type_name": "Idrottsskola",
+            "CategoryId": "1911011:1"
+        }, {
+            "type_name": "Konstskola",
+            "CategoryId": "1911012:1"
+        }, {
+            "type_name": "Specialskola",
+            "CategoryId": "1911013:1"
+        }, {
+            "type_name": "Högstadieskola",
+            "CategoryId": "1911014:1"
+        }, {
+            "type_name": "Kockskola",
+            "CategoryId": "1911015:1"
+        }, {
+            "type_name": "Körskola",
+            "CategoryId": "1911016:1"
+        }, {
+            "type_name": "Dansstudio och skola",
+            "CategoryId": "1911017:1"
+        }, {
+            "type_name": "Skola",
+            "CategoryId": "1911018:1"
+        }, {
+            "type_name": "Biljettkontor för passagerartrafik",
+            "CategoryId": "1912001:1"
+        }, {
+            "type_name": "Underpassage för fotgängare",
+            "CategoryId": "1912002:1"
+        }, {
+            "type_name": "Offentlig nödtelefon",
+            "CategoryId": "1912003:1"
+        }, {
+            "type_name": "Vägassistansplats",
+            "CategoryId": "1912005:1"
+        }, {
+            "type_name": "Välfärdsorganisation",
+            "CategoryId": "1913001:1"
+        }, {
+            "type_name": "Icke-statlig organisation",
+            "CategoryId": "1913002:1"
+        }, {
+            "type_name": "Fängelse",
+            "CategoryId": "1915000:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid nödsituationer",
+            "CategoryId": "1916000:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid tsunami",
+            "CategoryId": "1916001:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid brand",
+            "CategoryId": "1916002:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid jordbävning ",
+            "CategoryId": "1916003:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid vulkanutbrott",
+            "CategoryId": "1916004:1"
+        }, {
+            "type_name": "Uppsamlingsplats vid översvämning",
+            "CategoryId": "1916005:1"
+        }, {
+            "type_name": "Bank",
+            "CategoryId": "2001000:1"
+        }, {
+            "type_name": "Bankomat",
+            "CategoryId": "2002000:1"
+        }, {
+            "type_name": "Utställnings- och mässcenter",
+            "CategoryId": "2005000:1"
+        }, {
+            "type_name": "Valutaväxling",
+            "CategoryId": "2010003:1"
+        }, {
+            "type_name": "Avlämningsplats för kurirtjänster",
+            "CategoryId": "2011000:1"
+        }, {
+            "type_name": "Medicinsk akutmottagning",
+            "CategoryId": "2013000:1"
+        }, {
+            "type_name": "Biluthyrning",
+            "CategoryId": "2108001:1"
+        }, {
+            "type_name": "Ut- och återlämningsställe",
+            "CategoryId": "2108002:1"
+        }, {
+            "type_name": "Bilhandlare",
+            "CategoryId": "2109001:1"
+        }, {
+            "type_name": "Motorcykelhandlare",
+            "CategoryId": "2109002:1"
+        }, {
+            "type_name": "Båthandlare",
+            "CategoryId": "2109003:1"
+        }, {
+            "type_name": "Handlare av fritidsfordon",
+            "CategoryId": "2109004:1"
+        }, {
+            "type_name": "Lastbilshandlare",
+            "CategoryId": "2109005:1"
+        }, {
+            "type_name": "Skåpbilshandlare",
+            "CategoryId": "2109006:1"
+        }, {
+            "type_name": "Busshandlare",
+            "CategoryId": "2109007:1"
+        }, {
+            "type_name": "Handlare av terrängfordon/skotrar",
+            "CategoryId": "2109008:1"
+        }, {
+            "type_name": "Begagnade bilar",
+            "CategoryId": "2109009:1"
+        }, {
+            "type_name": "Karossverkstad",
+            "CategoryId": "2110001:1"
+        }, {
+            "type_name": "Bilverkstad för glasarbeten",
+            "CategoryId": "2110002:1"
+        }, {
+            "type_name": "Allmän reparationsverkstad för bilar",
+            "CategoryId": "2110003:1"
+        }, {
+            "type_name": "Reparationsverkstad",
+            "CategoryId": "2110004:1"
+        }, {
+            "type_name": "Biltillbehörsbutik",
+            "CategoryId": "2110005:1"
+        }, {
+            "type_name": "Däckverkstad",
+            "CategoryId": "2110006:1"
+        }, {
+            "type_name": "Motorcykelverkstad",
+            "CategoryId": "2110007:1"
+        }, {
+            "type_name": "Lastbilsverkstad",
+            "CategoryId": "2110008:1"
+        }, {
+            "type_name": "Rastställe för lastbilar",
+            "CategoryId": "2111000:1"
+        }, {
+            "type_name": "Motororganisationskontor",
+            "CategoryId": "2112000:1"
+        }
+    ]
+}

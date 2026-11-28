@@ -1,0 +1,1321 @@
+{
+    "HW POI Classification": [{
+            "type_name": "Restoran Masakan Afrika",
+            "CategoryId": "1101001:1"
+        }, {
+            "type_name": "Restoran Masakan Amerika",
+            "CategoryId": "1101002:1"
+        }, {
+            "type_name": "Restoran Masakan Austria",
+            "CategoryId": "1101003:1"
+        }, {
+            "type_name": "Restoran Masakan Barbeku",
+            "CategoryId": "1101004:1"
+        }, {
+            "type_name": "Restoran Masakan Belgium",
+            "CategoryId": "1101005:1"
+        }, {
+            "type_name": "Bistro",
+            "CategoryId": "1101006:1"
+        }, {
+            "type_name": "Restoran Masakan British",
+            "CategoryId": "1101007:1"
+        }, {
+            "type_name": "Restoran Masakan California",
+            "CategoryId": "1101008:1"
+        }, {
+            "type_name": "Restoran Masakan Kanada",
+            "CategoryId": "1101009:1"
+        }, {
+            "type_name": "Restoran Masakan Caribbean",
+            "CategoryId": "1101010:1"
+        }, {
+            "type_name": "Restoran Masakan Cina",
+            "CategoryId": "1101011:1"
+        }, {
+            "type_name": "Restoran Penkek",
+            "CategoryId": "1101012:1"
+        }, {
+            "type_name": "Restoran Masakan Belanda",
+            "CategoryId": "1101013:1"
+        }, {
+            "type_name": "Restoran Makanan Segera",
+            "CategoryId": "1101014:1"
+        }, {
+            "type_name": "Restoran Masakan Filipina",
+            "CategoryId": "1101015:1"
+        }, {
+            "type_name": "Restoran Masakan Perancis",
+            "CategoryId": "1101016:1"
+        }, {
+            "type_name": "Restoran Masakan Jerman",
+            "CategoryId": "1101017:1"
+        }, {
+            "type_name": "Restoran Masakan Greek",
+            "CategoryId": "1101018:1"
+        }, {
+            "type_name": "Gril",
+            "CategoryId": "1101019:1"
+        }, {
+            "type_name": "Restoran Masakan Hungary",
+            "CategoryId": "1101021:1"
+        }, {
+            "type_name": "Restoran Masakan India",
+            "CategoryId": "1101022:1"
+        }, {
+            "type_name": "Restoran Masakan Indonesia",
+            "CategoryId": "1101023:1"
+        }, {
+            "type_name": "Restoran Masakan Itali",
+            "CategoryId": "1101024:1"
+        }, {
+            "type_name": "Restoran Masakan Jepun",
+            "CategoryId": "1101025:1"
+        }, {
+            "type_name": "Restoran Masakan Yahudi",
+            "CategoryId": "1101026:1"
+        }, {
+            "type_name": "Restoran Masakan Korea",
+            "CategoryId": "1101027:1"
+        }, {
+            "type_name": "Restoran Masakan Amerika Latin",
+            "CategoryId": "1101028:1"
+        }, {
+            "type_name": "Restoran Masakan Lubnan",
+            "CategoryId": "1101029:1"
+        }, {
+            "type_name": "Restoran Masakan Malta",
+            "CategoryId": "1101030:1"
+        }, {
+            "type_name": "Restoran Masakan Mediterranean",
+            "CategoryId": "1101031:1"
+        }, {
+            "type_name": "Restoran Masakan Mexico",
+            "CategoryId": "1101032:1"
+        }, {
+            "type_name": "Restoran Masakan Timur Tengah",
+            "CategoryId": "1101033:1"
+        }, {
+            "type_name": "Restoran Piza",
+            "CategoryId": "1101035:1"
+        }, {
+            "type_name": "Restoran Masakan Poland",
+            "CategoryId": "1101036:1"
+        }, {
+            "type_name": "Restoran Masakan Portugis",
+            "CategoryId": "1101037:1"
+        }, {
+            "type_name": "Makanan Pub",
+            "CategoryId": "1101038:1"
+        }, {
+            "type_name": "Restoran Masakan Rusia",
+            "CategoryId": "1101039:1"
+        }, {
+            "type_name": "Makanan Tepi Jalan",
+            "CategoryId": "1101040:1"
+        }, {
+            "type_name": "Restoran Sandwic",
+            "CategoryId": "1101041:1"
+        }, {
+            "type_name": "Restoran Makanan Laut",
+            "CategoryId": "1101042:1"
+        }, {
+            "type_name": "Restoran Masakan Sepanyol",
+            "CategoryId": "1101043:1"
+        }, {
+            "type_name": "Restoran Stik",
+            "CategoryId": "1101044:1"
+        }, {
+            "type_name": "Restoran Masakan Suriname",
+            "CategoryId": "1101045:1"
+        }, {
+            "type_name": "Restoran Masakan Switzerland",
+            "CategoryId": "1101046:1"
+        }, {
+            "type_name": "Restoran Masakan Thai",
+            "CategoryId": "1101047:1"
+        }, {
+            "type_name": "Restoran Masakan Turki",
+            "CategoryId": "1101048:1"
+        }, {
+            "type_name": "Restoran Vegetarian",
+            "CategoryId": "1101049:1"
+        }, {
+            "type_name": "Restoran Masakan Vietnam",
+            "CategoryId": "1101050:1"
+        }, {
+            "type_name": "Restoran Masakan Hunan",
+            "CategoryId": "1101051:1"
+        }, {
+            "type_name": "Restoran Masakan Shandong",
+            "CategoryId": "1101052:1"
+        }, {
+            "type_name": "Restoran Masakan Guangdong",
+            "CategoryId": "1101053:1"
+        }, {
+            "type_name": "Restoran Masakan Shanghai",
+            "CategoryId": "1101054:1"
+        }, {
+            "type_name": "Restoran Masakan Sichuan",
+            "CategoryId": "1101055:1"
+        }, {
+            "type_name": "Restoran Masakan Dongbei",
+            "CategoryId": "1101056:1"
+        }, {
+            "type_name": "Restoran Stimbot",
+            "CategoryId": "1101057:1"
+        }, {
+            "type_name": "Restoran Masakan Taiwan",
+            "CategoryId": "1101058:1"
+        }, {
+            "type_name": "Restoran Masakan Barat",
+            "CategoryId": "1101059:1"
+        }, {
+            "type_name": "Restoran Masakan Peru",
+            "CategoryId": "1101060:1"
+        }, {
+            "type_name": "Restoran Masakan Asia",
+            "CategoryId": "1101061:1"
+        }, {
+            "type_name": "Restoran Masakan Creole-Cajun",
+            "CategoryId": "1101062:1"
+        }, {
+            "type_name": "Restoran Makanan Pemuas Selera",
+            "CategoryId": "1101063:1"
+        }, {
+            "type_name": "Restoran Masakan Ireland",
+            "CategoryId": "1101064:1"
+        }, {
+            "type_name": "Restoran Masakan Jamaica",
+            "CategoryId": "1101065:1"
+        }, {
+            "type_name": "Restoran Masakan Kosher",
+            "CategoryId": "1101066:1"
+        }, {
+            "type_name": "Restoran Masakan Czech",
+            "CategoryId": "1101067:1"
+        }, {
+            "type_name": "Restoran Hamburger",
+            "CategoryId": "1101068:1"
+        }, {
+            "type_name": "Restoran Ayam",
+            "CategoryId": "1101069:1"
+        }, {
+            "type_name": "Restoran Gabungan",
+            "CategoryId": "1101070:1"
+        }, {
+            "type_name": "Restoran Masakan Brazil",
+            "CategoryId": "1101071:1"
+        }, {
+            "type_name": "Hotel Antarabangsa",
+            "CategoryId": "1101072:1"
+        }, {
+            "type_name": "Restoran Masakan Maghribi",
+            "CategoryId": "1101073:1"
+        }, {
+            "type_name": "Restoran Makanan Organik",
+            "CategoryId": "1101074:1"
+        }, {
+            "type_name": "Restoran Tapas",
+            "CategoryId": "1101075:1"
+        }, {
+            "type_name": "Kedai Ais Krim",
+            "CategoryId": "1101076:1"
+        }, {
+            "type_name": "Kedai Donat",
+            "CategoryId": "1101077:1"
+        }, {
+            "type_name": "Restoran Masakan Slovakia",
+            "CategoryId": "1101078:1"
+        }, {
+            "type_name": "Restoran Masakan Afghanistan",
+            "CategoryId": "1101079:1"
+        }, {
+            "type_name": "Restoran Masakan Algeria",
+            "CategoryId": "1101080:1"
+        }, {
+            "type_name": "Restoran Masakan Arab",
+            "CategoryId": "1101081:1"
+        }, {
+            "type_name": "Restoran Masakan Argentina",
+            "CategoryId": "1101082:1"
+        }, {
+            "type_name": "Restoran Masakan Armenia",
+            "CategoryId": "1101083:1"
+        }, {
+            "type_name": "Restoran Masakan Australia",
+            "CategoryId": "1101084:1"
+        }, {
+            "type_name": "Restoran Masakan Basque",
+            "CategoryId": "1101085:1"
+        }, {
+            "type_name": "Restoran Masakan Bolivia",
+            "CategoryId": "1101086:1"
+        }, {
+            "type_name": "Restoran Masakan Bosnia",
+            "CategoryId": "1101087:1"
+        }, {
+            "type_name": "Restoran Masakan Bulgaria",
+            "CategoryId": "1101088:1"
+        }, {
+            "type_name": "Restoran Masakan Burma",
+            "CategoryId": "1101089:1"
+        }, {
+            "type_name": "Restoran Masakan Kemboja",
+            "CategoryId": "1101090:1"
+        }, {
+            "type_name": "Restoran Masakan Chile",
+            "CategoryId": "1101091:1"
+        }, {
+            "type_name": "Restoran Masakan Colombia",
+            "CategoryId": "1101092:1"
+        }, {
+            "type_name": "Restoran Masakan Corsica",
+            "CategoryId": "1101093:1"
+        }, {
+            "type_name": "Restoran Masakan Cuba",
+            "CategoryId": "1101094:1"
+        }, {
+            "type_name": "Restoran Masakan Cyprus",
+            "CategoryId": "1101095:1"
+        }, {
+            "type_name": "Restoran Masakan Denmark",
+            "CategoryId": "1101096:1"
+        }, {
+            "type_name": "Restoran Masakan Dominica",
+            "CategoryId": "1101097:1"
+        }, {
+            "type_name": "Restoran Masakan Mesir",
+            "CategoryId": "1101098:1"
+        }, {
+            "type_name": "Restoran Masakan Inggeris",
+            "CategoryId": "1101099:1"
+        }, {
+            "type_name": "Restoran Masakan Ethiopia",
+            "CategoryId": "1101100:1"
+        }, {
+            "type_name": "Restoran Masakan Finland",
+            "CategoryId": "1101101:1"
+        }, {
+            "type_name": "Restoran Masakan Iran",
+            "CategoryId": "1101102:1"
+        }, {
+            "type_name": "Restoran Masakan Israel",
+            "CategoryId": "1101103:1"
+        }, {
+            "type_name": "Restoran Masakan Luxembourg",
+            "CategoryId": "1101104:1"
+        }, {
+            "type_name": "Restoran Masakan Maghrib",
+            "CategoryId": "1101105:1"
+        }, {
+            "type_name": "Restoran Masakan Mauritius",
+            "CategoryId": "1101106:1"
+        }, {
+            "type_name": "Restoran Masakan Mongolia",
+            "CategoryId": "1101107:1"
+        }, {
+            "type_name": "Restoran Masakan Nepal",
+            "CategoryId": "1101108:1"
+        }, {
+            "type_name": "Restoran Masakan Norway",
+            "CategoryId": "1101109:1"
+        }, {
+            "type_name": "Restoran Masakan Savoy",
+            "CategoryId": "1101110:1"
+        }, {
+            "type_name": "Restoran Masakan Scandinavia",
+            "CategoryId": "1101111:1"
+        }, {
+            "type_name": "Restoran Masakan Scotland",
+            "CategoryId": "1101112:1"
+        }, {
+            "type_name": "Restoran Masakan Sicily",
+            "CategoryId": "1101113:1"
+        }, {
+            "type_name": "Restoran Masakan Slavonia",
+            "CategoryId": "1101114:1"
+        }, {
+            "type_name": "Restoran Masakan Sudan",
+            "CategoryId": "1101115:1"
+        }, {
+            "type_name": "Restoran Masakan Sweden",
+            "CategoryId": "1101116:1"
+        }, {
+            "type_name": "Restoran Masakan Syria",
+            "CategoryId": "1101117:1"
+        }, {
+            "type_name": "Restoran Teppanyakki",
+            "CategoryId": "1101118:1"
+        }, {
+            "type_name": "Restoran Masakan Tibet",
+            "CategoryId": "1101119:1"
+        }, {
+            "type_name": "Restoran Masakan Tunisia",
+            "CategoryId": "1101120:1"
+        }, {
+            "type_name": "Restoran Masakan Uruguay",
+            "CategoryId": "1101121:1"
+        }, {
+            "type_name": "Restoran Masakan Venezuela",
+            "CategoryId": "1101122:1"
+        }, {
+            "type_name": "Restoran Masakan Wales",
+            "CategoryId": "1101123:1"
+        }, {
+            "type_name": "Restoran Masakan Pakistan",
+            "CategoryId": "1101124:1"
+        }, {
+            "type_name": "Restoran Masakan Polinesia",
+            "CategoryId": "1101125:1"
+        }, {
+            "type_name": "Restoran Masakan Provençal",
+            "CategoryId": "1101126:1"
+        }, {
+            "type_name": "Restoran Masakan Romania",
+            "CategoryId": "1101127:1"
+        }, {
+            "type_name": "Restoran Makanan Eksotik",
+            "CategoryId": "1101129:1"
+        }, {
+            "type_name": "Restoran Fondue",
+            "CategoryId": "1101130:1"
+        }, {
+            "type_name": "Restoran Makrobiotik",
+            "CategoryId": "1101131:1"
+        }, {
+            "type_name": "Restoran Kupang",
+            "CategoryId": "1101132:1"
+        }, {
+            "type_name": "Makanan Ringan",
+            "CategoryId": "1101133:1"
+        }, {
+            "type_name": "Restoran Masakan Sup",
+            "CategoryId": "1101134:1"
+        }, {
+            "type_name": "Bufet",
+            "CategoryId": "1101135:1"
+        }, {
+            "type_name": "Bar Salad",
+            "CategoryId": "1101136:1"
+        }, {
+            "type_name": "Restoran Makanan Bawa Pulang",
+            "CategoryId": "1101137:1"
+        }, {
+            "type_name": "Bilik Bankuet",
+            "CategoryId": "1101138:1"
+        }, {
+            "type_name": "Kafeteria",
+            "CategoryId": "1101139:1"
+        }, {
+            "type_name": "Restoran Sushi",
+            "CategoryId": "1101140:1"
+        }, {
+            "type_name": "Bar Yogurt/Jus",
+            "CategoryId": "1101141:1"
+        }, {
+            "type_name": "Kafe",
+            "CategoryId": "1102001:1"
+        }, {
+            "type_name": "Pub",
+            "CategoryId": "1102002:1"
+        }, {
+            "type_name": "Kafe Internet",
+            "CategoryId": "1102003:1"
+        }, {
+            "type_name": "Kedai Teh",
+            "CategoryId": "1102004:1"
+        }, {
+            "type_name": "Kedai Kopi",
+            "CategoryId": "1102005:1"
+        }, {
+            "type_name": "Kilang Mikro Bir/Taman Bir",
+            "CategoryId": "1102006:1"
+        }, {
+            "type_name": "Gedung Serbaneka",
+            "CategoryId": "1201000:1"
+        }, {
+            "type_name": "Pusat Beli-belah",
+            "CategoryId": "1202000:1"
+        }, {
+            "type_name": "Pasar Kasual",
+            "CategoryId": "1203001:1"
+        }, {
+            "type_name": "Pasar Awam",
+            "CategoryId": "1203002:1"
+        }, {
+            "type_name": "Pasar Tani",
+            "CategoryId": "1203003:1"
+        }, {
+            "type_name": "Pasar Raya & Pasar Raya Besar",
+            "CategoryId": "1203004:1"
+        }, {
+            "type_name": "Pasar Makanan",
+            "CategoryId": "1203005:1"
+        }, {
+            "type_name": "Kedai Runcit",
+            "CategoryId": "1204001:1"
+        }, {
+            "type_name": "Kedai Buku",
+            "CategoryId": "1205001:1"
+        }, {
+            "type_name": "Kedai CD/ DVD & Video",
+            "CategoryId": "1205002:1"
+        }, {
+            "type_name": "Kedai Pakaian & Aksesori",
+            "CategoryId": "1205003:1"
+        }, {
+            "type_name": "Kedai Cucian Kering",
+            "CategoryId": "1205004:1"
+        }, {
+            "type_name": "Kedai Peralatan Elektrik",
+            "CategoryId": "1205005:1"
+        }, {
+            "type_name": "Agensi Harta Tanah",
+            "CategoryId": "1205006:1"
+        }, {
+            "type_name": "Gedung",
+            "CategoryId": "1205007:1"
+        }, {
+            "type_name": "Kedai Bunga",
+            "CategoryId": "1205008:1"
+        }, {
+            "type_name": "Kedai Makanan & Minuman",
+            "CategoryId": "1205009:1"
+        }, {
+            "type_name": "Kedai Hadiah",
+            "CategoryId": "1205010:1"
+        }, {
+            "type_name": "Salun Rambut & Kedai Gunting Rambut",
+            "CategoryId": "1205011:1"
+        }, {
+            "type_name": "Kedai Peralatan Rumah",
+            "CategoryId": "1205012:1"
+        }, {
+            "type_name": "Kedai Barang Kemas/ Jam dan Jam Tangan",
+            "CategoryId": "1205013:1"
+        }, {
+            "type_name": "Pakar Optik",
+            "CategoryId": "1205015:1"
+        }, {
+            "type_name": "Kedai Sukan",
+            "CategoryId": "1205016:1"
+        }, {
+            "type_name": "Kedai Alat Mainan & Permainan",
+            "CategoryId": "1205017:1"
+        }, {
+            "type_name": "Agensi Pelancongan",
+            "CategoryId": "1205018:1"
+        }, {
+            "type_name": "Kedai Bahan & Kelengkapan Pembinaan",
+            "CategoryId": "1205019:1"
+        }, {
+            "type_name": "Kedai Bekalan & Kelengkapan Perubatan",
+            "CategoryId": "1205020:1"
+        }, {
+            "type_name": "Kedai Dobi",
+            "CategoryId": "1205021:1"
+        }, {
+            "type_name": "Kedai Gambar",
+            "CategoryId": "1205022:1"
+        }, {
+            "type_name": "Kedai Fotokopi",
+            "CategoryId": "1205023:1"
+        }, {
+            "type_name": "Kedai Haiwan",
+            "CategoryId": "1205024:1"
+        }, {
+            "type_name": "Kedai Antik/Seni",
+            "CategoryId": "1205025:1"
+        }, {
+            "type_name": "Kedai Bekalan Alat Solek",
+            "CategoryId": "1205026:1"
+        }, {
+            "type_name": "Kedai Ubat",
+            "CategoryId": "1205027:1"
+        }, {
+            "type_name": "Kedai Hobi",
+            "CategoryId": "1205028:1"
+        }, {
+            "type_name": "Kedai Perabot",
+            "CategoryId": "1205029:1"
+        }, {
+            "type_name": "Kedai Barangan Kaca/Seramik",
+            "CategoryId": "1205030:1"
+        }, {
+            "type_name": "Kedai Keistimewaan Tempatan",
+            "CategoryId": "1205031:1"
+        }, {
+            "type_name": "Kedai Kitar Semula",
+            "CategoryId": "1205032:1"
+        }, {
+            "type_name": "Kedai Beg & Barangan Kulit",
+            "CategoryId": "1205033:1"
+        }, {
+            "type_name": "Kedai Alat Muzik",
+            "CategoryId": "1205034:1"
+        }, {
+            "type_name": "Pusat Perkhidmatan Beli-belah",
+            "CategoryId": "1205035:1"
+        }, {
+            "type_name": "Pasar Raya Gudang",
+            "CategoryId": "1205036:1"
+        }, {
+            "type_name": "Salun Kecantikan",
+            "CategoryId": "1205037:1"
+        }, {
+            "type_name": "Salun Kuku",
+            "CategoryId": "1205038:1"
+        }, {
+            "type_name": "Kedai Perkakasan",
+            "CategoryId": "1205039:1"
+        }, {
+            "type_name": "Kedai Pajak Gadai",
+            "CategoryId": "1205040:1"
+        }, {
+            "type_name": "Kedai Loteri",
+            "CategoryId": "1205041:1"
+        }, {
+            "type_name": "Stesen Pertaruhan",
+            "CategoryId": "1205042:1"
+        }, {
+            "type_name": "Kedai Bekalan Pertanian",
+            "CategoryId": "1205043:1"
+        }, {
+            "type_name": "Kedai Setem",
+            "CategoryId": "1205044:1"
+        }, {
+            "type_name": "Kedai Tukang Jahit",
+            "CategoryId": "1205046:1"
+        }, {
+            "type_name": "Kedai Keselamatan",
+            "CategoryId": "1205047:1"
+        }, {
+            "type_name": "Kedai Serbaneka",
+            "CategoryId": "1205048:1"
+        }, {
+            "type_name": "Kedai Krismas/Percutian",
+            "CategoryId": "1205049:1"
+        }, {
+            "type_name": "Kedai Kelengkapan & Aksesori Bot",
+            "CategoryId": "1205050:1"
+        }, {
+            "type_name": "Kedai Bekalan & Perkhidmatan Pejabat",
+            "CategoryId": "1205052:1"
+        }, {
+            "type_name": "Taman Hiburan",
+            "CategoryId": "1302000:1"
+        }, {
+            "type_name": "Arked Hiburan",
+            "CategoryId": "1302001:1"
+        }, {
+            "type_name": "Medan Perang",
+            "CategoryId": "1303003:1"
+        }, {
+            "type_name": "Perkuburan",
+            "CategoryId": "1303004:1"
+        }, {
+            "type_name": "Tempat Bersejarah",
+            "CategoryId": "1303005:1"
+        }, {
+            "type_name": "Taman Bersejarah",
+            "CategoryId": "1303006:1"
+        }, {
+            "type_name": "Pesisir Tasik",
+            "CategoryId": "1303007:1"
+        }, {
+            "type_name": "Tugu Peringatan",
+            "CategoryId": "1303008:1"
+        }, {
+            "type_name": "Jalan",
+            "CategoryId": "1303009:1"
+        }, {
+            "type_name": "Kawasan Terlindung",
+            "CategoryId": "1303010:1"
+        }, {
+            "type_name": "Pantai Laut",
+            "CategoryId": "1303011:1"
+        }, {
+            "type_name": "Kawasan Belantara",
+            "CategoryId": "1303012:1"
+        }, {
+            "type_name": "Kawasan Hutan",
+            "CategoryId": "1303013:1"
+        }, {
+            "type_name": "Kawasan Memancing & Memburu",
+            "CategoryId": "1303014:1"
+        }, {
+            "type_name": "Tapak Pesta",
+            "CategoryId": "1303015:1"
+        }, {
+            "type_name": "Kawasan Sukan Musim Sejuk",
+            "CategoryId": "1303016:1"
+        }, {
+            "type_name": "Tempat Peranginan Ski",
+            "CategoryId": "1303017:1"
+        }, {
+            "type_name": "Tarikan Semula jadi",
+            "CategoryId": "1303018:1"
+        }, {
+            "type_name": "Landas Lancaran Bot",
+            "CategoryId": "1303019:1"
+        }, {
+            "type_name": "Kawasan Perkelahan",
+            "CategoryId": "1303020:1"
+        }, {
+            "type_name": "Kawasan Sungai Indah",
+            "CategoryId": "1303021:1"
+        }, {
+            "type_name": "Kawasan Dilindungi",
+            "CategoryId": "1303022:1"
+        }, {
+            "type_name": "Arboreta & Taman Botani",
+            "CategoryId": "1304001:1"
+        }, {
+            "type_name": "Zoo",
+            "CategoryId": "1304002:1"
+        }, {
+            "type_name": "Zoo Akuatik dan Taman Marin",
+            "CategoryId": "1304003:1"
+        }, {
+            "type_name": "Taman Hidupan Liar",
+            "CategoryId": "1304004:1"
+        }, {
+            "type_name": "Pusat Sauna/ Solarium & Urut",
+            "CategoryId": "1305001:1"
+        }, {
+            "type_name": "Tempat Snuker/ Pool & Biliard",
+            "CategoryId": "1305002:1"
+        }, {
+            "type_name": "Spa",
+            "CategoryId": "1305003:1"
+        }, {
+            "type_name": "Kelab Terbang",
+            "CategoryId": "1305004:1"
+        }, {
+            "type_name": "Kelab Malam",
+            "CategoryId": "1306001:1"
+        }, {
+            "type_name": "Bar",
+            "CategoryId": "1306002:1"
+        }, {
+            "type_name": "Hiburan/Kabaret/Persembahan Langsung",
+            "CategoryId": "1306003:1"
+        }, {
+            "type_name": "Muzium",
+            "CategoryId": "1307000:1"
+        }, {
+            "type_name": "Muzium Sains",
+            "CategoryId": "1307001:1"
+        }, {
+            "type_name": "Muzium Kanak-kanak",
+            "CategoryId": "1307002:1"
+        }, {
+            "type_name": "Muzium Sejarah",
+            "CategoryId": "1307003:1"
+        }, {
+            "type_name": "Muzium Seni",
+            "CategoryId": "1307004:1"
+        }, {
+            "type_name": "Perpustakaan",
+            "CategoryId": "1308000:1"
+        }, {
+            "type_name": "Teater",
+            "CategoryId": "1309001:1"
+        }, {
+            "type_name": "Dewan Konsert",
+            "CategoryId": "1309002:1"
+        }, {
+            "type_name": "Pusat Muzik",
+            "CategoryId": "1309003:1"
+        }, {
+            "type_name": "Opera",
+            "CategoryId": "1309004:1"
+        }, {
+            "type_name": "Kabaret",
+            "CategoryId": "1309005:1"
+        }, {
+            "type_name": "Amfiteater",
+            "CategoryId": "1309006:1"
+        }, {
+            "type_name": "Teater Makan Malam",
+            "CategoryId": "1309007:1"
+        }, {
+            "type_name": "Pawagam",
+            "CategoryId": "1310001:1"
+        }, {
+            "type_name": "Pawagam Pandu Masuk",
+            "CategoryId": "1310002:1"
+        }, {
+            "type_name": "Kasino",
+            "CategoryId": "1311000:1"
+        }, {
+            "type_name": "Kelab & Persatuan",
+            "CategoryId": "1312000:1"
+        }, {
+            "type_name": "Kelab Pantai",
+            "CategoryId": "1312001:1"
+        }, {
+            "type_name": "Kelab Hoki",
+            "CategoryId": "1312002:1"
+        }, {
+            "type_name": "Kelab Kereta",
+            "CategoryId": "1312003:1"
+        }, {
+            "type_name": "Denai Basikal Bukit",
+            "CategoryId": "1313001:1"
+        }, {
+            "type_name": "Denai Kenderaan Kembara",
+            "CategoryId": "1313002:1"
+        }, {
+            "type_name": "Denai Kembara",
+            "CategoryId": "1313003:1"
+        }, {
+            "type_name": "Denai Menunggang Kuda",
+            "CategoryId": "1313004:1"
+        }, {
+            "type_name": "Denai Memanjat Batu",
+            "CategoryId": "1313005:1"
+        }, {
+            "type_name": "Lif Ski",
+            "CategoryId": "1313006:1"
+        }, {
+            "type_name": "Pusat Komuniti",
+            "CategoryId": "1314000:1"
+        }, {
+            "type_name": "Pusat Budaya",
+            "CategoryId": "1315000:1"
+        }, {
+            "type_name": "Galeri",
+            "CategoryId": "1315001:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316000:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316001:1"
+        }, {
+            "type_name": "Besen Kapal Layar",
+            "CategoryId": "1316002:1"
+        }, {
+            "type_name": "Kilang Wain",
+            "CategoryId": "1317000:1"
+        }, {
+            "type_name": "Pusat Sukan",
+            "CategoryId": "1401001:1"
+        }, {
+            "type_name": "Kelab & Pusat Kesihatan",
+            "CategoryId": "1401002:1"
+        }, {
+            "type_name": "Padang Menunggang Kuda",
+            "CategoryId": "1401003:1"
+        }, {
+            "type_name": "Dewan Sukan Bertema",
+            "CategoryId": "1401004:1"
+        }, {
+            "type_name": "Gelanggang Skuasy",
+            "CategoryId": "1401005:1"
+        }, {
+            "type_name": "Pusat Boling",
+            "CategoryId": "1401006:1"
+        }, {
+            "type_name": "Lapangan Menembak",
+            "CategoryId": "1401007:1"
+        }, {
+            "type_name": "Stadium Olahraga",
+            "CategoryId": "1402001:1"
+        }, {
+            "type_name": "Padang Kriket",
+            "CategoryId": "1402002:1"
+        }, {
+            "type_name": "Padang Bolak Sepak",
+            "CategoryId": "1402003:1"
+        }, {
+            "type_name": "Trek Lumba Kuda",
+            "CategoryId": "1402004:1"
+        }, {
+            "type_name": "Stadium Serba Guna",
+            "CategoryId": "1402005:1"
+        }, {
+            "type_name": "Padang Ragbi",
+            "CategoryId": "1402006:1"
+        }, {
+            "type_name": "Gelanggang Hoki Ais",
+            "CategoryId": "1402007:1"
+        }, {
+            "type_name": "Padang Besbol",
+            "CategoryId": "1402008:1"
+        }, {
+            "type_name": "Padang Bolak Sepak Amerika",
+            "CategoryId": "1402009:1"
+        }, {
+            "type_name": "Tempat Sukan Permotoran",
+            "CategoryId": "1402010:1"
+        }, {
+            "type_name": "Gelanggang Bola Keranjang",
+            "CategoryId": "1402011:1"
+        }, {
+            "type_name": "Trek Lumba",
+            "CategoryId": "1402012:1"
+        }, {
+            "type_name": "Gelanggang Bola Jaring",
+            "CategoryId": "1402013:1"
+        }, {
+            "type_name": "Padang Hoki",
+            "CategoryId": "1402014:1"
+        }, {
+            "type_name": "Gelanggang Badminton",
+            "CategoryId": "1402015:1"
+        }, {
+            "type_name": "Dewan Pingpong",
+            "CategoryId": "1402016:1"
+        }, {
+            "type_name": "Padang Golf",
+            "CategoryId": "1403000:1"
+        }, {
+            "type_name": "Gelanggang Geluncur Ais",
+            "CategoryId": "1404000:1"
+        }, {
+            "type_name": "Kolam Renang",
+            "CategoryId": "1405000:1"
+        }, {
+            "type_name": "Gelanggang Tenis",
+            "CategoryId": "1406000:1"
+        }, {
+            "type_name": "Pusat Menyelam",
+            "CategoryId": "1407001:1"
+        }, {
+            "type_name": "Pejabat Maklumat Pelancong",
+            "CategoryId": "1501000:1"
+        }, {
+            "type_name": "Bangunan",
+            "CategoryId": "1502001:1"
+        }, {
+            "type_name": "Monumen",
+            "CategoryId": "1502002:1"
+        }, {
+            "type_name": "Tarikan Semula jadi",
+            "CategoryId": "1502003:1"
+        }, {
+            "type_name": "Balai Cerap",
+            "CategoryId": "1502004:1"
+        }, {
+            "type_name": "Planetarium",
+            "CategoryId": "1502005:1"
+        }, {
+            "type_name": "Empang",
+            "CategoryId": "1502006:1"
+        }, {
+            "type_name": "Terowong",
+            "CategoryId": "1502007:1"
+        }, {
+            "type_name": "Menara",
+            "CategoryId": "1502008:1"
+        }, {
+            "type_name": "Jambatan",
+            "CategoryId": "1502009:1"
+        }, {
+            "type_name": "Makam/Kubur",
+            "CategoryId": "1502010:1"
+        }, {
+            "type_name": "Gerbang",
+            "CategoryId": "1502011:1"
+        }, {
+            "type_name": "Patung",
+            "CategoryId": "1502012:1"
+        }, {
+            "type_name": "Lopak Air",
+            "CategoryId": "1502013:1"
+        }, {
+            "type_name": "Kilang Wain",
+            "CategoryId": "1502014:1"
+        }, {
+            "type_name": "Tempat Ibadat",
+            "CategoryId": "1503001:1"
+        }, {
+            "type_name": "Masjid",
+            "CategoryId": "1503002:1"
+        }, {
+            "type_name": "Saumaah",
+            "CategoryId": "1503003:1"
+        }, {
+            "type_name": "Tokong",
+            "CategoryId": "1503004:1"
+        }, {
+            "type_name": "Gurudwara",
+            "CategoryId": "1503005:1"
+        }, {
+            "type_name": "Ashram",
+            "CategoryId": "1503006:1"
+        }, {
+            "type_name": "Pagoda",
+            "CategoryId": "1503007:1"
+        }, {
+            "type_name": "Keramat Syinto",
+            "CategoryId": "1503008:1"
+        }, {
+            "type_name": "Kuil",
+            "CategoryId": "1503009:1"
+        }, {
+            "type_name": "Tokong",
+            "CategoryId": "1503010:1"
+        }, {
+            "type_name": "Kuil Jain",
+            "CategoryId": "1503011:1"
+        }, {
+            "type_name": "Gereja Mormon",
+            "CategoryId": "1503012:1"
+        }, {
+            "type_name": "Tokong Dharma",
+            "CategoryId": "1503013:1"
+        }, {
+            "type_name": "Pantai",
+            "CategoryId": "1504000:1"
+        }, {
+            "type_name": "Tempat Sukan Kembara",
+            "CategoryId": "1505000:1"
+        }, {
+            "type_name": "Dek Tinjau",
+            "CategoryId": "1506000:1"
+        }, {
+            "type_name": "Hospital Besar",
+            "CategoryId": "1601001:1"
+        }, {
+            "type_name": "Hospital Pakar",
+            "CategoryId": "1601002:1"
+        }, {
+            "type_name": "Hospital Ubat Tradisional Cina",
+            "CategoryId": "1601003:1"
+        }, {
+            "type_name": "Hospital untuk Wanita dan Kanak-kanak",
+            "CategoryId": "1601004:1"
+        }, {
+            "type_name": "Pusat Perkhidmatan Peribadi",
+            "CategoryId": "1602001:1"
+        }, {
+            "type_name": "Institusi Penjagaan Peribadi",
+            "CategoryId": "1602002:1"
+        }, {
+            "type_name": "Bank Darah",
+            "CategoryId": "1602003:1"
+        }, {
+            "type_name": "Bank Darah",
+            "CategoryId": "1602004:1"
+        }, {
+            "type_name": "Rumah Penjagaan",
+            "CategoryId": "1602005:1"
+        }, {
+            "type_name": "Farmasi",
+            "CategoryId": "1603000:1"
+        }, {
+            "type_name": "Klinik Pergigian",
+            "CategoryId": "1604000:1"
+        }, {
+            "type_name": "Bilik Kecemasan",
+            "CategoryId": "1605000:1"
+        }, {
+            "type_name": "Klinik Fisioterapi",
+            "CategoryId": "1606001:1"
+        }, {
+            "type_name": "Klinik Umum",
+            "CategoryId": "1606002:1"
+        }, {
+            "type_name": "Klinik Pakar",
+            "CategoryId": "1606003:1"
+        }, {
+            "type_name": "Klinik Veterinar",
+            "CategoryId": "1607000:1"
+        }, {
+            "type_name": "Penginapan Perumahan",
+            "CategoryId": "1701001:1"
+        }, {
+            "type_name": "Kompleks Rumah Pangsa/Pangsapuri",
+            "CategoryId": "1701002:1"
+        }, {
+            "type_name": "Kompleks Rumah Bandar",
+            "CategoryId": "1701003:1"
+        }, {
+            "type_name": "Komuniti Persaraan",
+            "CategoryId": "1701004:1"
+        }, {
+            "type_name": "Kompleks Kondominium",
+            "CategoryId": "1701005:1"
+        }, {
+            "type_name": "Inap-sarapan & Rumah Tamu",
+            "CategoryId": "1702001:1"
+        }, {
+            "type_name": "Tempat Peranginan",
+            "CategoryId": "1702004:1"
+        }, {
+            "type_name": "Motel",
+            "CategoryId": "1702005:1"
+        }, {
+            "type_name": "Pondok & Telatap",
+            "CategoryId": "1702006:1"
+        }, {
+            "type_name": "Kem Rehat",
+            "CategoryId": "1702007:1"
+        }, {
+            "type_name": "Tapak Rekreasi",
+            "CategoryId": "1704001:1"
+        }, {
+            "type_name": "Tapak Karavan",
+            "CategoryId": "1704002:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902000:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902001:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902002:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902003:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902004:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902005:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902006:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902007:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902008:1"
+        }, {
+            "type_name": "Pejabat Kerajaan",
+            "CategoryId": "1902009:1"
+        }, {
+            "type_name": "Organisasi Kebangsaan",
+            "CategoryId": "1902010:1"
+        }, {
+            "type_name": "Organisasi Antarabangsa",
+            "CategoryId": "1902011:1"
+        }, {
+            "type_name": "Dewan Bandaraya",
+            "CategoryId": "1902012:1"
+        }, {
+            "type_name": "Majlis Kawasan",
+            "CategoryId": "1902013:1"
+        }, {
+            "type_name": "Pusat Sivik/Komuniti",
+            "CategoryId": "1902014:1"
+        }, {
+            "type_name": "Kerajaan Bandar",
+            "CategoryId": "1902015:1"
+        }, {
+            "type_name": "Balai Bomba",
+            "CategoryId": "1903000:1"
+        }, {
+            "type_name": "Balai Polis",
+            "CategoryId": "1904001:1"
+        }, {
+            "type_name": "Balai Polis",
+            "CategoryId": "1904002:1"
+        }, {
+            "type_name": "Balai Polis",
+            "CategoryId": "1904003:1"
+        }, {
+            "type_name": "Pejabat Pos Besar",
+            "CategoryId": "1905001:1"
+        }, {
+            "type_name": "Pejabat Pos Tempatan",
+            "CategoryId": "1905002:1"
+        }, {
+            "type_name": "Mahkamah",
+            "CategoryId": "1906000:1"
+        }, {
+            "type_name": "Kedutaan",
+            "CategoryId": "1907000:1"
+        }, {
+            "type_name": "Jabatan Kawalan Trafik",
+            "CategoryId": "1908000:1"
+        }, {
+            "type_name": "Biro Pengurusan Trafik",
+            "CategoryId": "1909000:1"
+        }, {
+            "type_name": "Pangkalan Tentera",
+            "CategoryId": "1910000:1"
+        }, {
+            "type_name": "Kolej/Universiti",
+            "CategoryId": "1911001:1"
+        }, {
+            "type_name": "Kolej Rendah/Kolej Komuniti",
+            "CategoryId": "1911002:1"
+        }, {
+            "type_name": "Kemudahan Penjagaan Kanak-kanak",
+            "CategoryId": "1911003:1"
+        }, {
+            "type_name": "Tadika",
+            "CategoryId": "1911004:1"
+        }, {
+            "type_name": "Sekolah Rendah",
+            "CategoryId": "1911005:1"
+        }, {
+            "type_name": "Sekolah Menengah",
+            "CategoryId": "1911006:1"
+        }, {
+            "type_name": "Sekolah Menengah Tinggi",
+            "CategoryId": "1911007:1"
+        }, {
+            "type_name": "Sekolah Latihan Vokasional",
+            "CategoryId": "1911008:1"
+        }, {
+            "type_name": "Sekolah Teknik",
+            "CategoryId": "1911009:1"
+        }, {
+            "type_name": "Sekolah Bahasa",
+            "CategoryId": "1911010:1"
+        }, {
+            "type_name": "Sekolah Sukan",
+            "CategoryId": "1911011:1"
+        }, {
+            "type_name": "Sekolah Seni",
+            "CategoryId": "1911012:1"
+        }, {
+            "type_name": "Sekolah Khas",
+            "CategoryId": "1911013:1"
+        }, {
+            "type_name": "Sekolah Pertengahan",
+            "CategoryId": "1911014:1"
+        }, {
+            "type_name": "Sekolah Masak-memasak",
+            "CategoryId": "1911015:1"
+        }, {
+            "type_name": "Sekolah Memandu",
+            "CategoryId": "1911016:1"
+        }, {
+            "type_name": "Studio & Sekolah Tarian",
+            "CategoryId": "1911017:1"
+        }, {
+            "type_name": "Sekolah",
+            "CategoryId": "1911018:1"
+        }, {
+            "type_name": "Pejabat Tiket Kenderaan Penumpang",
+            "CategoryId": "1912001:1"
+        }, {
+            "type_name": "Laluan Bawah Tanah Pejalan Kaki",
+            "CategoryId": "1912002:1"
+        }, {
+            "type_name": "Pondok Telefon Awam",
+            "CategoryId": "1912003:1"
+        }, {
+            "type_name": "Tempat Penyelamat Jalan Raya",
+            "CategoryId": "1912005:1"
+        }, {
+            "type_name": "Organisasi Kebajikan",
+            "CategoryId": "1913001:1"
+        }, {
+            "type_name": "Organisasi Bukan Kerajaan",
+            "CategoryId": "1913002:1"
+        }, {
+            "type_name": "Penjara",
+            "CategoryId": "1915000:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Kecemasan",
+            "CategoryId": "1916000:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Tsunami",
+            "CategoryId": "1916001:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Kebakaran",
+            "CategoryId": "1916002:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Gempa Bumi ",
+            "CategoryId": "1916003:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Letusan Gunung Berapi",
+            "CategoryId": "1916004:1"
+        }, {
+            "type_name": "Tempat Perhimpunan Banjir",
+            "CategoryId": "1916005:1"
+        }, {
+            "type_name": "Bank",
+            "CategoryId": "2001000:1"
+        }, {
+            "type_name": "Mesin Teler Automatik",
+            "CategoryId": "2002000:1"
+        }, {
+            "type_name": "Pusat Pameran & Konvensyen",
+            "CategoryId": "2005000:1"
+        }, {
+            "type_name": "Pertukaran Mata Wang",
+            "CategoryId": "2010003:1"
+        }, {
+            "type_name": "Peti Pelbagai Penghantar Surat",
+            "CategoryId": "2011000:1"
+        }, {
+            "type_name": "Pusat Perkhidmatan Perubatan Kecemasan",
+            "CategoryId": "2013000:1"
+        }, {
+            "type_name": "Sewa Kereta",
+            "CategoryId": "2108001:1"
+        }, {
+            "type_name": "Tempat Ambil dan Pulang",
+            "CategoryId": "2108002:1"
+        }, {
+            "type_name": "Penjual Kereta",
+            "CategoryId": "2109001:1"
+        }, {
+            "type_name": "Penjual Motosikal",
+            "CategoryId": "2109002:1"
+        }, {
+            "type_name": "Penjual Bot",
+            "CategoryId": "2109003:1"
+        }, {
+            "type_name": "Penjual Kenderaan Rekreasi",
+            "CategoryId": "2109004:1"
+        }, {
+            "type_name": "Penjual Trak",
+            "CategoryId": "2109005:1"
+        }, {
+            "type_name": "Penjual Van",
+            "CategoryId": "2109006:1"
+        }, {
+            "type_name": "Penjual Bas",
+            "CategoryId": "2109007:1"
+        }, {
+            "type_name": "Penjual ATV/Kereta Salji",
+            "CategoryId": "2109008:1"
+        }, {
+            "type_name": "Penjual Kereta Terpakai",
+            "CategoryId": "2109009:1"
+        }, {
+            "type_name": "Kedai Pembaikan Kereta",
+            "CategoryId": "2110001:1"
+        }, {
+            "type_name": "Kedai Penggantian Kaca Automotif",
+            "CategoryId": "2110002:1"
+        }, {
+            "type_name": "Pusat Servis Pembaikan Automotif Umum",
+            "CategoryId": "2110003:1"
+        }, {
+            "type_name": "Kedai Pembaikan",
+            "CategoryId": "2110004:1"
+        }, {
+            "type_name": "Kedai Aksesori Automobil",
+            "CategoryId": "2110005:1"
+        }, {
+            "type_name": "Kedai Pembaikan Tayar",
+            "CategoryId": "2110006:1"
+        }, {
+            "type_name": "Kedai Pembaikan Motosikal",
+            "CategoryId": "2110007:1"
+        }, {
+            "type_name": "Kedai Pembaikan Trak",
+            "CategoryId": "2110008:1"
+        }, {
+            "type_name": "Perhentian Trak",
+            "CategoryId": "2111000:1"
+        }, {
+            "type_name": "Pejabat Organisasi Permotoran",
+            "CategoryId": "2112000:1"
+        }
+    ]
+}

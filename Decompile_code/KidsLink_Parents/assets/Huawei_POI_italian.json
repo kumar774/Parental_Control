@@ -1,0 +1,1321 @@
+{
+    "HW POI Classification": [{
+            "type_name": "Ristorante africano",
+            "CategoryId": "1101001:1"
+        }, {
+            "type_name": "Ristorante americano",
+            "CategoryId": "1101002:1"
+        }, {
+            "type_name": "Ristorante austriaco",
+            "CategoryId": "1101003:1"
+        }, {
+            "type_name": "Ristorante con barbecue",
+            "CategoryId": "1101004:1"
+        }, {
+            "type_name": "Ristorante belga",
+            "CategoryId": "1101005:1"
+        }, {
+            "type_name": "Tavola calda",
+            "CategoryId": "1101006:1"
+        }, {
+            "type_name": "Ristorante britannico",
+            "CategoryId": "1101007:1"
+        }, {
+            "type_name": "Ristorante californiano",
+            "CategoryId": "1101008:1"
+        }, {
+            "type_name": "Ristorante canadese",
+            "CategoryId": "1101009:1"
+        }, {
+            "type_name": "Ristorante caraibico",
+            "CategoryId": "1101010:1"
+        }, {
+            "type_name": "Ristorante cinese",
+            "CategoryId": "1101011:1"
+        }, {
+            "type_name": "Creperia",
+            "CategoryId": "1101012:1"
+        }, {
+            "type_name": "Ristorante olandese",
+            "CategoryId": "1101013:1"
+        }, {
+            "type_name": "Fast Food",
+            "CategoryId": "1101014:1"
+        }, {
+            "type_name": "Ristorante filippino",
+            "CategoryId": "1101015:1"
+        }, {
+            "type_name": "Ristorante francese",
+            "CategoryId": "1101016:1"
+        }, {
+            "type_name": "Ristorante tedesco",
+            "CategoryId": "1101017:1"
+        }, {
+            "type_name": "Ristorante greco",
+            "CategoryId": "1101018:1"
+        }, {
+            "type_name": "Ristorante griglieria",
+            "CategoryId": "1101019:1"
+        }, {
+            "type_name": "Ristorante ungherese",
+            "CategoryId": "1101021:1"
+        }, {
+            "type_name": "Ristorante indiano",
+            "CategoryId": "1101022:1"
+        }, {
+            "type_name": "Ristorante indonesiano",
+            "CategoryId": "1101023:1"
+        }, {
+            "type_name": "Ristorante italiano",
+            "CategoryId": "1101024:1"
+        }, {
+            "type_name": "Ristorante giapponese",
+            "CategoryId": "1101025:1"
+        }, {
+            "type_name": "Ristorante ebraico",
+            "CategoryId": "1101026:1"
+        }, {
+            "type_name": "Ristorante coreano",
+            "CategoryId": "1101027:1"
+        }, {
+            "type_name": "Ristorante latino americano",
+            "CategoryId": "1101028:1"
+        }, {
+            "type_name": "Ristorante libanese",
+            "CategoryId": "1101029:1"
+        }, {
+            "type_name": "Ristorante maltese",
+            "CategoryId": "1101030:1"
+        }, {
+            "type_name": "Ristorante mediterraneo",
+            "CategoryId": "1101031:1"
+        }, {
+            "type_name": "Ristorante messicano",
+            "CategoryId": "1101032:1"
+        }, {
+            "type_name": "Ristorante mediorientale",
+            "CategoryId": "1101033:1"
+        }, {
+            "type_name": "Pizzeria",
+            "CategoryId": "1101035:1"
+        }, {
+            "type_name": "Ristorante polacco",
+            "CategoryId": "1101036:1"
+        }, {
+            "type_name": "Ristorante portoghese",
+            "CategoryId": "1101037:1"
+        }, {
+            "type_name": "Pub",
+            "CategoryId": "1101038:1"
+        }, {
+            "type_name": "Ristorante russo",
+            "CategoryId": "1101039:1"
+        }, {
+            "type_name": "Autogrill",
+            "CategoryId": "1101040:1"
+        }, {
+            "type_name": "Paninoteca",
+            "CategoryId": "1101041:1"
+        }, {
+            "type_name": "Ristorante di pesce",
+            "CategoryId": "1101042:1"
+        }, {
+            "type_name": "Ristorante spagnolo",
+            "CategoryId": "1101043:1"
+        }, {
+            "type_name": "Steak House",
+            "CategoryId": "1101044:1"
+        }, {
+            "type_name": "Ristorante surinamese",
+            "CategoryId": "1101045:1"
+        }, {
+            "type_name": "Ristorante svizzero",
+            "CategoryId": "1101046:1"
+        }, {
+            "type_name": "Ristorante thai",
+            "CategoryId": "1101047:1"
+        }, {
+            "type_name": "Ristorante turco",
+            "CategoryId": "1101048:1"
+        }, {
+            "type_name": "Ristorante vegetariano",
+            "CategoryId": "1101049:1"
+        }, {
+            "type_name": "Ristorante vietnamita",
+            "CategoryId": "1101050:1"
+        }, {
+            "type_name": "Ristorante cinese Hunan",
+            "CategoryId": "1101051:1"
+        }, {
+            "type_name": "Ristorante cinese Shandong",
+            "CategoryId": "1101052:1"
+        }, {
+            "type_name": "Ristorante cinese Guangdong",
+            "CategoryId": "1101053:1"
+        }, {
+            "type_name": "Ristorante cinese Shanghai",
+            "CategoryId": "1101054:1"
+        }, {
+            "type_name": "Ristorante cinese Sichuan",
+            "CategoryId": "1101055:1"
+        }, {
+            "type_name": "Ristorante cinese Nord-est",
+            "CategoryId": "1101056:1"
+        }, {
+            "type_name": "Ristorante cinese Hot Pot",
+            "CategoryId": "1101057:1"
+        }, {
+            "type_name": "Ristorante di cucina taiwanese",
+            "CategoryId": "1101058:1"
+        }, {
+            "type_name": "Cucina continentale",
+            "CategoryId": "1101059:1"
+        }, {
+            "type_name": "Ristorante peruviano",
+            "CategoryId": "1101060:1"
+        }, {
+            "type_name": "Ristorante asiatico",
+            "CategoryId": "1101061:1"
+        }, {
+            "type_name": "Ristorante creolo-cajun",
+            "CategoryId": "1101062:1"
+        }, {
+            "type_name": "Ristorante afroamericano",
+            "CategoryId": "1101063:1"
+        }, {
+            "type_name": "Ristorante irlandese",
+            "CategoryId": "1101064:1"
+        }, {
+            "type_name": "Ristorante giamaicano",
+            "CategoryId": "1101065:1"
+        }, {
+            "type_name": "Ristorante kosher",
+            "CategoryId": "1101066:1"
+        }, {
+            "type_name": "Ristorante ceco",
+            "CategoryId": "1101067:1"
+        }, {
+            "type_name": "Hamburgeria",
+            "CategoryId": "1101068:1"
+        }, {
+            "type_name": "Specialità di pollo",
+            "CategoryId": "1101069:1"
+        }, {
+            "type_name": "Ristorante fusion",
+            "CategoryId": "1101070:1"
+        }, {
+            "type_name": "Ristorante brasiliano",
+            "CategoryId": "1101071:1"
+        }, {
+            "type_name": "Hotel internazionale",
+            "CategoryId": "1101072:1"
+        }, {
+            "type_name": "Ristorante marocchino",
+            "CategoryId": "1101073:1"
+        }, {
+            "type_name": "Ristorante biologico",
+            "CategoryId": "1101074:1"
+        }, {
+            "type_name": "Ristorante di tapas",
+            "CategoryId": "1101075:1"
+        }, {
+            "type_name": "Gelateria",
+            "CategoryId": "1101076:1"
+        }, {
+            "type_name": "Pasticceria",
+            "CategoryId": "1101077:1"
+        }, {
+            "type_name": "Ristorante slovacco",
+            "CategoryId": "1101078:1"
+        }, {
+            "type_name": "Ristorante afgano",
+            "CategoryId": "1101079:1"
+        }, {
+            "type_name": "Ristorante algerino",
+            "CategoryId": "1101080:1"
+        }, {
+            "type_name": "Ristorante arabo",
+            "CategoryId": "1101081:1"
+        }, {
+            "type_name": "Ristorante argentino",
+            "CategoryId": "1101082:1"
+        }, {
+            "type_name": "Ristorante armeno",
+            "CategoryId": "1101083:1"
+        }, {
+            "type_name": "Ristorante australiano",
+            "CategoryId": "1101084:1"
+        }, {
+            "type_name": "Ristorante basco",
+            "CategoryId": "1101085:1"
+        }, {
+            "type_name": "Ristorante boliviano",
+            "CategoryId": "1101086:1"
+        }, {
+            "type_name": "Ristorante bosniaco",
+            "CategoryId": "1101087:1"
+        }, {
+            "type_name": "Ristorante bulgaro",
+            "CategoryId": "1101088:1"
+        }, {
+            "type_name": "Ristorante birmano",
+            "CategoryId": "1101089:1"
+        }, {
+            "type_name": "Ristorante cambogiano",
+            "CategoryId": "1101090:1"
+        }, {
+            "type_name": "Ristorante cileno",
+            "CategoryId": "1101091:1"
+        }, {
+            "type_name": "Ristorante colombiano",
+            "CategoryId": "1101092:1"
+        }, {
+            "type_name": "Ristorante corso",
+            "CategoryId": "1101093:1"
+        }, {
+            "type_name": "Ristorante cubano",
+            "CategoryId": "1101094:1"
+        }, {
+            "type_name": "Ristorante cipriota",
+            "CategoryId": "1101095:1"
+        }, {
+            "type_name": "Ristorante danese",
+            "CategoryId": "1101096:1"
+        }, {
+            "type_name": "Ristorante dominicano",
+            "CategoryId": "1101097:1"
+        }, {
+            "type_name": "Ristorante egiziano",
+            "CategoryId": "1101098:1"
+        }, {
+            "type_name": "Ristorante inglese",
+            "CategoryId": "1101099:1"
+        }, {
+            "type_name": "Ristorante etiope",
+            "CategoryId": "1101100:1"
+        }, {
+            "type_name": "Ristorante finlandese",
+            "CategoryId": "1101101:1"
+        }, {
+            "type_name": "Ristorante iraniano",
+            "CategoryId": "1101102:1"
+        }, {
+            "type_name": "Ristorante israelita",
+            "CategoryId": "1101103:1"
+        }, {
+            "type_name": "Ristorante lussemburghese",
+            "CategoryId": "1101104:1"
+        }, {
+            "type_name": "Ristorante magrebino",
+            "CategoryId": "1101105:1"
+        }, {
+            "type_name": "Ristorante mauritano",
+            "CategoryId": "1101106:1"
+        }, {
+            "type_name": "Ristorante mongolo",
+            "CategoryId": "1101107:1"
+        }, {
+            "type_name": "Ristorante nepalese",
+            "CategoryId": "1101108:1"
+        }, {
+            "type_name": "Ristorante norvegese",
+            "CategoryId": "1101109:1"
+        }, {
+            "type_name": "Ristorante sabaudo",
+            "CategoryId": "1101110:1"
+        }, {
+            "type_name": "Ristorante scandinavo",
+            "CategoryId": "1101111:1"
+        }, {
+            "type_name": "Ristorante scozzese",
+            "CategoryId": "1101112:1"
+        }, {
+            "type_name": "Ristorante siciliano",
+            "CategoryId": "1101113:1"
+        }, {
+            "type_name": "Ristorante slavo",
+            "CategoryId": "1101114:1"
+        }, {
+            "type_name": "Ristorante sudanese",
+            "CategoryId": "1101115:1"
+        }, {
+            "type_name": "Ristorante svedese",
+            "CategoryId": "1101116:1"
+        }, {
+            "type_name": "Ristorante siriano",
+            "CategoryId": "1101117:1"
+        }, {
+            "type_name": "Ristorante giapponese teppanyakki",
+            "CategoryId": "1101118:1"
+        }, {
+            "type_name": "Ristorante tibetano",
+            "CategoryId": "1101119:1"
+        }, {
+            "type_name": "Ristorante tunisino",
+            "CategoryId": "1101120:1"
+        }, {
+            "type_name": "Ristorante uruguaiano",
+            "CategoryId": "1101121:1"
+        }, {
+            "type_name": "Ristorante venezuelano",
+            "CategoryId": "1101122:1"
+        }, {
+            "type_name": "Ristorante gallese",
+            "CategoryId": "1101123:1"
+        }, {
+            "type_name": "Ristorante pachistano",
+            "CategoryId": "1101124:1"
+        }, {
+            "type_name": "Ristorante polinesiano",
+            "CategoryId": "1101125:1"
+        }, {
+            "type_name": "Ristorante provenzale",
+            "CategoryId": "1101126:1"
+        }, {
+            "type_name": "Ristorante romeno",
+            "CategoryId": "1101127:1"
+        }, {
+            "type_name": "Ristorante esotico",
+            "CategoryId": "1101129:1"
+        }, {
+            "type_name": "Ristorante di fonduta",
+            "CategoryId": "1101130:1"
+        }, {
+            "type_name": "Ristorante macrobiotico",
+            "CategoryId": "1101131:1"
+        }, {
+            "type_name": "Specialità con mitili",
+            "CategoryId": "1101132:1"
+        }, {
+            "type_name": "Bar",
+            "CategoryId": "1101133:1"
+        }, {
+            "type_name": "Specialità zuppe",
+            "CategoryId": "1101134:1"
+        }, {
+            "type_name": "Buffet",
+            "CategoryId": "1101135:1"
+        }, {
+            "type_name": "Buffet di insalate",
+            "CategoryId": "1101136:1"
+        }, {
+            "type_name": "Ristorante da asporto",
+            "CategoryId": "1101137:1"
+        }, {
+            "type_name": "Sala banchetti",
+            "CategoryId": "1101138:1"
+        }, {
+            "type_name": "Caffetteria",
+            "CategoryId": "1101139:1"
+        }, {
+            "type_name": "Ristorante di sushi",
+            "CategoryId": "1101140:1"
+        }, {
+            "type_name": "Yogurteria/succhi di frutta",
+            "CategoryId": "1101141:1"
+        }, {
+            "type_name": "Caffè",
+            "CategoryId": "1102001:1"
+        }, {
+            "type_name": "Pub",
+            "CategoryId": "1102002:1"
+        }, {
+            "type_name": "Internet café",
+            "CategoryId": "1102003:1"
+        }, {
+            "type_name": "Sala da tè",
+            "CategoryId": "1102004:1"
+        }, {
+            "type_name": "Caffetteria",
+            "CategoryId": "1102005:1"
+        }, {
+            "type_name": "Microbirrificio/Birreria all'aperto",
+            "CategoryId": "1102006:1"
+        }, {
+            "type_name": "Grande magazzino",
+            "CategoryId": "1201000:1"
+        }, {
+            "type_name": "Centro commerciale",
+            "CategoryId": "1202000:1"
+        }, {
+            "type_name": "Mercato delle pulci",
+            "CategoryId": "1203001:1"
+        }, {
+            "type_name": "Mercato rionale",
+            "CategoryId": "1203002:1"
+        }, {
+            "type_name": "Mercato ortofrutticolo",
+            "CategoryId": "1203003:1"
+        }, {
+            "type_name": "Supermercato e ipermercato",
+            "CategoryId": "1203004:1"
+        }, {
+            "type_name": "Mercato di generi alimentari",
+            "CategoryId": "1203005:1"
+        }, {
+            "type_name": "Negozio di alimentari",
+            "CategoryId": "1204001:1"
+        }, {
+            "type_name": "Libreria",
+            "CategoryId": "1205001:1"
+        }, {
+            "type_name": "Negozio di CD/ DVD e video",
+            "CategoryId": "1205002:1"
+        }, {
+            "type_name": "Negozio di abbigliamento e accessori",
+            "CategoryId": "1205003:1"
+        }, {
+            "type_name": "Lavanderie a secco",
+            "CategoryId": "1205004:1"
+        }, {
+            "type_name": "Elettrodomestici",
+            "CategoryId": "1205005:1"
+        }, {
+            "type_name": "Agenzia immobiliare",
+            "CategoryId": "1205006:1"
+        }, {
+            "type_name": "Outlet",
+            "CategoryId": "1205007:1"
+        }, {
+            "type_name": "Fiorai",
+            "CategoryId": "1205008:1"
+        }, {
+            "type_name": "Alimentari e bibite",
+            "CategoryId": "1205009:1"
+        }, {
+            "type_name": "Articoli da regalo",
+            "CategoryId": "1205010:1"
+        }, {
+            "type_name": "Parrucchiere e barbiere",
+            "CategoryId": "1205011:1"
+        }, {
+            "type_name": "Piccoli elettrodomestici",
+            "CategoryId": "1205012:1"
+        }, {
+            "type_name": "Gioielleria/ orologeria",
+            "CategoryId": "1205013:1"
+        }, {
+            "type_name": "Negozio di ottica",
+            "CategoryId": "1205015:1"
+        }, {
+            "type_name": "Negozio di articoli sportivi",
+            "CategoryId": "1205016:1"
+        }, {
+            "type_name": "Negozio di giocattoli e videogame",
+            "CategoryId": "1205017:1"
+        }, {
+            "type_name": "Agenzia di viaggi",
+            "CategoryId": "1205018:1"
+        }, {
+            "type_name": "Negozio di materiali e attrezzature per l'edilizia",
+            "CategoryId": "1205019:1"
+        }, {
+            "type_name": "Negozio di forniture e apparecchiature medicali",
+            "CategoryId": "1205020:1"
+        }, {
+            "type_name": "Lavanderia/Tintoria",
+            "CategoryId": "1205021:1"
+        }, {
+            "type_name": "Negozio di fotografia",
+            "CategoryId": "1205022:1"
+        }, {
+            "type_name": "Copisteria",
+            "CategoryId": "1205023:1"
+        }, {
+            "type_name": "Negozio specializzato per animali domestici",
+            "CategoryId": "1205024:1"
+        }, {
+            "type_name": "Negozio di antichità/Arte",
+            "CategoryId": "1205025:1"
+        }, {
+            "type_name": "Profumeria",
+            "CategoryId": "1205026:1"
+        }, {
+            "type_name": "Emporio",
+            "CategoryId": "1205027:1"
+        }, {
+            "type_name": "Negozio di hobbistica",
+            "CategoryId": "1205028:1"
+        }, {
+            "type_name": "Negozio di arredamento",
+            "CategoryId": "1205029:1"
+        }, {
+            "type_name": "Negozio di vetro e ceramica",
+            "CategoryId": "1205030:1"
+        }, {
+            "type_name": "Negozio di artigianato locale",
+            "CategoryId": "1205031:1"
+        }, {
+            "type_name": "Negozio dell'usato",
+            "CategoryId": "1205032:1"
+        }, {
+            "type_name": "Negozio di borse e pelletteria",
+            "CategoryId": "1205033:1"
+        }, {
+            "type_name": "Negozio di strumenti musicali",
+            "CategoryId": "1205034:1"
+        }, {
+            "type_name": "Centro di assistenza acquisti",
+            "CategoryId": "1205035:1"
+        }, {
+            "type_name": "Hard discount",
+            "CategoryId": "1205036:1"
+        }, {
+            "type_name": "Salone di bellezza",
+            "CategoryId": "1205037:1"
+        }, {
+            "type_name": "Salone di manicure",
+            "CategoryId": "1205038:1"
+        }, {
+            "type_name": "Ferramenta",
+            "CategoryId": "1205039:1"
+        }, {
+            "type_name": "Banco dei pegni",
+            "CategoryId": "1205040:1"
+        }, {
+            "type_name": "Rivendita di biglietti della lotteria",
+            "CategoryId": "1205041:1"
+        }, {
+            "type_name": "Punto scommesse",
+            "CategoryId": "1205042:1"
+        }, {
+            "type_name": "Negozio di prodotti agricoli",
+            "CategoryId": "1205043:1"
+        }, {
+            "type_name": "Tabaccheria e valori bollati",
+            "CategoryId": "1205044:1"
+        }, {
+            "type_name": "Sartoria",
+            "CategoryId": "1205046:1"
+        }, {
+            "type_name": "Negozio di allarmi e antifurto",
+            "CategoryId": "1205047:1"
+        }, {
+            "type_name": "Negozio di accessori",
+            "CategoryId": "1205048:1"
+        }, {
+            "type_name": "Negozio di articoli natalizi",
+            "CategoryId": "1205049:1"
+        }, {
+            "type_name": "Negozio di attrezzature e accessori per la nautica",
+            "CategoryId": "1205050:1"
+        }, {
+            "type_name": "Negozio di articoli e servizi per l'ufficio",
+            "CategoryId": "1205052:1"
+        }, {
+            "type_name": "Parco divertimenti",
+            "CategoryId": "1302000:1"
+        }, {
+            "type_name": "Sala giochi",
+            "CategoryId": "1302001:1"
+        }, {
+            "type_name": "Campo di battaglia",
+            "CategoryId": "1303003:1"
+        }, {
+            "type_name": "Cimitero",
+            "CategoryId": "1303004:1"
+        }, {
+            "type_name": "Sito storico",
+            "CategoryId": "1303005:1"
+        }, {
+            "type_name": "Parco storico",
+            "CategoryId": "1303006:1"
+        }, {
+            "type_name": "Lungolago",
+            "CategoryId": "1303007:1"
+        }, {
+            "type_name": "Monumento commemorativo",
+            "CategoryId": "1303008:1"
+        }, {
+            "type_name": "Strada panoramica",
+            "CategoryId": "1303009:1"
+        }, {
+            "type_name": "Riserva naturale",
+            "CategoryId": "1303010:1"
+        }, {
+            "type_name": "Litorale",
+            "CategoryId": "1303011:1"
+        }, {
+            "type_name": "Area naturalistica",
+            "CategoryId": "1303012:1"
+        }, {
+            "type_name": "Area boschiva",
+            "CategoryId": "1303013:1"
+        }, {
+            "type_name": "Area di caccia e pesca",
+            "CategoryId": "1303014:1"
+        }, {
+            "type_name": "Luna Park",
+            "CategoryId": "1303015:1"
+        }, {
+            "type_name": "Area sport invernali",
+            "CategoryId": "1303016:1"
+        }, {
+            "type_name": "Stazione sciistica",
+            "CategoryId": "1303017:1"
+        }, {
+            "type_name": "Attrazione naturalistica",
+            "CategoryId": "1303018:1"
+        }, {
+            "type_name": "Rampa di accesso imbarcazioni",
+            "CategoryId": "1303019:1"
+        }, {
+            "type_name": "Area picnic",
+            "CategoryId": "1303020:1"
+        }, {
+            "type_name": "Parco fluviale",
+            "CategoryId": "1303021:1"
+        }, {
+            "type_name": "Area protetta",
+            "CategoryId": "1303022:1"
+        }, {
+            "type_name": "Arboreto e giardini botanici",
+            "CategoryId": "1304001:1"
+        }, {
+            "type_name": "Zoo",
+            "CategoryId": "1304002:1"
+        }, {
+            "type_name": "Acquario e parco marino",
+            "CategoryId": "1304003:1"
+        }, {
+            "type_name": "Parco naturale",
+            "CategoryId": "1304004:1"
+        }, {
+            "type_name": "Centro massaggi/ solarium e sauna",
+            "CategoryId": "1305001:1"
+        }, {
+            "type_name": "Sala da biliardo",
+            "CategoryId": "1305002:1"
+        }, {
+            "type_name": "Centro benessere",
+            "CategoryId": "1305003:1"
+        }, {
+            "type_name": "Aeroclub",
+            "CategoryId": "1305004:1"
+        }, {
+            "type_name": null,
+            "CategoryId": "1306001:1"
+        }, {
+            "type_name": "Bar",
+            "CategoryId": "1306002:1"
+        }, {
+            "type_name": "Intrattenimento/Cabaret/Spettacoli dal vivo",
+            "CategoryId": "1306003:1"
+        }, {
+            "type_name": "Museo",
+            "CategoryId": "1307000:1"
+        }, {
+            "type_name": "Museo delle scienze",
+            "CategoryId": "1307001:1"
+        }, {
+            "type_name": "Museo per bambini",
+            "CategoryId": "1307002:1"
+        }, {
+            "type_name": "Museo di storia",
+            "CategoryId": "1307003:1"
+        }, {
+            "type_name": "Museo d'arte",
+            "CategoryId": "1307004:1"
+        }, {
+            "type_name": "Biblioteca",
+            "CategoryId": "1308000:1"
+        }, {
+            "type_name": "Teatro",
+            "CategoryId": "1309001:1"
+        }, {
+            "type_name": "Sala concerti",
+            "CategoryId": "1309002:1"
+        }, {
+            "type_name": "Centro musicale",
+            "CategoryId": "1309003:1"
+        }, {
+            "type_name": "Opera",
+            "CategoryId": "1309004:1"
+        }, {
+            "type_name": "Cabaret",
+            "CategoryId": "1309005:1"
+        }, {
+            "type_name": "Anfiteatro",
+            "CategoryId": "1309006:1"
+        }, {
+            "type_name": "Cena con spettacolo",
+            "CategoryId": "1309007:1"
+        }, {
+            "type_name": "Cinema",
+            "CategoryId": "1310001:1"
+        }, {
+            "type_name": "Cinema drive-in",
+            "CategoryId": "1310002:1"
+        }, {
+            "type_name": "Casinò",
+            "CategoryId": "1311000:1"
+        }, {
+            "type_name": "Club e associazioni",
+            "CategoryId": "1312000:1"
+        }, {
+            "type_name": "Stabilimento balneare",
+            "CategoryId": "1312001:1"
+        }, {
+            "type_name": "Club di hockey",
+            "CategoryId": "1312002:1"
+        }, {
+            "type_name": "Club automobilistico",
+            "CategoryId": "1312003:1"
+        }, {
+            "type_name": "Sentiero per mountain bike",
+            "CategoryId": "1313001:1"
+        }, {
+            "type_name": "Sentiero per fuoristrada",
+            "CategoryId": "1313002:1"
+        }, {
+            "type_name": "Sentiero escursionistico",
+            "CategoryId": "1313003:1"
+        }, {
+            "type_name": "Sentiero a cavallo",
+            "CategoryId": "1313004:1"
+        }, {
+            "type_name": "Sentiero per arrampicata",
+            "CategoryId": "1313005:1"
+        }, {
+            "type_name": "Skilift",
+            "CategoryId": "1313006:1"
+        }, {
+            "type_name": "Centro sociale",
+            "CategoryId": "1314000:1"
+        }, {
+            "type_name": "Centro culturale",
+            "CategoryId": "1315000:1"
+        }, {
+            "type_name": "Galleria",
+            "CategoryId": "1315001:1"
+        }, {
+            "type_name": "Porto turistico",
+            "CategoryId": "1316000:1"
+        }, {
+            "type_name": "Porto turistico",
+            "CategoryId": "1316001:1"
+        }, {
+            "type_name": "Molo",
+            "CategoryId": "1316002:1"
+        }, {
+            "type_name": "Enoteca",
+            "CategoryId": "1317000:1"
+        }, {
+            "type_name": "Centro sportivo",
+            "CategoryId": "1401001:1"
+        }, {
+            "type_name": "Centro fitness/Palestra",
+            "CategoryId": "1401002:1"
+        }, {
+            "type_name": "Maneggio",
+            "CategoryId": "1401003:1"
+        }, {
+            "type_name": "Palazzetto dello sport",
+            "CategoryId": "1401004:1"
+        }, {
+            "type_name": "Campo da squash",
+            "CategoryId": "1401005:1"
+        }, {
+            "type_name": "Bowling",
+            "CategoryId": "1401006:1"
+        }, {
+            "type_name": "Poligono di tiro",
+            "CategoryId": "1401007:1"
+        }, {
+            "type_name": "Stadio di atletica",
+            "CategoryId": "1402001:1"
+        }, {
+            "type_name": "Campo da cricket",
+            "CategoryId": "1402002:1"
+        }, {
+            "type_name": "Campo da calcio",
+            "CategoryId": "1402003:1"
+        }, {
+            "type_name": "Ippodromo",
+            "CategoryId": "1402004:1"
+        }, {
+            "type_name": "Stadio polifunzionale",
+            "CategoryId": "1402005:1"
+        }, {
+            "type_name": "Campo da rugby",
+            "CategoryId": "1402006:1"
+        }, {
+            "type_name": "Campo da hockey su ghiaccio",
+            "CategoryId": "1402007:1"
+        }, {
+            "type_name": "Campo da baseball",
+            "CategoryId": "1402008:1"
+        }, {
+            "type_name": "Campo da football americano",
+            "CategoryId": "1402009:1"
+        }, {
+            "type_name": "Circuito per sport motoristici",
+            "CategoryId": "1402010:1"
+        }, {
+            "type_name": "Campo da basket",
+            "CategoryId": "1402011:1"
+        }, {
+            "type_name": "Circuito di gara",
+            "CategoryId": "1402012:1"
+        }, {
+            "type_name": "Campo da netball",
+            "CategoryId": "1402013:1"
+        }, {
+            "type_name": "Campo da hockey",
+            "CategoryId": "1402014:1"
+        }, {
+            "type_name": "Campo da badminton",
+            "CategoryId": "1402015:1"
+        }, {
+            "type_name": "Sala da tennis tavolo",
+            "CategoryId": "1402016:1"
+        }, {
+            "type_name": "Campo da golf",
+            "CategoryId": "1403000:1"
+        }, {
+            "type_name": "Pista di pattinaggio su ghiaccio",
+            "CategoryId": "1404000:1"
+        }, {
+            "type_name": "Piscina",
+            "CategoryId": "1405000:1"
+        }, {
+            "type_name": "Campo da tennis",
+            "CategoryId": "1406000:1"
+        }, {
+            "type_name": "Centro immersioni",
+            "CategoryId": "1407001:1"
+        }, {
+            "type_name": "Ufficio informazioni turistiche",
+            "CategoryId": "1501000:1"
+        }, {
+            "type_name": "Edificio",
+            "CategoryId": "1502001:1"
+        }, {
+            "type_name": "Monumento",
+            "CategoryId": "1502002:1"
+        }, {
+            "type_name": "Attrazione naturalistica",
+            "CategoryId": "1502003:1"
+        }, {
+            "type_name": "Osservatorio",
+            "CategoryId": "1502004:1"
+        }, {
+            "type_name": "Planetario",
+            "CategoryId": "1502005:1"
+        }, {
+            "type_name": "Diga",
+            "CategoryId": "1502006:1"
+        }, {
+            "type_name": "Tunnel",
+            "CategoryId": "1502007:1"
+        }, {
+            "type_name": "Torre",
+            "CategoryId": "1502008:1"
+        }, {
+            "type_name": "Ponte",
+            "CategoryId": "1502009:1"
+        }, {
+            "type_name": "Mausoleo/Tomba",
+            "CategoryId": "1502010:1"
+        }, {
+            "type_name": "Arco",
+            "CategoryId": "1502011:1"
+        }, {
+            "type_name": "Statua",
+            "CategoryId": "1502012:1"
+        }, {
+            "type_name": "Sorgente",
+            "CategoryId": "1502013:1"
+        }, {
+            "type_name": "Enoteca",
+            "CategoryId": "1502014:1"
+        }, {
+            "type_name": "Chiesa",
+            "CategoryId": "1503001:1"
+        }, {
+            "type_name": "Moschea",
+            "CategoryId": "1503002:1"
+        }, {
+            "type_name": "Sinagoga",
+            "CategoryId": "1503003:1"
+        }, {
+            "type_name": "Tempio",
+            "CategoryId": "1503004:1"
+        }, {
+            "type_name": "Gurudwara",
+            "CategoryId": "1503005:1"
+        }, {
+            "type_name": "Ashram",
+            "CategoryId": "1503006:1"
+        }, {
+            "type_name": "Pagoda",
+            "CategoryId": "1503007:1"
+        }, {
+            "type_name": "Santuario shintoista",
+            "CategoryId": "1503008:1"
+        }, {
+            "type_name": "Tempio indù",
+            "CategoryId": "1503009:1"
+        }, {
+            "type_name": "Tempio buddista",
+            "CategoryId": "1503010:1"
+        }, {
+            "type_name": "Tempio giainista",
+            "CategoryId": "1503011:1"
+        }, {
+            "type_name": "Chiesa mormone",
+            "CategoryId": "1503012:1"
+        }, {
+            "type_name": "Tempio Dharma",
+            "CategoryId": "1503013:1"
+        }, {
+            "type_name": "Spiaggia",
+            "CategoryId": "1504000:1"
+        }, {
+            "type_name": "Centro sport estremi",
+            "CategoryId": "1505000:1"
+        }, {
+            "type_name": "Piattaforma di osservazione",
+            "CategoryId": "1506000:1"
+        }, {
+            "type_name": "Ospedale generale",
+            "CategoryId": "1601001:1"
+        }, {
+            "type_name": "Ospedale specialistico",
+            "CategoryId": "1601002:1"
+        }, {
+            "type_name": "Ospedale di medicina cinese",
+            "CategoryId": "1601003:1"
+        }, {
+            "type_name": "Ospedale pediatrico e maternità",
+            "CategoryId": "1601004:1"
+        }, {
+            "type_name": "Centro di assistenza sanitaria",
+            "CategoryId": "1602001:1"
+        }, {
+            "type_name": "Istituto per la cura della persona",
+            "CategoryId": "1602002:1"
+        }, {
+            "type_name": "Banca del sangue",
+            "CategoryId": "1602003:1"
+        }, {
+            "type_name": "Ambulanza",
+            "CategoryId": "1602004:1"
+        }, {
+            "type_name": "Casa di riposo",
+            "CategoryId": "1602005:1"
+        }, {
+            "type_name": "Farmacia",
+            "CategoryId": "1603000:1"
+        }, {
+            "type_name": "Ambulatorio odontoiatrico",
+            "CategoryId": "1604000:1"
+        }, {
+            "type_name": "Pronto soccorso",
+            "CategoryId": "1605000:1"
+        }, {
+            "type_name": "Ambulatorio di fisioterapia",
+            "CategoryId": "1606001:1"
+        }, {
+            "type_name": "Poliambulatorio",
+            "CategoryId": "1606002:1"
+        }, {
+            "type_name": "Ambulatorio specialistico",
+            "CategoryId": "1606003:1"
+        }, {
+            "type_name": "Ambulatorio veterinario",
+            "CategoryId": "1607000:1"
+        }, {
+            "type_name": "Complesso residenziale",
+            "CategoryId": "1701001:1"
+        }, {
+            "type_name": "Complesso di appartamenti",
+            "CategoryId": "1701002:1"
+        }, {
+            "type_name": "Complesso di villette",
+            "CategoryId": "1701003:1"
+        }, {
+            "type_name": "Struttura per pensionati",
+            "CategoryId": "1701004:1"
+        }, {
+            "type_name": "Complesso condominiale",
+            "CategoryId": "1701005:1"
+        }, {
+            "type_name": "Bed & Breakfast e pensioni",
+            "CategoryId": "1702001:1"
+        }, {
+            "type_name": "Resort",
+            "CategoryId": "1702004:1"
+        }, {
+            "type_name": "Motel",
+            "CategoryId": "1702005:1"
+        }, {
+            "type_name": "Chalet e bungalow",
+            "CategoryId": "1702006:1"
+        }, {
+            "type_name": "Campi sosta",
+            "CategoryId": "1702007:1"
+        }, {
+            "type_name": "Area di sosta",
+            "CategoryId": "1704001:1"
+        }, {
+            "type_name": "Area camper",
+            "CategoryId": "1704002:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902000:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902001:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902002:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902003:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902004:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902005:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902006:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902007:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902008:1"
+        }, {
+            "type_name": "Ufficio pubblico",
+            "CategoryId": "1902009:1"
+        }, {
+            "type_name": "Organizzazione nazionale",
+            "CategoryId": "1902010:1"
+        }, {
+            "type_name": "Organizzazione internazionale",
+            "CategoryId": "1902011:1"
+        }, {
+            "type_name": "Municipio",
+            "CategoryId": "1902012:1"
+        }, {
+            "type_name": "Amministrazione provinciale",
+            "CategoryId": "1902013:1"
+        }, {
+            "type_name": "Centro civico/sociale",
+            "CategoryId": "1902014:1"
+        }, {
+            "type_name": "Amministrazione cittadina",
+            "CategoryId": "1902015:1"
+        }, {
+            "type_name": "Vigili del fuoco/pompieri",
+            "CategoryId": "1903000:1"
+        }, {
+            "type_name": "Stazione di polizia",
+            "CategoryId": "1904001:1"
+        }, {
+            "type_name": "Stazione di polizia",
+            "CategoryId": "1904002:1"
+        }, {
+            "type_name": "Stazione di polizia",
+            "CategoryId": "1904003:1"
+        }, {
+            "type_name": "Ufficio postale centrale",
+            "CategoryId": "1905001:1"
+        }, {
+            "type_name": "Ufficio postale locale",
+            "CategoryId": "1905002:1"
+        }, {
+            "type_name": "Palazzo di giustizia",
+            "CategoryId": "1906000:1"
+        }, {
+            "type_name": "Ambasciata",
+            "CategoryId": "1907000:1"
+        }, {
+            "type_name": "Dipartimento per il controllo del traffico",
+            "CategoryId": "1908000:1"
+        }, {
+            "type_name": "Ufficio di motorizzazione",
+            "CategoryId": "1909000:1"
+        }, {
+            "type_name": "Base militare",
+            "CategoryId": "1910000:1"
+        }, {
+            "type_name": "College/Università",
+            "CategoryId": "1911001:1"
+        }, {
+            "type_name": "Università/Scuola di alta formazione",
+            "CategoryId": "1911002:1"
+        }, {
+            "type_name": "Asilo nido",
+            "CategoryId": "1911003:1"
+        }, {
+            "type_name": "Scuola materna",
+            "CategoryId": "1911004:1"
+        }, {
+            "type_name": "Scuola primaria",
+            "CategoryId": "1911005:1"
+        }, {
+            "type_name": "Scuola secondaria di I grado",
+            "CategoryId": "1911006:1"
+        }, {
+            "type_name": "Scuola secondaria di II grado",
+            "CategoryId": "1911007:1"
+        }, {
+            "type_name": "Centro di formazione professionale",
+            "CategoryId": "1911008:1"
+        }, {
+            "type_name": "Istituto tecnico",
+            "CategoryId": "1911009:1"
+        }, {
+            "type_name": "Liceo linguistico",
+            "CategoryId": "1911010:1"
+        }, {
+            "type_name": "Liceo sportivo",
+            "CategoryId": "1911011:1"
+        }, {
+            "type_name": "Liceo artistico",
+            "CategoryId": "1911012:1"
+        }, {
+            "type_name": "Scuola speciale",
+            "CategoryId": "1911013:1"
+        }, {
+            "type_name": "Scuola media",
+            "CategoryId": "1911014:1"
+        }, {
+            "type_name": "Scuola di cucina",
+            "CategoryId": "1911015:1"
+        }, {
+            "type_name": "Scuola guida",
+            "CategoryId": "1911016:1"
+        }, {
+            "type_name": "Scuola di danza",
+            "CategoryId": "1911017:1"
+        }, {
+            "type_name": "Scuola",
+            "CategoryId": "1911018:1"
+        }, {
+            "type_name": "Biglietteria trasporto passeggeri",
+            "CategoryId": "1912001:1"
+        }, {
+            "type_name": "Sottopassaggio",
+            "CategoryId": "1912002:1"
+        }, {
+            "type_name": "Cabina telefonica pubblica",
+            "CategoryId": "1912003:1"
+        }, {
+            "type_name": "Colonnina di soccorso stradale",
+            "CategoryId": "1912005:1"
+        }, {
+            "type_name": "Organizzazione assistenziale",
+            "CategoryId": "1913001:1"
+        }, {
+            "type_name": "Organizzazione non governativa",
+            "CategoryId": "1913002:1"
+        }, {
+            "type_name": "Centro di detenzione",
+            "CategoryId": "1915000:1"
+        }, {
+            "type_name": "Punto di raccolta di emergenza",
+            "CategoryId": "1916000:1"
+        }, {
+            "type_name": "Punto di raccolta emergenza tsunami",
+            "CategoryId": "1916001:1"
+        }, {
+            "type_name": "Punto di raccolta emergenza antincendio",
+            "CategoryId": "1916002:1"
+        }, {
+            "type_name": "Punto di raccolta emergenza terremoto ",
+            "CategoryId": "1916003:1"
+        }, {
+            "type_name": "Punto di raccolta emergenza eruzione vulcanica",
+            "CategoryId": "1916004:1"
+        }, {
+            "type_name": "Punto di raccolta emergenza alluvione",
+            "CategoryId": "1916005:1"
+        }, {
+            "type_name": "Banca",
+            "CategoryId": "2001000:1"
+        }, {
+            "type_name": "Bancomat",
+            "CategoryId": "2002000:1"
+        }, {
+            "type_name": "Centro congressi e fiere",
+            "CategoryId": "2005000:1"
+        }, {
+            "type_name": "Cambiavalute",
+            "CategoryId": "2010003:1"
+        }, {
+            "type_name": "Punto di ritiro corriere",
+            "CategoryId": "2011000:1"
+        }, {
+            "type_name": "Centro di assistenza medica di emergenza",
+            "CategoryId": "2013000:1"
+        }, {
+            "type_name": "Noleggio auto",
+            "CategoryId": "2108001:1"
+        }, {
+            "type_name": "Punto di ritiro e consegna",
+            "CategoryId": "2108002:1"
+        }, {
+            "type_name": "Rivenditore di auto",
+            "CategoryId": "2109001:1"
+        }, {
+            "type_name": "Rivenditore di moto",
+            "CategoryId": "2109002:1"
+        }, {
+            "type_name": "Rivenditore di imbarcazioni",
+            "CategoryId": "2109003:1"
+        }, {
+            "type_name": "Rivenditore di camper",
+            "CategoryId": "2109004:1"
+        }, {
+            "type_name": "Rivenditore di camion",
+            "CategoryId": "2109005:1"
+        }, {
+            "type_name": "Rivenditore di furgoni",
+            "CategoryId": "2109006:1"
+        }, {
+            "type_name": "Rivenditore di autobus",
+            "CategoryId": "2109007:1"
+        }, {
+            "type_name": "Rivenditore di quad/motoslitte",
+            "CategoryId": "2109008:1"
+        }, {
+            "type_name": "Rivenditore di auto usate",
+            "CategoryId": "2109009:1"
+        }, {
+            "type_name": "Carrozzerie",
+            "CategoryId": "2110001:1"
+        }, {
+            "type_name": "Officina di riparazione parabrezza",
+            "CategoryId": "2110002:1"
+        }, {
+            "type_name": "Centro servizi di riparazione auto",
+            "CategoryId": "2110003:1"
+        }, {
+            "type_name": "Autofficina",
+            "CategoryId": "2110004:1"
+        }, {
+            "type_name": "Negozio di accessori per auto",
+            "CategoryId": "2110005:1"
+        }, {
+            "type_name": "Gommista",
+            "CategoryId": "2110006:1"
+        }, {
+            "type_name": "Motofficina",
+            "CategoryId": "2110007:1"
+        }, {
+            "type_name": "Officina di riparazione veicoli industriali",
+            "CategoryId": "2110008:1"
+        }, {
+            "type_name": "Area di servizio per camion",
+            "CategoryId": "2111000:1"
+        }, {
+            "type_name": "Ufficio pratiche automobilistiche",
+            "CategoryId": "2112000:1"
+        }
+    ]
+}

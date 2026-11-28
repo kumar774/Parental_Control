@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="horizontal" android:id="@id/llContent" android:paddingTop="@dimen/dp_14" android:paddingBottom="@dimen/dp_14" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="@dimen/common_margin_start" android:layout_marginEnd="@dimen/common_margin_end" android:paddingVertical="@dimen/dp_14"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="14.0sp" android:textColor="@color/color_text_primary" android:ellipsize="end" android:id="@id/title" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="33333333333333333333333333333333333333" android:maxLines="2" android:layout_weight="1.0" android:textDirection="locale" android:layout_marginEnd="16.0dp" style="@style/ad_settings_pref_title" />
+    <ToggleButton android:id="@id/toggle" android:background="@drawable/ad_settings_toggle_button" android:padding="2.0dp" android:focusable="true" android:saveEnabled="false" android:layout_width="34.0dp" android:layout_height="18.0dp" android:layout_marginTop="2.0dp" android:checked="false" android:textOn="" android:textOff="" />
+</LinearLayout>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="144px" height="72px" viewBox="0 0 144 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title> TennisCourt</title>
+    <g id="-TennisCourt" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="矩形备份-19" fill="#FD8680" x="-2.27373675e-13" y="-2.27373675e-13" width="144" height="72"></rect>
+        <rect id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" x="25.1803279" y="14.557377" width="93.5213115" height="43.1606557"></rect>
+        <path d="M118.701639,52.052459 L25.1803279,52.052459 M25.1803279,19.6721311 L118.701639,19.6721311" id="形状" stroke="#FFFFFF" stroke-width="0.5"></path>
+        <rect id="矩形备份-21" stroke="#FFFFFF" stroke-width="0.5" x="46.8196721" y="19.6721311" width="50.3606557" height="32.3803279"></rect>
+        <line x1="72" y1="14.557377" x2="72" y2="57.7180328" id="路径-3" stroke="#FFFFFF" stroke-width="0.5"></line>
+        <line x1="46.8196721" y1="35.8622951" x2="97.1803279" y2="35.8622951" id="路径-4" stroke="#FFFFFF" stroke-width="0.5"></line>
+    </g>
+</svg>

@@ -1,0 +1,46 @@
+.class public final synthetic Lorg/apache/commons/io/function/d1;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+# interfaces
+.implements Ljava/util/function/Consumer;
+
+
+# instance fields
+.field public final synthetic a:Lorg/apache/commons/io/function/IOConsumer;
+
+
+# direct methods
+.method public synthetic constructor <init>(Lorg/apache/commons/io/function/IOConsumer;)V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 2
+    .line 3
+    .line 4
+    iput-object p1, p0, Lorg/apache/commons/io/function/d1;->a:Lorg/apache/commons/io/function/IOConsumer;
+
+    .line 5
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public final accept(Ljava/lang/Object;)V
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lorg/apache/commons/io/function/d1;->a:Lorg/apache/commons/io/function/IOConsumer;
+
+    .line 2
+    .line 3
+    invoke-static {v0, p1}, Lorg/apache/commons/io/function/IOStream;->P0(Lorg/apache/commons/io/function/IOConsumer;Ljava/lang/Object;)V
+
+    .line 4
+    .line 5
+    .line 6
+    return-void
+.end method

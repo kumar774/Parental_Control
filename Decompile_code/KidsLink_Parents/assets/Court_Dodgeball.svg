@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="115px" height="72px" viewBox="0 0 115 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Dodgeball</title>
+    <g id="Dodgeball" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="矩形" fill="#C3E8BA" x="0" y="0" width="115.2" height="72"></rect>
+        <polygon id="路径" stroke="#FFFFFF" stroke-width="0.76" fill="#FD8680" points="37.8 7.2 37.799 17.999 18 18 18 54 37.799 53.999 37.8 64.8 7.2 64.8 7.2 7.2"></polygon>
+        <polygon id="路径" stroke="#FFFFFF" stroke-width="0.76" fill="#FD8680" points="108 7.2 108 64.8 77.4 64.8 77.4 53.999 97.2 54 97.2 18 77.4 17.999 77.4 7.2"></polygon>
+        <rect id="矩形备份-2" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" x="18" y="18" width="79.2" height="36"></rect>
+        <circle id="椭圆形" stroke="#FFFFFF" stroke-width="0.72" cx="57.6" cy="36" r="3.24"></circle>
+        <line x1="57.6" y1="18" x2="57.6" y2="54" id="路径-7" stroke="#FFFFFF" stroke-width="0.72"></line>
+    </g>
+</svg>

@@ -1,0 +1,269 @@
+.class public final Ld4/c;
+.super Ljava/lang/Object;
+.source "ForwardServiceModule_ProvideAcceptorFactory.java"
+
+# interfaces
+.implements Ldagger/internal/h;
+
+
+# annotations
+.annotation build Ldagger/internal/e;
+.end annotation
+
+.annotation build Ldagger/internal/w;
+    value = {
+        "javax.inject.Named"
+    }
+.end annotation
+
+.annotation build Ldagger/internal/x;
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Ljava/lang/Object;",
+        "Ldagger/internal/h<",
+        "Lcom/sand/server/http/a;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field private final a:Ld4/b;
+
+.field private final b:Lh8/c;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Lh8/c<",
+            "Landroid/content/Context;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+.field private final c:Lh8/c;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Lh8/c<",
+            "Lcom/sand/server/http/f;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+.field private final d:Lh8/c;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Lh8/c<",
+            "Lcom/flashget/kid/common/servers/forward/a;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>(Ld4/b;Lh8/c;Lh8/c;Lh8/c;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "module",
+            "contextProvider",
+            "factoryProvider",
+            "authorizerProvider"
+        }
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ld4/b;",
+            "Lh8/c<",
+            "Landroid/content/Context;",
+            ">;",
+            "Lh8/c<",
+            "Lcom/sand/server/http/f;",
+            ">;",
+            "Lh8/c<",
+            "Lcom/flashget/kid/common/servers/forward/a;",
+            ">;)V"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    iput-object p1, p0, Ld4/c;->a:Ld4/b;
+
+    .line 6
+    iput-object p2, p0, Ld4/c;->b:Lh8/c;
+
+    .line 8
+    iput-object p3, p0, Ld4/c;->c:Lh8/c;
+
+    .line 10
+    iput-object p4, p0, Ld4/c;->d:Lh8/c;
+
+    .line 12
+    return-void
+.end method
+
+.method public static a(Ld4/b;Lh8/c;Lh8/c;Lh8/c;)Ld4/c;
+    .locals 1
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "module",
+            "contextProvider",
+            "factoryProvider",
+            "authorizerProvider"
+        }
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ld4/b;",
+            "Lh8/c<",
+            "Landroid/content/Context;",
+            ">;",
+            "Lh8/c<",
+            "Lcom/sand/server/http/f;",
+            ">;",
+            "Lh8/c<",
+            "Lcom/flashget/kid/common/servers/forward/a;",
+            ">;)",
+            "Ld4/c;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Ld4/c;
+
+    .line 3
+    invoke-direct {v0, p0, p1, p2, p3}, Ld4/c;-><init>(Ld4/b;Lh8/c;Lh8/c;Lh8/c;)V
+
+    .line 6
+    return-object v0
+.end method
+
+.method public static c(Ld4/b;Landroid/content/Context;Lcom/sand/server/http/f;Lcom/flashget/kid/common/servers/forward/a;)Lcom/sand/server/http/a;
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "instance",
+            "context",
+            "factory",
+            "authorizer"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1, p2, p3}, Ld4/b;->b(Landroid/content/Context;Lcom/sand/server/http/f;Lcom/flashget/kid/common/servers/forward/a;)Lcom/sand/server/http/a;
+
+    .line 4
+    move-result-object p0
+
+    .line 5
+    invoke-static {p0}, Ldagger/internal/s;->f(Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 8
+    move-result-object p0
+
+    .line 9
+    check-cast p0, Lcom/sand/server/http/a;
+
+    .line 11
+    return-object p0
+.end method
+
+
+# virtual methods
+.method public b()Lcom/sand/server/http/a;
+    .locals 4
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Ld4/c;->a:Ld4/b;
+
+    .line 3
+    iget-object v1, p0, Ld4/c;->b:Lh8/c;
+
+    .line 5
+    invoke-interface {v1}, Lh8/c;->get()Ljava/lang/Object;
+
+    .line 8
+    move-result-object v1
+
+    .line 9
+    check-cast v1, Landroid/content/Context;
+
+    .line 11
+    iget-object v2, p0, Ld4/c;->c:Lh8/c;
+
+    .line 13
+    invoke-interface {v2}, Lh8/c;->get()Ljava/lang/Object;
+
+    .line 16
+    move-result-object v2
+
+    .line 17
+    check-cast v2, Lcom/sand/server/http/f;
+
+    .line 19
+    iget-object v3, p0, Ld4/c;->d:Lh8/c;
+
+    .line 21
+    invoke-interface {v3}, Lh8/c;->get()Ljava/lang/Object;
+
+    .line 24
+    move-result-object v3
+
+    .line 25
+    check-cast v3, Lcom/flashget/kid/common/servers/forward/a;
+
+    .line 27
+    invoke-static {v0, v1, v2, v3}, Ld4/c;->c(Ld4/b;Landroid/content/Context;Lcom/sand/server/http/f;Lcom/flashget/kid/common/servers/forward/a;)Lcom/sand/server/http/a;
+
+    .line 30
+    move-result-object v0
+
+    .line 31
+    return-object v0
+.end method
+
+.method public bridge synthetic get()Ljava/lang/Object;
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Ld4/c;->b()Lcom/sand/server/http/a;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    return-object v0
+.end method

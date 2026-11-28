@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="150px" height="300px" viewBox="0 0 150 300" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>straight_right</title>
+    <g id="straight_right" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M65.6746667,120.32 L65.674,214.916 L100.385,180.019 L100.441807,130.346667 L125.333333,210.871509 L100.266667,285.76 L100.317,240.427 L65.674,275.255 L65.6746667,300.8 L45.6213333,300.8 L45.621,295.415 L45.12,295.919367 L45.12,235.580126 L45.621,235.076 L45.6213333,120.32 L65.6746667,120.32 Z M25.568,120.32 L85.728,120.32 L58.7923913,0 L25.568,120.32 Z" id="形状结合" fill="#F2F2F2" transform="translate(75.450667, 150.400000) scale(1, -1) translate(-75.450667, -150.400000) "></path>
+    </g>
+</svg>

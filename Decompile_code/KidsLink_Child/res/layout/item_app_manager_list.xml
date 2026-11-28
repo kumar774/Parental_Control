@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:background="@color/white" android:layout_width="match_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <View android:id="@id/viewLine" android:background="@color/background_gray_line" android:layout_width="match_parent" android:layout_height="@dimen/dp_0_5" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
+    <ImageView android:id="@id/iv_icon" android:layout_width="@dimen/dp_30" android:layout_height="@dimen/dp_30" android:layout_marginStart="@dimen/dp_10" app:layout_constraintBottom_toBottomOf="@id/tv_app_name" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="@id/tv_app_name" />
+    <TextView android:textSize="@dimen/sp_16" android:textColor="@color/text_black_3" android:gravity="center_vertical" android:id="@id/tv_app_name" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="应用名称" android:layout_marginStart="@dimen/dp_10" app:layout_constraintStart_toEndOf="@id/iv_icon" app:layout_constraintTop_toTopOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

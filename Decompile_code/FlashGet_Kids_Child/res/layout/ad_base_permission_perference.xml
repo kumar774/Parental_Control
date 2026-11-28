@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge android:gravity="center_vertical" android:background="@null" android:layout_width="match_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:id="@id/llContainer" android:background="@color/color_bg_2" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <RelativeLayout android:gravity="center_vertical" android:id="@id/rlContain" android:background="@drawable/ad_base_permission_list_item_bg" android:paddingTop="11.0dp" android:paddingBottom="11.0dp" android:focusable="true" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="17.0dp" android:paddingEnd="10.0dp">
+            <ImageView android:id="@id/ivIcon" android:visibility="visible" android:clickable="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/ic_sms" android:scaleType="centerInside" android:layout_alignTop="@id/tvTitle" android:layout_marginEnd="14.0dp" />
+            <TextView android:textSize="15.0sp" android:textColor="@color/color_text_primary" android:id="@id/tvTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="9.0dp" android:text="Files" android:layout_marginEnd="18.0dp" android:layout_toStartOf="@id/rlButton" android:layout_toEndOf="@id/ivIcon" style="@style/TextStyle.Start" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/color_text_tertiary" android:gravity="start" android:id="@id/tvDescription" android:visibility="visible" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3.0dp" android:layout_marginBottom="9.0dp" android:text="Enable access files remotely on PC/Web" android:layout_below="@id/tvTitle" android:layout_marginEnd="10.0dp" android:layout_toStartOf="@id/rlButton" android:layout_alignStart="@id/tvTitle" style="@style/TextStyle.Start" />
+            <RelativeLayout android:id="@id/rlButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="11.0dp" android:layout_toStartOf="@id/ivArrow">
+                <ToggleButton android:id="@id/btSwitch" android:background="@drawable/ad_base_permission_toggle_button" android:focusable="false" android:visibility="visible" android:layout_width="40.0dp" android:layout_height="20.0dp" android:checked="false" android:textOn="" android:textOff="" />
+                <ToggleButton android:id="@id/btShowGuide" android:background="@drawable/ic_tips2" android:focusable="false" android:visibility="gone" android:layout_width="20.0dp" android:layout_height="20.0dp" android:checked="false" android:textOn="" android:textOff="" android:layout_alignTop="@id/btSwitch" android:layout_centerVertical="true" />
+                <ImageView android:id="@id/ivWarning" android:visibility="gone" android:layout_width="40.0dp" android:layout_height="wrap_content" android:src="@drawable/icon_abnormal" />
+                <TextView android:textSize="14.0sp" android:textColor="@color/kid_btn_blue_p" android:id="@id/tvMore" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Detail" android:layout_centerInParent="true" style="@style/TextStyle" />
+            </RelativeLayout>
+            <ImageView android:id="@id/ivArrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="15.0dp" android:src="@drawable/ad_transfer_connection_disclosure_ic" android:layout_marginStart="11.0dp" android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+        <ImageView android:id="@id/ivDivider" android:background="#e6e6e6" android:layout_width="match_parent" android:layout_height="1.0dp" android:layout_marginStart="17.0dp" />
+    </LinearLayout>
+</merge>

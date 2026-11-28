@@ -1,0 +1,39 @@
+.class public final Lcom/huawei/location/core/R$xml;
+.super Ljava/lang/Object;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/huawei/location/core/R;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "xml"
+.end annotation
+
+
+# static fields
+.field public static standalone_badge:I = 0x7f130012
+
+.field public static standalone_badge_gravity_bottom_end:I = 0x7f130013
+
+.field public static standalone_badge_gravity_bottom_start:I = 0x7f130014
+
+.field public static standalone_badge_gravity_top_start:I = 0x7f130015
+
+.field public static standalone_badge_offset:I = 0x7f130016
+
+
+# direct methods
+.method private constructor <init>()V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 2
+    .line 3
+    .line 4
+    return-void
+.end method

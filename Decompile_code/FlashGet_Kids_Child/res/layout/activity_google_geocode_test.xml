@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:background="@color/ps_color_white" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.appcompat.widget.Toolbar android:id="@id/toolbar" android:background="@color/ps_color_white" android:layout_width="match_parent" android:layout_height="?actionBarSize" app:navigationIcon="@drawable/abc_ic_ab_back_material" app:title="Google Geocode Test" app:titleTextColor="@android:color/black" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+        <LinearLayout android:orientation="vertical" android:padding="16.0dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <EditText android:id="@id/etLatitude" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Latitude" android:maxLines="1" android:inputType="numberSigned|numberDecimal" android:importantForAutofill="no" />
+            <EditText android:id="@id/etLongitude" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12.0dp" android:hint="Longitude" android:maxLines="1" android:inputType="numberSigned|numberDecimal" android:importantForAutofill="no" />
+            <Button android:id="@id/btnQuery" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dp" android:text="Query Address" />
+            <Button android:id="@id/btnRandomCompare" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12.0dp" android:text="Random 5 Compare" />
+            <TextView android:textSize="14.0sp" android:textColor="@android:color/black" android:id="@id/tvResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dp" android:textIsSelectable="true" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

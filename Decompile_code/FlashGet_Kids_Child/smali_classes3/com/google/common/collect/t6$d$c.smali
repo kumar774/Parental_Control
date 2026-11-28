@@ -1,0 +1,96 @@
+.class Lcom/google/common/collect/t6$d$c;
+.super Ljava/lang/Object;
+.source "Tables.java"
+
+# interfaces
+.implements Lcom/google/common/base/y;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingMethod;
+    value = Lcom/google/common/collect/t6$d;->R()Ljava/util/Map;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x0
+    name = null
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Ljava/lang/Object;",
+        "Lcom/google/common/base/y<",
+        "Ljava/util/Map<",
+        "TR;TV1;>;",
+        "Ljava/util/Map<",
+        "TR;TV2;>;>;"
+    }
+.end annotation
+
+
+# instance fields
+.field final synthetic b:Lcom/google/common/collect/t6$d;
+
+
+# direct methods
+.method constructor <init>(Lcom/google/common/collect/t6$d;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    iput-object p1, p0, Lcom/google/common/collect/t6$d$c;->b:Lcom/google/common/collect/t6$d;
+
+    .line 3
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public a(Ljava/util/Map;)Ljava/util/Map;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/util/Map<",
+            "TR;TV1;>;)",
+            "Ljava/util/Map<",
+            "TR;TV2;>;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/google/common/collect/t6$d$c;->b:Lcom/google/common/collect/t6$d;
+
+    .line 3
+    iget-object v0, v0, Lcom/google/common/collect/t6$d;->e:Lcom/google/common/base/y;
+
+    .line 5
+    invoke-static {p1, v0}, Lcom/google/common/collect/p4;->B0(Ljava/util/Map;Lcom/google/common/base/y;)Ljava/util/Map;
+
+    .line 8
+    move-result-object p1
+
+    .line 9
+    return-object p1
+.end method
+
+.method public bridge synthetic apply(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 0
+
+    .prologue
+    .line 1
+    check-cast p1, Ljava/util/Map;
+
+    .line 3
+    invoke-virtual {p0, p1}, Lcom/google/common/collect/t6$d$c;->a(Ljava/util/Map;)Ljava/util/Map;
+
+    .line 6
+    move-result-object p1
+
+    .line 7
+    return-object p1
+.end method

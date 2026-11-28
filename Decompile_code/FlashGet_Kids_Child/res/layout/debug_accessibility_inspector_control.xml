@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/inspector_full_sheet" android:background="@drawable/debug_accessibility_inspector_sheet_background" android:clipChildren="true" android:clipToPadding="true" android:layout_width="match_parent" android:layout_height="match_parent" android:paddingStart="20.0dp" android:paddingEnd="20.0dp"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <FrameLayout android:id="@id/inspector_sheet_handle" android:layout_width="match_parent" android:layout_height="48.0dp" android:contentDescription="拖动调整面板高度">
+        <View android:layout_gravity="center|top" android:background="@drawable/debug_accessibility_inspector_handle" android:layout_width="36.0dp" android:layout_height="4.0dp" android:layout_marginTop="9.0dp" />
+        <TextView android:textSize="14.0sp" android:textColor="#ff1769ff" android:gravity="center" android:layout_gravity="start" android:id="@id/inspector_sheet_expand" android:layout_width="wrap_content" android:layout_height="match_parent" android:minWidth="48.0dp" android:text="全展开" />
+        <TextView android:textSize="14.0sp" android:textColor="#ff1769ff" android:gravity="center" android:layout_gravity="end" android:id="@id/inspector_sheet_collapse" android:layout_width="wrap_content" android:layout_height="match_parent" android:minWidth="48.0dp" android:text="收起" />
+    </FrameLayout>
+    <TextView android:textSize="20.0sp" android:textStyle="bold" android:textColor="#ff111111" android:id="@id/inspector_sheet_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="无障碍节点检查" />
+    <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="42.0dp" android:layout_marginTop="5.0dp">
+        <TextView android:textSize="15.0sp" android:textColor="#ff1769ff" android:gravity="center" android:id="@id/inspector_tab_nodes" android:layout_width="0.0dp" android:layout_height="match_parent" android:text="节点" android:layout_weight="1.0" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff222222" android:gravity="center" android:id="@id/inspector_tab_events" android:layout_width="0.0dp" android:layout_height="match_parent" android:text="事件" android:layout_weight="1.0" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff222222" android:gravity="center" android:id="@id/inspector_tab_capabilities" android:layout_width="0.0dp" android:layout_height="match_parent" android:text="能力" android:layout_weight="1.0" />
+    </LinearLayout>
+    <View android:id="@id/inspector_tab_indicator" android:background="#ff1769ff" android:layout_width="0.0dp" android:layout_height="2.0dp" />
+    <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="44.0dp">
+        <TextView android:textSize="16.0sp" android:textStyle="bold" android:textColor="#ff111111" android:id="@id/inspector_section_title" android:layout_width="0.0dp" android:layout_height="wrap_content" android:text="层级" android:layout_weight="1.0" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff1769ff" android:id="@id/inspector_parent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="父节点" android:paddingStart="12.0dp" android:paddingEnd="12.0dp" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff1769ff" android:id="@id/inspector_child" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="子节点" android:paddingStart="12.0dp" android:paddingEnd="4.0dp" />
+    </LinearLayout>
+    <ScrollView android:id="@id/inspector_rows_scroll" android:clipChildren="true" android:clipToPadding="true" android:layout_width="match_parent" android:layout_height="0.0dp" android:fillViewport="true" android:layout_weight="0.42" android:overScrollMode="ifContentScrolls">
+        <LinearLayout android:orientation="vertical" android:id="@id/inspector_rows" android:layout_width="match_parent" android:layout_height="wrap_content" />
+    </ScrollView>
+    <View android:background="#ffe1e1e1" android:layout_width="match_parent" android:layout_height="1.0dp" />
+    <TextView android:textSize="16.0sp" android:textStyle="bold" android:textColor="#ff111111" android:gravity="center_vertical" android:id="@id/inspector_details_title" android:layout_width="match_parent" android:layout_height="30.0dp" android:text="属性" />
+    <ScrollView android:id="@id/inspector_details_scroll" android:clipChildren="true" android:clipToPadding="true" android:layout_width="match_parent" android:layout_height="0.0dp" android:fillViewport="true" android:layout_weight="0.58" android:overScrollMode="ifContentScrolls">
+        <LinearLayout android:orientation="vertical" android:id="@id/inspector_details" android:layout_width="match_parent" android:layout_height="wrap_content" />
+    </ScrollView>
+    <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="54.0dp">
+        <TextView android:textSize="15.0sp" android:textColor="#ffffffff" android:gravity="center" android:id="@id/inspector_resume" android:background="@drawable/debug_accessibility_inspector_primary_button" android:layout_width="0.0dp" android:layout_height="48.0dp" android:text="恢复实时" android:layout_weight="1.2" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff1769ff" android:gravity="center" android:id="@id/inspector_show_all" android:layout_width="0.0dp" android:layout_height="48.0dp" android:text="显示全部" android:layout_weight="1.0" />
+        <TextView android:textSize="15.0sp" android:textColor="#ff1769ff" android:gravity="center" android:id="@id/inspector_close" android:layout_width="0.0dp" android:layout_height="48.0dp" android:text="关闭" android:layout_weight="0.8" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider android:description="@string/KidApp_CommonFeature_Des" android:minWidth="@dimen/dp_280" android:minHeight="@dimen/dp_110" android:updatePeriodMillis="1800000" android:initialLayout="@layout/doodle_app_widget" android:initialKeyguardLayout="@layout/doodle_app_widget" android:widgetCategory="home_screen" android:widgetFeatures="hide_from_picker" android:previewLayout="@layout/doodle_app_widget" android:targetCellWidth="4" android:targetCellHeight="2"
+  xmlns:android="http://schemas.android.com/apk/res/android" />

@@ -1,0 +1,1340 @@
+.class public Lw3/l;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+# interfaces
+.implements Lw3/e;
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lw3/l$b;,
+        Lw3/l$c;,
+        Lw3/l$a;
+    }
+.end annotation
+
+
+# static fields
+.field public static final k:Ljava/lang/String;
+
+.field public static final l:Landroid/graphics/Bitmap$Config;
+
+
+# instance fields
+.field public final a:Lw3/m;
+
+.field public final b:Ljava/util/Set;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Ljava/util/Set<",
+            "Landroid/graphics/Bitmap$Config;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+.field public final c:J
+
+.field public final d:Lw3/l$a;
+
+.field public e:J
+
+.field public f:J
+
+.field public g:I
+
+.field public h:I
+
+.field public i:I
+
+.field public j:I
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .prologue
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lw3/l;->k:Ljava/lang/String;
+
+    .line 1
+    sget-object v0, Landroid/graphics/Bitmap$Config;->ARGB_8888:Landroid/graphics/Bitmap$Config;
+
+    .line 3
+    sput-object v0, Lw3/l;->l:Landroid/graphics/Bitmap$Config;
+
+    .line 5
+    return-void
+.end method
+
+.method public constructor <init>(J)V
+    .locals 2
+
+    .prologue
+    .line 9
+    new-instance v0, Lw3/q;
+
+    invoke-direct {v0}, Lw3/q;-><init>()V
+
+    .line 10
+    invoke-static {}, Lw3/l;->o()Ljava/util/Set;
+
+    move-result-object v1
+
+    invoke-direct {p0, p1, p2, v0, v1}, Lw3/l;-><init>(JLw3/m;Ljava/util/Set;)V
+
+    return-void
+.end method
+
+.method public constructor <init>(JLjava/util/Set;)V
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(J",
+            "Ljava/util/Set<",
+            "Landroid/graphics/Bitmap$Config;",
+            ">;)V"
+        }
+    .end annotation
+
+    .prologue
+    .line 11
+    new-instance v0, Lw3/q;
+
+    invoke-direct {v0}, Lw3/q;-><init>()V
+
+    .line 12
+    invoke-direct {p0, p1, p2, v0, p3}, Lw3/l;-><init>(JLw3/m;Ljava/util/Set;)V
+
+    return-void
+.end method
+
+.method public constructor <init>(JLw3/m;Ljava/util/Set;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(J",
+            "Lw3/m;",
+            "Ljava/util/Set<",
+            "Landroid/graphics/Bitmap$Config;",
+            ">;)V"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 2
+    iput-wide p1, p0, Lw3/l;->c:J
+
+    .line 3
+    iput-wide p1, p0, Lw3/l;->e:J
+
+    .line 4
+    iput-object p3, p0, Lw3/l;->a:Lw3/m;
+
+    .line 5
+    iput-object p4, p0, Lw3/l;->b:Ljava/util/Set;
+
+    .line 6
+    new-instance p1, Lw3/l$b;
+
+    .line 7
+    invoke-direct {p1}, Ljava/lang/Object;-><init>()V
+
+    .line 8
+    iput-object p1, p0, Lw3/l;->d:Lw3/l$a;
+
+    return-void
+.end method
+
+.method public static h(Landroid/graphics/Bitmap$Config;)V
+    .locals 3
+    .annotation build Landroid/annotation/TargetApi;
+        value = 0x1a
+    .end annotation
+
+    .prologue
+    .line 1
+    sget v0, Landroid/os/Build$VERSION;->SDK_INT:I
+
+    .line 3
+    const/16 v1, 0x1a
+
+    .line 5
+    if-ge v0, v1, :cond_0
+
+    .line 7
+    return-void
+
+    .line 8
+    :cond_0
+    invoke-static {}, Lw3/k;->a()Landroid/graphics/Bitmap$Config;
+
+    .line 11
+    move-result-object v0
+
+    .line 12
+    if-eq p0, v0, :cond_1
+
+    .line 14
+    return-void
+
+    .line 15
+    :cond_1
+    new-instance v0, Ljava/lang/IllegalArgumentException;
+
+    .line 17
+    new-instance v1, Ljava/lang/StringBuilder;
+
+    .line 19
+    const-string v2, "\u31dd"
+
+    invoke-static {v2}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 21
+    invoke-direct {v1, v2}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+
+    .line 24
+    invoke-virtual {v1, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+
+    .line 27
+    const-string p0, "\u31de"
+
+    invoke-static {p0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object p0
+
+    .line 29
+    invoke-virtual {v1, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    .line 32
+    invoke-virtual {v1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    .line 35
+    move-result-object p0
+
+    .line 36
+    invoke-direct {v0, p0}, Ljava/lang/IllegalArgumentException;-><init>(Ljava/lang/String;)V
+
+    .line 39
+    throw v0
+.end method
+
+.method public static i(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+    .locals 0
+    .param p2    # Landroid/graphics/Bitmap$Config;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+    .annotation build Lc/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    if-eqz p2, :cond_0
+
+    .line 3
+    goto :goto_0
+
+    .line 4
+    :cond_0
+    sget-object p2, Lw3/l;->l:Landroid/graphics/Bitmap$Config;
+
+    .line 6
+    :goto_0
+    invoke-static {p0, p1, p2}, Landroid/graphics/Bitmap;->createBitmap(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 9
+    move-result-object p0
+
+    .line 10
+    return-object p0
+.end method
+
+.method public static o()Ljava/util/Set;
+    .locals 3
+    .annotation build Landroid/annotation/TargetApi;
+        value = 0x1a
+    .end annotation
+
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()",
+            "Ljava/util/Set<",
+            "Landroid/graphics/Bitmap$Config;",
+            ">;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Ljava/util/HashSet;
+
+    .line 3
+    invoke-static {}, Landroid/graphics/Bitmap$Config;->values()[Landroid/graphics/Bitmap$Config;
+
+    .line 6
+    move-result-object v1
+
+    .line 7
+    invoke-static {v1}, Ljava/util/Arrays;->asList([Ljava/lang/Object;)Ljava/util/List;
+
+    .line 10
+    move-result-object v1
+
+    .line 11
+    invoke-direct {v0, v1}, Ljava/util/HashSet;-><init>(Ljava/util/Collection;)V
+
+    .line 14
+    sget v1, Landroid/os/Build$VERSION;->SDK_INT:I
+
+    .line 16
+    const/4 v2, 0x0
+
+    .line 17
+    invoke-virtual {v0, v2}, Ljava/util/HashSet;->add(Ljava/lang/Object;)Z
+
+    .line 20
+    const/16 v2, 0x1a
+
+    .line 22
+    if-lt v1, v2, :cond_0
+
+    .line 24
+    invoke-static {}, Lw3/k;->a()Landroid/graphics/Bitmap$Config;
+
+    .line 27
+    move-result-object v1
+
+    .line 28
+    invoke-virtual {v0, v1}, Ljava/util/HashSet;->remove(Ljava/lang/Object;)Z
+
+    .line 31
+    :cond_0
+    invoke-static {v0}, Ljava/util/Collections;->unmodifiableSet(Ljava/util/Set;)Ljava/util/Set;
+
+    .line 34
+    move-result-object v0
+
+    .line 35
+    return-object v0
+.end method
+
+.method public static p()Lw3/m;
+    .locals 1
+
+    .prologue
+    .line 1
+    new-instance v0, Lw3/q;
+
+    .line 3
+    invoke-direct {v0}, Lw3/q;-><init>()V
+
+    .line 6
+    return-object v0
+.end method
+
+.method public static s(Landroid/graphics/Bitmap;)V
+    .locals 1
+    .annotation build Landroid/annotation/TargetApi;
+        value = 0x13
+    .end annotation
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    invoke-virtual {p0, v0}, Landroid/graphics/Bitmap;->setPremultiplied(Z)V
+
+    .line 5
+    return-void
+.end method
+
+.method public static u(Landroid/graphics/Bitmap;)V
+    .locals 1
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    invoke-virtual {p0, v0}, Landroid/graphics/Bitmap;->setHasAlpha(Z)V
+
+    .line 5
+    invoke-virtual {p0, v0}, Landroid/graphics/Bitmap;->setPremultiplied(Z)V
+
+    .line 8
+    return-void
+.end method
+
+
+# virtual methods
+.method public a(I)V
+    .locals 4
+    .annotation build Landroid/annotation/SuppressLint;
+        value = {
+            "InlinedApi"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    const/4 v1, 0x3
+
+    .line 4
+    invoke-static {v0, v1}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 7
+    const/16 v0, 0x28
+
+    .line 9
+    if-ge p1, v0, :cond_2
+
+    .line 11
+    const/16 v0, 0x14
+
+    .line 13
+    if-lt p1, v0, :cond_0
+
+    .line 15
+    goto :goto_0
+
+    .line 16
+    :cond_0
+    if-ge p1, v0, :cond_1
+
+    .line 18
+    const/16 v0, 0xf
+
+    .line 20
+    if-ne p1, v0, :cond_3
+
+    .line 22
+    :cond_1
+    invoke-virtual {p0}, Lw3/l;->e()J
+
+    .line 25
+    move-result-wide v0
+
+    .line 26
+    const-wide/16 v2, 0x2
+
+    .line 28
+    div-long/2addr v0, v2
+
+    .line 29
+    invoke-virtual {p0, v0, v1}, Lw3/l;->v(J)V
+
+    .line 32
+    goto :goto_1
+
+    .line 33
+    :cond_2
+    :goto_0
+    invoke-virtual {p0}, Lw3/l;->b()V
+
+    .line 36
+    :cond_3
+    :goto_1
+    return-void
+.end method
+
+.method public b()V
+    .locals 2
+
+    .prologue
+    .line 1
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    const/4 v1, 0x3
+
+    .line 4
+    invoke-static {v0, v1}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 7
+    const-wide/16 v0, 0x0
+
+    .line 9
+    invoke-virtual {p0, v0, v1}, Lw3/l;->v(J)V
+
+    .line 12
+    return-void
+.end method
+
+.method public declared-synchronized c(F)V
+    .locals 2
+
+    .prologue
+    .line 1
+    monitor-enter p0
+
+    .line 2
+    :try_start_0
+    iget-wide v0, p0, Lw3/l;->c:J
+
+    .line 4
+    long-to-float v0, v0
+
+    .line 5
+    mul-float/2addr v0, p1
+
+    .line 6
+    invoke-static {v0}, Ljava/lang/Math;->round(F)I
+
+    .line 9
+    move-result p1
+
+    .line 10
+    int-to-long v0, p1
+
+    .line 11
+    iput-wide v0, p0, Lw3/l;->e:J
+
+    .line 13
+    invoke-virtual {p0}, Lw3/l;->l()V
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 16
+    monitor-exit p0
+
+    .line 17
+    return-void
+
+    .line 18
+    :catchall_0
+    move-exception p1
+
+    .line 19
+    :try_start_1
+    monitor-exit p0
+    :try_end_1
+    .catchall {:try_start_1 .. :try_end_1} :catchall_0
+
+    .line 20
+    throw p1
+.end method
+
+.method public declared-synchronized d(Landroid/graphics/Bitmap;)V
+    .locals 6
+
+    .prologue
+    .line 1
+    monitor-enter p0
+
+    .line 2
+    if-eqz p1, :cond_5
+
+    .line 4
+    :try_start_0
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->isRecycled()Z
+
+    .line 7
+    move-result v0
+
+    .line 8
+    if-nez v0, :cond_4
+
+    .line 10
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->isMutable()Z
+
+    .line 13
+    move-result v0
+
+    .line 14
+    const/4 v1, 0x2
+
+    .line 15
+    if-eqz v0, :cond_2
+
+    .line 17
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 19
+    invoke-interface {v0, p1}, Lw3/m;->b(Landroid/graphics/Bitmap;)I
+
+    .line 22
+    move-result v0
+
+    .line 23
+    int-to-long v2, v0
+
+    .line 24
+    iget-wide v4, p0, Lw3/l;->e:J
+
+    .line 26
+    cmp-long v0, v2, v4
+
+    .line 28
+    if-gtz v0, :cond_2
+
+    .line 30
+    iget-object v0, p0, Lw3/l;->b:Ljava/util/Set;
+
+    .line 32
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->getConfig()Landroid/graphics/Bitmap$Config;
+
+    .line 35
+    move-result-object v2
+
+    .line 36
+    invoke-interface {v0, v2}, Ljava/util/Set;->contains(Ljava/lang/Object;)Z
+
+    .line 39
+    move-result v0
+
+    .line 40
+    if-nez v0, :cond_0
+
+    .line 42
+    goto :goto_1
+
+    .line 43
+    :cond_0
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 45
+    invoke-interface {v0, p1}, Lw3/m;->b(Landroid/graphics/Bitmap;)I
+
+    .line 48
+    move-result v0
+
+    .line 49
+    iget-object v2, p0, Lw3/l;->a:Lw3/m;
+
+    .line 51
+    invoke-interface {v2, p1}, Lw3/m;->d(Landroid/graphics/Bitmap;)V
+
+    .line 54
+    iget-object v2, p0, Lw3/l;->d:Lw3/l$a;
+
+    .line 56
+    invoke-interface {v2, p1}, Lw3/l$a;->b(Landroid/graphics/Bitmap;)V
+
+    .line 59
+    iget v2, p0, Lw3/l;->i:I
+
+    .line 61
+    add-int/lit8 v2, v2, 0x1
+
+    .line 63
+    iput v2, p0, Lw3/l;->i:I
+
+    .line 65
+    iget-wide v2, p0, Lw3/l;->f:J
+
+    .line 67
+    int-to-long v4, v0
+
+    .line 68
+    add-long/2addr v2, v4
+
+    .line 69
+    iput-wide v2, p0, Lw3/l;->f:J
+
+    .line 71
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 73
+    invoke-static {v0, v1}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 76
+    move-result v0
+
+    .line 77
+    if-eqz v0, :cond_1
+
+    .line 79
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 81
+    invoke-interface {v0, p1}, Lw3/m;->c(Landroid/graphics/Bitmap;)Ljava/lang/String;
+
+    .line 84
+    goto :goto_0
+
+    .line 85
+    :catchall_0
+    move-exception p1
+
+    .line 86
+    goto :goto_2
+
+    .line 87
+    :cond_1
+    :goto_0
+    invoke-virtual {p0}, Lw3/l;->j()V
+
+    .line 90
+    invoke-virtual {p0}, Lw3/l;->l()V
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 93
+    monitor-exit p0
+
+    .line 94
+    return-void
+
+    .line 95
+    :cond_2
+    :goto_1
+    :try_start_1
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 97
+    invoke-static {v0, v1}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 100
+    move-result v0
+
+    .line 101
+    if-eqz v0, :cond_3
+
+    .line 103
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 105
+    invoke-interface {v0, p1}, Lw3/m;->c(Landroid/graphics/Bitmap;)Ljava/lang/String;
+
+    .line 108
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->isMutable()Z
+
+    .line 111
+    iget-object v0, p0, Lw3/l;->b:Ljava/util/Set;
+
+    .line 113
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->getConfig()Landroid/graphics/Bitmap$Config;
+
+    .line 116
+    move-result-object v1
+
+    .line 117
+    invoke-interface {v0, v1}, Ljava/util/Set;->contains(Ljava/lang/Object;)Z
+
+    .line 120
+    :cond_3
+    invoke-virtual {p1}, Landroid/graphics/Bitmap;->recycle()V
+    :try_end_1
+    .catchall {:try_start_1 .. :try_end_1} :catchall_0
+
+    .line 123
+    monitor-exit p0
+
+    .line 124
+    return-void
+
+    .line 125
+    :cond_4
+    :try_start_2
+    new-instance p1, Ljava/lang/IllegalStateException;
+
+    .line 127
+    const-string v0, "\u31df"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 129
+    invoke-direct {p1, v0}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V
+
+    .line 132
+    throw p1
+
+    .line 133
+    :cond_5
+    new-instance p1, Ljava/lang/NullPointerException;
+
+    .line 135
+    const-string v0, "\u31e0"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 137
+    invoke-direct {p1, v0}, Ljava/lang/NullPointerException;-><init>(Ljava/lang/String;)V
+
+    .line 140
+    throw p1
+
+    .line 141
+    :goto_2
+    monitor-exit p0
+    :try_end_2
+    .catchall {:try_start_2 .. :try_end_2} :catchall_0
+
+    .line 142
+    throw p1
+.end method
+
+.method public e()J
+    .locals 2
+
+    .prologue
+    .line 1
+    iget-wide v0, p0, Lw3/l;->e:J
+
+    .line 3
+    return-wide v0
+.end method
+
+.method public f(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+    .locals 1
+    .annotation build Lc/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1, p2, p3}, Lw3/l;->q(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    if-eqz v0, :cond_0
+
+    .line 7
+    const/4 p1, 0x0
+
+    .line 8
+    invoke-virtual {v0, p1}, Landroid/graphics/Bitmap;->eraseColor(I)V
+
+    .line 11
+    goto :goto_0
+
+    .line 12
+    :cond_0
+    invoke-static {p1, p2, p3}, Lw3/l;->i(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 15
+    move-result-object v0
+
+    .line 16
+    :goto_0
+    return-object v0
+.end method
+
+.method public g(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+    .locals 1
+    .annotation build Lc/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1, p2, p3}, Lw3/l;->q(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    if-nez v0, :cond_0
+
+    .line 7
+    invoke-static {p1, p2, p3}, Lw3/l;->i(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 10
+    move-result-object v0
+
+    .line 11
+    :cond_0
+    return-object v0
+.end method
+
+.method public final j()V
+    .locals 2
+
+    .prologue
+    .line 1
+    const-string v0, "\u31dc"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    const/4 v1, 0x2
+
+    .line 4
+    invoke-static {v0, v1}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 7
+    move-result v0
+
+    .line 8
+    if-eqz v0, :cond_0
+
+    .line 10
+    invoke-virtual {p0}, Lw3/l;->k()V
+
+    .line 13
+    :cond_0
+    return-void
+.end method
+
+.method public final k()V
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 3
+    invoke-static {v0}, Ljava/util/Objects;->toString(Ljava/lang/Object;)Ljava/lang/String;
+
+    .line 6
+    return-void
+.end method
+
+.method public final l()V
+    .locals 2
+
+    .prologue
+    .line 1
+    iget-wide v0, p0, Lw3/l;->e:J
+
+    .line 3
+    invoke-virtual {p0, v0, v1}, Lw3/l;->v(J)V
+
+    .line 6
+    return-void
+.end method
+
+.method public m()J
+    .locals 2
+
+    .prologue
+    .line 1
+    iget v0, p0, Lw3/l;->j:I
+
+    .line 3
+    int-to-long v0, v0
+
+    .line 4
+    return-wide v0
+.end method
+
+.method public n()J
+    .locals 2
+
+    .prologue
+    .line 1
+    iget-wide v0, p0, Lw3/l;->f:J
+
+    .line 3
+    return-wide v0
+.end method
+
+.method public final declared-synchronized q(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+    .locals 5
+    .param p3    # Landroid/graphics/Bitmap$Config;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+    .annotation build Lc/q0;
+    .end annotation
+
+    .prologue
+    .line 1
+    monitor-enter p0
+
+    .line 2
+    :try_start_0
+    invoke-static {p3}, Lw3/l;->h(Landroid/graphics/Bitmap$Config;)V
+
+    .line 5
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 7
+    if-eqz p3, :cond_0
+
+    .line 9
+    move-object v1, p3
+
+    .line 10
+    goto :goto_0
+
+    .line 11
+    :cond_0
+    sget-object v1, Lw3/l;->l:Landroid/graphics/Bitmap$Config;
+
+    .line 13
+    :goto_0
+    invoke-interface {v0, p1, p2, v1}, Lw3/m;->f(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;
+
+    .line 16
+    move-result-object v0
+
+    .line 17
+    if-nez v0, :cond_2
+
+    .line 19
+    const-string v1, "\u31dc"
+
+    invoke-static {v1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 21
+    const/4 v2, 0x3
+
+    .line 22
+    invoke-static {v1, v2}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 25
+    move-result v1
+
+    .line 26
+    if-eqz v1, :cond_1
+
+    .line 28
+    iget-object v1, p0, Lw3/l;->a:Lw3/m;
+
+    .line 30
+    invoke-interface {v1, p1, p2, p3}, Lw3/m;->a(IILandroid/graphics/Bitmap$Config;)Ljava/lang/String;
+
+    .line 33
+    goto :goto_1
+
+    .line 34
+    :catchall_0
+    move-exception p1
+
+    .line 35
+    goto :goto_3
+
+    .line 36
+    :cond_1
+    :goto_1
+    iget v1, p0, Lw3/l;->h:I
+
+    .line 38
+    add-int/lit8 v1, v1, 0x1
+
+    .line 40
+    iput v1, p0, Lw3/l;->h:I
+
+    .line 42
+    goto :goto_2
+
+    .line 43
+    :cond_2
+    iget v1, p0, Lw3/l;->g:I
+
+    .line 45
+    add-int/lit8 v1, v1, 0x1
+
+    .line 47
+    iput v1, p0, Lw3/l;->g:I
+
+    .line 49
+    iget-wide v1, p0, Lw3/l;->f:J
+
+    .line 51
+    iget-object v3, p0, Lw3/l;->a:Lw3/m;
+
+    .line 53
+    invoke-interface {v3, v0}, Lw3/m;->b(Landroid/graphics/Bitmap;)I
+
+    .line 56
+    move-result v3
+
+    .line 57
+    int-to-long v3, v3
+
+    .line 58
+    sub-long/2addr v1, v3
+
+    .line 59
+    iput-wide v1, p0, Lw3/l;->f:J
+
+    .line 61
+    iget-object v1, p0, Lw3/l;->d:Lw3/l$a;
+
+    .line 63
+    invoke-interface {v1, v0}, Lw3/l$a;->a(Landroid/graphics/Bitmap;)V
+
+    .line 66
+    invoke-static {v0}, Lw3/l;->u(Landroid/graphics/Bitmap;)V
+
+    .line 69
+    :goto_2
+    const-string v1, "\u31dc"
+
+    invoke-static {v1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 71
+    const/4 v2, 0x2
+
+    .line 72
+    invoke-static {v1, v2}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 75
+    move-result v1
+
+    .line 76
+    if-eqz v1, :cond_3
+
+    .line 78
+    iget-object v1, p0, Lw3/l;->a:Lw3/m;
+
+    .line 80
+    invoke-interface {v1, p1, p2, p3}, Lw3/m;->a(IILandroid/graphics/Bitmap$Config;)Ljava/lang/String;
+
+    .line 83
+    :cond_3
+    invoke-virtual {p0}, Lw3/l;->j()V
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 86
+    monitor-exit p0
+
+    .line 87
+    return-object v0
+
+    .line 88
+    :goto_3
+    :try_start_1
+    monitor-exit p0
+    :try_end_1
+    .catchall {:try_start_1 .. :try_end_1} :catchall_0
+
+    .line 89
+    throw p1
+.end method
+
+.method public r()J
+    .locals 2
+
+    .prologue
+    .line 1
+    iget v0, p0, Lw3/l;->g:I
+
+    .line 3
+    int-to-long v0, v0
+
+    .line 4
+    return-wide v0
+.end method
+
+.method public t()J
+    .locals 2
+
+    .prologue
+    .line 1
+    iget v0, p0, Lw3/l;->h:I
+
+    .line 3
+    int-to-long v0, v0
+
+    .line 4
+    return-wide v0
+.end method
+
+.method public final declared-synchronized v(J)V
+    .locals 5
+
+    .prologue
+    .line 1
+    monitor-enter p0
+
+    .line 2
+    :goto_0
+    :try_start_0
+    iget-wide v0, p0, Lw3/l;->f:J
+
+    .line 4
+    cmp-long v0, v0, p1
+
+    .line 6
+    if-lez v0, :cond_3
+
+    .line 8
+    iget-object v0, p0, Lw3/l;->a:Lw3/m;
+
+    .line 10
+    invoke-interface {v0}, Lw3/m;->removeLast()Landroid/graphics/Bitmap;
+
+    .line 13
+    move-result-object v0
+
+    .line 14
+    if-nez v0, :cond_1
+
+    .line 16
+    const-string p1, "\u31dc"
+
+    invoke-static {p1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object p1
+
+    .line 18
+    const/4 p2, 0x5
+
+    .line 19
+    invoke-static {p1, p2}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 22
+    move-result p1
+
+    .line 23
+    if-eqz p1, :cond_0
+
+    .line 25
+    invoke-virtual {p0}, Lw3/l;->k()V
+
+    .line 28
+    goto :goto_1
+
+    .line 29
+    :catchall_0
+    move-exception p1
+
+    .line 30
+    goto :goto_2
+
+    .line 31
+    :cond_0
+    :goto_1
+    const-wide/16 p1, 0x0
+
+    .line 33
+    iput-wide p1, p0, Lw3/l;->f:J
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 35
+    monitor-exit p0
+
+    .line 36
+    return-void
+
+    .line 37
+    :cond_1
+    :try_start_1
+    iget-object v1, p0, Lw3/l;->d:Lw3/l$a;
+
+    .line 39
+    invoke-interface {v1, v0}, Lw3/l$a;->a(Landroid/graphics/Bitmap;)V
+
+    .line 42
+    iget-wide v1, p0, Lw3/l;->f:J
+
+    .line 44
+    iget-object v3, p0, Lw3/l;->a:Lw3/m;
+
+    .line 46
+    invoke-interface {v3, v0}, Lw3/m;->b(Landroid/graphics/Bitmap;)I
+
+    .line 49
+    move-result v3
+
+    .line 50
+    int-to-long v3, v3
+
+    .line 51
+    sub-long/2addr v1, v3
+
+    .line 52
+    iput-wide v1, p0, Lw3/l;->f:J
+
+    .line 54
+    iget v1, p0, Lw3/l;->j:I
+
+    .line 56
+    add-int/lit8 v1, v1, 0x1
+
+    .line 58
+    iput v1, p0, Lw3/l;->j:I
+
+    .line 60
+    const-string v1, "\u31dc"
+
+    invoke-static {v1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 62
+    const/4 v2, 0x3
+
+    .line 63
+    invoke-static {v1, v2}, Landroid/util/Log;->isLoggable(Ljava/lang/String;I)Z
+
+    .line 66
+    move-result v1
+
+    .line 67
+    if-eqz v1, :cond_2
+
+    .line 69
+    iget-object v1, p0, Lw3/l;->a:Lw3/m;
+
+    .line 71
+    invoke-interface {v1, v0}, Lw3/m;->c(Landroid/graphics/Bitmap;)Ljava/lang/String;
+
+    .line 74
+    :cond_2
+    invoke-virtual {p0}, Lw3/l;->j()V
+
+    .line 77
+    invoke-virtual {v0}, Landroid/graphics/Bitmap;->recycle()V
+    :try_end_1
+    .catchall {:try_start_1 .. :try_end_1} :catchall_0
+
+    .line 80
+    goto :goto_0
+
+    .line 81
+    :cond_3
+    monitor-exit p0
+
+    .line 82
+    return-void
+
+    .line 83
+    :goto_2
+    :try_start_2
+    monitor-exit p0
+    :try_end_2
+    .catchall {:try_start_2 .. :try_end_2} :catchall_0
+
+    .line 84
+    throw p1
+.end method

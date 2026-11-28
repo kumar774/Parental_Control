@@ -1,0 +1,16 @@
+.class public abstract synthetic Lcom/android/launcher3/uioverrides/dynamicui/d;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# direct methods
+.method public static bridge synthetic a()Ljava/lang/Class;
+    .locals 1
+
+    .line 1
+    const-class v0, Landroid/app/WallpaperColors;
+
+    .line 2
+    .line 3
+    return-object v0
+.end method

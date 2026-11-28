@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:background="@color/background" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="@dimen/dp_10">
+        <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:orientation="vertical" android:background="@drawable/bg_setting_item_def" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <TextView android:textSize="@dimen/sp_18" android:textStyle="bold" android:textColor="#ff333333" android:id="@id/tvTitleControlModel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/timeplan_title_control_model" />
+                <TextView android:textSize="@dimen/sp_16" android:textColor="#ff333333" android:id="@id/tv_mode_rules" android:background="@drawable/bg_setting_item_second" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_5" android:text="--" />
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:background="@drawable/bg_setting_item_def" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:textSize="@dimen/sp_18" android:textStyle="bold" android:textColor="#ff333333" android:id="@id/tvTitleTimeScreen" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/timeplan_title_time_screen" />
+                <androidx.recyclerview.widget.RecyclerView android:id="@id/rv_screen_rules" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_5" />
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:background="@drawable/bg_setting_item_def" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:textSize="@dimen/sp_18" android:textStyle="bold" android:textColor="#ff333333" android:id="@id/tvTitleClassTimes" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/timeplan_title_time_app" />
+                <androidx.recyclerview.widget.RecyclerView android:id="@id/rv_class_rules" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_5" />
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:background="@drawable/bg_setting_item_def" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:textSize="@dimen/sp_18" android:textStyle="bold" android:textColor="#ff333333" android:id="@id/tvTitleSetting" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/parennt_setting" />
+                <TextView android:textSize="@dimen/sp_16" android:textColor="#ff333333" android:id="@id/tv_parent_setting_summary" android:background="@drawable/bg_setting_item_second" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_5" android:text="--" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

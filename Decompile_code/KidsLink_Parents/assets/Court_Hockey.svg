@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="114px" height="72px" viewBox="0 0 114 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title> Hockey</title>
+    <g id="-Hockey" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="矩形" fill="#B4E3AA" x="0" y="0" width="114.4" height="72"></rect>
+        <rect id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#B4E3AA" x="5" y="5" width="104.457143" height="62.8571429"></rect>
+        <rect id="矩形" stroke="#FFFFFF" stroke-width="0.5" x="3" y="34" width="2" height="4.18285714"></rect>
+        <rect id="矩形备份-27" stroke="#FFFFFF" stroke-width="0.5" x="109.502857" y="34" width="2" height="4.18285714"></rect>
+        <path d="M5,52.44 C14.234201,52.44 21.72,44.954201 21.72,35.72 C21.72,26.485799 14.234201,19 5,19" id="路径" stroke="#FFFFFF" stroke-width="0.5"></path>
+        <path d="M93,52.44 C102.234201,52.44 109.72,44.954201 109.72,35.72 C109.72,26.485799 102.234201,19 93,19" id="路径备份-5" stroke="#FFFFFF" stroke-width="0.5" transform="translate(101.360000, 35.720000) scale(-1, 1) translate(-101.360000, -35.720000) "></path>
+        <path d="M5,56.8285714 C16.5506411,56.8285714 25.9142857,47.4649268 25.9142857,35.9142857 C25.9142857,24.3636447 16.5506411,15 5,15" id="路径" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="0.9142857142857143,0.9142857142857143"></path>
+        <path d="M89,56.8285714 C100.550641,56.8285714 109.914286,47.4649268 109.914286,35.9142857 C109.914286,24.3636447 100.550641,15 89,15" id="路径备份-6" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="0.9142857142857143,0.9142857142857143" transform="translate(99.457143, 35.914286) scale(-1, 1) translate(-99.457143, -35.914286) "></path>
+        <rect id="矩形" stroke="#FFFFFF" stroke-width="0.76" fill="#C3E8BA" x="31" y="5" width="52.3428571" height="62.8571429"></rect>
+        <line x1="57.0571429" y1="5" x2="57.0571429" y2="67.8571429" id="路径-6" stroke="#FFFFFF" stroke-width="0.76"></line>
+        <circle id="椭圆形" fill="#FFFFFF" cx="101.685714" cy="35.6857143" r="1"></circle>
+    </g>
+</svg>

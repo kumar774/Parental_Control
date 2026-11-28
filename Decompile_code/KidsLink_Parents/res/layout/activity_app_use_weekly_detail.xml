@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <com.mukun.mkbase.view.CommonTitleBar android:id="@id/common_title" android:layout_width="match_parent" android:layout_height="wrap_content" app:ctbShowBack="true" app:ctbTitle="@string/app_use_weekly_stats" style="@style/CommonTitleBar" />
+    <androidx.core.widget.NestedScrollView android:id="@id/scrollView" android:layout_width="match_parent" android:layout_height="0.0dp" android:fillViewport="true" android:layout_weight="1.0">
+        <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:textSize="@dimen/sp_14" android:textColor="?viewTextSecondColor" android:id="@id/tvAppNames" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_12" android:layout_marginStart="@dimen/dp_24" android:layout_marginEnd="@dimen/dp_24" />
+            <include android:id="@id/incChart" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_8" android:layout_marginStart="@dimen/dp_14" android:layout_marginEnd="@dimen/dp_14" layout="@layout/item_appuse_chart_list" />
+            <com.mukun.mkbase.view.CommonEmptyView android:id="@id/emptyView" android:visibility="gone" android:layout_width="match_parent" android:layout_height="match_parent" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

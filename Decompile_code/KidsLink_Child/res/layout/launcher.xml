@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.android.launcher3.LauncherRootView android:id="@id/launcher" android:fitsSystemWindows="true" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:launcher="http://schemas.android.com/apk/res-auto" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@id/cl_launcher_bg" android:background="#ff1b9bff" android:visibility="gone" android:layout_width="match_parent" android:layout_height="match_parent">
+        <ImageView android:id="@id/iv_launcher_bg" android:layout_width="0.0dp" android:layout_height="0.0dp" android:scaleType="fitXY" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintDimensionRatio="H,1127:2325" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <com.android.launcher3.dragndrop.DragLayer android:id="@id/drag_layer" android:clipChildren="false" android:clipToPadding="false" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no">
+        <com.android.launcher3.Workspace android:theme="@style/HomeScreenElementTheme" android:layout_gravity="center" android:id="@id/workspace" android:layout_width="match_parent" android:layout_height="match_parent" app:pageIndicator="@id/page_indicator" />
+        <include android:id="@id/hotseat" layout="@layout/hotseat" />
+        <include android:id="@id/overview_panel" android:visibility="gone" layout="@layout/overview_panel" />
+        <com.android.launcher3.pageindicators.PageIndicatorDots android:theme="@style/HomeScreenElementTheme" android:layout_gravity="center|bottom" android:id="@id/page_indicator" android:layout_width="wrap_content" android:layout_height="@dimen/vertical_drag_handle_size" />
+        <include android:id="@id/drop_target_bar" layout="@layout/drop_target_bar" />
+        <include android:id="@id/scrim_view" layout="@layout/scrim_view" />
+        <include android:id="@id/apps_view" android:layout_width="match_parent" android:layout_height="match_parent" layout="@layout/all_apps" />
+    </com.android.launcher3.dragndrop.DragLayer>
+</com.android.launcher3.LauncherRootView>

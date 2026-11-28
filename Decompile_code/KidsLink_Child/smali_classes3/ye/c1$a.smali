@@ -1,0 +1,25 @@
+.class public interface abstract Lye/c1$a;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lye/c1;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x609
+    name = "a"
+.end annotation
+
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lye/c1$a$a;
+    }
+.end annotation
+
+
+# virtual methods
+.method public abstract a(Lwc/a;)V
+.end method

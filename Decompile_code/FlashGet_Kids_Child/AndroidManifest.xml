@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:compileSdkVersion="34" android:compileSdkVersionCodename="14" android:installLocation="internalOnly" package="com.flashget.kidscontrol" platformBuildVersionCode="34" platformBuildVersionName="14">
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+    <uses-permission android:maxSdkVersion="32" android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_CALL_LOG"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.FLASHLIGHT" android:permissionGroup="android.permission-group.HARDWARE_CONTROLS" android:protectionLevel="normal"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <uses-feature android:name="android.software.app_widgets"/>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.HOME"/>
+        </intent>
+        <package android:name="com.flashget.kidsdownloader"/>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT"/>
+            <data android:mimeType="image/*"/>
+        </intent>
+        <package android:name="com.google.android.gms"/>
+        <package android:name="com.android.vending"/>
+        <package android:name="com.android.creator"/>
+        <package android:name="com.mdid.msa"/>
+        <package android:name="com.samsung.android.deviceidservice"/>
+        <package android:name="com.coolpad.deviceidsupport"/>
+        <package android:name="com.heytap.openid"/>
+        <package android:name="com.huawei.hwid"/>
+        <package android:name="com.huawei.hwid.tv"/>
+        <package android:name="com.huawei.hms"/>
+        <package android:name="com.asus.msa.SupplementaryDID"/>
+        <package android:name="com.zui.deviceidservice"/>
+    </queries>
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true"/>
+    <supports-screens android:anyDensity="true" android:largeScreens="true" android:normalScreens="true" android:smallScreens="true" android:xlargeScreens="true"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.media.browse.MediaBrowserService"/>
+        </intent>
+    </queries>
+    <uses-permission android:maxSdkVersion="22" android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-feature android:name="android.hardware.telephony" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
+    <uses-feature android:name="android.hardware.location" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
+    <uses-feature android:name="android.hardware.wifi" android:required="false"/>
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+    <uses-feature android:name="android.hardware.sensor" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false"/>
+    <uses-feature android:glEsVersion="0x20000" android:required="true"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"/>
+    <permission android:name="com.flashget.kidscontrol.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.flashget.kidscontrol.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
+    <uses-permission android:name="com.asus.msa.SupplementaryDID.ACCESS"/>
+    <uses-permission android:name="freemme.permission.msa"/>
+    <application android:allowBackup="false" android:extractNativeLibs="false" android:icon="@mipmap/kid_ic_launcher" android:label="@string/kid_app_name" android:largeHeap="true" android:name=".ProtectedSandApp" android:networkSecurityConfig="@xml/network_security_config" android:requestLegacyExternalStorage="true" android:roundIcon="@mipmap/kid_ic_launcher_round" android:supportsRtl="true" android:theme="@style/AppTheme">
+        <activity android:excludeFromRecents="true" android:exported="true" android:name="com.flashget.kidscontrol.KidSplashActivity" android:screenOrientation="sensorPortrait" android:theme="@style/SplashTheme">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="http"/>
+                <data android:scheme="https"/>
+                <data android:host="p4.flashget.com"/>
+                <data android:pathPrefix="/kid_activate.html"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="flashgetkids"/>
+                <data android:host="open"/>
+                <data android:pathPrefix="/kid_activate"/>
+            </intent-filter>
+        </activity>
+        <activity-alias android:enabled="@bool/app_icon_default_value" android:exported="true" android:icon="@mipmap/kid_ic_launcher" android:label="@string/kid_app_name" android:name="com.flashget.kidscontrol.KidSplashActivity_alias" android:roundIcon="@mipmap/kid_ic_launcher_round" android:screenOrientation="sensorPortrait" android:targetActivity="com.flashget.kidscontrol.KidSplashActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <receiver android:exported="false" android:icon="@drawable/icon_live_painting" android:label="@string/LivePainting_Page_Title" android:name="com.flashget.kidscontrol.doodle.DoodleAppWidget" android:roundIcon="@drawable/icon_live_painting">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/doodle_app_widget_info"/>
+        </receiver>
+        <meta-data android:name="com.amap.api.v2.apikey" android:value="@string/kid_amap_key"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kid.common.push.PushService" android:process=":push"/>
+        <service android:exported="false" android:name="com.flashget.kid.common.push.PushBindService" android:process=":push"/>
+        <service android:exported="false" android:name="com.flashget.kid.common.push.PushJobService" android:permission="android.permission.BIND_JOB_SERVICE" android:process=":push"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kid.common.push.PushKeepLiveService" android:process=":push"/>
+        <service android:exported="false" android:name="com.flashget.kid.common.push.PushAssistService" android:process=":push"/>
+        <service android:exported="false" android:foregroundServiceType="location" android:name="com.amap.api.location.APSService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.KidGeofenceService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice|mediaProjection" android:name="com.flashget.kidscontrol.snapshot.SnapshotScreenService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice|camera" android:name="com.flashget.kidscontrol.snapshot.SnapshotCameraService"/>
+        <service android:exported="false" android:foregroundServiceType="location" android:name="com.flashget.kidscontrol.services.KidFusedProviderLocationService">
+            <intent-filter>
+                <action android:name="com.flashget.kidscontrol.action.fused.timeout_upload"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="location" android:name="com.flashget.kidscontrol.services.HandlePushCurrentLocationService"/>
+        <service android:exported="false" android:foregroundServiceType="location" android:name="com.flashget.kidscontrol.services.CurrentLocationService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.KidUpdateDeviceInfoService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.ForwardHeartBeatMonitorService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.PushMessageHandleService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.action.push.msg_received"/>
+                <action android:name="com.flashget.kid.common.action.get_offline_gopush_msg"/>
+                <action android:name="com.flashget.kid.common.action.publish_to_msgcenter"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice|mediaProjection|camera|microphone" android:name="com.flashget.kidscontrol.webrtc.SandWebRTCService"/>
+        <receiver android:exported="true" android:name="com.flashget.kid.common.push.PushKeepLiveReceiver" android:process=":push">
+            <intent-filter android:priority="990">
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.SCREEN_OFF"/>
+                <action android:name="android.intent.action.SCREEN_ON"/>
+                <action android:name="android.intent.action.REBOOT"/>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+                <action android:name="android.intent.action.PACKAGE_FIRST_LAUNCH"/>
+            </intent-filter>
+        </receiver>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.main.KidMainActivity2" android:screenOrientation="sensorPortrait" android:theme="@style/AppNoActionBarTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="false" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.disguise.KidDisguiseSettingsActivity" android:screenOrientation="sensorPortrait" android:theme="@style/AppNoActionBarTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidGuideFragmentActivity" android:screenOrientation="sensorPortrait" android:theme="@style/AppNoActionBarTheme" android:windowSoftInputMode="stateHidden|adjustPan"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidGuideCheckListActivity2" android:screenOrientation="sensorPortrait"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidHideIconActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="false" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidHideIconEffectChangeActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidHideNotifyActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidSmsAndCameraSafetyActivity" android:screenOrientation="sensorPortrait"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidSmsSafetyActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.guide.KidBindProcessCompleteActivity" android:screenOrientation="sensorPortrait" android:theme="@style/AppThemeNoAction"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.permission.KidPermissionGuideFragmentActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.permission.KidPermissionSmsActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.permission.KidPermissionStorageActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.settings.KidSettingLanguageActivity" android:screenOrientation="sensorPortrait" android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:excludeFromRecents="true" android:exported="false" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.settings.WifiSettingsShortcutActivity" android:noHistory="true" android:taskAffinity="com.flashget.kidscontrol.wifi.settings.shortcut" android:theme="@style/Theme.AppCompat.Translucent"/>
+        <activity-alias android:enabled="false" android:exported="true" android:icon="@mipmap/wifi_ic_launcher" android:label="@string/wifi_settings_shortcut_name" android:name="com.flashget.kidscontrol.WifiSettingsShortcutActivity_alias" android:roundIcon="@mipmap/wifi_ic_launcher" android:targetActivity="com.flashget.kidscontrol.ui.settings.WifiSettingsShortcutActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity android:excludeFromRecents="true" android:exported="true" android:launchMode="singleInstance" android:name="com.flashget.kidscontrol.ui.guide.MaskActivity" android:screenOrientation="fullSensor" android:theme="@style/MaskTheme" android:windowSoftInputMode="stateHidden|adjustResize"/>
+        <activity android:exported="true" android:label="@string/main_ae_about" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.KidAboutActivity" android:screenOrientation="locked" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.flashget.kidscontrol.webrtc.InitWebRTCScreenActivity" android:taskAffinity="com.flashget.flashget.webrtc" android:theme="@style/Theme.AppCompat.Translucent"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.flashget.kidscontrol.webrtc.InitWebRTCCameraActivity" android:taskAffinity="com.flashget.flashget.webrtc" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.flashget.kidscontrol.ui.base.BackgroundInitTmpActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.flashget.kidscontrol.webrtc.InitAudioActivity" android:taskAffinity="com.flashget.flashget.webrtc" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.main.KidLimitAppActivity" android:screenOrientation="fullSensor" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.main.KidPhoneInterceptionActivity" android:screenOrientation="fullSensor" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.main.KidPhoneInterceptionActivity2" android:screenOrientation="fullSensor" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.main.KidLimitSettingActivity" android:screenOrientation="fullSensor" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.tencent.rtmp.video.TXScreenCapture$TXScreenCaptureAssistantActivity" android:taskAffinity="com.flashget.flashget.webrtc" android:theme="@android:style/Theme.Translucent"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="false" android:name="com.flashget.kidscontrol.doodle.KLivePaintActivity" android:taskAffinity="com.flashget.flashget.webrtc" android:theme="@style/AppThemeNoAction"/>
+        <activity android:exported="true" android:label="@string/main_ae_about" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.test.SnapshotTaskTestActivity" android:screenOrientation="locked" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:exported="false" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.test.KidActivityStateTestActivity" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:exported="false" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.test.TdUploadDebugActivity" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.test.UninstallModeTestActivity" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kidscontrol.ui.test.GoogleGeocodeTestActivity" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.OtherTaskService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.action.regist_login_state"/>
+                <action android:name="com.flashget.kid.common.action.push_forward_url_resign"/>
+                <action android:name="com.flashget.kid.common.action.check_update"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.DataCollectionService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.FlashGetKeepLiveService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.FlashGetService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.action.servers.start_all"/>
+                <action android:name="com.flashget.kid.common.action.stop_forward_heartbeat_service"/>
+                <action android:name="com.flashget.kid.common.action.check_forward_service"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.KeyManagerService"/>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.KidTaskService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.action.dump_flow"/>
+                <action android:name="com.flashget.kid.common.action.location_get_current"/>
+                <action android:name="com.flashget.kid.common.action.dump_usage"/>
+                <action android:name="com.flashget.kid.common.action.init_from_background"/>
+                <action android:name="com.flashget.kid.common.action.test_current_usage"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerCameraSchedulerService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_camera_service"/>
+                <action android:name="com.flashget.kid.common.kid_start_timer_camera_service_scheduler"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerCameraService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_camera_snapshot"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerRecordSchedulerService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_record_service"/>
+                <action android:name="com.flashget.kid.common.kid_start_timer_record_service_scheduler"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerRecordService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_camera_record"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerScreenRecordSchedulerService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_screen_record_service"/>
+                <action android:name="com.flashget.kid.common.kid_start_timer_screen_record_service_scheduler"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerScreenSnapshotSchedulerService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_screen_snapshot_service"/>
+                <action android:name="com.flashget.kid.common.kid_start_timer_screen_snapshot_service_scheduler"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.services.TimerEnvironmentRecordSchedulerService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.kid_start_timer_environment_record_service"/>
+                <action android:name="com.flashget.kid.common.kid_start_timer_environment_record_service_scheduler"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="microphone" android:name="com.flashget.kidscontrol.snapshot.EnvironmentRecordService"/>
+        <service android:exported="false" android:label="@string/kid_notification_service_name" android:name="com.flashget.kidscontrol.services.NotificationService" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter android:priority="999">
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kidscontrol.vnc.RotationListenerService"/>
+        <service android:exported="false" android:name="com.flashget.kidscontrol.services.KidFCMService">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:foregroundServiceType="camera" android:name="com.flashget.kidscontrol.CameraPreviewService"/>
+        <service android:accessibilityFeedbackType="feedbackAllMask" android:canRetrieveWindowContent="true" android:enabled="true" android:exported="true" android:label="@string/kid_app_name" android:name="com.flashget.kidscontrol.services.AccessibilityLimitService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data android:name="android.accessibility-service" android:resource="@xml/accessibility_service_config"/>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config"/>
+        </service>
+        <receiver android:exported="true" android:name="com.flashget.kid.common.services.InstallResultReceiver">
+            <intent-filter>
+                <action android:name="com.example.ACTION_INSTALL_COMPLETE"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:exported="true" android:name="com.flashget.kidscontrol.KidLaunchReceiver">
+            <intent-filter android:priority="990">
+                <action android:name="android.provider.Telephony.SECRET_CODE"/>
+                <data android:host="@string/kid_icon_secret_code" android:scheme="android_secret_code"/>
+            </intent-filter>
+            <intent-filter android:priority="990">
+                <action android:name="android.telephony.action.SECRET_CODE"/>
+                <data android:host="@string/kid_icon_secret_code" android:scheme="android_secret_code"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.NEW_OUTGOING_CALL"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:description="@string/kid_list_device_admin_summary" android:exported="true" android:name="com.flashget.kidscontrol.components.dm.KidDeviceAdminReceiver" android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin"/>
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:exported="true" android:name="com.flashget.kidscontrol.servers.event.observers.KidGeofenceBroadcastReceiver"/>
+        <receiver android:exported="false" android:name="com.flashget.kidscontrol.servers.event.observers.KidActivityTransitionBroadcastReceiver"/>
+        <receiver android:enabled="true" android:exported="true" android:name="com.flashget.kidscontrol.servers.event.observers.KidNetworkCallbackReceiver">
+            <intent-filter android:priority="990">
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.SCREEN_OFF"/>
+                <action android:name="android.intent.action.SCREEN_ON"/>
+                <action android:name="android.intent.action.PACKAGE_FIRST_LAUNCH"/>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="true" android:enabled="true" android:exported="true" android:name="com.flashget.kidscontrol.servers.event.observers.EventReceiver">
+            <intent-filter android:priority="990">
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.REBOOT"/>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:enabled="true" android:exported="true" android:name="com.flashget.kidscontrol.servers.event.observers.PressHomeKeyBroadcastReceiver"/>
+        <provider android:authorities="com.flashget.kidscontrol.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/filepaths"/>
+        </provider>
+        <provider android:authorities="com.flashget.kidscontrol.androidx-startup" android:exported="false" android:name="androidx.startup.InitializationProvider">
+            <meta-data android:name="androidx.emoji2.text.EmojiCompatInitializer" android:value="androidx.startup"/>
+            <meta-data android:name="androidx.lifecycle.ProcessLifecycleInitializer" android:value="androidx.startup"/>
+            <meta-data android:name="androidx.profileinstaller.ProfileInstallerInitializer" android:value="androidx.startup"/>
+        </provider>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kid.common.services.JwtIntentService"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kid.common.services.ForwardTaskService">
+            <intent-filter>
+                <action android:name="com.flashget.kid.common.action.stop_forward"/>
+            </intent-filter>
+        </service>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:name="com.flashget.kid.common.crash.DefaultCrashActivity" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:label="Server States" android:launchMode="singleTask" android:name="com.flashget.kid.common.ui.debug.ServerStateListActivity" android:screenOrientation="portrait" android:theme="@style/AppThemeNoAction">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kid.common.ui.debug.UploadLogToJIRAActivity" android:screenOrientation="portrait" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.OfficialWebsiteWebTestActivity" android:screenOrientation="portrait" android:theme="@style/AppThemeNoAction" android:windowSoftInputMode="adjustResize"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:label="" android:name="com.flashget.kid.common.ui.base.web.SandWebActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:hardwareAccelerated="true" android:label="" android:launchMode="singleTask" android:name="com.flashget.kid.common.ui.update.AppUpdateActivity" android:theme="@style/ad_base_dialog_no_frame"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:label="" android:launchMode="singleTask" android:name="com.flashget.kid.common.ui.update.AppUpdateDownloadActivity" android:theme="@style/ad_base_dialog_no_frame"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:launchMode="singleTask" android:name="com.flashget.kid.common.ui.update.AppUpdateDownloadNewActivity" android:theme="@style/ad_base_dialog_no_frame" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="true" android:label="" android:name="com.flashget.kid.common.ui.debug.UploadTencentLogActivity" android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.ParentMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.ProductListCacheMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.OtherMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.KidMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.KidPermissionMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.flashget.kid.common.ui.debug.AccountMmkvManagerActivity" android:theme="@style/AppTheme"/>
+        <service android:exported="false" android:foregroundServiceType="connectedDevice" android:name="com.flashget.kid.common.services.DownloadService"/>
+        <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.components.ComponentDiscoveryService">
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.remoteconfig.ktx.FirebaseConfigLegacyRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.ktx.FirebaseMessagingLegacyRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.crashlytics.ndk.CrashlyticsNdkRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.crashlytics.ktx.FirebaseCrashlyticsKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.crashlytics.FirebaseCrashlyticsKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.crashlytics.CrashlyticsRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.analytics.ktx.FirebaseAnalyticsLegacyRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.remoteconfig.FirebaseRemoteConfigKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.remoteconfig.RemoteConfigRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.sessions.FirebaseSessionsRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.analytics.connector.internal.AnalyticsConnectorRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.ktx.FirebaseCommonLegacyRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.FirebaseCommonKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.abt.component.AbtRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.datatransport.TransportRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+        </service>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:name="com.yalantis.ucrop.UCropActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:name="com.yalantis.ucrop.UCropMultipleActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <service android:directBootAware="false" android:enabled="@bool/enable_system_alarm_service_default" android:exported="false" android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"/>
+        <service android:directBootAware="false" android:enabled="@bool/enable_system_job_service_default" android:exported="true" android:name="androidx.work.impl.background.systemjob.SystemJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <service android:directBootAware="false" android:enabled="@bool/enable_system_foreground_service_default" android:exported="false" android:name="androidx.work.impl.foreground.SystemForegroundService"/>
+        <receiver android:directBootAware="false" android:enabled="true" android:exported="false" android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver"/>
+        <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED"/>
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy">
+            <intent-filter>
+                <action android:name="android.intent.action.BATTERY_OKAY"/>
+                <action android:name="android.intent.action.BATTERY_LOW"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy">
+            <intent-filter>
+                <action android:name="android.intent.action.DEVICE_STORAGE_LOW"/>
+                <action android:name="android.intent.action.DEVICE_STORAGE_OK"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="@bool/enable_system_alarm_service_default" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver">
+            <intent-filter>
+                <action android:name="androidx.work.impl.background.systemalarm.UpdateProxies"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver" android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="androidx.work.diagnostics.REQUEST_DIAGNOSTICS"/>
+            </intent-filter>
+        </receiver>
+        <service android:directBootAware="true" android:exported="false" android:name="androidx.room.MultiInstanceInvalidationService"/>
+        <meta-data android:name="android.notch_support" android:value="true"/>
+        <activity android:name="com.lxj.xpopup.util.XPermission$PermissionActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <provider android:authorities="com.flashget.kidscontrol.luckProvider" android:exported="false" android:grantUriPermissions="true" android:name="com.luck.picture.lib.basic.PictureFileProvider">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/ps_file_paths"/>
+        </provider>
+        <service android:enabled="true" android:foregroundServiceType="location" android:name="com.luck.picture.lib.service.ForegroundService"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:name="com.luck.picture.lib.basic.PictureSelectorSupporterActivity" android:theme="@style/Base.Theme.NoActionBar"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:name="com.luck.picture.lib.basic.PictureSelectorTransparentActivity" android:theme="@style/Picture.Theme.Translucent"/>
+        <activity android:exported="false" android:label="@string/places_autocomplete_label" android:name="com.google.android.libraries.places.widget.AutocompleteActivity" android:theme="@style/PlacesAutocompleteOverlay" android:windowSoftInputMode="adjustResize"/>
+        <uses-library android:name="org.apache.http.legacy" android:required="false"/>
+        <receiver android:exported="true" android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+            </intent-filter>
+            <meta-data android:name="com.google.android.gms.cloudmessaging.FINISHED_AFTER_HANDLED" android:value="true"/>
+        </receiver>
+        <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.messaging.FirebaseMessagingService">
+            <intent-filter android:priority="-500">
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <service android:enabled="true" android:exported="false" android:name="com.google.firebase.sessions.SessionLifecycleService"/>
+        <property android:name="android.adservices.AD_SERVICES_CONFIG" android:resource="@xml/ga_ad_services_config"/>
+        <provider android:authorities="com.flashget.kidscontrol.firebaseinitprovider" android:directBootAware="true" android:exported="false" android:initOrder="100" android:name="com.google.firebase.provider.FirebaseInitProvider"/>
+        <receiver android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementReceiver"/>
+        <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementService"/>
+        <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <uses-library android:name="android.ext.adservices" android:required="false"/>
+        <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version"/>
+        <service android:exported="false" android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery">
+            <meta-data android:name="backend:com.google.android.datatransport.cct.CctBackendFactory" android:value="cct"/>
+        </service>
+        <service android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
+        <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.profileinstaller.ProfileInstallReceiver" android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SKIP_FILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION"/>
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

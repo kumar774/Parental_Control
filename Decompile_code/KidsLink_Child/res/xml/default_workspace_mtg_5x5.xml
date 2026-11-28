@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<favorites
+  xmlns:launcher="http://schemas.android.com/apk/res-auto/com.android.launcher3">
+    <resolve launcher:container="-101" launcher:screen="1" launcher:x="0" launcher:y="0">
+        <favorite launcher:className="com.fundot.p4bu.setting.activity.TempSimpleSettingsActivity" launcher:packageName="@string/control_package_name" />
+    </resolve>
+    <resolve launcher:container="-101" launcher:screen="2" launcher:x="0" launcher:y="0">
+        <favorite launcher:uri="#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end" />
+        <favorite launcher:uri="#Intent;action=android.intent.action.CAMERA_BUTTON;end" />
+    </resolve>
+    <resolve launcher:container="-101" launcher:screen="3" launcher:x="0" launcher:y="0">
+        <favorite launcher:uri="#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_GALLERY;end" />
+        <favorite launcher:uri="#Intent;type=images/*;end" />
+    </resolve>
+    <resolve launcher:container="-101" launcher:screen="4" launcher:x="0" launcher:y="0">
+        <favorite launcher:className="com.maitiange.pad.MainActivity" launcher:packageName="com.maitiange.pad" />
+    </resolve>
+</favorites>

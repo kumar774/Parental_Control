@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:icon="@mipmap/question_red" android:enabled="true" android:shortcutId="open_uninstall_guide_fake_launcher" android:shortcutShortLabel="@string/shortcut_unbind_short_label" android:shortcutLongLabel="@string/shortcut_unbind_long_label" android:shortcutDisabledMessage="@string/shortcut_unbind_disabled_message">
+        <intent android:targetPackage="com.fundot.p4bu" android:action="android.intent.action.VIEW" android:targetClass="com.fundot.p4bu.permissionguidance.activity.UninstallActivity" />
+    </shortcut>
+</shortcuts>

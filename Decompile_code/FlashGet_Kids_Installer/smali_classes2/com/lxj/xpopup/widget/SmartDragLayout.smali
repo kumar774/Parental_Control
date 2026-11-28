@@ -1,0 +1,1891 @@
+.class public Lcom/lxj/xpopup/widget/SmartDragLayout;
+.super Landroid/widget/LinearLayout;
+.source "SourceFile"
+
+# interfaces
+.implements Lf1/w0;
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/lxj/xpopup/widget/SmartDragLayout$c;
+    }
+.end annotation
+
+
+# instance fields
+.field public A:F
+
+.field public B:F
+
+.field public C:Z
+
+.field public D:Lcom/lxj/xpopup/widget/SmartDragLayout$c;
+
+.field public o:Landroid/view/View;
+
+.field public p:Landroid/widget/OverScroller;
+
+.field public q:Landroid/view/VelocityTracker;
+
+.field public r:Z
+
+.field public s:Z
+
+.field public t:Z
+
+.field public u:Z
+
+.field public v:Lia/b;
+
+.field public w:I
+
+.field public x:I
+
+.field public y:I
+
+.field public z:I
+
+
+# direct methods
+.method public constructor <init>(Landroid/content/Context;)V
+    .locals 1
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "context"
+        }
+    .end annotation
+
+    .prologue
+    const/4 v0, 0x0
+
+    .line 1
+    invoke-direct {p0, p1, v0}, Lcom/lxj/xpopup/widget/SmartDragLayout;-><init>(Landroid/content/Context;Landroid/util/AttributeSet;)V
+
+    return-void
+.end method
+
+.method public constructor <init>(Landroid/content/Context;Landroid/util/AttributeSet;)V
+    .locals 1
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0
+        }
+        names = {
+            "context",
+            "attrs"
+        }
+    .end annotation
+
+    .prologue
+    const/4 v0, 0x0
+
+    .line 2
+    invoke-direct {p0, p1, p2, v0}, Lcom/lxj/xpopup/widget/SmartDragLayout;-><init>(Landroid/content/Context;Landroid/util/AttributeSet;I)V
+
+    return-void
+.end method
+
+.method public constructor <init>(Landroid/content/Context;Landroid/util/AttributeSet;I)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "context",
+            "attrs",
+            "defStyleAttr"
+        }
+    .end annotation
+
+    .prologue
+    .line 3
+    invoke-direct {p0, p1, p2, p3}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;Landroid/util/AttributeSet;I)V
+
+    const/4 p2, 0x1
+
+    .line 4
+    iput-boolean p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 5
+    iput-boolean p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->s:Z
+
+    const/4 p2, 0x0
+
+    .line 6
+    iput-boolean p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->t:Z
+
+    .line 7
+    iput-boolean p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 8
+    sget-object p2, Lia/b;->Close:Lia/b;
+
+    iput-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    const/16 p2, 0x190
+
+    .line 9
+    iput p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->w:I
+
+    .line 10
+    new-instance p2, Landroid/widget/OverScroller;
+
+    invoke-direct {p2, p1}, Landroid/widget/OverScroller;-><init>(Landroid/content/Context;)V
+
+    iput-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    return-void
+.end method
+
+.method public static synthetic a(Lcom/lxj/xpopup/widget/SmartDragLayout;IZ)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1, p2}, Lcom/lxj/xpopup/widget/SmartDragLayout;->k(IZ)V
+
+    .line 4
+    return-void
+.end method
+
+
+# virtual methods
+.method public b()V
+    .locals 1
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    iput-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->t:Z
+
+    .line 4
+    new-instance v0, Lcom/lxj/xpopup/widget/SmartDragLayout$b;
+
+    .line 6
+    invoke-direct {v0, p0}, Lcom/lxj/xpopup/widget/SmartDragLayout$b;-><init>(Lcom/lxj/xpopup/widget/SmartDragLayout;)V
+
+    .line 9
+    invoke-virtual {p0, v0}, Landroid/view/View;->post(Ljava/lang/Runnable;)Z
+
+    .line 12
+    return-void
+.end method
+
+.method public c(Z)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "dismissOnTouchOutside"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iput-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->s:Z
+
+    .line 3
+    return-void
+.end method
+
+.method public computeScroll()V
+    .locals 2
+
+    .prologue
+    .line 1
+    invoke-super {p0}, Landroid/view/View;->computeScroll()V
+
+    .line 4
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 6
+    invoke-virtual {v0}, Landroid/widget/OverScroller;->computeScrollOffset()Z
+
+    .line 9
+    move-result v0
+
+    .line 10
+    if-eqz v0, :cond_0
+
+    .line 12
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 14
+    invoke-virtual {v0}, Landroid/widget/OverScroller;->getCurrX()I
+
+    .line 17
+    move-result v0
+
+    .line 18
+    iget-object v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 20
+    invoke-virtual {v1}, Landroid/widget/OverScroller;->getCurrY()I
+
+    .line 23
+    move-result v1
+
+    .line 24
+    invoke-virtual {p0, v0, v1}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 27
+    invoke-static {p0}, Lf1/i1;->n1(Landroid/view/View;)V
+
+    .line 30
+    :cond_0
+    return-void
+.end method
+
+.method public d(Z)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "enableDrag"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iput-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 3
+    return-void
+.end method
+
+.method public final f()V
+    .locals 7
+
+    .prologue
+    .line 1
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 3
+    if-eqz v0, :cond_6
+
+    .line 5
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->C:Z
+
+    .line 7
+    if-eqz v0, :cond_0
+
+    .line 9
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 11
+    iget v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 13
+    sub-int/2addr v0, v1
+
+    .line 14
+    :goto_0
+    div-int/lit8 v0, v0, 0x3
+
+    .line 16
+    goto :goto_1
+
+    .line 17
+    :cond_0
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 19
+    iget v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 21
+    sub-int/2addr v0, v1
+
+    .line 22
+    mul-int/lit8 v0, v0, 0x2
+
+    .line 24
+    goto :goto_0
+
+    .line 25
+    :goto_1
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 28
+    move-result v1
+
+    .line 29
+    if-le v1, v0, :cond_1
+
+    .line 31
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 33
+    goto :goto_2
+
+    .line 34
+    :cond_1
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 36
+    :goto_2
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 39
+    move-result v1
+
+    .line 40
+    sub-int/2addr v0, v1
+
+    .line 41
+    iget-boolean v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 43
+    if-eqz v1, :cond_2
+
+    .line 45
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 47
+    div-int/lit8 v0, v0, 0x3
+
+    .line 49
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 52
+    move-result v1
+
+    .line 53
+    int-to-float v1, v1
+
+    .line 54
+    int-to-float v2, v0
+
+    .line 55
+    const/high16 v3, 0x40200000    # 2.5f
+
+    .line 57
+    mul-float/2addr v3, v2
+
+    .line 58
+    cmpl-float v1, v1, v3
+
+    .line 60
+    if-lez v1, :cond_3
+
+    .line 62
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 64
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 67
+    move-result v1
+
+    .line 68
+    :goto_3
+    sub-int/2addr v0, v1
+
+    .line 69
+    :cond_2
+    move v5, v0
+
+    .line 70
+    goto :goto_4
+
+    .line 71
+    :cond_3
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 74
+    move-result v1
+
+    .line 75
+    int-to-float v1, v1
+
+    .line 76
+    cmpg-float v1, v1, v3
+
+    .line 78
+    if-gtz v1, :cond_4
+
+    .line 80
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 83
+    move-result v1
+
+    .line 84
+    int-to-float v1, v1
+
+    .line 85
+    const/high16 v3, 0x3fc00000    # 1.5f
+
+    .line 87
+    mul-float/2addr v2, v3
+
+    .line 88
+    cmpl-float v1, v1, v2
+
+    .line 90
+    if-lez v1, :cond_4
+
+    .line 92
+    mul-int/lit8 v0, v0, 0x2
+
+    .line 94
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 97
+    move-result v1
+
+    .line 98
+    goto :goto_3
+
+    .line 99
+    :cond_4
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 102
+    move-result v1
+
+    .line 103
+    if-le v1, v0, :cond_5
+
+    .line 105
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 108
+    move-result v1
+
+    .line 109
+    goto :goto_3
+
+    .line 110
+    :cond_5
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 112
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 115
+    move-result v1
+
+    .line 116
+    goto :goto_3
+
+    .line 117
+    :goto_4
+    iget-object v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 119
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 122
+    move-result v2
+
+    .line 123
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 126
+    move-result v3
+
+    .line 127
+    const/4 v4, 0x0
+
+    .line 128
+    iget v6, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->w:I
+
+    .line 130
+    invoke-virtual/range {v1 .. v6}, Landroid/widget/OverScroller;->startScroll(IIIII)V
+
+    .line 133
+    invoke-static {p0}, Lf1/i1;->n1(Landroid/view/View;)V
+
+    .line 136
+    :cond_6
+    return-void
+.end method
+
+.method public g(Z)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "isThreeDrag"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iput-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 3
+    return-void
+.end method
+
+.method public getNestedScrollAxes()I
+    .locals 1
+
+    const/4 v0, 0x2
+
+    return v0
+.end method
+
+.method public h()V
+    .locals 1
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/lxj/xpopup/widget/SmartDragLayout$a;
+
+    .line 3
+    invoke-direct {v0, p0}, Lcom/lxj/xpopup/widget/SmartDragLayout$a;-><init>(Lcom/lxj/xpopup/widget/SmartDragLayout;)V
+
+    .line 6
+    invoke-virtual {p0, v0}, Landroid/view/View;->post(Ljava/lang/Runnable;)Z
+
+    .line 9
+    return-void
+.end method
+
+.method public i(I)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "duration"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->w:I
+
+    .line 3
+    return-void
+.end method
+
+.method public j(Lcom/lxj/xpopup/widget/SmartDragLayout$c;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "listener"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iput-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->D:Lcom/lxj/xpopup/widget/SmartDragLayout$c;
+
+    .line 3
+    return-void
+.end method
+
+.method public final k(IZ)V
+    .locals 6
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x10,
+            0x10
+        }
+        names = {
+            "dy",
+            "isOpen"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 3
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 6
+    move-result v1
+
+    .line 7
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 10
+    move-result v2
+
+    .line 11
+    if-eqz p2, :cond_0
+
+    .line 13
+    iget p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->w:I
+
+    .line 15
+    int-to-float p2, p2
+
+    .line 16
+    goto :goto_0
+
+    .line 17
+    :cond_0
+    iget p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->w:I
+
+    .line 19
+    int-to-float p2, p2
+
+    .line 20
+    const v3, 0x3f4ccccd    # 0.8f
+
+    .line 23
+    mul-float/2addr p2, v3
+
+    .line 24
+    :goto_0
+    float-to-int v5, p2
+
+    .line 25
+    const/4 v3, 0x0
+
+    .line 26
+    move v4, p1
+
+    .line 27
+    invoke-virtual/range {v0 .. v5}, Landroid/widget/OverScroller;->startScroll(IIIII)V
+
+    .line 30
+    invoke-static {p0}, Lf1/i1;->n1(Landroid/view/View;)V
+
+    .line 33
+    return-void
+.end method
+
+.method public onDetachedFromWindow()V
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-super {p0}, Landroid/view/View;->onDetachedFromWindow()V
+
+    .line 4
+    const/4 v0, 0x0
+
+    .line 5
+    iput-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->C:Z
+
+    .line 7
+    iput-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->t:Z
+
+    .line 9
+    const/4 v0, 0x0
+
+    .line 10
+    invoke-virtual {p0, v0}, Landroid/view/View;->setTranslationY(F)V
+
+    .line 13
+    return-void
+.end method
+
+.method public onInterceptTouchEvent(Landroid/view/MotionEvent;)Z
+    .locals 2
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "ev"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    iput-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->t:Z
+
+    .line 4
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 6
+    sget-object v1, Lia/b;->Closing:Lia/b;
+
+    .line 8
+    if-eq v0, v1, :cond_1
+
+    .line 10
+    sget-object v1, Lia/b;->Opening:Lia/b;
+
+    .line 12
+    if-ne v0, v1, :cond_0
+
+    .line 14
+    goto :goto_0
+
+    .line 15
+    :cond_0
+    invoke-super {p0, p1}, Landroid/view/ViewGroup;->onInterceptTouchEvent(Landroid/view/MotionEvent;)Z
+
+    .line 18
+    move-result p1
+
+    .line 19
+    return p1
+
+    .line 20
+    :cond_1
+    :goto_0
+    const/4 p1, 0x0
+
+    .line 21
+    return p1
+.end method
+
+.method public onLayout(ZIIII)V
+    .locals 1
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "changed",
+            "left",
+            "top",
+            "right",
+            "bottom"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 3
+    if-eqz p1, :cond_3
+
+    .line 5
+    iget-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 7
+    if-nez p1, :cond_0
+
+    .line 9
+    return-void
+
+    .line 10
+    :cond_0
+    invoke-virtual {p1}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 13
+    move-result p1
+
+    .line 14
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 16
+    const/4 p1, 0x0
+
+    .line 17
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 19
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 22
+    move-result p1
+
+    .line 23
+    div-int/lit8 p1, p1, 0x2
+
+    .line 25
+    iget-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 27
+    invoke-virtual {p2}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 30
+    move-result p2
+
+    .line 31
+    div-int/lit8 p2, p2, 0x2
+
+    .line 33
+    sub-int/2addr p1, p2
+
+    .line 34
+    iget-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 36
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 39
+    move-result p3
+
+    .line 40
+    iget-object p4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 42
+    invoke-virtual {p4}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 45
+    move-result p4
+
+    .line 46
+    add-int/2addr p4, p1
+
+    .line 47
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 50
+    move-result p5
+
+    .line 51
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 53
+    add-int/2addr p5, v0
+
+    .line 54
+    invoke-virtual {p2, p1, p3, p4, p5}, Landroid/view/View;->layout(IIII)V
+
+    .line 57
+    iget-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 59
+    sget-object p2, Lia/b;->Open:Lia/b;
+
+    .line 61
+    if-ne p1, p2, :cond_2
+
+    .line 63
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 65
+    if-eqz p1, :cond_1
+
+    .line 67
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 70
+    move-result p1
+
+    .line 71
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 74
+    move-result p2
+
+    .line 75
+    iget p3, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->z:I
+
+    .line 77
+    iget p4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 79
+    sub-int/2addr p3, p4
+
+    .line 80
+    sub-int/2addr p2, p3
+
+    .line 81
+    invoke-virtual {p0, p1, p2}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 84
+    goto :goto_0
+
+    .line 85
+    :cond_1
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 88
+    move-result p1
+
+    .line 89
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 92
+    move-result p2
+
+    .line 93
+    iget p3, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->z:I
+
+    .line 95
+    iget p4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 97
+    sub-int/2addr p3, p4
+
+    .line 98
+    sub-int/2addr p2, p3
+
+    .line 99
+    invoke-virtual {p0, p1, p2}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 102
+    :cond_2
+    :goto_0
+    iget p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 104
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->z:I
+
+    .line 106
+    goto :goto_1
+
+    .line 107
+    :cond_3
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 110
+    move-result p1
+
+    .line 111
+    div-int/lit8 p1, p1, 0x2
+
+    .line 113
+    iget-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 115
+    invoke-virtual {p2}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 118
+    move-result p2
+
+    .line 119
+    div-int/lit8 p2, p2, 0x2
+
+    .line 121
+    sub-int/2addr p1, p2
+
+    .line 122
+    iget-object p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 124
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 127
+    move-result p3
+
+    .line 128
+    iget-object p4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 130
+    invoke-virtual {p4}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 133
+    move-result p4
+
+    .line 134
+    sub-int/2addr p3, p4
+
+    .line 135
+    iget-object p4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 137
+    invoke-virtual {p4}, Landroid/view/View;->getMeasuredWidth()I
+
+    .line 140
+    move-result p4
+
+    .line 141
+    add-int/2addr p4, p1
+
+    .line 142
+    invoke-virtual {p0}, Landroid/view/View;->getMeasuredHeight()I
+
+    .line 145
+    move-result p5
+
+    .line 146
+    invoke-virtual {p2, p1, p3, p4, p5}, Landroid/view/View;->layout(IIII)V
+
+    .line 149
+    :goto_1
+    return-void
+.end method
+
+.method public onNestedFling(Landroid/view/View;FFZ)Z
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "target",
+            "velocityX",
+            "velocityY",
+            "consumed"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 4
+    move-result p1
+
+    .line 5
+    iget p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 7
+    if-le p1, p2, :cond_0
+
+    .line 9
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 12
+    move-result p1
+
+    .line 13
+    iget p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 15
+    if-ge p1, p2, :cond_0
+
+    .line 17
+    const p1, -0x3b448000    # -1500.0f
+
+    .line 20
+    cmpg-float p1, p3, p1
+
+    .line 22
+    if-gez p1, :cond_0
+
+    .line 24
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 26
+    if-nez p1, :cond_0
+
+    .line 28
+    invoke-virtual {p0}, Lcom/lxj/xpopup/widget/SmartDragLayout;->b()V
+
+    .line 31
+    :cond_0
+    const/4 p1, 0x0
+
+    .line 32
+    return p1
+.end method
+
+.method public onNestedPreFling(Landroid/view/View;FF)Z
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "target",
+            "velocityX",
+            "velocityY"
+        }
+    .end annotation
+
+    const/4 p1, 0x0
+
+    return p1
+.end method
+
+.method public onNestedPreScroll(Landroid/view/View;II[I)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "target",
+            "dx",
+            "dy",
+            "consumed"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    if-lez p3, :cond_1
+
+    .line 3
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 6
+    move-result p1
+
+    .line 7
+    add-int/2addr p1, p3
+
+    .line 8
+    iget p2, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 10
+    if-ge p1, p2, :cond_0
+
+    .line 12
+    const/4 p2, 0x1
+
+    .line 13
+    aput p3, p4, p2
+
+    .line 15
+    :cond_0
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 18
+    move-result p2
+
+    .line 19
+    invoke-virtual {p0, p2, p1}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 22
+    :cond_1
+    return-void
+.end method
+
+.method public onNestedScroll(Landroid/view/View;IIII)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "target",
+            "dxConsumed",
+            "dyConsumed",
+            "dxUnconsumed",
+            "dyUnconsumed"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 4
+    move-result p1
+
+    .line 5
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 8
+    move-result p2
+
+    .line 9
+    add-int/2addr p2, p5
+
+    .line 10
+    invoke-virtual {p0, p1, p2}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 13
+    return-void
+.end method
+
+.method public onNestedScrollAccepted(Landroid/view/View;Landroid/view/View;I)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "child",
+            "target",
+            "nestedScrollAxes"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 3
+    invoke-virtual {p1}, Landroid/widget/OverScroller;->abortAnimation()V
+
+    .line 6
+    return-void
+.end method
+
+.method public onStartNestedScroll(Landroid/view/View;Landroid/view/View;I)Z
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0,
+            0x0
+        }
+        names = {
+            "child",
+            "target",
+            "nestedScrollAxes"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    const/4 p1, 0x2
+
+    .line 2
+    if-ne p3, p1, :cond_0
+
+    .line 4
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 6
+    if-eqz p1, :cond_0
+
+    .line 8
+    const/4 p1, 0x1
+
+    .line 9
+    goto :goto_0
+
+    .line 10
+    :cond_0
+    const/4 p1, 0x0
+
+    .line 11
+    :goto_0
+    return p1
+.end method
+
+.method public onStopNestedScroll(Landroid/view/View;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "target"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/lxj/xpopup/widget/SmartDragLayout;->f()V
+
+    .line 4
+    return-void
+.end method
+
+.method public onTouchEvent(Landroid/view/MotionEvent;)Z
+    .locals 6
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "event"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 3
+    sget-object v1, Lia/b;->Closing:Lia/b;
+
+    .line 5
+    if-eq v0, v1, :cond_b
+
+    .line 7
+    sget-object v1, Lia/b;->Opening:Lia/b;
+
+    .line 9
+    if-ne v0, v1, :cond_0
+
+    .line 11
+    goto/16 :goto_2
+
+    .line 13
+    :cond_0
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 15
+    const/4 v1, 0x1
+
+    .line 16
+    if-eqz v0, :cond_2
+
+    .line 18
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->p:Landroid/widget/OverScroller;
+
+    .line 20
+    invoke-virtual {v0}, Landroid/widget/OverScroller;->computeScrollOffset()Z
+
+    .line 23
+    move-result v0
+
+    .line 24
+    if-nez v0, :cond_1
+
+    .line 26
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 28
+    sget-object v2, Lia/b;->Close:Lia/b;
+
+    .line 30
+    if-ne v0, v2, :cond_2
+
+    .line 32
+    :cond_1
+    const/4 p1, 0x0
+
+    .line 33
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->A:F
+
+    .line 35
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->B:F
+
+    .line 37
+    return v1
+
+    .line 38
+    :cond_2
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getAction()I
+
+    .line 41
+    move-result v0
+
+    .line 42
+    if-eqz v0, :cond_7
+
+    .line 44
+    if-eq v0, v1, :cond_4
+
+    .line 46
+    const/4 v1, 0x2
+
+    .line 47
+    if-eq v0, v1, :cond_3
+
+    .line 49
+    const/4 v1, 0x3
+
+    .line 50
+    if-eq v0, v1, :cond_4
+
+    .line 52
+    goto/16 :goto_1
+
+    .line 54
+    :cond_3
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 56
+    if-eqz v0, :cond_a
+
+    .line 58
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 60
+    if-eqz v0, :cond_a
+
+    .line 62
+    invoke-virtual {v0, p1}, Landroid/view/VelocityTracker;->addMovement(Landroid/view/MotionEvent;)V
+
+    .line 65
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 67
+    const/16 v1, 0x3e8
+
+    .line 69
+    invoke-virtual {v0, v1}, Landroid/view/VelocityTracker;->computeCurrentVelocity(I)V
+
+    .line 72
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+
+    .line 75
+    move-result v0
+
+    .line 76
+    iget v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->B:F
+
+    .line 78
+    sub-float/2addr v0, v1
+
+    .line 79
+    float-to-int v0, v0
+
+    .line 80
+    invoke-virtual {p0}, Landroid/view/View;->getScrollX()I
+
+    .line 83
+    move-result v1
+
+    .line 84
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 87
+    move-result v2
+
+    .line 88
+    sub-int/2addr v2, v0
+
+    .line 89
+    invoke-virtual {p0, v1, v2}, Lcom/lxj/xpopup/widget/SmartDragLayout;->scrollTo(II)V
+
+    .line 92
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+
+    .line 95
+    move-result p1
+
+    .line 96
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->B:F
+
+    .line 98
+    goto/16 :goto_1
+
+    .line 100
+    :cond_4
+    new-instance v0, Landroid/graphics/Rect;
+
+    .line 102
+    invoke-direct {v0}, Landroid/graphics/Rect;-><init>()V
+
+    .line 105
+    iget-object v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 107
+    invoke-virtual {v1, v0}, Landroid/view/View;->getGlobalVisibleRect(Landroid/graphics/Rect;)Z
+
+    .line 110
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getRawX()F
+
+    .line 113
+    move-result v1
+
+    .line 114
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getRawY()F
+
+    .line 117
+    move-result v2
+
+    .line 118
+    invoke-static {v1, v2, v0}, Lcom/lxj/xpopup/util/h;->F(FFLandroid/graphics/Rect;)Z
+
+    .line 121
+    move-result v0
+
+    .line 122
+    if-nez v0, :cond_5
+
+    .line 124
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->s:Z
+
+    .line 126
+    if-eqz v0, :cond_5
+
+    .line 128
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getX()F
+
+    .line 131
+    move-result v0
+
+    .line 132
+    iget v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->A:F
+
+    .line 134
+    sub-float/2addr v0, v1
+
+    .line 135
+    float-to-double v0, v0
+
+    .line 136
+    const-wide/high16 v2, 0x4000000000000000L    # 2.0
+
+    .line 138
+    invoke-static {v0, v1, v2, v3}, Ljava/lang/Math;->pow(DD)D
+
+    .line 141
+    move-result-wide v0
+
+    .line 142
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+
+    .line 145
+    move-result p1
+
+    .line 146
+    iget v4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->B:F
+
+    .line 148
+    sub-float/2addr p1, v4
+
+    .line 149
+    float-to-double v4, p1
+
+    .line 150
+    invoke-static {v4, v5, v2, v3}, Ljava/lang/Math;->pow(DD)D
+
+    .line 153
+    move-result-wide v2
+
+    .line 154
+    add-double/2addr v2, v0
+
+    .line 155
+    invoke-static {v2, v3}, Ljava/lang/Math;->sqrt(D)D
+
+    .line 158
+    move-result-wide v0
+
+    .line 159
+    double-to-float p1, v0
+
+    .line 160
+    invoke-virtual {p0}, Landroid/view/View;->getContext()Landroid/content/Context;
+
+    .line 163
+    move-result-object v0
+
+    .line 164
+    invoke-static {v0}, Landroid/view/ViewConfiguration;->get(Landroid/content/Context;)Landroid/view/ViewConfiguration;
+
+    .line 167
+    move-result-object v0
+
+    .line 168
+    invoke-virtual {v0}, Landroid/view/ViewConfiguration;->getScaledTouchSlop()I
+
+    .line 171
+    move-result v0
+
+    .line 172
+    int-to-float v0, v0
+
+    .line 173
+    cmpg-float p1, p1, v0
+
+    .line 175
+    if-gez p1, :cond_5
+
+    .line 177
+    invoke-virtual {p0}, Landroid/view/View;->performClick()Z
+
+    .line 180
+    :cond_5
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 182
+    if-eqz p1, :cond_a
+
+    .line 184
+    iget-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 186
+    if-eqz p1, :cond_a
+
+    .line 188
+    invoke-virtual {p1}, Landroid/view/VelocityTracker;->getYVelocity()F
+
+    .line 191
+    move-result p1
+
+    .line 192
+    const v0, 0x44bb8000    # 1500.0f
+
+    .line 195
+    cmpl-float p1, p1, v0
+
+    .line 197
+    if-lez p1, :cond_6
+
+    .line 199
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->u:Z
+
+    .line 201
+    if-nez p1, :cond_6
+
+    .line 203
+    invoke-virtual {p0}, Lcom/lxj/xpopup/widget/SmartDragLayout;->b()V
+
+    .line 206
+    goto :goto_0
+
+    .line 207
+    :cond_6
+    invoke-virtual {p0}, Lcom/lxj/xpopup/widget/SmartDragLayout;->f()V
+
+    .line 210
+    :goto_0
+    const/4 p1, 0x0
+
+    .line 211
+    iput-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 213
+    goto :goto_1
+
+    .line 214
+    :cond_7
+    iget-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 216
+    if-eqz v0, :cond_9
+
+    .line 218
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 220
+    if-eqz v0, :cond_8
+
+    .line 222
+    invoke-virtual {v0}, Landroid/view/VelocityTracker;->clear()V
+
+    .line 225
+    :cond_8
+    invoke-static {}, Landroid/view/VelocityTracker;->obtain()Landroid/view/VelocityTracker;
+
+    .line 228
+    move-result-object v0
+
+    .line 229
+    iput-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->q:Landroid/view/VelocityTracker;
+
+    .line 231
+    :cond_9
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getX()F
+
+    .line 234
+    move-result v0
+
+    .line 235
+    iput v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->A:F
+
+    .line 237
+    invoke-virtual {p1}, Landroid/view/MotionEvent;->getY()F
+
+    .line 240
+    move-result p1
+
+    .line 241
+    iput p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->B:F
+
+    .line 243
+    :cond_a
+    :goto_1
+    iget-boolean p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->r:Z
+
+    .line 245
+    return p1
+
+    .line 246
+    :cond_b
+    :goto_2
+    const/4 p1, 0x0
+
+    .line 247
+    return p1
+.end method
+
+.method public onViewAdded(Landroid/view/View;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0
+        }
+        names = {
+            "c"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-super {p0, p1}, Landroid/view/ViewGroup;->onViewAdded(Landroid/view/View;)V
+
+    .line 4
+    iput-object p1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->o:Landroid/view/View;
+
+    .line 6
+    return-void
+.end method
+
+.method public scrollTo(II)V
+    .locals 5
+    .annotation system Ldalvik/annotation/MethodParameters;
+        accessFlags = {
+            0x0,
+            0x0
+        }
+        names = {
+            "x",
+            "y"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    iget v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->x:I
+
+    .line 3
+    if-le p2, v0, :cond_0
+
+    .line 5
+    move p2, v0
+
+    .line 6
+    :cond_0
+    iget v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->y:I
+
+    .line 8
+    if-ge p2, v1, :cond_1
+
+    .line 10
+    move p2, v1
+
+    .line 11
+    :cond_1
+    sub-int v2, p2, v1
+
+    .line 13
+    int-to-float v2, v2
+
+    .line 14
+    const/high16 v3, 0x3f800000    # 1.0f
+
+    .line 16
+    mul-float/2addr v2, v3
+
+    .line 17
+    sub-int/2addr v0, v1
+
+    .line 18
+    int-to-float v0, v0
+
+    .line 19
+    div-float/2addr v2, v0
+
+    .line 20
+    invoke-virtual {p0}, Landroid/view/View;->getScrollY()I
+
+    .line 23
+    move-result v0
+
+    .line 24
+    if-le p2, v0, :cond_2
+
+    .line 26
+    const/4 v0, 0x1
+
+    .line 27
+    goto :goto_0
+
+    .line 28
+    :cond_2
+    const/4 v0, 0x0
+
+    .line 29
+    :goto_0
+    iput-boolean v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->C:Z
+
+    .line 31
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->D:Lcom/lxj/xpopup/widget/SmartDragLayout$c;
+
+    .line 33
+    if-eqz v0, :cond_5
+
+    .line 35
+    iget-boolean v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->t:Z
+
+    .line 37
+    if-eqz v1, :cond_3
+
+    .line 39
+    const/4 v1, 0x0
+
+    .line 40
+    cmpl-float v1, v2, v1
+
+    .line 42
+    if-nez v1, :cond_3
+
+    .line 44
+    iget-object v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 46
+    sget-object v4, Lia/b;->Close:Lia/b;
+
+    .line 48
+    if-eq v1, v4, :cond_3
+
+    .line 50
+    iput-object v4, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 52
+    invoke-interface {v0}, Lcom/lxj/xpopup/widget/SmartDragLayout$c;->a()V
+
+    .line 55
+    goto :goto_1
+
+    .line 56
+    :cond_3
+    cmpl-float v1, v2, v3
+
+    .line 58
+    if-nez v1, :cond_4
+
+    .line 60
+    iget-object v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 62
+    sget-object v3, Lia/b;->Open:Lia/b;
+
+    .line 64
+    if-eq v1, v3, :cond_4
+
+    .line 66
+    iput-object v3, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->v:Lia/b;
+
+    .line 68
+    invoke-interface {v0}, Lcom/lxj/xpopup/widget/SmartDragLayout$c;->b()V
+
+    .line 71
+    :cond_4
+    :goto_1
+    iget-object v0, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->D:Lcom/lxj/xpopup/widget/SmartDragLayout$c;
+
+    .line 73
+    iget-boolean v1, p0, Lcom/lxj/xpopup/widget/SmartDragLayout;->C:Z
+
+    .line 75
+    invoke-interface {v0, p2, v2, v1}, Lcom/lxj/xpopup/widget/SmartDragLayout$c;->c(IFZ)V
+
+    .line 78
+    :cond_5
+    invoke-super {p0, p1, p2}, Landroid/view/View;->scrollTo(II)V
+
+    .line 81
+    return-void
+.end method

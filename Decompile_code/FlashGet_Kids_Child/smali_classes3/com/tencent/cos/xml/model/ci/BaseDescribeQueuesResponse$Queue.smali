@@ -1,0 +1,51 @@
+.class public Lcom/tencent/cos/xml/model/ci/BaseDescribeQueuesResponse$Queue;
+.super Ljava/lang/Object;
+.source "BaseDescribeQueuesResponse.java"
+
+
+# annotations
+.annotation build Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean;
+    method = .enum Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean$GenerateMethod;->FROM:Lcom/tencent/qcloud/qcloudxml/annoation/XmlBean$GenerateMethod;
+.end annotation
+
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/tencent/cos/xml/model/ci/BaseDescribeQueuesResponse;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x9
+    name = "Queue"
+.end annotation
+
+
+# instance fields
+.field public category:Ljava/lang/String;
+
+.field public createTime:Ljava/lang/String;
+
+.field public maxConcurrent:I
+
+.field public maxSize:I
+
+.field public name:Ljava/lang/String;
+
+.field public notifyConfig:Lcom/tencent/cos/xml/model/ci/BaseDescribeQueuesResponse$NotifyConfig;
+
+.field public queueId:Ljava/lang/String;
+
+.field public state:Ljava/lang/String;
+
+.field public updateTime:Ljava/lang/String;
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method

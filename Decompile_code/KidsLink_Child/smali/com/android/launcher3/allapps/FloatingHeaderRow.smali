@@ -1,0 +1,62 @@
+.class public interface abstract Lcom/android/launcher3/allapps/FloatingHeaderRow;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# static fields
+.field public static final NO_ROWS:[Lcom/android/launcher3/allapps/FloatingHeaderRow;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    new-array v0, v0, [Lcom/android/launcher3/allapps/FloatingHeaderRow;
+
+    .line 3
+    .line 4
+    sput-object v0, Lcom/android/launcher3/allapps/FloatingHeaderRow;->NO_ROWS:[Lcom/android/launcher3/allapps/FloatingHeaderRow;
+
+    .line 5
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public abstract getExpectedHeight()I
+.end method
+
+.method public abstract getTypeClass()Ljava/lang/Class;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "()",
+            "Ljava/lang/Class<",
+            "+",
+            "Lcom/android/launcher3/allapps/FloatingHeaderRow;",
+            ">;"
+        }
+    .end annotation
+.end method
+
+.method public abstract hasVisibleContent()Z
+.end method
+
+.method public abstract setContentVisibility(ZZLcom/android/launcher3/anim/PropertySetter;Landroid/view/animation/Interpolator;)V
+.end method
+
+.method public abstract setInsets(Landroid/graphics/Rect;Lcom/android/launcher3/DeviceProfile;)V
+.end method
+
+.method public abstract setVerticalScroll(IZ)V
+.end method
+
+.method public abstract setup(Lcom/android/launcher3/allapps/FloatingHeaderView;[Lcom/android/launcher3/allapps/FloatingHeaderRow;Z)V
+.end method
+
+.method public abstract shouldDraw()Z
+.end method

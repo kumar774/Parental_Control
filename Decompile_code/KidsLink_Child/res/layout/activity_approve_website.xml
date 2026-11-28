@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:background="@drawable/bg_apply_website_dialog" android:padding="20.0dp" android:layout_width="600.0dp" android:layout_height="wrap_content" android:layout_centerInParent="true">
+        <TextView android:textSize="@dimen/text_size_title" android:textColor="@android:color/black" android:gravity="center" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/approve_website" />
+        <LinearLayout android:layout_gravity="start" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="25.0dp">
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/website_title" />
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:id="@id/title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dp" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="25.0dp">
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/website_url" />
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:id="@id/url" android:scrollbars="vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dp" android:maxHeight="200.0dp" />
+        </LinearLayout>
+        <LinearLayout android:layout_gravity="start" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="25.0dp">
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/website_domain" />
+            <TextView android:textSize="@dimen/text_size_item" android:textColor="@android:color/black" android:id="@id/domain" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dp" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="25.0dp">
+            <Button android:textSize="18.0sp" android:textColor="@color/confirm_text_color" android:gravity="center" android:background="@drawable/bg_confirm_button_selector" android:layout_width="0.0dp" android:layout_height="40.0dp" android:layout_margin="10.0dp" android:text="@string/word_confirm" android:layout_weight="1.0" android:onClick="onApprove" />
+            <Button android:textSize="18.0sp" android:textColor="@color/cancel_text_color" android:gravity="center" android:background="@drawable/bg_cancel_button_selector" android:layout_width="0.0dp" android:layout_height="40.0dp" android:layout_margin="10.0dp" android:text="@string/word_cancel" android:layout_weight="1.0" android:onClick="onCancel" />
+        </LinearLayout>
+    </LinearLayout>
+</RelativeLayout>

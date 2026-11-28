@@ -1,0 +1,129 @@
+.class final Lo6/c0;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+# interfaces
+.implements Lo6/f;
+.implements Lo6/e;
+.implements Lo6/c;
+.implements Lo6/d0;
+
+
+# instance fields
+.field private final a:Ljava/util/concurrent/Executor;
+
+.field private final b:Lo6/h;
+
+.field private final c:Lo6/h0;
+
+
+# direct methods
+.method public constructor <init>(Ljava/util/concurrent/Executor;Lo6/h;Lo6/h0;)V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 2
+    .line 3
+    .line 4
+    iput-object p1, p0, Lo6/c0;->a:Ljava/util/concurrent/Executor;
+
+    .line 5
+    .line 6
+    iput-object p2, p0, Lo6/c0;->b:Lo6/h;
+
+    .line 7
+    .line 8
+    iput-object p3, p0, Lo6/c0;->c:Lo6/h0;
+
+    .line 9
+    .line 10
+    return-void
+.end method
+
+.method static bridge synthetic b(Lo6/c0;)Lo6/h;
+    .locals 0
+
+    .line 1
+    iget-object p0, p0, Lo6/c0;->b:Lo6/h;
+
+    .line 2
+    .line 3
+    return-object p0
+.end method
+
+
+# virtual methods
+.method public final a(Lo6/i;)V
+    .locals 1
+
+    .line 1
+    new-instance v0, Lo6/b0;
+
+    .line 2
+    .line 3
+    invoke-direct {v0, p0, p1}, Lo6/b0;-><init>(Lo6/c0;Lo6/i;)V
+
+    .line 4
+    .line 5
+    .line 6
+    iget-object p1, p0, Lo6/c0;->a:Ljava/util/concurrent/Executor;
+
+    .line 7
+    .line 8
+    invoke-interface {p1, v0}, Ljava/util/concurrent/Executor;->execute(Ljava/lang/Runnable;)V
+
+    .line 9
+    .line 10
+    .line 11
+    return-void
+.end method
+
+.method public final onCanceled()V
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lo6/c0;->c:Lo6/h0;
+
+    .line 2
+    .line 3
+    invoke-virtual {v0}, Lo6/h0;->q()Z
+
+    .line 4
+    .line 5
+    .line 6
+    return-void
+.end method
+
+.method public final onFailure(Ljava/lang/Exception;)V
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lo6/c0;->c:Lo6/h0;
+
+    .line 2
+    .line 3
+    invoke-virtual {v0, p1}, Lo6/h0;->o(Ljava/lang/Exception;)V
+
+    .line 4
+    .line 5
+    .line 6
+    return-void
+.end method
+
+.method public final onSuccess(Ljava/lang/Object;)V
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lo6/c0;->c:Lo6/h0;
+
+    .line 2
+    .line 3
+    invoke-virtual {v0, p1}, Lo6/h0;->p(Ljava/lang/Object;)V
+
+    .line 4
+    .line 5
+    .line 6
+    return-void
+.end method

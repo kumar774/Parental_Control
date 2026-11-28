@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:paddingLeft="@dimen/dp_10" android:paddingRight="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@id/cl_main" android:background="@drawable/bg_setting_item_def" android:layout_width="match_parent" android:layout_height="@dimen/dp_40">
+        <ImageView android:id="@id/iv_icon" android:layout_width="0.0dp" android:layout_height="@dimen/dp_25" android:src="@mipmap/about_device" android:layout_marginStart="@dimen/dp_10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintDimensionRatio="1" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <TextView android:textSize="@dimen/sp_14" android:textColor="@color/text_black_3" android:gravity="center" android:id="@id/tv_tips" android:layout_width="wrap_content" android:layout_height="0.0dp" android:text="@string/setting_about" android:layout_marginStart="@dimen/dp_10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toEndOf="@id/iv_icon" app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

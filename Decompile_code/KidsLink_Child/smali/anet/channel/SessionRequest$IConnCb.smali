@@ -1,0 +1,25 @@
+.class interface abstract Lanet/channel/SessionRequest$IConnCb;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lanet/channel/SessionRequest;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x60a
+    name = "IConnCb"
+.end annotation
+
+
+# virtual methods
+.method public abstract onDisConnect(Lanet/channel/Session;JI)V
+.end method
+
+.method public abstract onFailed(Lanet/channel/Session;JII)V
+.end method
+
+.method public abstract onSuccess(Lanet/channel/Session;J)V
+.end method

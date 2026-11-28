@@ -1,0 +1,389 @@
+.class public Lja/f;
+.super Lja/b;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# instance fields
+.field private c:Ljava/lang/String;
+
+.field private d:I
+
+.field private e:Ljava/lang/String;
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 1
+
+    .line 1
+    invoke-direct {p0}, Lja/b;-><init>()V
+
+    .line 2
+    .line 3
+    .line 4
+    const/4 v0, 0x3
+
+    .line 5
+    iput v0, p0, Lja/f;->d:I
+
+    .line 6
+    .line 7
+    return-void
+.end method
+
+
+# virtual methods
+.method protected bridge synthetic b(Lua/a;)Ljava/lang/String;
+    .locals 0
+
+    .line 1
+    check-cast p1, Lua/e;
+
+    .line 2
+    .line 3
+    invoke-virtual {p0, p1}, Lja/f;->n(Lua/e;)Ljava/lang/String;
+
+    .line 4
+    .line 5
+    .line 6
+    move-result-object p1
+
+    .line 7
+    return-object p1
+.end method
+
+.method protected bridge synthetic c()Lua/a;
+    .locals 1
+
+    .line 1
+    invoke-virtual {p0}, Lja/f;->o()Lua/e;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object v0
+
+    .line 5
+    return-object v0
+.end method
+
+.method protected h()Ljava/lang/String;
+    .locals 1
+
+    .line 1
+    const-string v0, "sub_tags_status"
+
+    .line 2
+    .line 3
+    return-object v0
+.end method
+
+.method public j(Landroid/content/Context;)[Landroid/content/Intent;
+    .locals 3
+
+    .line 1
+    new-instance v0, Landroid/content/Intent;
+
+    .line 2
+    .line 3
+    invoke-direct {v0}, Landroid/content/Intent;-><init>()V
+
+    .line 4
+    .line 5
+    .line 6
+    iget-object v1, p0, Lja/b;->a:Ljava/lang/String;
+
+    .line 7
+    .line 8
+    const-string v2, "app_id"
+
+    .line 9
+    .line 10
+    invoke-virtual {v0, v2, v1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    .line 11
+    .line 12
+    .line 13
+    iget-object v1, p0, Lja/b;->b:Ljava/lang/String;
+
+    .line 14
+    .line 15
+    const-string v2, "app_key"
+
+    .line 16
+    .line 17
+    invoke-virtual {v0, v2, v1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    .line 18
+    .line 19
+    .line 20
+    invoke-virtual {p1}, Landroid/content/Context;->getPackageName()Ljava/lang/String;
+
+    .line 21
+    .line 22
+    .line 23
+    move-result-object p1
+
+    .line 24
+    const-string v1, "strategy_package_name"
+
+    .line 25
+    .line 26
+    invoke-virtual {v0, v1, p1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    .line 27
+    .line 28
+    .line 29
+    iget-object p1, p0, Lja/f;->c:Ljava/lang/String;
+
+    .line 30
+    .line 31
+    const-string v1, "push_id"
+
+    .line 32
+    .line 33
+    invoke-virtual {v0, v1, p1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    .line 34
+    .line 35
+    .line 36
+    const-string p1, "strategy_type"
+
+    .line 37
+    .line 38
+    const/4 v1, 0x4
+
+    .line 39
+    invoke-virtual {v0, p1, v1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;I)Landroid/content/Intent;
+
+    .line 40
+    .line 41
+    .line 42
+    iget p1, p0, Lja/f;->d:I
+
+    .line 43
+    .line 44
+    const-string v1, "strategy_child_type"
+
+    .line 45
+    .line 46
+    invoke-virtual {v0, v1, p1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;I)Landroid/content/Intent;
+
+    .line 47
+    .line 48
+    .line 49
+    iget-object p1, p0, Lja/f;->e:Ljava/lang/String;
+
+    .line 50
+    .line 51
+    const-string v1, "strategy_params"
+
+    .line 52
+    .line 53
+    invoke-virtual {v0, v1, p1}, Landroid/content/Intent;->putExtra(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;
+
+    .line 54
+    .line 55
+    .line 56
+    filled-new-array {v0}, [Landroid/content/Intent;
+
+    .line 57
+    .line 58
+    .line 59
+    move-result-object p1
+
+    .line 60
+    return-object p1
+.end method
+
+.method protected l()Z
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lja/b;->a:Ljava/lang/String;
+
+    .line 2
+    .line 3
+    invoke-static {v0}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 4
+    .line 5
+    .line 6
+    move-result v0
+
+    .line 7
+    if-nez v0, :cond_0
+
+    .line 8
+    .line 9
+    iget-object v0, p0, Lja/b;->b:Ljava/lang/String;
+
+    .line 10
+    .line 11
+    invoke-static {v0}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 12
+    .line 13
+    .line 14
+    move-result v0
+
+    .line 15
+    if-nez v0, :cond_0
+
+    .line 16
+    .line 17
+    iget-object v0, p0, Lja/f;->c:Ljava/lang/String;
+
+    .line 18
+    .line 19
+    invoke-static {v0}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 20
+    .line 21
+    .line 22
+    move-result v0
+
+    .line 23
+    if-nez v0, :cond_0
+
+    .line 24
+    .line 25
+    const/4 v0, 0x1
+
+    .line 26
+    return v0
+
+    .line 27
+    :cond_0
+    const/4 v0, 0x0
+
+    .line 28
+    return v0
+.end method
+
+.method protected n(Lua/e;)Ljava/lang/String;
+    .locals 0
+
+    .line 1
+    invoke-static {p1}, Lua/e;->n(Lua/e;)Ljava/lang/String;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object p1
+
+    .line 5
+    return-object p1
+.end method
+
+.method protected o()Lua/e;
+    .locals 2
+
+    .line 1
+    new-instance v0, Lua/e;
+
+    .line 2
+    .line 3
+    invoke-direct {v0}, Lua/e;-><init>()V
+
+    .line 4
+    .line 5
+    .line 6
+    iget-object v1, p0, Lja/b;->a:Ljava/lang/String;
+
+    .line 7
+    .line 8
+    invoke-virtual {v0, v1}, Lua/a;->f(Ljava/lang/String;)V
+
+    .line 9
+    .line 10
+    .line 11
+    const-string v1, "20001"
+
+    .line 12
+    .line 13
+    invoke-virtual {v0, v1}, Lua/a;->g(Ljava/lang/String;)V
+
+    .line 14
+    .line 15
+    .line 16
+    iget-object v1, p0, Lja/b;->a:Ljava/lang/String;
+
+    .line 17
+    .line 18
+    invoke-static {v1}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 19
+    .line 20
+    .line 21
+    move-result v1
+
+    .line 22
+    if-eqz v1, :cond_0
+
+    .line 23
+    .line 24
+    const-string v1, "appId is empty"
+
+    .line 25
+    .line 26
+    :goto_0
+    invoke-virtual {v0, v1}, Lua/a;->h(Ljava/lang/String;)V
+
+    .line 27
+    .line 28
+    .line 29
+    return-object v0
+
+    .line 30
+    :cond_0
+    iget-object v1, p0, Lja/b;->b:Ljava/lang/String;
+
+    .line 31
+    .line 32
+    invoke-static {v1}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 33
+    .line 34
+    .line 35
+    move-result v1
+
+    .line 36
+    if-eqz v1, :cond_1
+
+    .line 37
+    .line 38
+    const-string v1, "appKey is empty"
+
+    .line 39
+    .line 40
+    goto :goto_0
+
+    .line 41
+    :cond_1
+    iget-object v1, p0, Lja/f;->c:Ljava/lang/String;
+
+    .line 42
+    .line 43
+    invoke-static {v1}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
+
+    .line 44
+    .line 45
+    .line 46
+    move-result v1
+
+    .line 47
+    if-eqz v1, :cond_2
+
+    .line 48
+    .line 49
+    const-string v1, "pushId is empty"
+
+    .line 50
+    .line 51
+    goto :goto_0
+
+    .line 52
+    :cond_2
+    return-object v0
+.end method

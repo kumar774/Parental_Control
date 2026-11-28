@@ -1,0 +1,87 @@
+.class public Lcom/yalantis/ucrop/b;
+.super Ljava/lang/Object;
+.source "OkHttpClientStore.java"
+
+
+# static fields
+.field public static final b:Lcom/yalantis/ucrop/b;
+
+
+# instance fields
+.field private a:Lokhttp3/c0;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/yalantis/ucrop/b;
+
+    .line 3
+    invoke-direct {v0}, Ljava/lang/Object;-><init>()V
+
+    .line 6
+    sput-object v0, Lcom/yalantis/ucrop/b;->b:Lcom/yalantis/ucrop/b;
+
+    .line 8
+    return-void
+.end method
+
+.method private constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+
+# virtual methods
+.method public a()Lokhttp3/c0;
+    .locals 1
+    .annotation build Landroidx/annotation/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/yalantis/ucrop/b;->a:Lokhttp3/c0;
+
+    .line 3
+    if-nez v0, :cond_0
+
+    .line 5
+    new-instance v0, Lokhttp3/c0;
+
+    .line 7
+    invoke-direct {v0}, Lokhttp3/c0;-><init>()V
+
+    .line 10
+    iput-object v0, p0, Lcom/yalantis/ucrop/b;->a:Lokhttp3/c0;
+
+    .line 12
+    :cond_0
+    iget-object v0, p0, Lcom/yalantis/ucrop/b;->a:Lokhttp3/c0;
+
+    .line 14
+    return-object v0
+.end method
+
+.method b(Lokhttp3/c0;)V
+    .locals 0
+    .param p1    # Lokhttp3/c0;
+        .annotation build Landroidx/annotation/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    iput-object p1, p0, Lcom/yalantis/ucrop/b;->a:Lokhttp3/c0;
+
+    .line 3
+    return-void
+.end method

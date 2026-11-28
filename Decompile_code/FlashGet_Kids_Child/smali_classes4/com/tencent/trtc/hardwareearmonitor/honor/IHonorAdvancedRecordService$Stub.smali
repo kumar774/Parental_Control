@@ -1,0 +1,441 @@
+.class public abstract Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub;
+.super Landroid/os/Binder;
+.source "SourceFile"
+
+# interfaces
+.implements Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x409
+    name = "Stub"
+.end annotation
+
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;
+    }
+.end annotation
+
+
+# static fields
+.field private static final DESCRIPTOR:Ljava/lang/String;
+
+.field static final TRANSACTION_destroy:I = 0x2
+
+.field static final TRANSACTION_disableAdvancedRecord:I = 0x4
+
+.field static final TRANSACTION_enableAdvancedRecord:I = 0x3
+
+.field static final TRANSACTION_enableRecordDenoise:I = 0x6
+
+.field static final TRANSACTION_init:I = 0x1
+
+.field static final TRANSACTION_isSupported:I = 0x5
+
+.field static final TRANSACTION_unbind:I = 0x7
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    const-string v0, "\u0255\u0001"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub;->DESCRIPTOR:Ljava/lang/String;
+
+    return-void
+.end method
+
+.method public constructor <init>()V
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Landroid/os/Binder;-><init>()V
+
+    .line 4
+    const-string v0, "\u0255\u0001"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 6
+    invoke-virtual {p0, p0, v0}, Landroid/os/Binder;->attachInterface(Landroid/os/IInterface;Ljava/lang/String;)V
+
+    .line 9
+    return-void
+.end method
+
+.method public static asInterface(Landroid/os/IBinder;)Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+    .locals 2
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    const/4 p0, 0x0
+
+    .line 4
+    return-object p0
+
+    .line 5
+    :cond_0
+    const-string v0, "\u0255\u0001"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 7
+    invoke-interface {p0, v0}, Landroid/os/IBinder;->queryLocalInterface(Ljava/lang/String;)Landroid/os/IInterface;
+
+    .line 10
+    move-result-object v0
+
+    .line 11
+    if-eqz v0, :cond_1
+
+    .line 13
+    instance-of v1, v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+    .line 15
+    if-eqz v1, :cond_1
+
+    .line 17
+    check-cast v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+    .line 19
+    return-object v0
+
+    .line 20
+    :cond_1
+    new-instance v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;
+
+    .line 22
+    invoke-direct {v0, p0}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;-><init>(Landroid/os/IBinder;)V
+
+    .line 25
+    return-object v0
+.end method
+
+.method public static getDefaultImpl()Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+    .locals 1
+
+    .prologue
+    .line 1
+    sget-object v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;->sDefaultImpl:Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+    .line 3
+    return-object v0
+.end method
+
+.method public static setDefaultImpl(Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;)Z
+    .locals 1
+
+    .prologue
+    .line 1
+    sget-object v0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;->sDefaultImpl:Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+    .line 3
+    if-nez v0, :cond_1
+
+    .line 5
+    if-eqz p0, :cond_0
+
+    .line 7
+    sput-object p0, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService$Stub$Proxy;->sDefaultImpl:Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;
+
+    .line 9
+    const/4 p0, 0x1
+
+    .line 10
+    return p0
+
+    .line 11
+    :cond_0
+    const/4 p0, 0x0
+
+    .line 12
+    return p0
+
+    .line 13
+    :cond_1
+    new-instance p0, Ljava/lang/IllegalStateException;
+
+    .line 15
+    const-string v0, "\u0256\u0001"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 17
+    invoke-direct {p0, v0}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V
+
+    .line 20
+    throw p0
+.end method
+
+
+# virtual methods
+.method public asBinder()Landroid/os/IBinder;
+    .locals 0
+
+    .prologue
+    .line 1
+    return-object p0
+.end method
+
+.method public onTransact(ILandroid/os/Parcel;Landroid/os/Parcel;I)Z
+    .locals 9
+    .annotation system Ldalvik/annotation/Throws;
+        value = {
+            Landroid/os/RemoteException;
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    const v0, 0x5f4e5446
+
+    .line 4
+    const-string v1, "\u0255\u0001"
+
+    invoke-static {v1}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 6
+    const/4 v2, 0x1
+
+    .line 7
+    if-eq p1, v0, :cond_1
+
+    .line 9
+    packed-switch p1, :pswitch_data_0
+
+    .line 12
+    invoke-super {p0, p1, p2, p3, p4}, Landroid/os/Binder;->onTransact(ILandroid/os/Parcel;Landroid/os/Parcel;I)Z
+
+    .line 15
+    move-result p1
+
+    .line 16
+    return p1
+
+    .line 17
+    :pswitch_0
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 20
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 23
+    move-result p1
+
+    .line 24
+    invoke-interface {p0, p1}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->unbind(I)V
+
+    .line 27
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 30
+    return v2
+
+    .line 31
+    :pswitch_1
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 34
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 37
+    move-result p1
+
+    .line 38
+    if-eqz p1, :cond_0
+
+    .line 40
+    move v4, v2
+
+    .line 41
+    goto :goto_0
+
+    .line 42
+    :cond_0
+    const/4 p1, 0x0
+
+    .line 43
+    move v4, p1
+
+    .line 44
+    :goto_0
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 47
+    move-result v5
+
+    .line 48
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 51
+    move-result v6
+
+    .line 52
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 55
+    move-result v7
+
+    .line 56
+    invoke-virtual {p2}, Landroid/os/Parcel;->readStrongBinder()Landroid/os/IBinder;
+
+    .line 59
+    move-result-object v8
+
+    .line 60
+    move-object v3, p0
+
+    .line 61
+    invoke-interface/range {v3 .. v8}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->enableRecordDenoise(ZIIILandroid/os/IBinder;)I
+
+    .line 64
+    move-result p1
+
+    .line 65
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 68
+    invoke-virtual {p3, p1}, Landroid/os/Parcel;->writeInt(I)V
+
+    .line 71
+    return v2
+
+    .line 72
+    :pswitch_2
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 75
+    invoke-virtual {p2}, Landroid/os/Parcel;->readInt()I
+
+    .line 78
+    move-result p1
+
+    .line 79
+    invoke-interface {p0, p1}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->isSupported(I)Z
+
+    .line 82
+    move-result p1
+
+    .line 83
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 86
+    invoke-virtual {p3, p1}, Landroid/os/Parcel;->writeInt(I)V
+
+    .line 89
+    return v2
+
+    .line 90
+    :pswitch_3
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 93
+    invoke-interface {p0}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->disableAdvancedRecord()Z
+
+    .line 96
+    move-result p1
+
+    .line 97
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 100
+    invoke-virtual {p3, p1}, Landroid/os/Parcel;->writeInt(I)V
+
+    .line 103
+    return v2
+
+    .line 104
+    :pswitch_4
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 107
+    invoke-interface {p0}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->enableAdvancedRecord()Z
+
+    .line 110
+    move-result p1
+
+    .line 111
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 114
+    invoke-virtual {p3, p1}, Landroid/os/Parcel;->writeInt(I)V
+
+    .line 117
+    return v2
+
+    .line 118
+    :pswitch_5
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 121
+    invoke-interface {p0}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->destroy()V
+
+    .line 124
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 127
+    return v2
+
+    .line 128
+    :pswitch_6
+    invoke-virtual {p2, v1}, Landroid/os/Parcel;->enforceInterface(Ljava/lang/String;)V
+
+    .line 131
+    invoke-virtual {p2}, Landroid/os/Parcel;->readString()Ljava/lang/String;
+
+    .line 134
+    move-result-object p1
+
+    .line 135
+    invoke-interface {p0, p1}, Lcom/tencent/trtc/hardwareearmonitor/honor/IHonorAdvancedRecordService;->init(Ljava/lang/String;)V
+
+    .line 138
+    invoke-virtual {p3}, Landroid/os/Parcel;->writeNoException()V
+
+    .line 141
+    return v2
+
+    .line 142
+    :cond_1
+    invoke-virtual {p3, v1}, Landroid/os/Parcel;->writeString(Ljava/lang/String;)V
+
+    .line 145
+    return v2
+
+    .line 9
+    nop
+
+    :pswitch_data_0
+    .packed-switch 0x1
+        :pswitch_6
+        :pswitch_5
+        :pswitch_4
+        :pswitch_3
+        :pswitch_2
+        :pswitch_1
+        :pswitch_0
+    .end packed-switch
+.end method

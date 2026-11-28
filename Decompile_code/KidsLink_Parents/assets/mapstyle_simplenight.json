@@ -1,0 +1,1277 @@
+{
+	"userStyle": [{
+			"mapFeature": "all",
+			"options": "geometry",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "road-lane.crossroads",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#4F5863"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-background",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#4F5863"
+			}
+		}, {
+			"mapFeature": "road-lane.center-line",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#B09B12"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.double",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#4F5863"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.double",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.single",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature": "road-lane.stop-line",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature": "road-lane.crosswalk",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature": "road-lane.crosswalk",
+			"options": "geometry.dashbackground",
+			"paint": {
+				"color": "#4F5863"
+			}
+		}, {
+			"mapFeature": "road-lane.shoulder",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#45494D"
+			}
+		}, {
+			"mapFeature": "road-lane.shoulder",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#848999"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.short-dash",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature": "road-lane.lane-line.long-dash",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CACFE0"
+			}
+		}, {
+			"mapFeature":"road-tunnel.mask",
+			"options":"geometry.fill",
+			"paint":{
+				"color":"#7D8796"
+			}
+		}, {
+			"mapFeature": "all",
+			"options": "labels.text.stroke",
+			"paint": {
+				"color": "#000000",
+				"text-stroke-opacity": 0.7
+			}
+		}, {
+			"mapFeature": "all",
+			"options": "labels.icon",
+			"paint": {
+				"icon-type": "simplenight"
+			}
+		}, {
+			"mapFeature": "administrative",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#928C82"
+			}
+		}, {
+			"mapFeature": "administrative.country",
+			"options": "geometry",
+			"paint": {
+				"color": "#787272"
+			}
+		}, {
+			"mapFeature": "administrative.province",
+			"options": "geometry",
+			"paint": {
+				"color": "#666262"
+			}
+		}, {
+			"mapFeature": "administrative.country",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#E0D5C7"
+			}
+		}, {
+			"mapFeature": "administrative.capital",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#E0D5C7"
+			}
+		}, {
+			"mapFeature": "administrative.major-city",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#E0D5C7"
+			}
+		}, {
+			"mapFeature": "administrative.district",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#AAA59E"
+			}
+		}, {
+			"mapFeature": "landcover.natural",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#929AA7"
+			}
+		}, {
+			"mapFeature": "landcover.parkland",
+			"options": "geometry",
+			"paint": {
+				"color": "#283631"
+			}
+		}, {
+			"mapFeature": "landcover.parkland",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#8BAA7F"
+			}
+		}, {
+			"mapFeature": "landcover.hospital",
+			"options": "geometry",
+			"paint": {
+				"color": "#382B2B"
+			}
+		}, {
+			"mapFeature": "landcover.hospital",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#957272"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.building",
+			"visibility": false,
+			"options": "geometry.fill",
+            "buildingTransparent": false,
+			"paint": {
+				"color": "#F8FAFB"
+			}
+		}, {
+			"mapFeature": "poi",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#8D99A8"
+			}
+		}, {
+			"mapFeature": "poi.transit",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#6D98C5"
+			}
+		}, {
+			"mapFeature": "poi.health-care",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#D0AFAF"
+			}
+		}, {
+			"mapFeature": "poi.sports.outdoor",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#87AF9E"
+			}
+		}, {
+			"mapFeature": "poi.natural",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#87AF9E"
+			}
+		}, {
+			"mapFeature": "road.highway",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#E3CAA2"
+			}
+		}, {
+			"mapFeature": "road.highway.country",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#81868A"
+			}
+		}, {
+			"mapFeature": "road.highway.city",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#636A70"
+			}
+		}, {
+			"mapFeature": "road.highway",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "road.national",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#A7ADB0"
+			}
+		}, {
+			"mapFeature": "road.national",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#575C61"
+			}
+		}, {
+			"mapFeature": "road.national",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#A7ADB0"
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#494F52"
+			}
+		}, {
+			"mapFeature": "road.province",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#808689"
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#494F52"
+			}
+		}, {
+			"mapFeature": "road.city-arterial",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#808689"
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#494F52"
+			}
+		}, {
+			"mapFeature": "road.minor-road",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#808689"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#494F52"
+			}
+		}, {
+			"mapFeature": "road.sidewalk",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#000000"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Pedestrain Overpass",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#5C5F61"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Divider",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#283631"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Tunnel",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#706148"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#706148"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 1",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#706148"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 2",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#706148"
+			}
+		}, {
+			"mapFeature": "road.highway.Urban Express Elevated 3",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#706148"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Bridge",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#444A4D"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#444A4D"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 1",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#444A4D"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 2",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#444A4D"
+			}
+		}, {
+			"mapFeature": "road.highway.General National Route Elevated 3",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#444A4D"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Tunnel",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 1",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 2",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road Elevated 3",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.city-arterial.Main Local Road",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Tunnel",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Bridge",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Non_Display Interval",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 1",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 2",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road Elevated 3",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.General road",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.minor-road.Sidewalk Polygon",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "road.sidewalk.roadsideline",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#000000",
+				"geometry-fill-opacity": 0.7
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Green Space",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#283631"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Garden Path",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#434B4F"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Public building",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Driving School",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "landcover.human-made.Garden Path of Driving School",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#283631"
+			}
+		}, {
+			"mapFeature": "landcover.natural.Hollow area in waters",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#283631"
+			}
+		}, {
+			"mapFeature": "landcover.college.School",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "landcover.human_made",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CF6778",
+				"fill-opacity": 0.3
+			}
+		}, {
+			"mapFeature": "landcover.natural.Land area in waters",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "transit",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#246AB3"
+			}
+		}, {
+			"mapFeature": "transit.railway",
+			"options": "geometry",
+			"paint": {
+				"color": "#5B2E57"
+			}
+		}, {
+			"mapFeature": "transit.rail-station",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#4F81B3"
+			}
+		}, {
+			"mapFeature": "transit.ferry-line",
+			"options": "geometry",
+			"paint": {
+				"color": "#8DC1E7"
+			}
+		}, {
+			"mapFeature": "transit.ferry-terminal",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#4F81B3"
+			}
+		}, {
+			"mapFeature": "transit.airport",
+			"options": "geometry",
+			"paint": {
+				"color": "#25292B"
+			}
+		}, {
+			"mapFeature": "transit.airport",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#4F81B3"
+			}
+		}, {
+			"mapFeature": "transit.subway.Midōsuji sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#DC270B",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Midōsuji sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#DC270B"
+			}
+		}, {
+			"mapFeature": "transit.subway.Tanimachi sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#AB1C87",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Tanimachi sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#AB1C87"
+			}
+		}, {
+			"mapFeature": "transit.subway.Yotsubashi sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#0074BE",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Yotsubashi sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#0074BE"
+			}
+		}, {
+			"mapFeature": "transit.subway.Chūō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#00A63D",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Chūō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#00A63D"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sennichimae sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#EC75A9",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sennichimae sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#EC75A9"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sakaisuji sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#B34422",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sakaisuji sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#B34422"
+			}
+		}, {
+			"mapFeature": "transit.subway.Nagahori-Tsurumi-Ryokuchi sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#BCD400",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Nagahori-Tsurumi-Ryokuchi sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#BCD400"
+			}
+		}, {
+			"mapFeature": "transit.subway.Imazatosuji sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#F5A000",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Imazatosuji sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#F5A000"
+			}
+		}, {
+			"mapFeature": "transit.subway.Ginza sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#F9A327",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Ginza sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#F9A327"
+			}
+		}, {
+			"mapFeature": "transit.subway.Marunouchi sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#EF2628",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Marunouchi sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#EF2628"
+			}
+		}, {
+			"mapFeature": "transit.subway.Hibiya sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#C7BEB3",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Hibiya sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#C7BEB3"
+			}
+		}, {
+			"mapFeature": "transit.subway.Tokyo Tōzai sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#00AFEF",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Tokyo Tōzai sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#00AFEF"
+			}
+		}, {
+			"mapFeature": "transit.subway.Chiyoda sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#1CB266",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Chiyoda sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#1CB266"
+			}
+		}, {
+			"mapFeature": "transit.subway.Yūrakuchō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#D1A663",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Yūrakuchō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#D1A663"
+			}
+		}, {
+			"mapFeature": "transit.subway.Hanzōmon sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#8C7EBA",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Hanzōmon sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#8C7EBA"
+			}
+		}, {
+			"mapFeature": "transit.subway.Tokyo Namboku sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#02B69B",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Tokyo Namboku sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#02B69B"
+			}
+		}, {
+			"mapFeature": "transit.subway.Fukutoshin sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#AA5E33",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Fukutoshin sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#AA5E33"
+			}
+		}, {
+			"mapFeature": "transit.subway.Asakusa sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#EF453C",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Asakusa sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#EF453C"
+			}
+		}, {
+			"mapFeature": "transit.subway.Mita sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#0073BC",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Mita sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#0073BC"
+			}
+		}, {
+			"mapFeature": "transit.subway.Shinjuku sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#ABBA40",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Shinjuku sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#ABBA40"
+			}
+		}, {
+			"mapFeature": "transit.subway.Ōedo sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CF1B64",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Ōedo sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#CF1B64"
+			}
+		}, {
+			"mapFeature": "transit.subway.Kūkō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#F97834",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Kūkō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#F97834"
+			}
+		}, {
+			"mapFeature": "transit.subway.Hakozaki sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#1B8FCB",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Hakozaki sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#1B8FCB"
+			}
+		}, {
+			"mapFeature": "transit.subway.Nanakuma sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#008D5E",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Nanakuma sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#008D5E"
+			}
+		}, {
+			"mapFeature": "transit.subway.Burū Rain",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#2E4CE5",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Burū Rain",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#2E4CE5"
+			}
+		}, {
+			"mapFeature": "transit.subway.Gurīn Rain",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#14BF30",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Gurīn Rain",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#14BF30"
+			}
+		}, {
+			"mapFeature": "transit.subway.Karasuma sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#009A44",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Karasuma sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#009A44"
+			}
+		}, {
+			"mapFeature": "transit.subway.Kyoto Tōzai sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#E70012",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Kyoto Tōzai sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#E70012"
+			}
+		}, {
+			"mapFeature": "transit.subway.Higashiyama sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#EDAA36",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Higashiyama sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#EDAA36"
+			}
+		}, {
+			"mapFeature": "transit.subway.Meijō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#897BB0",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Meijō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#897BB0"
+			}
+		}, {
+			"mapFeature": "transit.subway.Meikō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#897BB0",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Meikō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#897BB0"
+			}
+		}, {
+			"mapFeature": "transit.subway.Tsurumai sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#259ECE",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Tsurumai sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#259ECE"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sakuradōri sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CA252B",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sakuradōri sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#CA252B"
+			}
+		}, {
+			"mapFeature": "transit.subway.Kami-iida sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#DC6E8B",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Kami-iida sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#DC6E8B"
+			}
+		}, {
+			"mapFeature": "transit.subway.Seishin-Yamate sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#00A384",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Seishin-Yamate sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#00A384"
+			}
+		}, {
+			"mapFeature": "transit.subway.Hokushin sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#CB8A07",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Hokushin sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#CB8A07"
+			}
+		}, {
+			"mapFeature": "transit.subway.Kaigan sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#0271BB",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Kaigan sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#0271BB"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sendai Tōzai sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#40C7F4",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sendai Tōzai sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#40C7F4"
+			}
+		}, {
+			"mapFeature": "transit.subway.Nanboku sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#2D9568",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Nanboku sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#2D9568"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sapporo Namboku sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#133806",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sapporo Namboku sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#133806"
+			}
+		}, {
+			"mapFeature": "transit.subway.Sapporo Tōzai sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#FF7A05",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Sapporo Tōzai sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#FF7A05"
+			}
+		}, {
+			"mapFeature": "transit.subway.Tōhō sen",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#125183",
+				"geometry-fill-opacity": 0.6
+			}
+		}, {
+			"mapFeature": "transit.subway.Tōhō sen",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#125183"
+			}
+		}, {
+			"mapFeature": "water",
+			"options": "geometry",
+			"paint": {
+				"color": "#243850"
+			}
+		}, {
+			"mapFeature": "water",
+			"options": "labels.text.fill",
+			"paint": {
+				"color": "#4C6481"
+			}
+		}, {
+			"mapFeature": "trafficInfo.closed",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#30060C"
+			}
+		}, {
+			"mapFeature": "trafficInfo.closed",
+			"options": "geometry.stroke",
+			"paint": {
+				"color": "#202326"
+			}
+		}, {
+			"mapFeature": "trafficInfo.extremelycongestion",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#30060C"
+			}
+		}, {
+			"mapFeature": "trafficInfo.congestion",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#642800"
+			}
+		}, {
+			"mapFeature": "trafficInfo.amble",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#665424"
+			}
+		}, {
+			"mapFeature": "trafficInfo.smooth",
+			"options": "geometry.fill",
+			"paint": {
+				"color": "#1F4D30"
+			}
+		},
+        {
+            "mapFeature": "sphere.background",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#151324"
+            }
+        },
+        {
+            "mapFeature": "sphere.background.halo",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#1e2536"
+            }
+        },
+        {
+            "mapFeature": "sphere.background.mid",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#0a0914"
+            }
+        },
+        {
+            "mapfeature": "sphere.background.halo.width",
+            "options": "geometry.fill",
+            "paint": {
+                "width": 5.0
+            }
+        },
+        {
+            "mapFeature": "sphere.night.time.light.color",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#000000"
+            }
+        },
+        {
+            "mapFeature": "sphere.darkside.multiplier",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#5555AA33"
+            }
+        },
+        {
+            "mapfeature": "sphere.ambient.strength",
+            "options": "geometry.fill",
+            "paint": {
+                "ambientStrength": 0.5
+            }
+        },
+        {
+            "mapFeature": "sat.sphere.background",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#151324"
+            }
+        },
+        {
+            "mapFeature": "sat.sphere.background.halo",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#1e2536"
+            }
+        },
+        {
+            "mapFeature": "sat.sphere.background.mid",
+            "options": "geometry.fill",
+            "paint": {
+                "color": "#0a0914"
+            }
+        },
+        {
+            "mapfeature": "sat.sphere.background.halo.width",
+            "options": "geometry.fill",
+            "paint": {
+                "width": 5.0
+            }
+        },
+        {
+            "mapfeature": "sat.sphere.ambient.strength",
+            "options": "geometry.fill",
+            "paint": {
+                "ambientStrength": 0.5
+            }
+        },
+		{
+			"mapFeature": "road-lane.traffic-line-incident.4k",
+			"options": "geometry",
+			"paint": {
+				"color": "#998A8A"
+			}
+		},
+		{
+			"mapFeature": "road-lane.traffic-line-incident.normal",
+			"options": "geometry",
+			"paint": {
+				"color": "#665454"
+			}
+		}
+	]
+}

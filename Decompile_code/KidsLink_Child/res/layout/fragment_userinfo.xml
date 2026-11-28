@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:background="@color/background" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <RelativeLayout android:id="@id/rl_header" android:layout_width="match_parent" android:layout_height="@dimen/dp_44">
+        <RelativeLayout android:id="@id/rl_back" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerVertical="true" />
+        <TextView android:textSize="@dimen/sp_20" android:textColor="#ff333333" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/setting_account" android:layout_centerVertical="true" android:layout_marginStart="@dimen/dp_10" />
+    </RelativeLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_below="@id/rl_header">
+        <ScrollView android:layout_width="match_parent" android:layout_height="0.0dp" android:layout_marginBottom="@dimen/dp_20" app:layout_constraintBottom_toTopOf="@id/btn_logout" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent">
+            <LinearLayout android:orientation="vertical" android:paddingLeft="@dimen/dp_10" android:paddingRight="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <androidx.constraintlayout.widget.ConstraintLayout android:background="@drawable/bg_setting_item_def" android:layout_width="match_parent" android:layout_height="@dimen/dp_44">
+                    <TextView android:textSize="@dimen/sp_14" android:textColor="#ff333333" android:gravity="start|center" android:id="@id/tv_notice" android:layout_width="0.0dp" android:layout_height="0.0dp" android:text="@string/setting_notice" android:layout_marginStart="@dimen/dp_10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+                <androidx.constraintlayout.widget.ConstraintLayout android:id="@id/cl_message" android:background="@drawable/bg_setting_item_def" android:visibility="gone" android:layout_width="match_parent" android:layout_height="@dimen/dp_100">
+                    <TextView android:textSize="@dimen/sp_30" android:textColor="#ff333333" android:gravity="start|center" android:id="@id/tv_imessage" android:layout_width="0.0dp" android:layout_height="0.0dp" android:text="家庭群聊" android:layout_marginStart="@dimen/dp_50" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+        </ScrollView>
+        <Button android:textSize="@dimen/sp_18" android:textColor="@android:color/holo_red_dark" android:gravity="center" android:id="@id/btn_logout" android:background="@drawable/bg_setting_button" android:layout_width="@dimen/dp_200" android:layout_height="@dimen/dp_44" android:layout_margin="@dimen/dp_10" android:text="@string/setting_logout" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>

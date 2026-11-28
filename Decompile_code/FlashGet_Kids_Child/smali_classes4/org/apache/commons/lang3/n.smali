@@ -1,0 +1,86 @@
+.class Lorg/apache/commons/lang3/n;
+.super Ljava/lang/Object;
+.source "Charsets.java"
+
+
+# direct methods
+.method constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+.method static a(Ljava/lang/String;)Ljava/nio/charset/Charset;
+    .locals 0
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    invoke-static {}, Ljava/nio/charset/Charset;->defaultCharset()Ljava/nio/charset/Charset;
+
+    .line 6
+    move-result-object p0
+
+    .line 7
+    goto :goto_0
+
+    .line 8
+    :cond_0
+    invoke-static {p0}, Ljava/nio/charset/Charset;->forName(Ljava/lang/String;)Ljava/nio/charset/Charset;
+
+    .line 11
+    move-result-object p0
+
+    .line 12
+    :goto_0
+    return-object p0
+.end method
+
+.method static b(Ljava/nio/charset/Charset;)Ljava/nio/charset/Charset;
+    .locals 0
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    invoke-static {}, Ljava/nio/charset/Charset;->defaultCharset()Ljava/nio/charset/Charset;
+
+    .line 6
+    move-result-object p0
+
+    .line 7
+    :cond_0
+    return-object p0
+.end method
+
+.method static c(Ljava/lang/String;)Ljava/lang/String;
+    .locals 0
+
+    .prologue
+    .line 1
+    if-nez p0, :cond_0
+
+    .line 3
+    invoke-static {}, Ljava/nio/charset/Charset;->defaultCharset()Ljava/nio/charset/Charset;
+
+    .line 6
+    move-result-object p0
+
+    .line 7
+    invoke-virtual {p0}, Ljava/nio/charset/Charset;->name()Ljava/lang/String;
+
+    .line 10
+    move-result-object p0
+
+    .line 11
+    :cond_0
+    return-object p0
+.end method

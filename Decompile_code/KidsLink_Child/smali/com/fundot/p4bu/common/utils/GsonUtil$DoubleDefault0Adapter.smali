@@ -1,0 +1,287 @@
+.class final Lcom/fundot/p4bu/common/utils/GsonUtil$DoubleDefault0Adapter;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+# interfaces
+.implements Lcom/google/gson/JsonSerializer;
+.implements Lcom/google/gson/JsonDeserializer;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/fundot/p4bu/common/utils/GsonUtil;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x1a
+    name = "DoubleDefault0Adapter"
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Ljava/lang/Object;",
+        "Lcom/google/gson/JsonSerializer<",
+        "Ljava/lang/Double;",
+        ">;",
+        "Lcom/google/gson/JsonDeserializer<",
+        "Ljava/lang/Double;",
+        ">;"
+    }
+.end annotation
+
+.annotation runtime Lkotlin/Metadata;
+    d1 = {
+        "\u00000\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0010\u0006\n\u0002\u0018\u0002\n\u0002\u0008\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\u0008\u0005\n\u0002\u0018\u0002\n\u0002\u0008\u0003\u0008\u0002\u0018\u00002\n\u0012\u0006\u0012\u0004\u0018\u00010\u00020\u00012\u0008\u0012\u0004\u0012\u00020\u00020\u0003B\u0007\u00a2\u0006\u0004\u0008\u0004\u0010\u0005J\'\u0010\u000c\u001a\u00020\u00022\u0006\u0010\u0007\u001a\u00020\u00062\u0006\u0010\t\u001a\u00020\u00082\u0006\u0010\u000b\u001a\u00020\nH\u0016\u00a2\u0006\u0004\u0008\u000c\u0010\rJ)\u0010\u0011\u001a\u00020\u00062\u0008\u0010\u000e\u001a\u0004\u0018\u00010\u00022\u0006\u0010\u000f\u001a\u00020\u00082\u0006\u0010\u000b\u001a\u00020\u0010H\u0016\u00a2\u0006\u0004\u0008\u0011\u0010\u0012\u00a8\u0006\u0013"
+    }
+    d2 = {
+        "Lcom/fundot/p4bu/common/utils/GsonUtil$DoubleDefault0Adapter;",
+        "Lcom/google/gson/JsonSerializer;",
+        "",
+        "Lcom/google/gson/JsonDeserializer;",
+        "<init>",
+        "()V",
+        "Lcom/google/gson/JsonElement;",
+        "json",
+        "Ljava/lang/reflect/Type;",
+        "typeOfT",
+        "Lcom/google/gson/JsonDeserializationContext;",
+        "context",
+        "a",
+        "(Lcom/google/gson/JsonElement;Ljava/lang/reflect/Type;Lcom/google/gson/JsonDeserializationContext;)Ljava/lang/Double;",
+        "src",
+        "typeOfSrc",
+        "Lcom/google/gson/JsonSerializationContext;",
+        "b",
+        "(Ljava/lang/Double;Ljava/lang/reflect/Type;Lcom/google/gson/JsonSerializationContext;)Lcom/google/gson/JsonElement;",
+        "app_appGENERALOSCUSRelease"
+    }
+    k = 0x1
+    mv = {
+        0x2,
+        0x2,
+        0x0
+    }
+    xi = 0x30
+.end annotation
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 2
+    .line 3
+    .line 4
+    return-void
+.end method
+
+
+# virtual methods
+.method public a(Lcom/google/gson/JsonElement;Ljava/lang/reflect/Type;Lcom/google/gson/JsonDeserializationContext;)Ljava/lang/Double;
+    .locals 1
+
+    .line 1
+    const-string v0, "json"
+
+    .line 2
+    .line 3
+    invoke-static {p1, v0}, Lxc/l;->e(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 4
+    .line 5
+    .line 6
+    const-string v0, "typeOfT"
+
+    .line 7
+    .line 8
+    invoke-static {p2, v0}, Lxc/l;->e(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 9
+    .line 10
+    .line 11
+    const-string p2, "context"
+
+    .line 12
+    .line 13
+    invoke-static {p3, p2}, Lxc/l;->e(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 14
+    .line 15
+    .line 16
+    :try_start_0
+    invoke-virtual {p1}, Lcom/google/gson/JsonElement;->getAsString()Ljava/lang/String;
+
+    .line 17
+    .line 18
+    .line 19
+    move-result-object p2
+
+    .line 20
+    const-string p3, ""
+
+    .line 21
+    .line 22
+    invoke-static {p2, p3}, Lxc/l;->a(Ljava/lang/Object;Ljava/lang/Object;)Z
+
+    .line 23
+    .line 24
+    .line 25
+    move-result p2
+
+    .line 26
+    if-nez p2, :cond_0
+
+    .line 27
+    .line 28
+    invoke-virtual {p1}, Lcom/google/gson/JsonElement;->getAsString()Ljava/lang/String;
+
+    .line 29
+    .line 30
+    .line 31
+    move-result-object p2
+
+    .line 32
+    const-string p3, "null"
+
+    .line 33
+    .line 34
+    invoke-static {p2, p3}, Lxc/l;->a(Ljava/lang/Object;Ljava/lang/Object;)Z
+
+    .line 35
+    .line 36
+    .line 37
+    move-result p2
+
+    .line 38
+    if-eqz p2, :cond_1
+
+    .line 39
+    .line 40
+    :cond_0
+    const-wide/16 p2, 0x0
+
+    .line 41
+    .line 42
+    invoke-static {p2, p3}, Ljava/lang/Double;->valueOf(D)Ljava/lang/Double;
+
+    .line 43
+    .line 44
+    .line 45
+    move-result-object p1
+    :try_end_0
+    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 46
+    return-object p1
+
+    .line 47
+    :catch_0
+    :cond_1
+    :try_start_1
+    invoke-virtual {p1}, Lcom/google/gson/JsonElement;->getAsDouble()D
+
+    .line 48
+    .line 49
+    .line 50
+    move-result-wide p1
+    :try_end_1
+    .catch Ljava/lang/NumberFormatException; {:try_start_1 .. :try_end_1} :catch_1
+
+    .line 51
+    invoke-static {p1, p2}, Ljava/lang/Double;->valueOf(D)Ljava/lang/Double;
+
+    .line 52
+    .line 53
+    .line 54
+    move-result-object p1
+
+    .line 55
+    return-object p1
+
+    .line 56
+    :catch_1
+    move-exception p1
+
+    .line 57
+    new-instance p2, Lcom/google/gson/JsonSyntaxException;
+
+    .line 58
+    .line 59
+    invoke-direct {p2, p1}, Lcom/google/gson/JsonSyntaxException;-><init>(Ljava/lang/Throwable;)V
+
+    .line 60
+    .line 61
+    .line 62
+    throw p2
+.end method
+
+.method public b(Ljava/lang/Double;Ljava/lang/reflect/Type;Lcom/google/gson/JsonSerializationContext;)Lcom/google/gson/JsonElement;
+    .locals 1
+
+    .line 1
+    const-string v0, "typeOfSrc"
+
+    .line 2
+    .line 3
+    invoke-static {p2, v0}, Lxc/l;->e(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 4
+    .line 5
+    .line 6
+    const-string p2, "context"
+
+    .line 7
+    .line 8
+    invoke-static {p3, p2}, Lxc/l;->e(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 9
+    .line 10
+    .line 11
+    new-instance p2, Lcom/google/gson/JsonPrimitive;
+
+    .line 12
+    .line 13
+    invoke-direct {p2, p1}, Lcom/google/gson/JsonPrimitive;-><init>(Ljava/lang/Number;)V
+
+    .line 14
+    .line 15
+    .line 16
+    return-object p2
+.end method
+
+.method public bridge synthetic deserialize(Lcom/google/gson/JsonElement;Ljava/lang/reflect/Type;Lcom/google/gson/JsonDeserializationContext;)Ljava/lang/Object;
+    .locals 0
+
+    .line 1
+    invoke-virtual {p0, p1, p2, p3}, Lcom/fundot/p4bu/common/utils/GsonUtil$DoubleDefault0Adapter;->a(Lcom/google/gson/JsonElement;Ljava/lang/reflect/Type;Lcom/google/gson/JsonDeserializationContext;)Ljava/lang/Double;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object p1
+
+    .line 5
+    return-object p1
+.end method
+
+.method public bridge synthetic serialize(Ljava/lang/Object;Ljava/lang/reflect/Type;Lcom/google/gson/JsonSerializationContext;)Lcom/google/gson/JsonElement;
+    .locals 0
+
+    .line 1
+    check-cast p1, Ljava/lang/Double;
+
+    .line 2
+    .line 3
+    invoke-virtual {p0, p1, p2, p3}, Lcom/fundot/p4bu/common/utils/GsonUtil$DoubleDefault0Adapter;->b(Ljava/lang/Double;Ljava/lang/reflect/Type;Lcom/google/gson/JsonSerializationContext;)Lcom/google/gson/JsonElement;
+
+    .line 4
+    .line 5
+    .line 6
+    move-result-object p1
+
+    .line 7
+    return-object p1
+.end method

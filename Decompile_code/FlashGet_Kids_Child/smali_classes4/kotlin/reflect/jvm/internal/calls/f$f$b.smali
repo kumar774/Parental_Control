@@ -1,0 +1,73 @@
+.class public final Lkotlin/reflect/jvm/internal/calls/f$f$b;
+.super Lkotlin/reflect/jvm/internal/calls/f$f;
+.source "CallerImpl.kt"
+
+# interfaces
+.implements Lkotlin/reflect/jvm/internal/calls/d;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lkotlin/reflect/jvm/internal/calls/f$f;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "b"
+.end annotation
+
+.annotation runtime Lkotlin/Metadata;
+    d1 = {
+        "\u0000\u0014\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0008\u0004\u0018\u00002\u00020\u00012\u00020\u0002B\u000f\u0012\u0006\u0010\u0004\u001a\u00020\u0003\u00a2\u0006\u0004\u0008\u0005\u0010\u0006\u00a8\u0006\u0007"
+    }
+    d2 = {
+        "Lkotlin/reflect/jvm/internal/calls/f$f$b;",
+        "Lkotlin/reflect/jvm/internal/calls/d;",
+        "Lkotlin/reflect/jvm/internal/calls/f$f;",
+        "Ljava/lang/reflect/Field;",
+        "field",
+        "<init>",
+        "(Ljava/lang/reflect/Field;)V",
+        "kotlin-reflection"
+    }
+    k = 0x1
+    mv = {
+        0x1,
+        0x9,
+        0x0
+    }
+    xi = 0x30
+.end annotation
+
+
+# direct methods
+.method public constructor <init>(Ljava/lang/reflect/Field;)V
+    .locals 2
+    .param p1    # Ljava/lang/reflect/Field;
+        .annotation build Ljb/l;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    const-string v0, "\u0bc1\u0001"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    invoke-static {p1, v0}, Lkotlin/jvm/internal/l0;->p(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 6
+    const/4 v0, 0x0
+
+    .line 7
+    const/4 v1, 0x0
+
+    .line 8
+    invoke-direct {p0, p1, v0, v1}, Lkotlin/reflect/jvm/internal/calls/f$f;-><init>(Ljava/lang/reflect/Field;ZLkotlin/jvm/internal/w;)V
+
+    .line 11
+    return-void
+.end method

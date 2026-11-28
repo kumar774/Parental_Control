@@ -1,0 +1,26 @@
+.class public interface abstract annotation Lcom/huawei/location/lite/common/util/ComponentType;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+# interfaces
+.implements Ljava/lang/annotation/Annotation;
+
+
+# annotations
+.annotation runtime Ljava/lang/annotation/Retention;
+    value = .enum Ljava/lang/annotation/RetentionPolicy;->SOURCE:Ljava/lang/annotation/RetentionPolicy;
+.end annotation
+
+.annotation runtime Ljava/lang/annotation/Target;
+    value = {
+        .enum Ljava/lang/annotation/ElementType;->PARAMETER:Ljava/lang/annotation/ElementType;
+    }
+.end annotation
+
+
+# static fields
+.field public static final LOCATION_APK_IN_HMS:I = 0xc8
+
+.field public static final LOCATION_APK_IN_HMS_CAR:I = 0x12c
+
+.field public static final LOCATION_SDK:I = 0x64

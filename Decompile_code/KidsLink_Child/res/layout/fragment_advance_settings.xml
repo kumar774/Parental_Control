@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:background="@android:color/white" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:layout_width="match_parent" android:layout_height="@dimen/dp_44">
+        <TextView android:textSize="@dimen/sp_20" android:textColor="#ff333333" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/setting_systemsetting" android:layout_centerVertical="true" android:layout_marginStart="@dimen/dp_10" />
+    </RelativeLayout>
+    <EditText android:textSize="@dimen/sp_20" android:textColor="@color/text_black" android:id="@id/et_password" android:background="@drawable/rectangle_btn_bg" android:padding="@dimen/dp_5" android:layout_width="@dimen/dp_200" android:layout_height="@dimen/dp_40" android:layout_marginTop="@dimen/dp_160" android:layout_centerHorizontal="true" android:inputType="textPassword" />
+    <TextView android:textSize="@dimen/sp_20" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_105" android:text="@string/please_input_password" android:layout_centerHorizontal="true" />
+    <Button android:textSize="@dimen/sp_20" android:textColor="#ffffffff" android:id="@id/bt_sure" android:background="@drawable/round_bt_agree_bg" android:layout_width="@dimen/dp_200" android:layout_height="@dimen/dp_40" android:layout_marginTop="@dimen/dp_240" android:text="@string/word_confirm" android:layout_centerHorizontal="true" />
+</RelativeLayout>

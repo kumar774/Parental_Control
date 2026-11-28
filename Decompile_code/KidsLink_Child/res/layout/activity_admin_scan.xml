@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:background="@android:color/black" android:fitsSystemWindows="true" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <SurfaceView android:id="@id/admin_scan_surface" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <com.king.zxing.ViewfinderView android:id="@id/admin_scan_viewfinder" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <TextView android:textSize="18.0sp" android:textColor="@android:color/white" android:gravity="center" android:layout_gravity="top" android:padding="16.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="72.0dp" android:text="@string/admin_auth_scan_hint" />
+    <Button android:layout_gravity="start|top" android:id="@id/admin_scan_back" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@android:string/cancel" />
+    <Button android:layout_gravity="center|bottom" android:id="@id/admin_scan_torch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="32.0dp" android:text="@string/admin_auth_torch" android:textAllCaps="false" />
+</FrameLayout>

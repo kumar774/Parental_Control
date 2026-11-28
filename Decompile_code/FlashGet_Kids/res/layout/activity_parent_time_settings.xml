@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:background="@color/color_bg_1" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.appcompat.widget.Toolbar android:theme="@style/CommonAppTheme.FeedBackToolBarStyle" android:id="@id/toolbar" android:layout_width="match_parent" android:layout_height="?actionBarSize" app:navigationIcon="@drawable/nav_ic_back_black" app:title="@string/Common_Time_Title" app:titleMarginStart="0.0dp" app:titleTextAppearance="@style/toolbar_style_bold" app:titleTextColor="@color/color_text_primary" />
+    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="0.0dp" android:fillViewport="true" android:layout_weight="1.0">
+        <LinearLayout android:orientation="vertical" android:paddingLeft="20.0dp" android:paddingTop="16.0dp" android:paddingRight="20.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="20.0dp">
+            <TextView android:textSize="12.0sp" android:textColor="@color/color_text_secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginLeft="4.0dp" android:layout_marginRight="4.0dp" android:text="@string/Kids_TimeFormatForData_Des" android:lineSpacingExtra="1.0dp" android:layout_marginHorizontal="4.0dp" />
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/time_card" android:background="@drawable/bg_white_16" android:paddingLeft="16.0dp" android:paddingTop="14.0dp" android:paddingRight="16.0dp" android:paddingBottom="14.0dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16.0dp" android:minHeight="70.0dp" android:paddingHorizontal="16.0dp" android:paddingVertical="14.0dp">
+                <LinearLayout android:orientation="vertical" android:layout_width="0.0dp" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_marginEnd="10.0dp">
+                    <TextView android:textSize="15.0sp" android:textColor="@color/color_text_primary" android:id="@id/time_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/Common_TimeFormat_Title" android:labelFor="@id/use_24_hour" />
+                    <TextView android:textSize="13.0sp" android:textColor="@color/color_text_tertiary" android:id="@id/time_example" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4.0dp" />
+                </LinearLayout>
+                <ToggleButton android:id="@id/use_24_hour" android:background="@drawable/toggle_button" android:saveEnabled="false" android:layout_width="38.0dp" android:layout_height="24.0dp" android:button="@null" android:textOn="" android:textOff="" android:contentDescription="@string/Common_TimeFormat_Title" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

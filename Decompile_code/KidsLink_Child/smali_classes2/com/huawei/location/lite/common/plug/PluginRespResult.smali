@@ -1,0 +1,135 @@
+.class public Lcom/huawei/location/lite/common/plug/PluginRespResult;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+    }
+.end annotation
+
+
+# instance fields
+.field private body:Ljava/lang/String;
+
+.field private extraBundle:Landroid/os/Bundle;
+
+.field private statusInfo:Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+
+.field private transactionId:Ljava/lang/String;
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    return-void
+.end method
+
+.method public constructor <init>(Ljava/lang/String;Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;)V
+    .locals 0
+
+    .line 2
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    iput-object p1, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->body:Ljava/lang/String;
+
+    iput-object p2, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->statusInfo:Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public getBody()Ljava/lang/String;
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->body:Ljava/lang/String;
+
+    .line 2
+    .line 3
+    return-object v0
+.end method
+
+.method public getExtraInfo()Landroid/os/Bundle;
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->extraBundle:Landroid/os/Bundle;
+
+    .line 2
+    .line 3
+    return-object v0
+.end method
+
+.method public getStatusInfo()Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->statusInfo:Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+
+    .line 2
+    .line 3
+    return-object v0
+.end method
+
+.method public getTransactionId()Ljava/lang/String;
+    .locals 1
+
+    .line 1
+    iget-object v0, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->transactionId:Ljava/lang/String;
+
+    .line 2
+    .line 3
+    return-object v0
+.end method
+
+.method public setBody(Ljava/lang/String;)V
+    .locals 0
+
+    .line 1
+    iput-object p1, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->body:Ljava/lang/String;
+
+    .line 2
+    .line 3
+    return-void
+.end method
+
+.method public setExtraData(Landroid/os/Bundle;)V
+    .locals 0
+
+    .line 1
+    iput-object p1, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->extraBundle:Landroid/os/Bundle;
+
+    .line 2
+    .line 3
+    return-void
+.end method
+
+.method public setStatusInfo(Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;)V
+    .locals 0
+
+    .line 1
+    iput-object p1, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->statusInfo:Lcom/huawei/location/lite/common/plug/PluginRespResult$StatusInfo;
+
+    .line 2
+    .line 3
+    return-void
+.end method
+
+.method public setTransactionId(Ljava/lang/String;)V
+    .locals 0
+
+    .line 1
+    iput-object p1, p0, Lcom/huawei/location/lite/common/plug/PluginRespResult;->transactionId:Ljava/lang/String;
+
+    .line 2
+    .line 3
+    return-void
+.end method

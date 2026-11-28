@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/main" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@id/common_title" android:background="?titleViewBackground" android:visibility="visible" android:layout_width="match_parent" android:layout_height="wrap_content" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent">
+        <androidx.appcompat.widget.AppCompatImageView android:id="@id/iv_back" android:background="?android:actionBarItemBackground" android:padding="@dimen/dp_12" android:layout_width="@dimen/dp_40" android:layout_height="0.0dp" android:src="@mipmap/icon_top_back" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" app:tint="?titleViewAccentColor" />
+        <TextView android:textSize="@dimen/sp_17" android:textColor="?titleViewAccentColor" android:gravity="center" android:id="@id/tv_common_title" android:layout_width="0.0dp" android:layout_height="@dimen/dp_40" android:text="后台设置" android:singleLine="true" android:layout_marginStart="@dimen/dp_80" android:layout_marginEnd="@dimen/dp_80" app:layout_constrainedWidth="true" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0.0dp" android:layout_margin="@dimen/dp_10" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/common_title">
+        <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:gravity="center_vertical" android:id="@id/tvCurrentAPI" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="CurrentAPI：" />
+            <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="LocalAPI：" />
+                <EditText android:gravity="center_vertical" android:id="@id/etIntranetConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:id="@id/layoutIntranetConfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <Button android:id="@id/btnChangeProducthost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/change_producthost" android:textAllCaps="false" />
+                <Button android:id="@id/btnChangeTesthost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/change_testhost" android:textAllCaps="false" />
+                <Button android:id="@id/btnIntranetConfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/update_local_service_api" android:textAllCaps="false" />
+            </LinearLayout>
+            <TextView android:gravity="center_vertical" android:id="@id/tvCurrentWeb" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:layout_marginTop="@dimen/dp_20" android:text="CurrentWeb：" />
+            <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="LocalWeb：" />
+                <EditText android:gravity="center_vertical" android:id="@id/etLocalWebConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:id="@id/layoutWebConfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <Button android:id="@id/btnChangeActualWeb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用实际Web" android:textAllCaps="false" />
+                <Button android:id="@id/btnChangeLocalWeb" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用本地Web" android:textAllCaps="false" />
+            </LinearLayout>
+            <TextView android:gravity="center_vertical" android:id="@id/tvCurrentServiceApi" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:layout_marginTop="@dimen/dp_20" android:text="CurrentServiceAPI：" />
+            <TextView android:gravity="center_vertical" android:id="@id/tvCurrentServiceWeb" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="CurrentServiceWeb：" />
+            <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="LocalServiceAPI：" />
+                <EditText android:gravity="center_vertical" android:id="@id/etLocalServiceApiConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="LocalServiceWeb：" />
+                <EditText android:gravity="center_vertical" android:id="@id/etLocalServiceWebConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:id="@id/layoutServiceConfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <Button android:id="@id/btnChangeActualService" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用实际客服" android:textAllCaps="false" />
+                <Button android:id="@id/btnChangeLocalService" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用本地客服" android:textAllCaps="false" />
+            </LinearLayout>
+            <TextView android:gravity="center_vertical" android:id="@id/tvCurrentWebsite" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:layout_marginTop="@dimen/dp_20" android:text="CurrentWebsite：" />
+            <LinearLayout android:gravity="center_vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <TextView android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/dp_40" android:text="LocalWebsite：" />
+                <EditText android:gravity="center_vertical" android:id="@id/etLocalWebsiteConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:id="@id/layoutWebsiteConfig" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_10">
+                <Button android:id="@id/btnChangeActualWebsite" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用实际官网" android:textAllCaps="false" />
+                <Button android:id="@id/btnChangeLocalWebsite" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="使用本地官网" android:textAllCaps="false" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

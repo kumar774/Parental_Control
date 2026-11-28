@@ -1,0 +1,71 @@
+.class Lp/r0$a;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+# interfaces
+.implements Lp/g;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingMethod;
+    value = Lp/r0;-><init>(Landroid/content/Context;Lq/q0;Ljava/lang/String;Lp/w0;Lx/a;Landroidx/camera/core/impl/y0;Ljava/util/concurrent/Executor;Landroid/os/Handler;Lp/m3;JLw/c0;)V
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x0
+    name = null
+.end annotation
+
+
+# instance fields
+.field final synthetic a:Lp/r0;
+
+
+# direct methods
+.method constructor <init>(Lp/r0;)V
+    .locals 0
+
+    .line 1
+    iput-object p1, p0, Lp/r0$a;->a:Lp/r0;
+
+    .line 2
+    .line 3
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    .line 5
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method public a(II)Landroid/media/CamcorderProfile;
+    .locals 0
+
+    .line 1
+    invoke-static {p1, p2}, Landroid/media/CamcorderProfile;->get(II)Landroid/media/CamcorderProfile;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object p1
+
+    .line 5
+    return-object p1
+.end method
+
+.method public b(II)Z
+    .locals 0
+
+    .line 1
+    invoke-static {p1, p2}, Landroid/media/CamcorderProfile;->hasProfile(II)Z
+
+    .line 2
+    .line 3
+    .line 4
+    move-result p1
+
+    .line 5
+    return p1
+.end method

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center" android:orientation="vertical" android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sp_18" android:textStyle="bold" android:textColor="?viewTextAccentColor" android:gravity="center" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/mkwebview_page_error" />
+    <TextView android:textSize="@dimen/sp_14" android:textColor="?viewTextSecondColor" android:gravity="center" android:id="@id/tv_web_error_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_14" android:paddingStart="@dimen/dp_32" android:paddingEnd="@dimen/dp_32" />
+    <TextView android:textSize="@dimen/sp_14" android:textColor="@color/text_white" android:gravity="center" android:id="@id/btn_retry" android:background="@drawable/bg_mkwebview_retry_button" android:layout_width="wrap_content" android:layout_height="@dimen/dp_36" android:layout_marginTop="@dimen/dp_14" android:minWidth="@dimen/dp_72" android:text="@string/mkwebview_retry" android:paddingStart="@dimen/dp_22" android:paddingEnd="@dimen/dp_22" />
+</LinearLayout>

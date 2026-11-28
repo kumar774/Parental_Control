@@ -1,0 +1,82 @@
+.class public Landroidx/appcompat/app/AppCompatDelegateImpl$m;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation build Lc/x0;
+    value = 0x18
+.end annotation
+
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Landroidx/appcompat/app/AppCompatDelegateImpl;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x9
+    name = "m"
+.end annotation
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+.method public static a(Landroid/content/res/Configuration;Landroid/content/res/Configuration;Landroid/content/res/Configuration;)V
+    .locals 1
+    .param p0    # Landroid/content/res/Configuration;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p1    # Landroid/content/res/Configuration;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p2    # Landroid/content/res/Configuration;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Landroid/content/res/Configuration;->getLocales()Landroid/os/LocaleList;
+
+    .line 4
+    move-result-object p0
+
+    .line 5
+    invoke-virtual {p1}, Landroid/content/res/Configuration;->getLocales()Landroid/os/LocaleList;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    invoke-virtual {p0, v0}, Landroid/os/LocaleList;->equals(Ljava/lang/Object;)Z
+
+    .line 12
+    move-result p0
+
+    .line 13
+    if-nez p0, :cond_0
+
+    .line 15
+    invoke-virtual {p2, v0}, Landroid/content/res/Configuration;->setLocales(Landroid/os/LocaleList;)V
+
+    .line 18
+    iget-object p0, p1, Landroid/content/res/Configuration;->locale:Ljava/util/Locale;
+
+    .line 20
+    iput-object p0, p2, Landroid/content/res/Configuration;->locale:Ljava/util/Locale;
+
+    .line 22
+    :cond_0
+    return-void
+.end method

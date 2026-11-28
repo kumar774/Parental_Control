@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:background="?mainBackground" android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <com.mukun.mkbase.view.CommonTitleBar android:id="@id/common_title" android:layout_width="match_parent" android:layout_height="wrap_content" app:ctbShowBack="true" app:ctbTitle="@string/app_usage" style="@style/CommonTitleBar" />
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:enabled="false" android:id="@id/swipeRefreshLayout" android:layout_width="match_parent" android:layout_height="0.0dp" android:layout_weight="1.0" android:layout_marginStart="@dimen/dp_14">
+        <in.myinnos.alphabetsindexfastscrollrecycler.IndexFastScrollRecyclerView android:id="@id/recyclerView" android:layout_width="wrap_content" android:layout_height="match_parent" app:setIndexBarColor="#ff000000" app:setIndexBarStrokeColor="#44000000" app:setIndexBarTransparentValue="0.4" app:setIndexbarWidth="20.0" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</LinearLayout>

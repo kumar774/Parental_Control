@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:id="@id/rl_bg" android:layout_width="@dimen/dp_120" android:layout_height="@dimen/dp_120"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sp_20" android:textColor="#ff333333" android:id="@id/tv_am_pm_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1" android:layout_centerInParent="true" />
+    <ImageView android:id="@id/iv" android:layout_width="60.0px" android:layout_height="56.0px" android:layout_margin="1.0dp" android:src="@drawable/at_school" android:scaleType="centerCrop" android:layout_alignParentTop="true" android:layout_alignParentRight="true" />
+</RelativeLayout>

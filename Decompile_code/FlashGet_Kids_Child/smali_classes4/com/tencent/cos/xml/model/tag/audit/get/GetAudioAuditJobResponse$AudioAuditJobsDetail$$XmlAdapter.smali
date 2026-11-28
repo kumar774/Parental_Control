@@ -1,0 +1,621 @@
+.class public Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;
+.super Lcom/tencent/qcloud/qcloudxml/core/IXmlAdapter;
+.source "GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter.java"
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Lcom/tencent/qcloud/qcloudxml/core/IXmlAdapter<",
+        "Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field private childElementBinders:Ljava/util/HashMap;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Ljava/util/HashMap<",
+            "Ljava/lang/String;",
+            "Lcom/tencent/qcloud/qcloudxml/core/ChildElementBinder<",
+            "Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;",
+            ">;>;"
+        }
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 3
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Lcom/tencent/qcloud/qcloudxml/core/IXmlAdapter;-><init>()V
+
+    .line 4
+    new-instance v0, Ljava/util/HashMap;
+
+    .line 6
+    invoke-direct {v0}, Ljava/util/HashMap;-><init>()V
+
+    .line 9
+    iput-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 11
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$1;
+
+    .line 13
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$1;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 16
+    const-string v2, "\uf17b"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 18
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 21
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 23
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$2;
+
+    .line 25
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$2;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 28
+    const-string v2, "\uf17c"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 30
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 33
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 35
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$3;
+
+    .line 37
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$3;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 40
+    const-string v2, "\uf17d"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 42
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 45
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 47
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$4;
+
+    .line 49
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$4;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 52
+    const-string v2, "\uf17e"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 54
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 57
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 59
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$5;
+
+    .line 61
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$5;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 64
+    const-string v2, "\uf17f"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 66
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 69
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 71
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$6;
+
+    .line 73
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$6;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 76
+    const-string v2, "\uf180"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 78
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 81
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 83
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$7;
+
+    .line 85
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$7;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 88
+    const-string v2, "\uf181"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 90
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 93
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 95
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$8;
+
+    .line 97
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$8;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 100
+    const-string v2, "\uf182"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 102
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 105
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 107
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$9;
+
+    .line 109
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$9;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 112
+    const-string v2, "\uf183"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 114
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 117
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 119
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$10;
+
+    .line 121
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$10;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 124
+    const-string v2, "\uf184"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 126
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 129
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 131
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$11;
+
+    .line 133
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$11;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 136
+    const-string v2, "\uf185"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 138
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 141
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 143
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$12;
+
+    .line 145
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$12;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 148
+    const-string v2, "\uf186"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 150
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 153
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 155
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$13;
+
+    .line 157
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$13;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 160
+    const-string v2, "\uf187"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 162
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 165
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 167
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$14;
+
+    .line 169
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$14;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 172
+    const-string v2, "\uf188"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 174
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 177
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 179
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$15;
+
+    .line 181
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$15;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 184
+    const-string v2, "\uf189"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 186
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 189
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 191
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$16;
+
+    .line 193
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$16;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 196
+    const-string v2, "\uf18a"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 198
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 201
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 203
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$17;
+
+    .line 205
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$17;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 208
+    const-string v2, "\uf18b"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 210
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 213
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 215
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$18;
+
+    .line 217
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$18;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 220
+    const-string v2, "\uf18c"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 222
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 225
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 227
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$19;
+
+    .line 229
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$19;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 232
+    const-string v2, "\uf18d"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 234
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 237
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 239
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$20;
+
+    .line 241
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$20;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 244
+    const-string v2, "\uf18e"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 246
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 249
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 251
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$21;
+
+    .line 253
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$21;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 256
+    const-string v2, "\uf18f"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 258
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 261
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 263
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$22;
+
+    .line 265
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$22;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 268
+    const-string v2, "\uf190"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 270
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 273
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 275
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$23;
+
+    .line 277
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$23;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 280
+    const-string v2, "\uf191"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 282
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 285
+    iget-object v0, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    .line 287
+    new-instance v1, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$24;
+
+    .line 289
+    invoke-direct {v1, p0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter$24;-><init>(Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;)V
+
+    .line 292
+    const-string v2, "\uf192"
+
+    invoke-static {v2}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v2
+
+    .line 294
+    invoke-virtual {v0, v2, v1}, Ljava/util/HashMap;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 297
+    return-void
+.end method
+
+
+# virtual methods
+.method public fromXml(Lorg/xmlpull/v1/XmlPullParser;Ljava/lang/String;)Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;
+    .locals 3
+    .annotation system Ldalvik/annotation/Throws;
+        value = {
+            Ljava/io/IOException;,
+            Lorg/xmlpull/v1/XmlPullParserException;
+        }
+    .end annotation
+
+    .prologue
+    .line 2
+    new-instance v0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;
+
+    invoke-direct {v0}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;-><init>()V
+
+    .line 3
+    invoke-interface {p1}, Lorg/xmlpull/v1/XmlPullParser;->getEventType()I
+
+    move-result v1
+
+    :goto_0
+    const/4 v2, 0x1
+
+    if-eq v1, v2, :cond_4
+
+    const/4 v2, 0x2
+
+    if-eq v1, v2, :cond_2
+
+    const/4 v2, 0x3
+
+    if-eq v1, v2, :cond_0
+
+    goto :goto_2
+
+    :cond_0
+    if-nez p2, :cond_1
+
+    .line 4
+    const-string v1, "\uf193"
+
+    invoke-static {v1}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    goto :goto_1
+
+    :cond_1
+    move-object v1, p2
+
+    .line 5
+    :goto_1
+    invoke-interface {p1}, Lorg/xmlpull/v1/XmlPullParser;->getName()Ljava/lang/String;
+
+    move-result-object v2
+
+    invoke-virtual {v1, v2}, Ljava/lang/String;->equalsIgnoreCase(Ljava/lang/String;)Z
+
+    move-result v1
+
+    if-eqz v1, :cond_3
+
+    return-object v0
+
+    .line 6
+    :cond_2
+    invoke-interface {p1}, Lorg/xmlpull/v1/XmlPullParser;->getName()Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 7
+    iget-object v2, p0, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->childElementBinders:Ljava/util/HashMap;
+
+    invoke-virtual {v2, v1}, Ljava/util/HashMap;->get(Ljava/lang/Object;)Ljava/lang/Object;
+
+    move-result-object v1
+
+    check-cast v1, Lcom/tencent/qcloud/qcloudxml/core/ChildElementBinder;
+
+    if-eqz v1, :cond_3
+
+    const/4 v2, 0x0
+
+    .line 8
+    invoke-interface {v1, p1, v0, v2}, Lcom/tencent/qcloud/qcloudxml/core/ChildElementBinder;->fromXml(Lorg/xmlpull/v1/XmlPullParser;Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 9
+    :cond_3
+    :goto_2
+    invoke-interface {p1}, Lorg/xmlpull/v1/XmlPullParser;->next()I
+
+    move-result v1
+
+    goto :goto_0
+
+    :cond_4
+    return-object v0
+.end method
+
+.method public bridge synthetic fromXml(Lorg/xmlpull/v1/XmlPullParser;Ljava/lang/String;)Ljava/lang/Object;
+    .locals 0
+    .annotation system Ldalvik/annotation/Throws;
+        value = {
+            Lorg/xmlpull/v1/XmlPullParserException;,
+            Ljava/io/IOException;
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1, p2}, Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail$$XmlAdapter;->fromXml(Lorg/xmlpull/v1/XmlPullParser;Ljava/lang/String;)Lcom/tencent/cos/xml/model/tag/audit/get/GetAudioAuditJobResponse$AudioAuditJobsDetail;
+
+    move-result-object p1
+
+    return-object p1
+.end method

@@ -1,0 +1,47 @@
+.class public Le3/t;
+.super Le3/a;
+.source "InstallEvent.java"
+
+
+# instance fields
+.field public apkid:Ljava/lang/String;
+
+.field public apkname:Ljava/lang/String;
+
+.field public date:Ljava/lang/String;
+
+.field public operat:I
+
+.field public size:Ljava/lang/String;
+
+.field public vname:Ljava/lang/String;
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0}, Le3/a;-><init>()V
+
+    .line 4
+    return-void
+.end method
+
+
+# virtual methods
+.method public name()Ljava/lang/String;
+    .locals 1
+
+    .prologue
+    .line 1
+    const-string v0, "\u96c3"
+
+    invoke-static {v0}, Lcom/flashget/kidscontrol/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    return-object v0
+.end method

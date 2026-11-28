@@ -1,0 +1,1321 @@
+{
+    "HW POI Classification": [{
+            "type_name": "African Restaurant",
+            "CategoryId": "1101001:1"
+        }, {
+            "type_name": "American Restaurant",
+            "CategoryId": "1101002:1"
+        }, {
+            "type_name": "Austrian Restaurant",
+            "CategoryId": "1101003:1"
+        }, {
+            "type_name": "Barbecue Restaurant",
+            "CategoryId": "1101004:1"
+        }, {
+            "type_name": "Belgian Restaurant",
+            "CategoryId": "1101005:1"
+        }, {
+            "type_name": "Bistro",
+            "CategoryId": "1101006:1"
+        }, {
+            "type_name": "British Restaurant",
+            "CategoryId": "1101007:1"
+        }, {
+            "type_name": "Californian Restaurant",
+            "CategoryId": "1101008:1"
+        }, {
+            "type_name": "Canadian Restaurant",
+            "CategoryId": "1101009:1"
+        }, {
+            "type_name": "Caribbean Restaurant",
+            "CategoryId": "1101010:1"
+        }, {
+            "type_name": "Chinese Restaurant",
+            "CategoryId": "1101011:1"
+        }, {
+            "type_name": "Crêperie",
+            "CategoryId": "1101012:1"
+        }, {
+            "type_name": "Dutch Restaurant",
+            "CategoryId": "1101013:1"
+        }, {
+            "type_name": "Fast Food Restaurant",
+            "CategoryId": "1101014:1"
+        }, {
+            "type_name": "Filipino Restaurant",
+            "CategoryId": "1101015:1"
+        }, {
+            "type_name": "French Restaurant",
+            "CategoryId": "1101016:1"
+        }, {
+            "type_name": "German Restaurant",
+            "CategoryId": "1101017:1"
+        }, {
+            "type_name": "Greek Restaurant",
+            "CategoryId": "1101018:1"
+        }, {
+            "type_name": "Grill",
+            "CategoryId": "1101019:1"
+        }, {
+            "type_name": "Hungarian Restaurant",
+            "CategoryId": "1101021:1"
+        }, {
+            "type_name": "Indian Restaurant",
+            "CategoryId": "1101022:1"
+        }, {
+            "type_name": "Indonesian Restaurant",
+            "CategoryId": "1101023:1"
+        }, {
+            "type_name": "Italian Restaurant",
+            "CategoryId": "1101024:1"
+        }, {
+            "type_name": "Japanese Restaurant",
+            "CategoryId": "1101025:1"
+        }, {
+            "type_name": "Jewish Restaurant",
+            "CategoryId": "1101026:1"
+        }, {
+            "type_name": "Korean Restaurant",
+            "CategoryId": "1101027:1"
+        }, {
+            "type_name": "Latin American Restaurant",
+            "CategoryId": "1101028:1"
+        }, {
+            "type_name": "Lebanese Restaurant",
+            "CategoryId": "1101029:1"
+        }, {
+            "type_name": "Maltese Restaurant",
+            "CategoryId": "1101030:1"
+        }, {
+            "type_name": "Mediterranean Restaurant",
+            "CategoryId": "1101031:1"
+        }, {
+            "type_name": "Mexican Restaurant",
+            "CategoryId": "1101032:1"
+        }, {
+            "type_name": "Middle Eastern Restaurant",
+            "CategoryId": "1101033:1"
+        }, {
+            "type_name": "Pizza Restaurant",
+            "CategoryId": "1101035:1"
+        }, {
+            "type_name": "Polish Restaurant",
+            "CategoryId": "1101036:1"
+        }, {
+            "type_name": "Portuguese Restaurant",
+            "CategoryId": "1101037:1"
+        }, {
+            "type_name": "Pub Food",
+            "CategoryId": "1101038:1"
+        }, {
+            "type_name": "Russian Restaurant",
+            "CategoryId": "1101039:1"
+        }, {
+            "type_name": "Roadside",
+            "CategoryId": "1101040:1"
+        }, {
+            "type_name": "Sandwich Restaurant",
+            "CategoryId": "1101041:1"
+        }, {
+            "type_name": "Seafood Restaurant",
+            "CategoryId": "1101042:1"
+        }, {
+            "type_name": "Spanish Restaurant",
+            "CategoryId": "1101043:1"
+        }, {
+            "type_name": "Steak House",
+            "CategoryId": "1101044:1"
+        }, {
+            "type_name": "Surinamese Restaurant",
+            "CategoryId": "1101045:1"
+        }, {
+            "type_name": "Swiss Restaurant",
+            "CategoryId": "1101046:1"
+        }, {
+            "type_name": "Thai Restaurant",
+            "CategoryId": "1101047:1"
+        }, {
+            "type_name": "Turkish Restaurant",
+            "CategoryId": "1101048:1"
+        }, {
+            "type_name": "Vegetarian Restaurant",
+            "CategoryId": "1101049:1"
+        }, {
+            "type_name": "Vietnamese Restaurant",
+            "CategoryId": "1101050:1"
+        }, {
+            "type_name": "Hunan Restaurant",
+            "CategoryId": "1101051:1"
+        }, {
+            "type_name": "Shandong Restaurant",
+            "CategoryId": "1101052:1"
+        }, {
+            "type_name": "Guangdong Restaurant",
+            "CategoryId": "1101053:1"
+        }, {
+            "type_name": "Shanghai Restaurant",
+            "CategoryId": "1101054:1"
+        }, {
+            "type_name": "Sichuan Restaurant",
+            "CategoryId": "1101055:1"
+        }, {
+            "type_name": "Dongbei Restaurant",
+            "CategoryId": "1101056:1"
+        }, {
+            "type_name": "Hot Pot Restaurant",
+            "CategoryId": "1101057:1"
+        }, {
+            "type_name": "Taiwanese Restaurant",
+            "CategoryId": "1101058:1"
+        }, {
+            "type_name": "Western Restaurant",
+            "CategoryId": "1101059:1"
+        }, {
+            "type_name": "Peruvian Restaurant",
+            "CategoryId": "1101060:1"
+        }, {
+            "type_name": "Asian Restaurant",
+            "CategoryId": "1101061:1"
+        }, {
+            "type_name": "Creole-Cajun Restaurant",
+            "CategoryId": "1101062:1"
+        }, {
+            "type_name": "Soul Food Restaurant",
+            "CategoryId": "1101063:1"
+        }, {
+            "type_name": "Irish Restaurant",
+            "CategoryId": "1101064:1"
+        }, {
+            "type_name": "Jamaican Restaurant",
+            "CategoryId": "1101065:1"
+        }, {
+            "type_name": "Kosher Restaurant",
+            "CategoryId": "1101066:1"
+        }, {
+            "type_name": "Czech Restaurant",
+            "CategoryId": "1101067:1"
+        }, {
+            "type_name": "Hamburger Restaurant",
+            "CategoryId": "1101068:1"
+        }, {
+            "type_name": "Chicken Restaurant",
+            "CategoryId": "1101069:1"
+        }, {
+            "type_name": "Fusion Restaurant",
+            "CategoryId": "1101070:1"
+        }, {
+            "type_name": "Brazilian Restaurant",
+            "CategoryId": "1101071:1"
+        }, {
+            "type_name": "International Hotel",
+            "CategoryId": "1101072:1"
+        }, {
+            "type_name": "Moroccan Restaurant",
+            "CategoryId": "1101073:1"
+        }, {
+            "type_name": "Organic Restaurant",
+            "CategoryId": "1101074:1"
+        }, {
+            "type_name": "Tapas Restaurant",
+            "CategoryId": "1101075:1"
+        }, {
+            "type_name": "Ice Cream Parlor",
+            "CategoryId": "1101076:1"
+        }, {
+            "type_name": "Doughnut Shop",
+            "CategoryId": "1101077:1"
+        }, {
+            "type_name": "Slovak Restaurant",
+            "CategoryId": "1101078:1"
+        }, {
+            "type_name": "Afghan Restaurant",
+            "CategoryId": "1101079:1"
+        }, {
+            "type_name": "Algerian Restaurant",
+            "CategoryId": "1101080:1"
+        }, {
+            "type_name": "Arabian Restaurant",
+            "CategoryId": "1101081:1"
+        }, {
+            "type_name": "Argentinean Restaurant",
+            "CategoryId": "1101082:1"
+        }, {
+            "type_name": "Armenian Restaurant",
+            "CategoryId": "1101083:1"
+        }, {
+            "type_name": "Australian Restaurant",
+            "CategoryId": "1101084:1"
+        }, {
+            "type_name": "Basque Restaurant",
+            "CategoryId": "1101085:1"
+        }, {
+            "type_name": "Bolivian Restaurant",
+            "CategoryId": "1101086:1"
+        }, {
+            "type_name": "Bosnian Restaurant",
+            "CategoryId": "1101087:1"
+        }, {
+            "type_name": "Bulgarian Restaurant",
+            "CategoryId": "1101088:1"
+        }, {
+            "type_name": "Burmese Restaurant",
+            "CategoryId": "1101089:1"
+        }, {
+            "type_name": "Cambodian Restaurant",
+            "CategoryId": "1101090:1"
+        }, {
+            "type_name": "Chilean Restaurant",
+            "CategoryId": "1101091:1"
+        }, {
+            "type_name": "Colombian Restaurant",
+            "CategoryId": "1101092:1"
+        }, {
+            "type_name": "Corsican Restaurant",
+            "CategoryId": "1101093:1"
+        }, {
+            "type_name": "Cuban Restaurant",
+            "CategoryId": "1101094:1"
+        }, {
+            "type_name": "Cypriot Restaurant",
+            "CategoryId": "1101095:1"
+        }, {
+            "type_name": "Danish Restaurant",
+            "CategoryId": "1101096:1"
+        }, {
+            "type_name": "Dominican Restaurant",
+            "CategoryId": "1101097:1"
+        }, {
+            "type_name": "Egyptian Restaurant",
+            "CategoryId": "1101098:1"
+        }, {
+            "type_name": "English Restaurant",
+            "CategoryId": "1101099:1"
+        }, {
+            "type_name": "Ethiopian Restaurant",
+            "CategoryId": "1101100:1"
+        }, {
+            "type_name": "Finnish Restaurant",
+            "CategoryId": "1101101:1"
+        }, {
+            "type_name": "Iranian Restaurant",
+            "CategoryId": "1101102:1"
+        }, {
+            "type_name": "Israeli Restaurant",
+            "CategoryId": "1101103:1"
+        }, {
+            "type_name": "Luxembourgian Restaurant",
+            "CategoryId": "1101104:1"
+        }, {
+            "type_name": "Maghrib Restaurant",
+            "CategoryId": "1101105:1"
+        }, {
+            "type_name": "Mauritian Restaurant",
+            "CategoryId": "1101106:1"
+        }, {
+            "type_name": "Mongolian Restaurant",
+            "CategoryId": "1101107:1"
+        }, {
+            "type_name": "Nepalese Restaurant",
+            "CategoryId": "1101108:1"
+        }, {
+            "type_name": "Norwegian Restaurant",
+            "CategoryId": "1101109:1"
+        }, {
+            "type_name": "Savoyan Restaurant",
+            "CategoryId": "1101110:1"
+        }, {
+            "type_name": "Scandinavian Restaurant",
+            "CategoryId": "1101111:1"
+        }, {
+            "type_name": "Scottish Restaurant",
+            "CategoryId": "1101112:1"
+        }, {
+            "type_name": "Sicilian Restaurant",
+            "CategoryId": "1101113:1"
+        }, {
+            "type_name": "Slavic Restaurant",
+            "CategoryId": "1101114:1"
+        }, {
+            "type_name": "Sudanese Restaurant",
+            "CategoryId": "1101115:1"
+        }, {
+            "type_name": "Swedish Restaurant",
+            "CategoryId": "1101116:1"
+        }, {
+            "type_name": "Syrian Restaurant",
+            "CategoryId": "1101117:1"
+        }, {
+            "type_name": "Teppanyakki Restaurant",
+            "CategoryId": "1101118:1"
+        }, {
+            "type_name": "Tibetan Restaurant",
+            "CategoryId": "1101119:1"
+        }, {
+            "type_name": "Tunisian Restaurant",
+            "CategoryId": "1101120:1"
+        }, {
+            "type_name": "Uruguayan Restaurant",
+            "CategoryId": "1101121:1"
+        }, {
+            "type_name": "Venezuelan Restaurant",
+            "CategoryId": "1101122:1"
+        }, {
+            "type_name": "Welsh Restaurant",
+            "CategoryId": "1101123:1"
+        }, {
+            "type_name": "Pakistani Restaurant",
+            "CategoryId": "1101124:1"
+        }, {
+            "type_name": "Polynesian Restaurant",
+            "CategoryId": "1101125:1"
+        }, {
+            "type_name": "Provençal Restaurant",
+            "CategoryId": "1101126:1"
+        }, {
+            "type_name": "Romanian Restaurant",
+            "CategoryId": "1101127:1"
+        }, {
+            "type_name": "Exotic Restaurant",
+            "CategoryId": "1101129:1"
+        }, {
+            "type_name": "Fondue Restaurant",
+            "CategoryId": "1101130:1"
+        }, {
+            "type_name": "Macrobiotic Restaurant",
+            "CategoryId": "1101131:1"
+        }, {
+            "type_name": "Mussel Restaurant",
+            "CategoryId": "1101132:1"
+        }, {
+            "type_name": "Snacks",
+            "CategoryId": "1101133:1"
+        }, {
+            "type_name": "Soup Restaurant",
+            "CategoryId": "1101134:1"
+        }, {
+            "type_name": "Buffet",
+            "CategoryId": "1101135:1"
+        }, {
+            "type_name": "Salad Bar",
+            "CategoryId": "1101136:1"
+        }, {
+            "type_name": "Take-away Restaurant",
+            "CategoryId": "1101137:1"
+        }, {
+            "type_name": "Banquet Room",
+            "CategoryId": "1101138:1"
+        }, {
+            "type_name": "Cafeteria",
+            "CategoryId": "1101139:1"
+        }, {
+            "type_name": "Sushi Restaurant",
+            "CategoryId": "1101140:1"
+        }, {
+            "type_name": "Yogurt/Juice Bar",
+            "CategoryId": "1101141:1"
+        }, {
+            "type_name": "Café",
+            "CategoryId": "1102001:1"
+        }, {
+            "type_name": "Pub",
+            "CategoryId": "1102002:1"
+        }, {
+            "type_name": "Internet Café",
+            "CategoryId": "1102003:1"
+        }, {
+            "type_name": "Tea House",
+            "CategoryId": "1102004:1"
+        }, {
+            "type_name": "Coffee Shop",
+            "CategoryId": "1102005:1"
+        }, {
+            "type_name": "Microbrewery/Beer Garden",
+            "CategoryId": "1102006:1"
+        }, {
+            "type_name": "Department Store",
+            "CategoryId": "1201000:1"
+        }, {
+            "type_name": "Shopping Center",
+            "CategoryId": "1202000:1"
+        }, {
+            "type_name": "Informal Market",
+            "CategoryId": "1203001:1"
+        }, {
+            "type_name": "Public Market",
+            "CategoryId": "1203002:1"
+        }, {
+            "type_name": "Farmer Market",
+            "CategoryId": "1203003:1"
+        }, {
+            "type_name": "Supermarket & Hypermarket",
+            "CategoryId": "1203004:1"
+        }, {
+            "type_name": "Food Market",
+            "CategoryId": "1203005:1"
+        }, {
+            "type_name": "Grocery",
+            "CategoryId": "1204001:1"
+        }, {
+            "type_name": "Bookstore",
+            "CategoryId": "1205001:1"
+        }, {
+            "type_name": "CD/ DVD & Video Store",
+            "CategoryId": "1205002:1"
+        }, {
+            "type_name": "Clothing & Accessories Store",
+            "CategoryId": "1205003:1"
+        }, {
+            "type_name": "Dry cleaners",
+            "CategoryId": "1205004:1"
+        }, {
+            "type_name": "Electrical Appliance Store",
+            "CategoryId": "1205005:1"
+        }, {
+            "type_name": "Real Estate Agency",
+            "CategoryId": "1205006:1"
+        }, {
+            "type_name": "Outlets",
+            "CategoryId": "1205007:1"
+        }, {
+            "type_name": "Florists",
+            "CategoryId": "1205008:1"
+        }, {
+            "type_name": "Food & Drink Shop",
+            "CategoryId": "1205009:1"
+        }, {
+            "type_name": "Gift Store",
+            "CategoryId": "1205010:1"
+        }, {
+            "type_name": "Hair Salon & Barbershop",
+            "CategoryId": "1205011:1"
+        }, {
+            "type_name": "Household Appliance Store",
+            "CategoryId": "1205012:1"
+        }, {
+            "type_name": "Jewelry/ Clock/ And Watch Shop",
+            "CategoryId": "1205013:1"
+        }, {
+            "type_name": "Opticians",
+            "CategoryId": "1205015:1"
+        }, {
+            "type_name": "Sports Store",
+            "CategoryId": "1205016:1"
+        }, {
+            "type_name": "Toys And Games Store",
+            "CategoryId": "1205017:1"
+        }, {
+            "type_name": "Travel Agency",
+            "CategoryId": "1205018:1"
+        }, {
+            "type_name": "Construction Material & Equipment Shop",
+            "CategoryId": "1205019:1"
+        }, {
+            "type_name": "Medical Supplies & Equipment Store",
+            "CategoryId": "1205020:1"
+        }, {
+            "type_name": "Laundry",
+            "CategoryId": "1205021:1"
+        }, {
+            "type_name": "Photo Shop",
+            "CategoryId": "1205022:1"
+        }, {
+            "type_name": "Photocopy Shop",
+            "CategoryId": "1205023:1"
+        }, {
+            "type_name": "Pet Store",
+            "CategoryId": "1205024:1"
+        }, {
+            "type_name": "Antique/Art Store",
+            "CategoryId": "1205025:1"
+        }, {
+            "type_name": "Beauty Supply Shop",
+            "CategoryId": "1205026:1"
+        }, {
+            "type_name": "Drugstore",
+            "CategoryId": "1205027:1"
+        }, {
+            "type_name": "Hobby Shop",
+            "CategoryId": "1205028:1"
+        }, {
+            "type_name": "Furniture Store",
+            "CategoryId": "1205029:1"
+        }, {
+            "type_name": "Glassware/Ceramic Shop",
+            "CategoryId": "1205030:1"
+        }, {
+            "type_name": "Local Specialty Store",
+            "CategoryId": "1205031:1"
+        }, {
+            "type_name": "Recycling Shop",
+            "CategoryId": "1205032:1"
+        }, {
+            "type_name": "Bags & Leatherwear Shop",
+            "CategoryId": "1205033:1"
+        }, {
+            "type_name": "Musical Instrument Store",
+            "CategoryId": "1205034:1"
+        }, {
+            "type_name": "Shopping Service Center",
+            "CategoryId": "1205035:1"
+        }, {
+            "type_name": "Warehouse Supermarket",
+            "CategoryId": "1205036:1"
+        }, {
+            "type_name": "Beauty Salon",
+            "CategoryId": "1205037:1"
+        }, {
+            "type_name": "Nail Salon",
+            "CategoryId": "1205038:1"
+        }, {
+            "type_name": "Hardware Store",
+            "CategoryId": "1205039:1"
+        }, {
+            "type_name": "Pawn Shop",
+            "CategoryId": "1205040:1"
+        }, {
+            "type_name": "Lottery Shop",
+            "CategoryId": "1205041:1"
+        }, {
+            "type_name": "Betting Station",
+            "CategoryId": "1205042:1"
+        }, {
+            "type_name": "Agricultural Supply Store",
+            "CategoryId": "1205043:1"
+        }, {
+            "type_name": "Stamp Shop",
+            "CategoryId": "1205044:1"
+        }, {
+            "type_name": "Tailor Shop",
+            "CategoryId": "1205046:1"
+        }, {
+            "type_name": "Security Store",
+            "CategoryId": "1205047:1"
+        }, {
+            "type_name": "Variety Store",
+            "CategoryId": "1205048:1"
+        }, {
+            "type_name": "Christmas/Holiday Store",
+            "CategoryId": "1205049:1"
+        }, {
+            "type_name": "Boating Equipment & Accessories Store",
+            "CategoryId": "1205050:1"
+        }, {
+            "type_name": "Office Supply & Services Store",
+            "CategoryId": "1205052:1"
+        }, {
+            "type_name": "Amusement Park",
+            "CategoryId": "1302000:1"
+        }, {
+            "type_name": "Amusement Arcade",
+            "CategoryId": "1302001:1"
+        }, {
+            "type_name": "Battlefield",
+            "CategoryId": "1303003:1"
+        }, {
+            "type_name": "Cemetery",
+            "CategoryId": "1303004:1"
+        }, {
+            "type_name": "Historic Site",
+            "CategoryId": "1303005:1"
+        }, {
+            "type_name": "Historical Park",
+            "CategoryId": "1303006:1"
+        }, {
+            "type_name": "Lakeshore",
+            "CategoryId": "1303007:1"
+        }, {
+            "type_name": "Memorial",
+            "CategoryId": "1303008:1"
+        }, {
+            "type_name": "Parkway",
+            "CategoryId": "1303009:1"
+        }, {
+            "type_name": "Preserved Area",
+            "CategoryId": "1303010:1"
+        }, {
+            "type_name": "Seashore",
+            "CategoryId": "1303011:1"
+        }, {
+            "type_name": "Wilderness Area",
+            "CategoryId": "1303012:1"
+        }, {
+            "type_name": "Forest Area",
+            "CategoryId": "1303013:1"
+        }, {
+            "type_name": "Fishing & Hunting Area",
+            "CategoryId": "1303014:1"
+        }, {
+            "type_name": "Fairground",
+            "CategoryId": "1303015:1"
+        }, {
+            "type_name": "Winter Sport Area",
+            "CategoryId": "1303016:1"
+        }, {
+            "type_name": "Ski Resort",
+            "CategoryId": "1303017:1"
+        }, {
+            "type_name": "Natural Attraction",
+            "CategoryId": "1303018:1"
+        }, {
+            "type_name": "Boat Launching Ramp",
+            "CategoryId": "1303019:1"
+        }, {
+            "type_name": "Picnic Area",
+            "CategoryId": "1303020:1"
+        }, {
+            "type_name": "Scenic River Area",
+            "CategoryId": "1303021:1"
+        }, {
+            "type_name": "Protected Area",
+            "CategoryId": "1303022:1"
+        }, {
+            "type_name": "Arboreta & Botanical Gardens",
+            "CategoryId": "1304001:1"
+        }, {
+            "type_name": "Zoo",
+            "CategoryId": "1304002:1"
+        }, {
+            "type_name": "Aquatic Zoo & Marine Park",
+            "CategoryId": "1304003:1"
+        }, {
+            "type_name": "Wildlife Park",
+            "CategoryId": "1304004:1"
+        }, {
+            "type_name": "Sauna/ Solarium & Massage Center",
+            "CategoryId": "1305001:1"
+        }, {
+            "type_name": "Snooker/ Pool & Billiard Hall",
+            "CategoryId": "1305002:1"
+        }, {
+            "type_name": "Spa",
+            "CategoryId": "1305003:1"
+        }, {
+            "type_name": "Flying Club",
+            "CategoryId": "1305004:1"
+        }, {
+            "type_name": "Night Club",
+            "CategoryId": "1306001:1"
+        }, {
+            "type_name": "Bar",
+            "CategoryId": "1306002:1"
+        }, {
+            "type_name": "Entertainment/Cabaret/Live",
+            "CategoryId": "1306003:1"
+        }, {
+            "type_name": "Museum",
+            "CategoryId": "1307000:1"
+        }, {
+            "type_name": "Science Museum",
+            "CategoryId": "1307001:1"
+        }, {
+            "type_name": "Children's Museum",
+            "CategoryId": "1307002:1"
+        }, {
+            "type_name": "History Museum",
+            "CategoryId": "1307003:1"
+        }, {
+            "type_name": "Art Museum",
+            "CategoryId": "1307004:1"
+        }, {
+            "type_name": "Library",
+            "CategoryId": "1308000:1"
+        }, {
+            "type_name": "Theater",
+            "CategoryId": "1309001:1"
+        }, {
+            "type_name": "Concert Hall",
+            "CategoryId": "1309002:1"
+        }, {
+            "type_name": "Music Center",
+            "CategoryId": "1309003:1"
+        }, {
+            "type_name": "Opera",
+            "CategoryId": "1309004:1"
+        }, {
+            "type_name": "Cabaret",
+            "CategoryId": "1309005:1"
+        }, {
+            "type_name": "Amphitheater",
+            "CategoryId": "1309006:1"
+        }, {
+            "type_name": "Dinner Theater",
+            "CategoryId": "1309007:1"
+        }, {
+            "type_name": "Cinema",
+            "CategoryId": "1310001:1"
+        }, {
+            "type_name": "Drive-In Cinema",
+            "CategoryId": "1310002:1"
+        }, {
+            "type_name": "Casino",
+            "CategoryId": "1311000:1"
+        }, {
+            "type_name": "Club & Association",
+            "CategoryId": "1312000:1"
+        }, {
+            "type_name": "Beach Club",
+            "CategoryId": "1312001:1"
+        }, {
+            "type_name": "Hockey Club",
+            "CategoryId": "1312002:1"
+        }, {
+            "type_name": "Car Club",
+            "CategoryId": "1312003:1"
+        }, {
+            "type_name": "Mountain Bike Trail",
+            "CategoryId": "1313001:1"
+        }, {
+            "type_name": "Adventure Vehicle Trail",
+            "CategoryId": "1313002:1"
+        }, {
+            "type_name": "Hiking Trail",
+            "CategoryId": "1313003:1"
+        }, {
+            "type_name": "Horse Riding Trail",
+            "CategoryId": "1313004:1"
+        }, {
+            "type_name": "Rock Climbing Trail",
+            "CategoryId": "1313005:1"
+        }, {
+            "type_name": "Ski Lift",
+            "CategoryId": "1313006:1"
+        }, {
+            "type_name": "Community Center",
+            "CategoryId": "1314000:1"
+        }, {
+            "type_name": "Cultural Center",
+            "CategoryId": "1315000:1"
+        }, {
+            "type_name": "Gallery",
+            "CategoryId": "1315001:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316000:1"
+        }, {
+            "type_name": "Marina",
+            "CategoryId": "1316001:1"
+        }, {
+            "type_name": "Yacht Basin",
+            "CategoryId": "1316002:1"
+        }, {
+            "type_name": "Winery",
+            "CategoryId": "1317000:1"
+        }, {
+            "type_name": "Sports Center",
+            "CategoryId": "1401001:1"
+        }, {
+            "type_name": "Fitness Club & Center",
+            "CategoryId": "1401002:1"
+        }, {
+            "type_name": "Horse Riding Field",
+            "CategoryId": "1401003:1"
+        }, {
+            "type_name": "Themed Sports Hall",
+            "CategoryId": "1401004:1"
+        }, {
+            "type_name": "Squash Court",
+            "CategoryId": "1401005:1"
+        }, {
+            "type_name": "Bowling Field",
+            "CategoryId": "1401006:1"
+        }, {
+            "type_name": "Shooting Range",
+            "CategoryId": "1401007:1"
+        }, {
+            "type_name": "Athletic Stadium",
+            "CategoryId": "1402001:1"
+        }, {
+            "type_name": "Cricket Ground",
+            "CategoryId": "1402002:1"
+        }, {
+            "type_name": "Soccer Field",
+            "CategoryId": "1402003:1"
+        }, {
+            "type_name": "Horse Racing Track",
+            "CategoryId": "1402004:1"
+        }, {
+            "type_name": "Multipurpose Stadium",
+            "CategoryId": "1402005:1"
+        }, {
+            "type_name": "Rugby Ground",
+            "CategoryId": "1402006:1"
+        }, {
+            "type_name": "Ice Hockey Rink",
+            "CategoryId": "1402007:1"
+        }, {
+            "type_name": "Baseball Field",
+            "CategoryId": "1402008:1"
+        }, {
+            "type_name": "Football Field",
+            "CategoryId": "1402009:1"
+        }, {
+            "type_name": "Motorsport Venue",
+            "CategoryId": "1402010:1"
+        }, {
+            "type_name": "Basketball Court",
+            "CategoryId": "1402011:1"
+        }, {
+            "type_name": "Race Track",
+            "CategoryId": "1402012:1"
+        }, {
+            "type_name": "Netball Court",
+            "CategoryId": "1402013:1"
+        }, {
+            "type_name": "Hockey Field",
+            "CategoryId": "1402014:1"
+        }, {
+            "type_name": "Badminton Court",
+            "CategoryId": "1402015:1"
+        }, {
+            "type_name": "Table Tennis Hall",
+            "CategoryId": "1402016:1"
+        }, {
+            "type_name": "Golf Course",
+            "CategoryId": "1403000:1"
+        }, {
+            "type_name": "Ice Skating Rink",
+            "CategoryId": "1404000:1"
+        }, {
+            "type_name": "Swimming Pool",
+            "CategoryId": "1405000:1"
+        }, {
+            "type_name": "Tennis Court",
+            "CategoryId": "1406000:1"
+        }, {
+            "type_name": "Diving Center",
+            "CategoryId": "1407001:1"
+        }, {
+            "type_name": "Tourist Information Office",
+            "CategoryId": "1501000:1"
+        }, {
+            "type_name": "Building",
+            "CategoryId": "1502001:1"
+        }, {
+            "type_name": "Monument",
+            "CategoryId": "1502002:1"
+        }, {
+            "type_name": "Natural Attraction",
+            "CategoryId": "1502003:1"
+        }, {
+            "type_name": "Observatory",
+            "CategoryId": "1502004:1"
+        }, {
+            "type_name": "Planetarium",
+            "CategoryId": "1502005:1"
+        }, {
+            "type_name": "Dam",
+            "CategoryId": "1502006:1"
+        }, {
+            "type_name": "Tunnel",
+            "CategoryId": "1502007:1"
+        }, {
+            "type_name": "Tower",
+            "CategoryId": "1502008:1"
+        }, {
+            "type_name": "Bridge",
+            "CategoryId": "1502009:1"
+        }, {
+            "type_name": "Mausoleum/Grave",
+            "CategoryId": "1502010:1"
+        }, {
+            "type_name": "Arch",
+            "CategoryId": "1502011:1"
+        }, {
+            "type_name": "Statue",
+            "CategoryId": "1502012:1"
+        }, {
+            "type_name": "Water Hole",
+            "CategoryId": "1502013:1"
+        }, {
+            "type_name": "Winery",
+            "CategoryId": "1502014:1"
+        }, {
+            "type_name": "Church",
+            "CategoryId": "1503001:1"
+        }, {
+            "type_name": "Mosque",
+            "CategoryId": "1503002:1"
+        }, {
+            "type_name": "Synagogue",
+            "CategoryId": "1503003:1"
+        }, {
+            "type_name": "Temple",
+            "CategoryId": "1503004:1"
+        }, {
+            "type_name": "Gurudwara",
+            "CategoryId": "1503005:1"
+        }, {
+            "type_name": "Ashram",
+            "CategoryId": "1503006:1"
+        }, {
+            "type_name": "Pagoda",
+            "CategoryId": "1503007:1"
+        }, {
+            "type_name": "Shinto Shrine",
+            "CategoryId": "1503008:1"
+        }, {
+            "type_name": "Hindu Temple",
+            "CategoryId": "1503009:1"
+        }, {
+            "type_name": "Buddhist Temple",
+            "CategoryId": "1503010:1"
+        }, {
+            "type_name": "Jain Temple",
+            "CategoryId": "1503011:1"
+        }, {
+            "type_name": "Mormon Church",
+            "CategoryId": "1503012:1"
+        }, {
+            "type_name": "Dharma Temple",
+            "CategoryId": "1503013:1"
+        }, {
+            "type_name": "Beach",
+            "CategoryId": "1504000:1"
+        }, {
+            "type_name": "Adventure Sports Venue",
+            "CategoryId": "1505000:1"
+        }, {
+            "type_name": "Observation Deck",
+            "CategoryId": "1506000:1"
+        }, {
+            "type_name": "General Hospital",
+            "CategoryId": "1601001:1"
+        }, {
+            "type_name": "Specialized Hospital",
+            "CategoryId": "1601002:1"
+        }, {
+            "type_name": "Chinese Medicine Hospital",
+            "CategoryId": "1601003:1"
+        }, {
+            "type_name": "Hospital for Women and Children",
+            "CategoryId": "1601004:1"
+        }, {
+            "type_name": "Personal Service Center",
+            "CategoryId": "1602001:1"
+        }, {
+            "type_name": "Personal Care Institution",
+            "CategoryId": "1602002:1"
+        }, {
+            "type_name": "Blood Bank",
+            "CategoryId": "1602003:1"
+        }, {
+            "type_name": "Ambulance Unit",
+            "CategoryId": "1602004:1"
+        }, {
+            "type_name": "Nursing Home",
+            "CategoryId": "1602005:1"
+        }, {
+            "type_name": "Pharmacy",
+            "CategoryId": "1603000:1"
+        }, {
+            "type_name": "Dental Clinic",
+            "CategoryId": "1604000:1"
+        }, {
+            "type_name": "Emergency Room",
+            "CategoryId": "1605000:1"
+        }, {
+            "type_name": "Physiotherapy Clinic",
+            "CategoryId": "1606001:1"
+        }, {
+            "type_name": "General Clinic",
+            "CategoryId": "1606002:1"
+        }, {
+            "type_name": "Specialist Clinic",
+            "CategoryId": "1606003:1"
+        }, {
+            "type_name": "Veterinary Clinic",
+            "CategoryId": "1607000:1"
+        }, {
+            "type_name": "Residential Estate",
+            "CategoryId": "1701001:1"
+        }, {
+            "type_name": "Flats/Apartment Complex",
+            "CategoryId": "1701002:1"
+        }, {
+            "type_name": "Townhouse Complex",
+            "CategoryId": "1701003:1"
+        }, {
+            "type_name": "Retirement Community",
+            "CategoryId": "1701004:1"
+        }, {
+            "type_name": "Condominium Complex",
+            "CategoryId": "1701005:1"
+        }, {
+            "type_name": "Bed & Breakfast & Guest Houses",
+            "CategoryId": "1702001:1"
+        }, {
+            "type_name": "Resort",
+            "CategoryId": "1702004:1"
+        }, {
+            "type_name": "Motel",
+            "CategoryId": "1702005:1"
+        }, {
+            "type_name": "Cabins & Lodges",
+            "CategoryId": "1702006:1"
+        }, {
+            "type_name": "Rest Camps",
+            "CategoryId": "1702007:1"
+        }, {
+            "type_name": "Recreational Site",
+            "CategoryId": "1704001:1"
+        }, {
+            "type_name": "Caravan Site",
+            "CategoryId": "1704002:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902000:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902001:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902002:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902003:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902004:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902005:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902006:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902007:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902008:1"
+        }, {
+            "type_name": "Government Office",
+            "CategoryId": "1902009:1"
+        }, {
+            "type_name": "National Organization",
+            "CategoryId": "1902010:1"
+        }, {
+            "type_name": "International Organization",
+            "CategoryId": "1902011:1"
+        }, {
+            "type_name": "City Hall",
+            "CategoryId": "1902012:1"
+        }, {
+            "type_name": "County Council",
+            "CategoryId": "1902013:1"
+        }, {
+            "type_name": "Civic/Community Center",
+            "CategoryId": "1902014:1"
+        }, {
+            "type_name": "Town Government",
+            "CategoryId": "1902015:1"
+        }, {
+            "type_name": "Fire Station/Brigade",
+            "CategoryId": "1903000:1"
+        }, {
+            "type_name": "Police Station",
+            "CategoryId": "1904001:1"
+        }, {
+            "type_name": "Police Station",
+            "CategoryId": "1904002:1"
+        }, {
+            "type_name": "Police Station",
+            "CategoryId": "1904003:1"
+        }, {
+            "type_name": "General Post Office",
+            "CategoryId": "1905001:1"
+        }, {
+            "type_name": "Local Post Office",
+            "CategoryId": "1905002:1"
+        }, {
+            "type_name": "Courthouse",
+            "CategoryId": "1906000:1"
+        }, {
+            "type_name": "Embassy",
+            "CategoryId": "1907000:1"
+        }, {
+            "type_name": "Traffic Control Department",
+            "CategoryId": "1908000:1"
+        }, {
+            "type_name": "Traffic Management Bureau",
+            "CategoryId": "1909000:1"
+        }, {
+            "type_name": "Military Base",
+            "CategoryId": "1910000:1"
+        }, {
+            "type_name": "College/University",
+            "CategoryId": "1911001:1"
+        }, {
+            "type_name": "Junior College/Community College",
+            "CategoryId": "1911002:1"
+        }, {
+            "type_name": "Child Care Facility",
+            "CategoryId": "1911003:1"
+        }, {
+            "type_name": "Preschool",
+            "CategoryId": "1911004:1"
+        }, {
+            "type_name": "Primary School",
+            "CategoryId": "1911005:1"
+        }, {
+            "type_name": "High School",
+            "CategoryId": "1911006:1"
+        }, {
+            "type_name": "Senior High School",
+            "CategoryId": "1911007:1"
+        }, {
+            "type_name": "Vocational Training School",
+            "CategoryId": "1911008:1"
+        }, {
+            "type_name": "Technical School",
+            "CategoryId": "1911009:1"
+        }, {
+            "type_name": "Language School",
+            "CategoryId": "1911010:1"
+        }, {
+            "type_name": "Sports School",
+            "CategoryId": "1911011:1"
+        }, {
+            "type_name": "Art School",
+            "CategoryId": "1911012:1"
+        }, {
+            "type_name": "Special School",
+            "CategoryId": "1911013:1"
+        }, {
+            "type_name": "Middle School",
+            "CategoryId": "1911014:1"
+        }, {
+            "type_name": "Culinary School",
+            "CategoryId": "1911015:1"
+        }, {
+            "type_name": "Driving School",
+            "CategoryId": "1911016:1"
+        }, {
+            "type_name": "Dance Studio & School",
+            "CategoryId": "1911017:1"
+        }, {
+            "type_name": "School",
+            "CategoryId": "1911018:1"
+        }, {
+            "type_name": "Passenger Transport Ticket Office",
+            "CategoryId": "1912001:1"
+        }, {
+            "type_name": "Pedestrian Subway",
+            "CategoryId": "1912002:1"
+        }, {
+            "type_name": "Public Call Box",
+            "CategoryId": "1912003:1"
+        }, {
+            "type_name": "Road Rescue Point",
+            "CategoryId": "1912005:1"
+        }, {
+            "type_name": "Welfare Organization",
+            "CategoryId": "1913001:1"
+        }, {
+            "type_name": "Non-Governmental Organization",
+            "CategoryId": "1913002:1"
+        }, {
+            "type_name": "Prison",
+            "CategoryId": "1915000:1"
+        }, {
+            "type_name": "Emergency Assembly Point",
+            "CategoryId": "1916000:1"
+        }, {
+            "type_name": "Tsunami Assembly Point",
+            "CategoryId": "1916001:1"
+        }, {
+            "type_name": "Fire Assembly Point",
+            "CategoryId": "1916002:1"
+        }, {
+            "type_name": "Earthquake Assembly Point ",
+            "CategoryId": "1916003:1"
+        }, {
+            "type_name": "Volcanic Eruption Assembly Point",
+            "CategoryId": "1916004:1"
+        }, {
+            "type_name": "Flood Assembly Point",
+            "CategoryId": "1916005:1"
+        }, {
+            "type_name": "Bank",
+            "CategoryId": "2001000:1"
+        }, {
+            "type_name": "Automatic Teller Machine",
+            "CategoryId": "2002000:1"
+        }, {
+            "type_name": "Exhibition & Convention Center",
+            "CategoryId": "2005000:1"
+        }, {
+            "type_name": "Currency Exchange",
+            "CategoryId": "2010003:1"
+        }, {
+            "type_name": "Courier Drop Box",
+            "CategoryId": "2011000:1"
+        }, {
+            "type_name": "Emergency Medical Service Center",
+            "CategoryId": "2013000:1"
+        }, {
+            "type_name": "Car Rental",
+            "CategoryId": "2108001:1"
+        }, {
+            "type_name": "Pick-Up And Return Point",
+            "CategoryId": "2108002:1"
+        }, {
+            "type_name": "Car Dealer",
+            "CategoryId": "2109001:1"
+        }, {
+            "type_name": "Motorcycle Dealer",
+            "CategoryId": "2109002:1"
+        }, {
+            "type_name": "Boat Dealer",
+            "CategoryId": "2109003:1"
+        }, {
+            "type_name": "Recreational Vehicle Dealer",
+            "CategoryId": "2109004:1"
+        }, {
+            "type_name": "Truck Dealer",
+            "CategoryId": "2109005:1"
+        }, {
+            "type_name": "Van Dealer",
+            "CategoryId": "2109006:1"
+        }, {
+            "type_name": "Bus Dealer",
+            "CategoryId": "2109007:1"
+        }, {
+            "type_name": "ATV/Snowmobile Dealer",
+            "CategoryId": "2109008:1"
+        }, {
+            "type_name": "Used Car Dealer",
+            "CategoryId": "2109009:1"
+        }, {
+            "type_name": "Bodyshops",
+            "CategoryId": "2110001:1"
+        }, {
+            "type_name": "Automotive Glass Replacement Shop",
+            "CategoryId": "2110002:1"
+        }, {
+            "type_name": "General Auto Repair Service Center",
+            "CategoryId": "2110003:1"
+        }, {
+            "type_name": "Repair Shop",
+            "CategoryId": "2110004:1"
+        }, {
+            "type_name": "Automobile Accessories Shop",
+            "CategoryId": "2110005:1"
+        }, {
+            "type_name": "Tire Repair Shop",
+            "CategoryId": "2110006:1"
+        }, {
+            "type_name": "Motorcycle Repair Shop",
+            "CategoryId": "2110007:1"
+        }, {
+            "type_name": "Truck Repair Shop",
+            "CategoryId": "2110008:1"
+        }, {
+            "type_name": "Truck Stop",
+            "CategoryId": "2111000:1"
+        }, {
+            "type_name": "Motoring Organization Office",
+            "CategoryId": "2112000:1"
+        }
+    ]
+}

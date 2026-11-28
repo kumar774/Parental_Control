@@ -1,0 +1,19 @@
+{
+    "applications":[],
+    "services":[
+        {
+            "name":"com.huawei.map.app.homepage",
+            "routeBy":"unconditional",
+            "servings":[
+                {
+                    "addresses":{
+                        "COPYRIGHT":"https://developer.huawei.com/",
+                        "HOMEPAGE":"https://consumer.huawei.com/"
+                    }
+                }
+            ],
+            "countryOrAreaGroups":[]
+        }
+    ],
+    "countryOrAreaGroups":[]
+}

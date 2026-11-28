@@ -1,0 +1,97 @@
+.class Lcom/google/common/cache/k$e$b;
+.super Lcom/google/common/collect/l;
+.source "LocalCache.java"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingMethod;
+    value = Lcom/google/common/cache/k$e;->iterator()Ljava/util/Iterator;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x0
+    name = null
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Lcom/google/common/collect/l<",
+        "Lcom/google/common/cache/p<",
+        "TK;TV;>;>;"
+    }
+.end annotation
+
+
+# instance fields
+.field final synthetic c:Lcom/google/common/cache/k$e;
+
+
+# direct methods
+.method constructor <init>(Lcom/google/common/cache/k$e;Lcom/google/common/cache/p;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    iput-object p1, p0, Lcom/google/common/cache/k$e$b;->c:Lcom/google/common/cache/k$e;
+
+    .line 3
+    invoke-direct {p0, p2}, Lcom/google/common/collect/l;-><init>(Ljava/lang/Object;)V
+
+    .line 6
+    return-void
+.end method
+
+
+# virtual methods
+.method protected bridge synthetic a(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 0
+
+    .prologue
+    .line 1
+    check-cast p1, Lcom/google/common/cache/p;
+
+    .line 3
+    invoke-virtual {p0, p1}, Lcom/google/common/cache/k$e$b;->b(Lcom/google/common/cache/p;)Lcom/google/common/cache/p;
+
+    .line 6
+    move-result-object p1
+
+    .line 7
+    return-object p1
+.end method
+
+.method protected b(Lcom/google/common/cache/p;)Lcom/google/common/cache/p;
+    .locals 1
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Lcom/google/common/cache/p<",
+            "TK;TV;>;)",
+            "Lcom/google/common/cache/p<",
+            "TK;TV;>;"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    invoke-interface {p1}, Lcom/google/common/cache/p;->f()Lcom/google/common/cache/p;
+
+    .line 4
+    move-result-object p1
+
+    .line 5
+    iget-object v0, p0, Lcom/google/common/cache/k$e$b;->c:Lcom/google/common/cache/k$e;
+
+    .line 7
+    iget-object v0, v0, Lcom/google/common/cache/k$e;->b:Lcom/google/common/cache/p;
+
+    .line 9
+    if-ne p1, v0, :cond_0
+
+    .line 11
+    const/4 p1, 0x0
+
+    .line 12
+    :cond_0
+    return-object p1
+.end method

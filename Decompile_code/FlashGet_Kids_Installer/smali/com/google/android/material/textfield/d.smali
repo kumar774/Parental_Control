@@ -1,0 +1,1516 @@
+.class public Lcom/google/android/material/textfield/d;
+.super Lcom/google/android/material/textfield/e;
+.source "SourceFile"
+
+
+# static fields
+.field public static final q:Z
+
+.field public static final r:I = 0x32
+
+.field public static final s:I = 0x43
+
+
+# instance fields
+.field public final d:Landroid/text/TextWatcher;
+
+.field public final e:Landroid/view/View$OnFocusChangeListener;
+
+.field public final f:Lcom/google/android/material/textfield/TextInputLayout$e;
+
+.field public final g:Lcom/google/android/material/textfield/TextInputLayout$h;
+
+.field public final h:Lcom/google/android/material/textfield/TextInputLayout$i;
+    .annotation build Landroid/annotation/SuppressLint;
+        value = {
+            "ClickableViewAccessibility"
+        }
+    .end annotation
+.end field
+
+.field public i:Z
+
+.field public j:Z
+
+.field public k:J
+
+.field public l:Landroid/graphics/drawable/StateListDrawable;
+
+.field public m:Li7/j;
+
+.field public n:Landroid/view/accessibility/AccessibilityManager;
+    .annotation build Lc/q0;
+    .end annotation
+.end field
+
+.field public o:Landroid/animation/ValueAnimator;
+
+.field public p:Landroid/animation/ValueAnimator;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    sput-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 4
+    return-void
+.end method
+
+.method public constructor <init>(Lcom/google/android/material/textfield/TextInputLayout;)V
+    .locals 2
+    .param p1    # Lcom/google/android/material/textfield/TextInputLayout;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-direct {p0, p1}, Lcom/google/android/material/textfield/e;-><init>(Lcom/google/android/material/textfield/TextInputLayout;)V
+
+    .line 4
+    new-instance p1, Lcom/google/android/material/textfield/d$a;
+
+    .line 6
+    invoke-direct {p1, p0}, Lcom/google/android/material/textfield/d$a;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 9
+    iput-object p1, p0, Lcom/google/android/material/textfield/d;->d:Landroid/text/TextWatcher;
+
+    .line 11
+    new-instance p1, Lcom/google/android/material/textfield/d$c;
+
+    .line 13
+    invoke-direct {p1, p0}, Lcom/google/android/material/textfield/d$c;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 16
+    iput-object p1, p0, Lcom/google/android/material/textfield/d;->e:Landroid/view/View$OnFocusChangeListener;
+
+    .line 18
+    new-instance p1, Lcom/google/android/material/textfield/d$d;
+
+    .line 20
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 22
+    invoke-direct {p1, p0, v0}, Lcom/google/android/material/textfield/d$d;-><init>(Lcom/google/android/material/textfield/d;Lcom/google/android/material/textfield/TextInputLayout;)V
+
+    .line 25
+    iput-object p1, p0, Lcom/google/android/material/textfield/d;->f:Lcom/google/android/material/textfield/TextInputLayout$e;
+
+    .line 27
+    new-instance p1, Lcom/google/android/material/textfield/d$e;
+
+    .line 29
+    invoke-direct {p1, p0}, Lcom/google/android/material/textfield/d$e;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 32
+    iput-object p1, p0, Lcom/google/android/material/textfield/d;->g:Lcom/google/android/material/textfield/TextInputLayout$h;
+
+    .line 34
+    new-instance p1, Lcom/google/android/material/textfield/d$f;
+
+    .line 36
+    invoke-direct {p1, p0}, Lcom/google/android/material/textfield/d$f;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 39
+    iput-object p1, p0, Lcom/google/android/material/textfield/d;->h:Lcom/google/android/material/textfield/TextInputLayout$i;
+
+    .line 41
+    const/4 p1, 0x0
+
+    .line 42
+    iput-boolean p1, p0, Lcom/google/android/material/textfield/d;->i:Z
+
+    .line 44
+    iput-boolean p1, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 46
+    const-wide v0, 0x7fffffffffffffffL
+
+    .line 51
+    iput-wide v0, p0, Lcom/google/android/material/textfield/d;->k:J
+
+    .line 53
+    return-void
+.end method
+
+.method private B()V
+    .locals 3
+
+    .prologue
+    .line 1
+    const/4 v0, 0x2
+
+    .line 2
+    new-array v1, v0, [F
+
+    .line 4
+    fill-array-data v1, :array_0
+
+    .line 7
+    const/16 v2, 0x43
+
+    .line 9
+    invoke-virtual {p0, v2, v1}, Lcom/google/android/material/textfield/d;->z(I[F)Landroid/animation/ValueAnimator;
+
+    .line 12
+    move-result-object v1
+
+    .line 13
+    iput-object v1, p0, Lcom/google/android/material/textfield/d;->p:Landroid/animation/ValueAnimator;
+
+    .line 15
+    const/16 v1, 0x32
+
+    .line 17
+    new-array v0, v0, [F
+
+    .line 19
+    fill-array-data v0, :array_1
+
+    .line 22
+    invoke-virtual {p0, v1, v0}, Lcom/google/android/material/textfield/d;->z(I[F)Landroid/animation/ValueAnimator;
+
+    .line 25
+    move-result-object v0
+
+    .line 26
+    iput-object v0, p0, Lcom/google/android/material/textfield/d;->o:Landroid/animation/ValueAnimator;
+
+    .line 28
+    new-instance v1, Lcom/google/android/material/textfield/d$j;
+
+    .line 30
+    invoke-direct {v1, p0}, Lcom/google/android/material/textfield/d$j;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 33
+    invoke-virtual {v0, v1}, Landroid/animation/Animator;->addListener(Landroid/animation/Animator$AnimatorListener;)V
+
+    .line 36
+    return-void
+
+    .line 4
+    :array_0
+    .array-data 4
+        0x0
+        0x3f800000    # 1.0f
+    .end array-data
+
+    .line 19
+    :array_1
+    .array-data 4
+        0x3f800000    # 1.0f
+        0x0
+    .end array-data
+.end method
+
+.method public static D(Landroid/widget/EditText;)Z
+    .locals 0
+    .param p0    # Landroid/widget/EditText;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Landroid/widget/TextView;->getKeyListener()Landroid/text/method/KeyListener;
+
+    .line 4
+    move-result-object p0
+
+    .line 5
+    if-eqz p0, :cond_0
+
+    .line 7
+    const/4 p0, 0x1
+
+    .line 8
+    goto :goto_0
+
+    .line 9
+    :cond_0
+    const/4 p0, 0x0
+
+    .line 10
+    :goto_0
+    return p0
+.end method
+
+.method public static synthetic e(Landroid/widget/EditText;)Landroid/widget/AutoCompleteTextView;
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-static {p0}, Lcom/google/android/material/textfield/d;->y(Landroid/widget/EditText;)Landroid/widget/AutoCompleteTextView;
+
+    .line 4
+    move-result-object p0
+
+    .line 5
+    return-object p0
+.end method
+
+.method public static synthetic f(Lcom/google/android/material/textfield/d;)Landroid/view/accessibility/AccessibilityManager;
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p0, p0, Lcom/google/android/material/textfield/d;->n:Landroid/view/accessibility/AccessibilityManager;
+
+    .line 3
+    return-object p0
+.end method
+
+.method public static synthetic g(Lcom/google/android/material/textfield/d;)Lcom/google/android/material/textfield/TextInputLayout$e;
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p0, p0, Lcom/google/android/material/textfield/d;->f:Lcom/google/android/material/textfield/TextInputLayout$e;
+
+    .line 3
+    return-object p0
+.end method
+
+.method public static synthetic h(Lcom/google/android/material/textfield/d;)Landroid/view/View$OnFocusChangeListener;
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p0, p0, Lcom/google/android/material/textfield/d;->e:Landroid/view/View$OnFocusChangeListener;
+
+    .line 3
+    return-object p0
+.end method
+
+.method public static synthetic i()Z
+    .locals 1
+
+    .prologue
+    .line 1
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 3
+    return v0
+.end method
+
+.method public static synthetic j(Lcom/google/android/material/textfield/d;)Z
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lcom/google/android/material/textfield/d;->C()Z
+
+    .line 4
+    move-result p0
+
+    .line 5
+    return p0
+.end method
+
+.method public static synthetic k(Lcom/google/android/material/textfield/d;J)J
+    .locals 0
+
+    .prologue
+    .line 1
+    iput-wide p1, p0, Lcom/google/android/material/textfield/d;->k:J
+
+    .line 3
+    return-wide p1
+.end method
+
+.method public static synthetic l(Lcom/google/android/material/textfield/d;)Z
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-boolean p0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 3
+    return p0
+.end method
+
+.method public static synthetic m(Lcom/google/android/material/textfield/d;)Landroid/animation/ValueAnimator;
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p0, p0, Lcom/google/android/material/textfield/d;->p:Landroid/animation/ValueAnimator;
+
+    .line 3
+    return-object p0
+.end method
+
+.method public static synthetic n(Landroid/widget/EditText;)Z
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-static {p0}, Lcom/google/android/material/textfield/d;->D(Landroid/widget/EditText;)Z
+
+    .line 4
+    move-result p0
+
+    .line 5
+    return p0
+.end method
+
+.method public static synthetic o(Lcom/google/android/material/textfield/d;Z)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1}, Lcom/google/android/material/textfield/d;->E(Z)V
+
+    .line 4
+    return-void
+.end method
+
+.method public static synthetic p(Lcom/google/android/material/textfield/d;Z)Z
+    .locals 0
+
+    .prologue
+    .line 1
+    iput-boolean p1, p0, Lcom/google/android/material/textfield/d;->i:Z
+
+    .line 3
+    return p1
+.end method
+
+.method public static synthetic q(Lcom/google/android/material/textfield/d;Landroid/widget/AutoCompleteTextView;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1}, Lcom/google/android/material/textfield/d;->H(Landroid/widget/AutoCompleteTextView;)V
+
+    .line 4
+    return-void
+.end method
+
+.method public static synthetic r(Lcom/google/android/material/textfield/d;Landroid/widget/AutoCompleteTextView;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1}, Lcom/google/android/material/textfield/d;->F(Landroid/widget/AutoCompleteTextView;)V
+
+    .line 4
+    return-void
+.end method
+
+.method public static synthetic s(Lcom/google/android/material/textfield/d;Landroid/widget/AutoCompleteTextView;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1}, Lcom/google/android/material/textfield/d;->v(Landroid/widget/AutoCompleteTextView;)V
+
+    .line 4
+    return-void
+.end method
+
+.method public static synthetic t(Lcom/google/android/material/textfield/d;Landroid/widget/AutoCompleteTextView;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-virtual {p0, p1}, Lcom/google/android/material/textfield/d;->G(Landroid/widget/AutoCompleteTextView;)V
+
+    .line 4
+    return-void
+.end method
+
+.method public static synthetic u(Lcom/google/android/material/textfield/d;)Landroid/text/TextWatcher;
+    .locals 0
+
+    .prologue
+    .line 1
+    iget-object p0, p0, Lcom/google/android/material/textfield/d;->d:Landroid/text/TextWatcher;
+
+    .line 3
+    return-object p0
+.end method
+
+.method public static y(Landroid/widget/EditText;)Landroid/widget/AutoCompleteTextView;
+    .locals 1
+    .annotation build Lc/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    instance-of v0, p0, Landroid/widget/AutoCompleteTextView;
+
+    .line 3
+    if-eqz v0, :cond_0
+
+    .line 5
+    check-cast p0, Landroid/widget/AutoCompleteTextView;
+
+    .line 7
+    return-object p0
+
+    .line 8
+    :cond_0
+    new-instance p0, Ljava/lang/RuntimeException;
+
+    .line 10
+    const-string v0, "\u1918"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 12
+    invoke-direct {p0, v0}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
+
+    .line 15
+    throw p0
+.end method
+
+
+# virtual methods
+.method public final A(FFFI)Li7/j;
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-static {}, Li7/o;->a()Li7/o$b;
+
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-virtual {v0, p1}, Li7/o$b;->K(F)Li7/o$b;
+
+    .line 8
+    move-result-object v0
+
+    .line 9
+    invoke-virtual {v0, p1}, Li7/o$b;->P(F)Li7/o$b;
+
+    .line 12
+    move-result-object p1
+
+    .line 13
+    invoke-virtual {p1, p2}, Li7/o$b;->x(F)Li7/o$b;
+
+    .line 16
+    move-result-object p1
+
+    .line 17
+    invoke-virtual {p1, p2}, Li7/o$b;->C(F)Li7/o$b;
+
+    .line 20
+    move-result-object p1
+
+    .line 21
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    .line 24
+    new-instance p2, Li7/o;
+
+    .line 26
+    invoke-direct {p2, p1}, Li7/o;-><init>(Li7/o$b;)V
+
+    .line 29
+    iget-object p1, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 31
+    invoke-static {p1, p3}, Li7/j;->p(Landroid/content/Context;F)Li7/j;
+
+    .line 34
+    move-result-object p1
+
+    .line 35
+    invoke-virtual {p1, p2}, Li7/j;->m(Li7/o;)V
+
+    .line 38
+    const/4 p2, 0x0
+
+    .line 39
+    invoke-virtual {p1, p2, p4, p2, p4}, Li7/j;->r0(IIII)V
+
+    .line 42
+    return-object p1
+.end method
+
+.method public final C()Z
+    .locals 4
+
+    .prologue
+    .line 1
+    invoke-static {}, Ljava/lang/System;->currentTimeMillis()J
+
+    .line 4
+    move-result-wide v0
+
+    .line 5
+    iget-wide v2, p0, Lcom/google/android/material/textfield/d;->k:J
+
+    .line 7
+    sub-long/2addr v0, v2
+
+    .line 8
+    const-wide/16 v2, 0x0
+
+    .line 10
+    cmp-long v2, v0, v2
+
+    .line 12
+    if-ltz v2, :cond_1
+
+    .line 14
+    const-wide/16 v2, 0x12c
+
+    .line 16
+    cmp-long v0, v0, v2
+
+    .line 18
+    if-lez v0, :cond_0
+
+    .line 20
+    goto :goto_0
+
+    .line 21
+    :cond_0
+    const/4 v0, 0x0
+
+    .line 22
+    goto :goto_1
+
+    .line 23
+    :cond_1
+    :goto_0
+    const/4 v0, 0x1
+
+    .line 24
+    :goto_1
+    return v0
+.end method
+
+.method public final E(Z)V
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-boolean v0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 3
+    if-eq v0, p1, :cond_0
+
+    .line 5
+    iput-boolean p1, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 7
+    iget-object p1, p0, Lcom/google/android/material/textfield/d;->p:Landroid/animation/ValueAnimator;
+
+    .line 9
+    invoke-virtual {p1}, Landroid/animation/ValueAnimator;->cancel()V
+
+    .line 12
+    iget-object p1, p0, Lcom/google/android/material/textfield/d;->o:Landroid/animation/ValueAnimator;
+
+    .line 14
+    invoke-virtual {p1}, Landroid/animation/ValueAnimator;->start()V
+
+    .line 17
+    :cond_0
+    return-void
+.end method
+
+.method public final F(Landroid/widget/AutoCompleteTextView;)V
+    .locals 2
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 3
+    if-eqz v0, :cond_1
+
+    .line 5
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 7
+    invoke-virtual {v0}, Lcom/google/android/material/textfield/TextInputLayout;->L()I
+
+    .line 10
+    move-result v0
+
+    .line 11
+    const/4 v1, 0x2
+
+    .line 12
+    if-ne v0, v1, :cond_0
+
+    .line 14
+    iget-object v0, p0, Lcom/google/android/material/textfield/d;->m:Li7/j;
+
+    .line 16
+    invoke-virtual {p1, v0}, Landroid/widget/AutoCompleteTextView;->setDropDownBackgroundDrawable(Landroid/graphics/drawable/Drawable;)V
+
+    .line 19
+    goto :goto_0
+
+    .line 20
+    :cond_0
+    const/4 v1, 0x1
+
+    .line 21
+    if-ne v0, v1, :cond_1
+
+    .line 23
+    iget-object v0, p0, Lcom/google/android/material/textfield/d;->l:Landroid/graphics/drawable/StateListDrawable;
+
+    .line 25
+    invoke-virtual {p1, v0}, Landroid/widget/AutoCompleteTextView;->setDropDownBackgroundDrawable(Landroid/graphics/drawable/Drawable;)V
+
+    .line 28
+    :cond_1
+    :goto_0
+    return-void
+.end method
+
+.method public final G(Landroid/widget/AutoCompleteTextView;)V
+    .locals 1
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .annotation build Landroid/annotation/SuppressLint;
+        value = {
+            "ClickableViewAccessibility"
+        }
+    .end annotation
+
+    .prologue
+    .line 1
+    new-instance v0, Lcom/google/android/material/textfield/d$h;
+
+    .line 3
+    invoke-direct {v0, p0, p1}, Lcom/google/android/material/textfield/d$h;-><init>(Lcom/google/android/material/textfield/d;Landroid/widget/AutoCompleteTextView;)V
+
+    .line 6
+    invoke-virtual {p1, v0}, Landroid/view/View;->setOnTouchListener(Landroid/view/View$OnTouchListener;)V
+
+    .line 9
+    iget-object v0, p0, Lcom/google/android/material/textfield/d;->e:Landroid/view/View$OnFocusChangeListener;
+
+    .line 11
+    invoke-virtual {p1, v0}, Landroid/view/View;->setOnFocusChangeListener(Landroid/view/View$OnFocusChangeListener;)V
+
+    .line 14
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 16
+    if-eqz v0, :cond_0
+
+    .line 18
+    new-instance v0, Lcom/google/android/material/textfield/d$i;
+
+    .line 20
+    invoke-direct {v0, p0}, Lcom/google/android/material/textfield/d$i;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 23
+    invoke-virtual {p1, v0}, Landroid/widget/AutoCompleteTextView;->setOnDismissListener(Landroid/widget/AutoCompleteTextView$OnDismissListener;)V
+
+    .line 26
+    :cond_0
+    return-void
+.end method
+
+.method public final H(Landroid/widget/AutoCompleteTextView;)V
+    .locals 2
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/q0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    if-nez p1, :cond_0
+
+    .line 3
+    return-void
+
+    .line 4
+    :cond_0
+    invoke-virtual {p0}, Lcom/google/android/material/textfield/d;->C()Z
+
+    .line 7
+    move-result v0
+
+    .line 8
+    const/4 v1, 0x0
+
+    .line 9
+    if-eqz v0, :cond_1
+
+    .line 11
+    iput-boolean v1, p0, Lcom/google/android/material/textfield/d;->i:Z
+
+    .line 13
+    :cond_1
+    iget-boolean v0, p0, Lcom/google/android/material/textfield/d;->i:Z
+
+    .line 15
+    if-nez v0, :cond_4
+
+    .line 17
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 19
+    if-eqz v0, :cond_2
+
+    .line 21
+    iget-boolean v0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 23
+    xor-int/lit8 v0, v0, 0x1
+
+    .line 25
+    invoke-virtual {p0, v0}, Lcom/google/android/material/textfield/d;->E(Z)V
+
+    .line 28
+    goto :goto_0
+
+    .line 29
+    :cond_2
+    iget-boolean v0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 31
+    xor-int/lit8 v0, v0, 0x1
+
+    .line 33
+    iput-boolean v0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 35
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->c:Lcom/google/android/material/internal/CheckableImageButton;
+
+    .line 37
+    invoke-virtual {v0}, Lcom/google/android/material/internal/CheckableImageButton;->toggle()V
+
+    .line 40
+    :goto_0
+    iget-boolean v0, p0, Lcom/google/android/material/textfield/d;->j:Z
+
+    .line 42
+    if-eqz v0, :cond_3
+
+    .line 44
+    invoke-virtual {p1}, Landroid/view/View;->requestFocus()Z
+
+    .line 47
+    invoke-virtual {p1}, Landroid/widget/AutoCompleteTextView;->showDropDown()V
+
+    .line 50
+    goto :goto_1
+
+    .line 51
+    :cond_3
+    invoke-virtual {p1}, Landroid/widget/AutoCompleteTextView;->dismissDropDown()V
+
+    .line 54
+    goto :goto_1
+
+    .line 55
+    :cond_4
+    iput-boolean v1, p0, Lcom/google/android/material/textfield/d;->i:Z
+
+    .line 57
+    :goto_1
+    return-void
+.end method
+
+.method public a()V
+    .locals 5
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 3
+    invoke-virtual {v0}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;
+
+    .line 6
+    move-result-object v0
+
+    .line 7
+    sget v1, Lq6/a$f;->M5:I
+
+    .line 9
+    invoke-virtual {v0, v1}, Landroid/content/res/Resources;->getDimensionPixelOffset(I)I
+
+    .line 12
+    move-result v0
+
+    .line 13
+    int-to-float v0, v0
+
+    .line 14
+    iget-object v1, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 16
+    invoke-virtual {v1}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;
+
+    .line 19
+    move-result-object v1
+
+    .line 20
+    sget v2, Lq6/a$f;->x4:I
+
+    .line 22
+    invoke-virtual {v1, v2}, Landroid/content/res/Resources;->getDimensionPixelOffset(I)I
+
+    .line 25
+    move-result v1
+
+    .line 26
+    int-to-float v1, v1
+
+    .line 27
+    iget-object v2, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 29
+    invoke-virtual {v2}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;
+
+    .line 32
+    move-result-object v2
+
+    .line 33
+    sget v3, Lq6/a$f;->z4:I
+
+    .line 35
+    invoke-virtual {v2, v3}, Landroid/content/res/Resources;->getDimensionPixelOffset(I)I
+
+    .line 38
+    move-result v2
+
+    .line 39
+    invoke-virtual {p0, v0, v0, v1, v2}, Lcom/google/android/material/textfield/d;->A(FFFI)Li7/j;
+
+    .line 42
+    move-result-object v3
+
+    .line 43
+    const/4 v4, 0x0
+
+    .line 44
+    invoke-virtual {p0, v4, v0, v1, v2}, Lcom/google/android/material/textfield/d;->A(FFFI)Li7/j;
+
+    .line 47
+    move-result-object v0
+
+    .line 48
+    iput-object v3, p0, Lcom/google/android/material/textfield/d;->m:Li7/j;
+
+    .line 50
+    new-instance v1, Landroid/graphics/drawable/StateListDrawable;
+
+    .line 52
+    invoke-direct {v1}, Landroid/graphics/drawable/StateListDrawable;-><init>()V
+
+    .line 55
+    iput-object v1, p0, Lcom/google/android/material/textfield/d;->l:Landroid/graphics/drawable/StateListDrawable;
+
+    .line 57
+    const v2, 0x10100aa
+
+    .line 60
+    filled-new-array {v2}, [I
+
+    .line 63
+    move-result-object v2
+
+    .line 64
+    invoke-virtual {v1, v2, v3}, Landroid/graphics/drawable/StateListDrawable;->addState([ILandroid/graphics/drawable/Drawable;)V
+
+    .line 67
+    iget-object v1, p0, Lcom/google/android/material/textfield/d;->l:Landroid/graphics/drawable/StateListDrawable;
+
+    .line 69
+    const/4 v2, 0x0
+
+    .line 70
+    new-array v2, v2, [I
+
+    .line 72
+    invoke-virtual {v1, v2, v0}, Landroid/graphics/drawable/StateListDrawable;->addState([ILandroid/graphics/drawable/Drawable;)V
+
+    .line 75
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 77
+    if-eqz v0, :cond_0
+
+    .line 79
+    sget v0, Lq6/a$g;->c1:I
+
+    .line 81
+    goto :goto_0
+
+    .line 82
+    :cond_0
+    sget v0, Lq6/a$g;->d1:I
+
+    .line 84
+    :goto_0
+    iget-object v1, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 86
+    iget-object v2, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 88
+    invoke-static {v2, v0}, Lf/a;->d(Landroid/content/Context;I)Landroid/graphics/drawable/Drawable;
+
+    .line 91
+    move-result-object v0
+
+    .line 92
+    invoke-virtual {v1, v0}, Lcom/google/android/material/textfield/TextInputLayout;->O1(Landroid/graphics/drawable/Drawable;)V
+
+    .line 95
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 97
+    invoke-virtual {v0}, Landroid/view/View;->getResources()Landroid/content/res/Resources;
+
+    .line 100
+    move-result-object v1
+
+    .line 101
+    sget v2, Lq6/a$m;->K:I
+
+    .line 103
+    invoke-virtual {v1, v2}, Landroid/content/res/Resources;->getText(I)Ljava/lang/CharSequence;
+
+    .line 106
+    move-result-object v1
+
+    .line 107
+    invoke-virtual {v0, v1}, Lcom/google/android/material/textfield/TextInputLayout;->M1(Ljava/lang/CharSequence;)V
+
+    .line 110
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 112
+    new-instance v1, Lcom/google/android/material/textfield/d$g;
+
+    .line 114
+    invoke-direct {v1, p0}, Lcom/google/android/material/textfield/d$g;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 117
+    invoke-virtual {v0, v1}, Lcom/google/android/material/textfield/TextInputLayout;->Q1(Landroid/view/View$OnClickListener;)V
+
+    .line 120
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 122
+    iget-object v1, p0, Lcom/google/android/material/textfield/d;->g:Lcom/google/android/material/textfield/TextInputLayout$h;
+
+    .line 124
+    invoke-virtual {v0, v1}, Lcom/google/android/material/textfield/TextInputLayout;->e(Lcom/google/android/material/textfield/TextInputLayout$h;)V
+
+    .line 127
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 129
+    iget-object v1, p0, Lcom/google/android/material/textfield/d;->h:Lcom/google/android/material/textfield/TextInputLayout$i;
+
+    .line 131
+    invoke-virtual {v0, v1}, Lcom/google/android/material/textfield/TextInputLayout;->f(Lcom/google/android/material/textfield/TextInputLayout$i;)V
+
+    .line 134
+    invoke-direct {p0}, Lcom/google/android/material/textfield/d;->B()V
+
+    .line 137
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->b:Landroid/content/Context;
+
+    .line 139
+    const-string v1, "\u1919"
+
+    invoke-static {v1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 141
+    invoke-virtual {v0, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+
+    .line 144
+    move-result-object v0
+
+    .line 145
+    check-cast v0, Landroid/view/accessibility/AccessibilityManager;
+
+    .line 147
+    iput-object v0, p0, Lcom/google/android/material/textfield/d;->n:Landroid/view/accessibility/AccessibilityManager;
+
+    .line 149
+    return-void
+.end method
+
+.method public b(I)Z
+    .locals 0
+
+    .prologue
+    .line 1
+    if-eqz p1, :cond_0
+
+    const/4 p1, 0x1
+
+    goto :goto_0
+
+    :cond_0
+    const/4 p1, 0x0
+
+    :goto_0
+    return p1
+.end method
+
+.method public d()Z
+    .locals 1
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    return v0
+.end method
+
+.method public final v(Landroid/widget/AutoCompleteTextView;)V
+    .locals 5
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-static {p1}, Lcom/google/android/material/textfield/d;->D(Landroid/widget/EditText;)Z
+
+    .line 4
+    move-result v0
+
+    .line 5
+    if-eqz v0, :cond_0
+
+    .line 7
+    return-void
+
+    .line 8
+    :cond_0
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 10
+    invoke-virtual {v0}, Lcom/google/android/material/textfield/TextInputLayout;->L()I
+
+    .line 13
+    move-result v0
+
+    .line 14
+    iget-object v1, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 16
+    invoke-virtual {v1}, Lcom/google/android/material/textfield/TextInputLayout;->J()Li7/j;
+
+    .line 19
+    move-result-object v1
+
+    .line 20
+    sget v2, Lq6/a$c;->B2:I
+
+    .line 22
+    invoke-static {p1, v2}, Lf7/b;->h(Landroid/view/View;I)I
+
+    .line 25
+    move-result v2
+
+    .line 26
+    const v3, 0x10100a7
+
+    .line 29
+    filled-new-array {v3}, [I
+
+    .line 32
+    move-result-object v3
+
+    .line 33
+    const/4 v4, 0x0
+
+    .line 34
+    new-array v4, v4, [I
+
+    .line 36
+    filled-new-array {v3, v4}, [[I
+
+    .line 39
+    move-result-object v3
+
+    .line 40
+    const/4 v4, 0x2
+
+    .line 41
+    if-ne v0, v4, :cond_1
+
+    .line 43
+    invoke-virtual {p0, p1, v2, v3, v1}, Lcom/google/android/material/textfield/d;->x(Landroid/widget/AutoCompleteTextView;I[[ILi7/j;)V
+
+    .line 46
+    goto :goto_0
+
+    .line 47
+    :cond_1
+    const/4 v4, 0x1
+
+    .line 48
+    if-ne v0, v4, :cond_2
+
+    .line 50
+    invoke-virtual {p0, p1, v2, v3, v1}, Lcom/google/android/material/textfield/d;->w(Landroid/widget/AutoCompleteTextView;I[[ILi7/j;)V
+
+    .line 53
+    :cond_2
+    :goto_0
+    return-void
+.end method
+
+.method public final w(Landroid/widget/AutoCompleteTextView;I[[ILi7/j;)V
+    .locals 2
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p4    # Li7/j;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lcom/google/android/material/textfield/e;->a:Lcom/google/android/material/textfield/TextInputLayout;
+
+    .line 3
+    invoke-virtual {v0}, Lcom/google/android/material/textfield/TextInputLayout;->K()I
+
+    .line 6
+    move-result v0
+
+    .line 7
+    const v1, 0x3dcccccd    # 0.1f
+
+    .line 10
+    invoke-static {p2, v0, v1}, Lw6/a;->h(IIF)I
+
+    .line 13
+    move-result p2
+
+    .line 14
+    filled-new-array {p2, v0}, [I
+
+    .line 17
+    move-result-object p2
+
+    .line 18
+    sget-boolean v0, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 20
+    if-eqz v0, :cond_0
+
+    .line 22
+    new-instance v0, Landroid/content/res/ColorStateList;
+
+    .line 24
+    invoke-direct {v0, p3, p2}, Landroid/content/res/ColorStateList;-><init>([[I[I)V
+
+    .line 27
+    new-instance p2, Landroid/graphics/drawable/RippleDrawable;
+
+    .line 29
+    invoke-direct {p2, v0, p4, p4}, Landroid/graphics/drawable/RippleDrawable;-><init>(Landroid/content/res/ColorStateList;Landroid/graphics/drawable/Drawable;Landroid/graphics/drawable/Drawable;)V
+
+    .line 32
+    invoke-static {p1, p2}, Lf1/i1;->I1(Landroid/view/View;Landroid/graphics/drawable/Drawable;)V
+
+    .line 35
+    goto :goto_0
+
+    .line 36
+    :cond_0
+    new-instance v0, Li7/j;
+
+    .line 38
+    invoke-virtual {p4}, Li7/j;->k()Li7/o;
+
+    .line 41
+    move-result-object v1
+
+    .line 42
+    invoke-direct {v0, v1}, Li7/j;-><init>(Li7/o;)V
+
+    .line 45
+    new-instance v1, Landroid/content/res/ColorStateList;
+
+    .line 47
+    invoke-direct {v1, p3, p2}, Landroid/content/res/ColorStateList;-><init>([[I[I)V
+
+    .line 50
+    invoke-virtual {v0, v1}, Li7/j;->p0(Landroid/content/res/ColorStateList;)V
+
+    .line 53
+    const/4 p2, 0x2
+
+    .line 54
+    new-array p2, p2, [Landroid/graphics/drawable/Drawable;
+
+    .line 56
+    const/4 p3, 0x0
+
+    .line 57
+    aput-object p4, p2, p3
+
+    .line 59
+    const/4 p3, 0x1
+
+    .line 60
+    aput-object v0, p2, p3
+
+    .line 62
+    new-instance p3, Landroid/graphics/drawable/LayerDrawable;
+
+    .line 64
+    invoke-direct {p3, p2}, Landroid/graphics/drawable/LayerDrawable;-><init>([Landroid/graphics/drawable/Drawable;)V
+
+    .line 67
+    invoke-static {p1}, Lf1/i1;->k0(Landroid/view/View;)I
+
+    .line 70
+    move-result p2
+
+    .line 71
+    invoke-virtual {p1}, Landroid/view/View;->getPaddingTop()I
+
+    .line 74
+    move-result p4
+
+    .line 75
+    invoke-static {p1}, Lf1/i1$i;->e(Landroid/view/View;)I
+
+    .line 78
+    move-result v0
+
+    .line 79
+    invoke-virtual {p1}, Landroid/view/View;->getPaddingBottom()I
+
+    .line 82
+    move-result v1
+
+    .line 83
+    invoke-static {p1, p3}, Lf1/i1$h;->q(Landroid/view/View;Landroid/graphics/drawable/Drawable;)V
+
+    .line 86
+    invoke-static {p1, p2, p4, v0, v1}, Lf1/i1$i;->k(Landroid/view/View;IIII)V
+
+    .line 89
+    :goto_0
+    return-void
+.end method
+
+.method public final x(Landroid/widget/AutoCompleteTextView;I[[ILi7/j;)V
+    .locals 7
+    .param p1    # Landroid/widget/AutoCompleteTextView;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+    .param p4    # Li7/j;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    const/4 v0, 0x1
+
+    .line 2
+    const/4 v1, 0x2
+
+    .line 3
+    const/4 v2, 0x0
+
+    .line 4
+    sget v3, Lq6/a$c;->Q2:I
+
+    .line 6
+    invoke-static {p1, v3}, Lf7/b;->h(Landroid/view/View;I)I
+
+    .line 9
+    move-result v3
+
+    .line 10
+    new-instance v4, Li7/j;
+
+    .line 12
+    invoke-virtual {p4}, Li7/j;->k()Li7/o;
+
+    .line 15
+    move-result-object v5
+
+    .line 16
+    invoke-direct {v4, v5}, Li7/j;-><init>(Li7/o;)V
+
+    .line 19
+    const v5, 0x3dcccccd    # 0.1f
+
+    .line 22
+    invoke-static {p2, v3, v5}, Lw6/a;->h(IIF)I
+
+    .line 25
+    move-result p2
+
+    .line 26
+    filled-new-array {p2, v2}, [I
+
+    .line 29
+    move-result-object v5
+
+    .line 30
+    new-instance v6, Landroid/content/res/ColorStateList;
+
+    .line 32
+    invoke-direct {v6, p3, v5}, Landroid/content/res/ColorStateList;-><init>([[I[I)V
+
+    .line 35
+    invoke-virtual {v4, v6}, Li7/j;->p0(Landroid/content/res/ColorStateList;)V
+
+    .line 38
+    sget-boolean v5, Lcom/google/android/material/textfield/d;->q:Z
+
+    .line 40
+    if-eqz v5, :cond_0
+
+    .line 42
+    invoke-virtual {v4, v3}, Li7/j;->setTint(I)V
+
+    .line 45
+    filled-new-array {p2, v3}, [I
+
+    .line 48
+    move-result-object p2
+
+    .line 49
+    new-instance v3, Landroid/content/res/ColorStateList;
+
+    .line 51
+    invoke-direct {v3, p3, p2}, Landroid/content/res/ColorStateList;-><init>([[I[I)V
+
+    .line 54
+    new-instance p2, Li7/j;
+
+    .line 56
+    invoke-virtual {p4}, Li7/j;->k()Li7/o;
+
+    .line 59
+    move-result-object p3
+
+    .line 60
+    invoke-direct {p2, p3}, Li7/j;-><init>(Li7/o;)V
+
+    .line 63
+    const/4 p3, -0x1
+
+    .line 64
+    invoke-virtual {p2, p3}, Li7/j;->setTint(I)V
+
+    .line 67
+    new-instance p3, Landroid/graphics/drawable/RippleDrawable;
+
+    .line 69
+    invoke-direct {p3, v3, v4, p2}, Landroid/graphics/drawable/RippleDrawable;-><init>(Landroid/content/res/ColorStateList;Landroid/graphics/drawable/Drawable;Landroid/graphics/drawable/Drawable;)V
+
+    .line 72
+    new-array p2, v1, [Landroid/graphics/drawable/Drawable;
+
+    .line 74
+    aput-object p3, p2, v2
+
+    .line 76
+    aput-object p4, p2, v0
+
+    .line 78
+    new-instance p3, Landroid/graphics/drawable/LayerDrawable;
+
+    .line 80
+    invoke-direct {p3, p2}, Landroid/graphics/drawable/LayerDrawable;-><init>([Landroid/graphics/drawable/Drawable;)V
+
+    .line 83
+    goto :goto_0
+
+    .line 84
+    :cond_0
+    new-array p2, v1, [Landroid/graphics/drawable/Drawable;
+
+    .line 86
+    aput-object v4, p2, v2
+
+    .line 88
+    aput-object p4, p2, v0
+
+    .line 90
+    new-instance p3, Landroid/graphics/drawable/LayerDrawable;
+
+    .line 92
+    invoke-direct {p3, p2}, Landroid/graphics/drawable/LayerDrawable;-><init>([Landroid/graphics/drawable/Drawable;)V
+
+    .line 95
+    :goto_0
+    invoke-static {p1, p3}, Lf1/i1;->I1(Landroid/view/View;Landroid/graphics/drawable/Drawable;)V
+
+    .line 98
+    return-void
+.end method
+
+.method public final varargs z(I[F)Landroid/animation/ValueAnimator;
+    .locals 2
+
+    .prologue
+    .line 1
+    invoke-static {p2}, Landroid/animation/ValueAnimator;->ofFloat([F)Landroid/animation/ValueAnimator;
+
+    .line 4
+    move-result-object p2
+
+    .line 5
+    sget-object v0, Lr6/a;->a:Landroid/animation/TimeInterpolator;
+
+    .line 7
+    invoke-virtual {p2, v0}, Landroid/animation/ValueAnimator;->setInterpolator(Landroid/animation/TimeInterpolator;)V
+
+    .line 10
+    int-to-long v0, p1
+
+    .line 11
+    invoke-virtual {p2, v0, v1}, Landroid/animation/ValueAnimator;->setDuration(J)Landroid/animation/ValueAnimator;
+
+    .line 14
+    new-instance p1, Lcom/google/android/material/textfield/d$b;
+
+    .line 16
+    invoke-direct {p1, p0}, Lcom/google/android/material/textfield/d$b;-><init>(Lcom/google/android/material/textfield/d;)V
+
+    .line 19
+    invoke-virtual {p2, p1}, Landroid/animation/ValueAnimator;->addUpdateListener(Landroid/animation/ValueAnimator$AnimatorUpdateListener;)V
+
+    .line 22
+    return-object p2
+.end method

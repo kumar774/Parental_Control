@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/cl_content" android:background="@drawable/bg_setting_item_def" android:padding="@dimen/dp_10" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/dp_4" android:layout_marginBottom="@dimen/dp_4"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sp_12" android:textColor="@color/color_custom_content_gray" android:id="@id/tvAppUseTime" android:paddingBottom="@dimen/dp_8" android:layout_width="match_parent" android:layout_height="wrap_content" android:lineSpacingMultiplier="1.2" />
+    <com.github.mikephil.charting.charts.BarChart android:id="@id/chart1" android:layout_width="match_parent" android:layout_height="@dimen/dp_180" />
+</LinearLayout>

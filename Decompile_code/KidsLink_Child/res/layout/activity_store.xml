@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.fundot.p4bu.ii.view.MyWebView android:id="@id/webview" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <TextView android:textSize="30.0sp" android:textColor="#ffffffff" android:layout_gravity="center" android:id="@id/tv_tips" android:background="#ff000000" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    <View android:layout_gravity="left|bottom" android:id="@id/admin_door" android:background="@android:color/transparent" android:focusable="false" android:focusableInTouchMode="false" android:layout_width="100.0px" android:layout_height="100.0px" />
+</FrameLayout>

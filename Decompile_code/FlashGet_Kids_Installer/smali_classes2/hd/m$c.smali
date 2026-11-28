@@ -1,0 +1,66 @@
+.class public final Lhd/m$c;
+.super Lhd/m;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lhd/m;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "c"
+.end annotation
+
+
+# instance fields
+.field public final j:Ljava/lang/String;
+    .annotation build Lmg/d;
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>(Ljava/lang/String;)V
+    .locals 1
+    .param p1    # Ljava/lang/String;
+        .annotation build Lmg/d;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    const-string v0, "\u44f5"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 3
+    invoke-static {p1, v0}, Lwb/l0;->p(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 6
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 9
+    iput-object p1, p0, Lhd/m$c;->j:Ljava/lang/String;
+
+    .line 11
+    return-void
+.end method
+
+
+# virtual methods
+.method public final i()Ljava/lang/String;
+    .locals 1
+    .annotation build Lmg/d;
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lhd/m$c;->j:Ljava/lang/String;
+
+    .line 3
+    return-object v0
+.end method

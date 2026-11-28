@@ -1,0 +1,252 @@
+.class public final La4/q$a;
+.super Ljava/lang/Object;
+.source "r8-map-id-3c9131830f0ea68ff3ab56402885f42c2f176b7b00a5ba4d07035d22808320df"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = La4/q;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "a"
+.end annotation
+
+
+# static fields
+.field static final synthetic a:[Lbd/j;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 5
+
+    .line 1
+    new-instance v0, Lxc/p;
+
+    .line 2
+    .line 3
+    const-class v1, La4/q$a;
+
+    .line 4
+    .line 5
+    const-string v2, "mdmPermTipindexTimes"
+
+    .line 6
+    .line 7
+    const-string v3, "getMdmPermTipindexTimes()I"
+
+    .line 8
+    .line 9
+    const/4 v4, 0x0
+
+    .line 10
+    invoke-direct {v0, v1, v2, v3, v4}, Lxc/p;-><init>(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;I)V
+
+    .line 11
+    .line 12
+    .line 13
+    invoke-static {v0}, Lxc/b0;->e(Lxc/o;)Lbd/h;
+
+    .line 14
+    .line 15
+    .line 16
+    move-result-object v0
+
+    .line 17
+    const/4 v1, 0x1
+
+    .line 18
+    new-array v1, v1, [Lbd/j;
+
+    .line 19
+    .line 20
+    aput-object v0, v1, v4
+
+    .line 21
+    .line 22
+    sput-object v1, La4/q$a;->a:[Lbd/j;
+
+    .line 23
+    .line 24
+    return-void
+.end method
+
+.method private constructor <init>()V
+    .locals 0
+
+    .line 2
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    return-void
+.end method
+
+.method public synthetic constructor <init>(Lxc/g;)V
+    .locals 0
+
+    .line 1
+    invoke-direct {p0}, La4/q$a;-><init>()V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final a()I
+    .locals 3
+
+    .line 1
+    invoke-static {}, La4/q;->b()Lcom/fundot/p4bu/common/utils/i;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object v0
+
+    .line 5
+    sget-object v1, La4/q$a;->a:[Lbd/j;
+
+    .line 6
+    .line 7
+    const/4 v2, 0x0
+
+    .line 8
+    aget-object v1, v1, v2
+
+    .line 9
+    .line 10
+    invoke-virtual {v0, p0, v1}, Lcom/fundot/p4bu/common/utils/i;->b(Ljava/lang/Object;Lbd/j;)Ljava/lang/Object;
+
+    .line 11
+    .line 12
+    .line 13
+    move-result-object v0
+
+    .line 14
+    check-cast v0, Ljava/lang/Number;
+
+    .line 15
+    .line 16
+    invoke-virtual {v0}, Ljava/lang/Number;->intValue()I
+
+    .line 17
+    .line 18
+    .line 19
+    move-result v0
+
+    .line 20
+    return v0
+.end method
+
+.method public final b()La4/q;
+    .locals 1
+
+    .line 1
+    invoke-static {}, La4/q;->c()La4/q;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object v0
+
+    .line 5
+    return-object v0
+.end method
+
+.method public final c(I)V
+    .locals 3
+
+    .line 1
+    invoke-static {}, La4/q;->b()Lcom/fundot/p4bu/common/utils/i;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object v0
+
+    .line 5
+    sget-object v1, La4/q$a;->a:[Lbd/j;
+
+    .line 6
+    .line 7
+    const/4 v2, 0x0
+
+    .line 8
+    aget-object v1, v1, v2
+
+    .line 9
+    .line 10
+    invoke-static {p1}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+
+    .line 11
+    .line 12
+    .line 13
+    move-result-object p1
+
+    .line 14
+    invoke-virtual {v0, p0, v1, p1}, Lcom/fundot/p4bu/common/utils/i;->d(Ljava/lang/Object;Lbd/j;Ljava/lang/Object;)V
+
+    .line 15
+    .line 16
+    .line 17
+    return-void
+.end method
+
+.method public final d(La4/q;)V
+    .locals 0
+
+    .line 1
+    invoke-static {p1}, La4/q;->d(La4/q;)V
+
+    .line 2
+    .line 3
+    .line 4
+    return-void
+.end method
+
+.method public final e(Z)V
+    .locals 6
+
+    .line 1
+    invoke-static {}, Lkf/d0;->b()Lkf/c0;
+
+    .line 2
+    .line 3
+    .line 4
+    move-result-object v0
+
+    .line 5
+    invoke-static {}, Lkf/o0;->c()Lkf/s1;
+
+    .line 6
+    .line 7
+    .line 8
+    move-result-object v1
+
+    .line 9
+    new-instance v3, La4/q$a$a;
+
+    .line 10
+    .line 11
+    const/4 v2, 0x0
+
+    .line 12
+    invoke-direct {v3, p1, v2}, La4/q$a$a;-><init>(ZLoc/e;)V
+
+    .line 13
+    .line 14
+    .line 15
+    const/4 v4, 0x2
+
+    .line 16
+    const/4 v5, 0x0
+
+    .line 17
+    invoke-static/range {v0 .. v5}, Lkf/f;->b(Lkf/c0;Loc/i;Lkf/e0;Lwc/p;ILjava/lang/Object;)Lkf/h1;
+
+    .line 18
+    .line 19
+    .line 20
+    return-void
+.end method

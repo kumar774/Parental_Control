@@ -1,0 +1,356 @@
+.class public Lo0/n;
+.super Lo0/m;
+.source "SourceFile"
+
+
+# annotations
+.annotation build Lc/x0;
+    value = 0x15
+.end annotation
+
+
+# static fields
+.field public static final v:Ljava/lang/String;
+
+.field public static w:Ljava/lang/reflect/Method;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    const-string v0, "\u296b"
+
+    invoke-static {v0}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    sput-object v0, Lo0/n;->v:Ljava/lang/String;
+
+    return-void
+.end method
+
+.method public constructor <init>(Landroid/graphics/drawable/Drawable;)V
+    .locals 0
+
+    .prologue
+    .line 1
+    invoke-direct {p0, p1}, Lo0/m;-><init>(Landroid/graphics/drawable/Drawable;)V
+
+    .line 2
+    invoke-virtual {p0}, Lo0/n;->g()V
+
+    return-void
+.end method
+
+.method public constructor <init>(Lo0/o;Landroid/content/res/Resources;)V
+    .locals 0
+
+    .prologue
+    .line 3
+    invoke-direct {p0, p1, p2}, Lo0/m;-><init>(Lo0/o;Landroid/content/res/Resources;)V
+
+    .line 4
+    invoke-virtual {p0}, Lo0/n;->g()V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public c()Z
+    .locals 1
+
+    .prologue
+    .line 1
+    const/4 v0, 0x0
+
+    .line 2
+    return v0
+.end method
+
+.method public final g()V
+    .locals 3
+
+    .prologue
+    .line 1
+    sget-object v0, Lo0/n;->w:Ljava/lang/reflect/Method;
+
+    .line 3
+    if-nez v0, :cond_0
+
+    .line 5
+    :try_start_0
+    const-class v0, Landroid/graphics/drawable/Drawable;
+
+    .line 7
+    const-string v1, "\u296a"
+
+    invoke-static {v1}, Lcom/flashget/kidsdownloader/ProtectedSandApp;->s(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v1
+
+    .line 9
+    const/4 v2, 0x0
+
+    .line 10
+    invoke-virtual {v0, v1, v2}, Ljava/lang/Class;->getDeclaredMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+
+    .line 13
+    move-result-object v0
+
+    .line 14
+    sput-object v0, Lo0/n;->w:Ljava/lang/reflect/Method;
+    :try_end_0
+    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 16
+    :catch_0
+    :cond_0
+    return-void
+.end method
+
+.method public getDirtyBounds()Landroid/graphics/Rect;
+    .locals 1
+    .annotation build Lc/o0;
+    .end annotation
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 3
+    invoke-virtual {v0}, Landroid/graphics/drawable/Drawable;->getDirtyBounds()Landroid/graphics/Rect;
+
+    .line 6
+    move-result-object v0
+
+    .line 7
+    return-object v0
+.end method
+
+.method public getOutline(Landroid/graphics/Outline;)V
+    .locals 1
+    .param p1    # Landroid/graphics/Outline;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 3
+    invoke-virtual {v0, p1}, Landroid/graphics/drawable/Drawable;->getOutline(Landroid/graphics/Outline;)V
+
+    .line 6
+    return-void
+.end method
+
+.method public isProjected()Z
+    .locals 3
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 3
+    if-eqz v0, :cond_0
+
+    .line 5
+    sget-object v1, Lo0/n;->w:Ljava/lang/reflect/Method;
+
+    .line 7
+    if-eqz v1, :cond_0
+
+    .line 9
+    const/4 v2, 0x0
+
+    .line 10
+    :try_start_0
+    invoke-virtual {v1, v0, v2}, Ljava/lang/reflect/Method;->invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+
+    .line 13
+    move-result-object v0
+
+    .line 14
+    check-cast v0, Ljava/lang/Boolean;
+
+    .line 16
+    invoke-virtual {v0}, Ljava/lang/Boolean;->booleanValue()Z
+
+    .line 19
+    move-result v0
+    :try_end_0
+    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :catch_0
+
+    .line 20
+    return v0
+
+    .line 21
+    :catch_0
+    :cond_0
+    const/4 v0, 0x0
+
+    .line 22
+    return v0
+.end method
+
+.method public setHotspot(FF)V
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 3
+    invoke-virtual {v0, p1, p2}, Landroid/graphics/drawable/Drawable;->setHotspot(FF)V
+
+    .line 6
+    return-void
+.end method
+
+.method public setHotspotBounds(IIII)V
+    .locals 1
+
+    .prologue
+    .line 1
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 3
+    invoke-virtual {v0, p1, p2, p3, p4}, Landroid/graphics/drawable/Drawable;->setHotspotBounds(IIII)V
+
+    .line 6
+    return-void
+.end method
+
+.method public setState([I)Z
+    .locals 0
+    .param p1    # [I
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-super {p0, p1}, Lo0/m;->setState([I)Z
+
+    .line 4
+    move-result p1
+
+    .line 5
+    if-eqz p1, :cond_0
+
+    .line 7
+    invoke-virtual {p0}, Landroid/graphics/drawable/Drawable;->invalidateSelf()V
+
+    .line 10
+    const/4 p1, 0x1
+
+    .line 11
+    return p1
+
+    .line 12
+    :cond_0
+    const/4 p1, 0x0
+
+    .line 13
+    return p1
+.end method
+
+.method public setTint(I)V
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lo0/n;->c()Z
+
+    .line 4
+    move-result v0
+
+    .line 5
+    if-eqz v0, :cond_0
+
+    .line 7
+    invoke-super {p0, p1}, Lo0/m;->setTint(I)V
+
+    .line 10
+    goto :goto_0
+
+    .line 11
+    :cond_0
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 13
+    invoke-virtual {v0, p1}, Landroid/graphics/drawable/Drawable;->setTint(I)V
+
+    .line 16
+    :goto_0
+    return-void
+.end method
+
+.method public setTintList(Landroid/content/res/ColorStateList;)V
+    .locals 1
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lo0/n;->c()Z
+
+    .line 4
+    move-result v0
+
+    .line 5
+    if-eqz v0, :cond_0
+
+    .line 7
+    invoke-super {p0, p1}, Lo0/m;->setTintList(Landroid/content/res/ColorStateList;)V
+
+    .line 10
+    goto :goto_0
+
+    .line 11
+    :cond_0
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 13
+    invoke-virtual {v0, p1}, Landroid/graphics/drawable/Drawable;->setTintList(Landroid/content/res/ColorStateList;)V
+
+    .line 16
+    :goto_0
+    return-void
+.end method
+
+.method public setTintMode(Landroid/graphics/PorterDuff$Mode;)V
+    .locals 1
+    .param p1    # Landroid/graphics/PorterDuff$Mode;
+        .annotation build Lc/o0;
+        .end annotation
+    .end param
+
+    .prologue
+    .line 1
+    invoke-virtual {p0}, Lo0/n;->c()Z
+
+    .line 4
+    move-result v0
+
+    .line 5
+    if-eqz v0, :cond_0
+
+    .line 7
+    invoke-super {p0, p1}, Lo0/m;->setTintMode(Landroid/graphics/PorterDuff$Mode;)V
+
+    .line 10
+    goto :goto_0
+
+    .line 11
+    :cond_0
+    iget-object v0, p0, Lo0/m;->t:Landroid/graphics/drawable/Drawable;
+
+    .line 13
+    invoke-virtual {v0, p1}, Landroid/graphics/drawable/Drawable;->setTintMode(Landroid/graphics/PorterDuff$Mode;)V
+
+    .line 16
+    :goto_0
+    return-void
+.end method
