@@ -88,8 +88,6 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   fullName: z.string().min(1).max(100).optional(),
-  familyCardNo: z.string().max(64).optional(),
-  phone: z.string().max(32).optional(),
 });
 
 const loginSchema = z.object({
@@ -227,7 +225,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           .values({
             email: normalizedEmail,
             fullName: derivedFullName,
-            phone: parsed.data.phone || null,
             passwordHash,
             status: 'active',
             emailVerified,
@@ -237,8 +234,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         if (!newUser) {
           throw new Error('Failed to create user account');
         }
-
-        const derivedFamilyCard = parsed.data.familyCardNo || `FAM-${newUser.id.slice(0, 8).toUpperCase()}`;
 
         if (!emailVerified) {
           // SMTP / Email verification is enabled:
@@ -264,8 +259,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
               id: newUser.id,
               email: newUser.email,
               fullName: newUser.fullName || derivedFullName,
-              familyCardNo: derivedFamilyCard,
-              phone: newUser.phone,
               isGuest: false,
               status: newUser.status,
             },
@@ -299,8 +292,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
               id: newUser.id,
               email: newUser.email,
               fullName: newUser.fullName || derivedFullName,
-              familyCardNo: derivedFamilyCard,
-              phone: newUser.phone,
               isGuest: false,
               status: newUser.status,
             },
@@ -439,7 +430,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     // Persist hashed refresh token for real session lifecycle
     await db.insert(parentRefreshTokens).values({
@@ -455,8 +445,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
       },
@@ -687,7 +675,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     await db.insert(parentRefreshTokens).values({
       parentId: user.id,
@@ -702,8 +689,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
       },
@@ -850,7 +835,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = hashRefreshToken(rawRefreshToken);
       const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-      const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
       await tx.insert(parentRefreshTokens).values({
         parentId: user.id,
@@ -865,8 +849,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           id: user.id,
           email: user.email,
           fullName: resolvedFullName,
-          familyCardNo: derivedFamilyCard,
-          phone: user.phone,
           isGuest: false,
           status: user.status,
         },
@@ -897,15 +879,12 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
   app.get('/me', { preHandler: [requireParentAuth] }, async (request, reply) => {
     const user = request.parentUser!;
     const resolvedFullName = user.fullName || user.email.split('@')[0] || 'Parent';
-    const derivedFamilyCard = `FAM-${user.id.slice(0, 8).toUpperCase()}`;
 
     return reply.send({
       user: {
         id: user.id,
         email: user.email,
         fullName: resolvedFullName,
-        familyCardNo: derivedFamilyCard,
-        phone: user.phone,
         isGuest: false,
         status: user.status,
         createdAt: user.createdAt,
@@ -962,7 +941,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
         .select({
           id: parentUsers.id,
           email: parentUsers.email,
-          phone: parentUsers.phone,
           status: parentUsers.status,
         })
         .from(parentUsers)

@@ -55,7 +55,6 @@ class FastifyRestClient(
                     id = userJson.getString("id"),
                     email = userJson.optString("email", ""),
                     fullName = userJson.optString("fullName", "Parent"),
-                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
                 Result.success(user)
@@ -113,7 +112,6 @@ class FastifyRestClient(
                     id = userJson.getString("id"),
                     email = userJson.getString("email"),
                     fullName = userJson.optString("fullName", "Parent"),
-                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
                 val token = json.getString("accessToken")
@@ -179,7 +177,6 @@ class FastifyRestClient(
                     id = userJson.getString("id"),
                     email = userJson.getString("email"),
                     fullName = userJson.optString("fullName", "Parent"),
-                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
 
@@ -220,7 +217,6 @@ class FastifyRestClient(
                     id = userJson.getString("id"),
                     email = userJson.getString("email"),
                     fullName = userJson.optString("fullName", "Parent"),
-                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
 
@@ -353,9 +349,6 @@ class FastifyRestClient(
                 put("email", request.email.trim())
                 put("password", request.password)
                 put("fullName", request.fullName.trim())
-                if (!request.familyCardNo.isNullOrBlank()) {
-                    put("familyCardNo", request.familyCardNo)
-                }
             }.toString()
 
             val response = executePost("/api/v1/auth/register", jsonBody, null)
@@ -366,7 +359,6 @@ class FastifyRestClient(
                     id = userJson.getString("id"),
                     email = userJson.getString("email"),
                     fullName = userJson.optString("fullName", "Parent"),
-                    familyCardNo = userJson.optString("familyCardNo", "FAM-0000"),
                     isGuest = userJson.optBoolean("isGuest", false)
                 )
                 val token = if (json.has("accessToken")) json.optString("accessToken") else null
@@ -470,7 +462,11 @@ class FastifyRestClient(
             if (response.statusCode in 200..299) {
                 val json = JSONObject(response.body)
                 val code = json.getString("code")
-                val expiresAtEpochMs = java.time.Instant.parse(json.getString("expiresAt")).toEpochMilli()
+                val expiresAtEpochMs = if (json.has("expiresAt") && !json.isNull("expiresAt") && json.optString("expiresAt").isNotBlank()) {
+                    runCatching { java.time.Instant.parse(json.getString("expiresAt")).toEpochMilli() }.getOrDefault(0L)
+                } else {
+                    0L
+                }
                 require(code.matches(Regex("[0-9]{9}"))) { "Invalid binding code from server" }
                 val dto = PairingCodeResponseDto(
                     pairingCode = code,
@@ -611,7 +607,7 @@ class FastifyRestClient(
         brand: String,
         model: String,
         mac: String = ""
-    ): Result<String> = withContext(Dispatchers.IO) {
+    ): Result<HardwareBindResultDto> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to bind device"))
@@ -630,7 +626,11 @@ class FastifyRestClient(
                 val deviceId = data?.optString("deviceId")?.takeIf { it.isNotBlank() }
                     ?: json.optString("deviceId").takeIf { it.isNotBlank() }
                     ?: ""
-                Result.success(deviceId)
+                val sessionId = data?.optString("sessionId")?.takeIf { it.isNotBlank() && it != "null" }
+                    ?: json.optString("sessionId").takeIf { it.isNotBlank() && it != "null" }
+                val alreadyConnected = data?.optBoolean("alreadyConnected", false)
+                    ?: json.optBoolean("alreadyConnected", false)
+                Result.success(HardwareBindResultDto(deviceId, sessionId, alreadyConnected))
             } else {
                 val errorMsg = try {
                     JSONObject(response.body).optString("message", "Failed to bind device")

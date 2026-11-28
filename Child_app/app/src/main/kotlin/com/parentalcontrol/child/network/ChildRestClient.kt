@@ -185,6 +185,7 @@ class ChildRestClient(
         val parentEmail: String? = null,
         val deviceToken: String? = null,
         val refreshToken: String? = null,
+        val sessionId: String? = null,
         val message: String? = null
     )
 
@@ -281,7 +282,8 @@ class ChildRestClient(
                     setupStep = 4,
                     parentEmail = data.optionalText("GuardUserName") ?: data.optionalText("parentEmail"),
                     deviceToken = data.optionalText("UserToken") ?: data.optionalText("deviceToken"),
-                    refreshToken = data.optionalText("RefreshToken") ?: data.optionalText("refreshToken")
+                    refreshToken = data.optionalText("RefreshToken") ?: data.optionalText("refreshToken"),
+                    sessionId = data.optionalText("SessionId") ?: data.optionalText("sessionId")
                 )
             } else {
                 return@withContext RestoredBindingResult(restored = false, message = "Device not bound")

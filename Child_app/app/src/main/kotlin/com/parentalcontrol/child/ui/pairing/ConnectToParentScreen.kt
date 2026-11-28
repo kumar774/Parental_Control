@@ -116,8 +116,9 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                     }
                     storage.setupStage = SetupStage.STARTED
                     if (result.sessionId != null && !result.alreadyConnected && result.deviceToken != null) {
-                        runCatching {
-                            client.sendSetupAck(result.sessionId, storage)
+                        val ackSuccess = client.sendSetupAck(result.sessionId, storage)
+                        if (!ackSuccess) {
+                            PairAckRetryManager.scheduleBackgroundRetry(context)
                         }
                     }
                     onCredentialsStored()
@@ -156,6 +157,12 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
                             refreshToken = restore.refreshToken
                         )
                         storage.setupStage = SetupStage.STARTED
+                        if (restore.sessionId != null) {
+                            val ackSuccess = client.sendSetupAck(restore.sessionId, storage)
+                            if (!ackSuccess) {
+                                PairAckRetryManager.scheduleBackgroundRetry(context)
+                            }
+                        }
                         onCredentialsStored()
                         return@LaunchedEffect
                     }

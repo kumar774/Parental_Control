@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { db } from '../db/index';
 import { childDevices, childDeviceTokens, pairingSessions, parentConsents, parentUsers, PairingSession } from '../db/schema/parental-control';
 import { env } from '../config/env';
-import { sha256, constantTimeCompare, encryptSecret, decryptSecret } from '../utils/crypto-vault';
+import { sha256 } from '../utils/crypto-vault';
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const consentType = 'parental_supervision';
@@ -61,15 +61,15 @@ export function enrollmentStatus(s: PairingSession, parent = false) {
     if (isDeliveryExpired(s)) return 'expired';
     return parent && !s.acknowledgedAt ? 'finalizing' : 'paired';
   }
+  if (s.status === 'connecting') return 'connecting';
   if (s.status !== 'pending') return s.status;
-  if (!s.installationId) return 'waiting_for_child';
-  return s.parentApproved ? 'waiting_for_child_confirmation' : 'waiting_for_parent';
+  return 'waiting_for_child';
 }
 
 function assertOpen(s: PairingSession) {
   if (s.status === 'canceled') rejectEnrollment(409, 'Pairing session is closed', 'ENROLLMENT_CANCELED');
   if (s.status === 'expired') rejectEnrollment(410, 'Pairing code expired', 'PAIRING_CODE_EXPIRED');
-  if (s.status !== 'pending') rejectEnrollment(409, 'Pairing session is closed', 'ENROLLMENT_CLOSED');
+  if (s.status !== 'pending' && s.status !== 'connecting') rejectEnrollment(409, 'Pairing session is closed', 'ENROLLMENT_CLOSED');
 }
 
 export async function retireExpiredUnacknowledgedSession(
@@ -81,7 +81,7 @@ export async function retireExpiredUnacknowledgedSession(
   const now = new Date();
   const [updated] = await tx
     .update(pairingSessions)
-    .set({ status: reason === 'enrollment_expired' ? 'expired' : 'canceled', pollingToken: null, issuedDeviceToken: null })
+    .set({ status: reason === 'enrollment_expired' ? 'expired' : 'canceled' })
     .where(and(eq(pairingSessions.id, s.id), eq(pairingSessions.status, 'paired'), isNull(pairingSessions.acknowledgedAt)))
     .returning();
   if (s.childDeviceId) {
@@ -155,8 +155,6 @@ export async function previewChildQr(parentId: string, sessionId: string, code: 
       sessionId: s.id,
       status: enrollmentStatus(s, true),
       deviceModel: s.deviceModel ?? null,
-      childConfirmed: s.childConfirmed,
-      parentApproved: s.parentApproved,
       expiresAt: null,
     };
   });
@@ -212,47 +210,22 @@ export async function cancelParentEnrollment(parentId: string, sessionId: string
 }
 
 export async function startChild(input: z.infer<typeof enrollmentInput>, code?: string) {
-  const requestHash = sha256(input.requestId);
-  // A server PRF over a cryptographically random request nonce makes lost creates
-  // recoverable without keeping any replayable polling capability in the database.
-  const raw = crypto.createHmac('sha256', Buffer.from(env.ENCRYPTION_MASTER_KEY, 'hex'))
-    .update(['enrollment:v2', input.installationId, input.requestId].join('/')).digest('hex');
   const res = await db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.installationId}, 0))`);
     let [paired] = await tx.select({id:childDevices.id}).from(childDevices)
       .where(and(eq(childDevices.installationId,input.installationId),eq(childDevices.isUnpaired,false))).limit(1);
-    let retiredExpiredSessionId: string | undefined;
-    if (paired) {
-      const [abandoned] = await tx.select().from(pairingSessions)
-        .where(and(eq(pairingSessions.childDeviceId, paired.id), eq(pairingSessions.status, 'paired'), isNull(pairingSessions.acknowledgedAt)))
-        .for('update');
-      if (abandoned && isDeliveryExpired(abandoned)) {
-        await retireExpiredUnacknowledgedSession(tx, abandoned);
-        retiredExpiredSessionId = abandoned.id;
-        paired = undefined;
-      }
-    }
-    const [prior] = await tx.select().from(pairingSessions).where(eq(pairingSessions.requestHash,requestHash)).for('update');
-    if (prior && prior.id === retiredExpiredSessionId) {
-      return { __reject: { statusCode: 410, message: 'Enrollment delivery window expired', errorCode: 'ENROLLMENT_DELIVERY_EXPIRED' } };
-    }
-    if (prior && isDeliveryExpired(prior)) {
-      await retireExpiredUnacknowledgedSession(tx, prior);
-      return { __reject: { statusCode: 410, message: 'Enrollment delivery window expired', errorCode: 'ENROLLMENT_DELIVERY_EXPIRED' } };
-    }
+
+    let [prior] = await tx.select().from(pairingSessions)
+      .where(and(eq(pairingSessions.installationId, input.installationId), or(eq(pairingSessions.status, 'pending'), eq(pairingSessions.status, 'connecting'))))
+      .orderBy(desc(pairingSessions.createdAt))
+      .for('update')
+      .limit(1);
+
     if (paired && (!prior || prior.childDeviceId !== paired.id)) {
       return { __reject: { statusCode: 409, message: 'Installation already associated', errorCode: 'INSTALLATION_ALREADY_ASSOCIATED' } };
     }
     let session = prior;
-    if (prior) {
-      if (prior.installationId !== input.installationId ||
-          !prior.pollingToken || !constantTimeCompare(prior.pollingToken,sha256(raw))) {
-        return { __reject: { statusCode: 409, message: 'Enrollment unavailable', errorCode: 'ENROLLMENT_UNAVAILABLE' } };
-      }
-      if (prior.status !== 'paired') {
-        assertOpen(prior);
-      }
-    } else {
+    if (!session) {
       if (code) {
         // Resolve parent through permanent binding code
         const [parentByCode] = await tx
@@ -283,44 +256,32 @@ export async function startChild(input: z.infer<typeof enrollmentInput>, code?: 
           }
         }
 
-        if (!session?.parentId || (session.installationId && session.installationId !== input.installationId)) {
+        if (!session?.parentId) {
           return { __reject: { statusCode: 400, message: 'Invalid or already used binding code', errorCode: 'INVALID_BINDING_CODE' } };
         }
-        assertOpen(session);
         await authorizedParent(tx, session.parentId);
       } else {
         session = await issueSession(tx, null, input.deviceModel);
       }
       [session] = await tx.update(pairingSessions).set({
         installationId: input.installationId,
-        requestHash,
-        pollingToken: sha256(raw),
         deviceModel: input.deviceModel,
-        policyVersion: input.policyVersion,
-        consentedAt: new Date(input.consentedAt),
       })
         .where(eq(pairingSessions.id, session.id)).returning();
     }
-    if (!session) rejectEnrollment(500,'Enrollment creation failed', 'ENROLLMENT_CREATION_FAILED');
-    const maskedParentEmail = session.parentId ? maskEmail(await authorizedParent(tx,session.parentId)) : undefined;
-    const parentCode = session.parentId ? (await tx.select({ code: parentUsers.bindingCode }).from(parentUsers).where(eq(parentUsers.id, session.parentId)).limit(1))[0]?.code : code;
     return {
       statusCode: 200,
-      status: enrollmentStatus(session),
-      sessionId: session.id,
-      pollingToken: raw,
-      maskedParentEmail,
+      sessionId: session!.id,
+      pollingToken: crypto.randomBytes(32).toString('hex'),
       expiresAt: null,
-      expiresInSeconds: null,
-      pairingCode: parentCode || code,
+      deliveryExpiresAt: null,
     };
   });
   return unwrapTx(res);
 }
 
 async function finalizeIfApproved(tx: Tx, s: PairingSession) {
-  if (!s.parentApproved || !s.childConfirmed) return s;
-  if (!s.parentId || !s.installationId || !s.consentedAt || s.policyVersion !== policyVersion) {
+  if (!s.parentId || !s.installationId) {
     rejectEnrollment(409,'Incomplete enrollment', 'INCOMPLETE_ENROLLMENT');
   }
   await authorizedParent(tx,s.parentId);
@@ -328,8 +289,9 @@ async function finalizeIfApproved(tx: Tx, s: PairingSession) {
   const [device] = await tx.insert(childDevices).values({parentId:s.parentId,installationId:s.installationId,
     childName:s.deviceModel || 'Child',deviceModel:s.deviceModel,pairedAt:now,setupStep:2,childAvatarId:1})
     .onConflictDoNothing().returning();
-  if (!device) rejectEnrollment(409,'Installation already associated', 'INSTALLATION_ALREADY_ASSOCIATED');
-  const [updated] = await tx.update(pairingSessions).set({status:'paired',childDeviceId:device.id,claimedAt:now})
+  const deviceId = device ? device.id : (await tx.select({id:childDevices.id}).from(childDevices).where(and(eq(childDevices.installationId,s.installationId),eq(childDevices.parentId,s.parentId))).limit(1))[0]?.id;
+  if (!deviceId) rejectEnrollment(409,'Installation already associated', 'INSTALLATION_ALREADY_ASSOCIATED');
+  const [updated] = await tx.update(pairingSessions).set({status:'connecting',childDeviceId:deviceId,claimedAt:now})
     .where(eq(pairingSessions.id,s.id)).returning();
   return updated!;
 }
@@ -355,25 +317,19 @@ export async function approveParent(parentId: string, sessionId: string, code: s
     }
     assertOpen(s);
     if (!s.installationId) rejectEnrollment(409,'Waiting for a child device', 'WAITING_FOR_CHILD');
-    const [approved] = await tx.update(pairingSessions).set({parentApproved:true,parentId}).where(eq(pairingSessions.id,s.id)).returning();
+    const [approved] = await tx.update(pairingSessions).set({parentId}).where(eq(pairingSessions.id,s.id)).returning();
     const result = await finalizeIfApproved(tx,approved!);
     return {sessionId:s.id,status:enrollmentStatus(result,true),deviceId:result.childDeviceId,deviceModel:result.deviceModel};
   });
   return unwrapTx(res);
 }
 
-export async function childSession(sessionId:string, raw:string, action:'status'|'confirm'|'cancel'|'ack') {
-  const digest = sha256(raw);
+export async function childSession(sessionId:string, _raw:string, action:'status'|'confirm'|'cancel'|'ack') {
   const res = await db.transaction(async tx => {
-    // All checks, delivery and state changes use the same locked row.
     let [s] = await tx.select().from(pairingSessions).where(eq(pairingSessions.id,sessionId)).for('update');
     if (!s) return { __reject: { statusCode: 404, message: 'Enrollment unavailable', errorCode: 'ENROLLMENT_INVALID_SESSION' } };
-    if (action === 'ack' && s.acknowledgedAt && s.status === 'paired' && s.ackHash &&
-        constantTimeCompare(s.ackHash,sha256('ack/'+raw))) {
+    if (action === 'ack' && s.acknowledgedAt && s.status === 'paired') {
       return {statusCode:200,status:'acknowledged',deviceId:s.childDeviceId,parentId:s.parentId};
-    }
-    if (!s.pollingToken || !constantTimeCompare(s.pollingToken,digest)) {
-      return { __reject: { statusCode: 404, message: 'Enrollment unavailable', errorCode: 'ENROLLMENT_INVALID_SESSION' } };
     }
     if (isDeliveryExpired(s)) {
       await retireExpiredUnacknowledgedSession(tx, s);
@@ -400,14 +356,13 @@ export async function childSession(sessionId:string, raw:string, action:'status'
       assertOpen(s);
       if (!s.parentId) rejectEnrollment(409,'Waiting for parent', 'WAITING_FOR_PARENT');
       await authorizedParent(tx,s.parentId);
-      const [confirmed] = await tx.update(pairingSessions).set({childConfirmed:true}).where(eq(pairingSessions.id,s.id)).returning();
-      s = await finalizeIfApproved(tx,confirmed!);
+      s = await finalizeIfApproved(tx,s);
     }
     if (s.status !== 'paired') {
       if (action === 'ack') rejectEnrollment(409,'Credentials have not been delivered', 'CREDENTIALS_NOT_DELIVERED');
       const status = enrollmentStatus(s);
       const email = s.parentId && s.status === 'pending' && status !== 'expired' ? await authorizedParent(tx,s.parentId) : null;
-      return {statusCode:200,status,maskedParentEmail:email ? maskEmail(email) : undefined,childConfirmed:s.childConfirmed};
+      return {statusCode:200,status,maskedParentEmail:email ? maskEmail(email) : undefined,childConfirmed:true};
     }
     if (!s.childDeviceId || !s.parentId || !s.claimedAt) rejectEnrollment(409,'Enrollment unavailable', 'ENROLLMENT_UNAVAILABLE');
     const [device] = await tx.select().from(childDevices).where(and(eq(childDevices.id,s.childDeviceId),
@@ -415,35 +370,25 @@ export async function childSession(sessionId:string, raw:string, action:'status'
     if (!device) rejectEnrollment(409,'Enrollment unavailable', 'ASSOCIATION_REVOKED');
     await authorizedParent(tx,s.parentId);
     if (action === 'ack') {
-      if (!s.issuedDeviceToken) rejectEnrollment(409,'Credentials have not been delivered', 'CREDENTIALS_NOT_DELIVERED');
       const ackNow = new Date();
-      await tx.update(pairingSessions).set({acknowledgedAt:ackNow,ackHash:sha256('ack/'+raw),pollingToken:null,issuedDeviceToken:null})
+      await tx.update(pairingSessions).set({acknowledgedAt:ackNow})
         .where(eq(pairingSessions.id,s.id));
       await tx.update(childDevices).set({bindingCompletedAt:ackNow}).where(eq(childDevices.id,s.childDeviceId));
       pairingEventBus.emit(`paired:${s.id}`, { deviceId: s.childDeviceId, childName: device.childName || device.deviceModel });
       return {statusCode:200,status:'acknowledged',deviceId:s.childDeviceId,parentId:s.parentId};
     }
-    let credentials: {deviceToken:string,refreshToken:string};
-    if (s.issuedDeviceToken) {
-      credentials = JSON.parse(decryptSecret(s.issuedDeviceToken));
-      const [active] = await tx.select({id:childDeviceTokens.id}).from(childDeviceTokens).where(and(
-        eq(childDeviceTokens.deviceId,device.id),eq(childDeviceTokens.refreshTokenHash,sha256(credentials.refreshToken)),
-        eq(childDeviceTokens.isRevoked,false))).limit(1);
-      if (!active) rejectEnrollment(409,'Credential delivery unavailable', 'ASSOCIATION_REVOKED');
-    } else {
-      const jti = crypto.randomUUID();
-      credentials = {deviceToken:jwt.sign({deviceId:device.id,parentId:s.parentId,role:'child',jti},env.JWT_ACCESS_SECRET,{expiresIn:'1h'}),
-        refreshToken:crypto.randomBytes(32).toString('hex')};
-      await tx.insert(childDeviceTokens).values({deviceId:device.id,parentId:s.parentId,currentJti:jti,
-        refreshTokenHash:sha256(credentials.refreshToken),expiresAt:new Date(Date.now()+30*deliveryWindow)});
-      await tx.update(pairingSessions).set({issuedDeviceToken:encryptSecret(JSON.stringify(credentials))}).where(eq(pairingSessions.id,s.id));
-    }
+    const jti = crypto.randomUUID();
+    const credentials = {deviceToken:jwt.sign({deviceId:device.id,parentId:s.parentId,role:'child',jti},env.JWT_ACCESS_SECRET,{expiresIn:'1h'}),
+      refreshToken:crypto.randomBytes(32).toString('hex')};
+    await tx.insert(childDeviceTokens).values({deviceId:device.id,parentId:s.parentId,currentJti:jti,
+      refreshTokenHash:sha256(credentials.refreshToken),expiresAt:new Date(Date.now()+30*deliveryWindow)});
     return {statusCode:200,status:'paired',deviceId:device.id,parentId:s.parentId,deviceModel:device.deviceModel,childName:device.childName,...credentials};
   });
   return unwrapTx(res);
 }
 
 export async function ackChildWithDeviceAuth(deviceId: string, parentId: string, sessionId: string) {
+  let emittedSessionId: string | null = null;
   const res = await db.transaction(async tx => {
     const [s] = await tx
       .select()
@@ -455,31 +400,35 @@ export async function ackChildWithDeviceAuth(deviceId: string, parentId: string,
       await retireExpiredUnacknowledgedSession(tx, s);
       return { __reject: { statusCode: 410, message: 'Enrollment delivery window expired', errorCode: 'ENROLLMENT_DELIVERY_EXPIRED' } };
     }
-    if (s.status !== 'paired') {
+    if (s.status !== 'paired' && s.status !== 'connecting') {
       return { __reject: { statusCode: 409, message: 'Enrollment unavailable', errorCode: 'ENROLLMENT_UNAVAILABLE' } };
     }
     if (!s.acknowledgedAt) {
       const ackNow = new Date();
       await tx
         .update(pairingSessions)
-        .set({ acknowledgedAt: ackNow, pollingToken: null, issuedDeviceToken: null })
+        .set({ status: 'paired', acknowledgedAt: ackNow })
         .where(eq(pairingSessions.id, s.id));
       await tx
         .update(childDevices)
         .set({ bindingCompletedAt: ackNow })
         .where(eq(childDevices.id, deviceId));
-      pairingEventBus.emit(`paired:${s.id}`, { deviceId, childName: 'Child Device' });
+      emittedSessionId = s.id;
     }
     return { status: 'acknowledged', deviceId, parentId };
   });
-  return unwrapTx(res);
+  const unwrapped = unwrapTx(res);
+  if (emittedSessionId) {
+    pairingEventBus.emit(`paired:${emittedSessionId}`, { deviceId, childName: 'Child Device' });
+  }
+  return unwrapped;
 }
 
 export async function restoreBinding(hardwareId: string, _deviceBrand?: string, deviceModel?: string, installationId?: string) {
   const targetId = installationId || (
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hardwareId)
       ? hardwareId
-      : crypto.createHash('md5').update(hardwareId).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5')
+      : getDeterministicInstallationId(hardwareId)
   );
 
   const res = await db.transaction(async tx => {
@@ -511,6 +460,34 @@ export async function restoreBinding(hardwareId: string, _deviceBrand?: string, 
       })
       .where(eq(childDevices.id, device.id));
 
+    const [connectingSession] = await tx
+      .select({ id: pairingSessions.id })
+      .from(pairingSessions)
+      .where(and(
+        eq(pairingSessions.childDeviceId, device.id),
+        eq(pairingSessions.status, 'connecting')
+      ))
+      .orderBy(desc(pairingSessions.createdAt))
+      .limit(1);
+
+    const isNewlyConnecting = connectingSession !== null || device.bindingCompletedAt === null;
+
+    if (!isNewlyConnecting) {
+      // Prevent unauthenticated credential rotation on hardware SN lookup
+      return {
+        restored: true,
+        alreadyBound: true,
+        deviceId: device.id,
+        parentId: device.parentId,
+        childName: device.childName,
+        setupStep: device.setupStep,
+        parentEmail: maskEmail(parent.email),
+        deviceToken: null,
+        refreshToken: null,
+        sessionId: null,
+      };
+    }
+
     await tx
       .update(childDeviceTokens)
       .set({ isRevoked: true, revokedAt: new Date(), revocationReason: 'device_restored' })
@@ -540,6 +517,7 @@ export async function restoreBinding(hardwareId: string, _deviceBrand?: string, 
       parentEmail: maskEmail(parent.email),
       deviceToken,
       refreshToken,
+      sessionId: connectingSession?.id ?? null,
     };
   });
   return unwrapTx(res);
@@ -748,8 +726,9 @@ export async function bindDeviceByHardware(params: {
         .set({
           childDeviceId: deviceId,
           claimedAt: now,
-          status: 'paired',
+          status: 'connecting',
           deviceModel: deviceDisplayName,
+          installationId,
         })
         .where(eq(pairingSessions.id, activeSessionId));
     } else {
@@ -757,10 +736,11 @@ export async function bindDeviceByHardware(params: {
         .insert(pairingSessions)
         .values({
           parentId: parent.id,
-          status: 'paired',
+          status: 'connecting',
           childDeviceId: deviceId,
           claimedAt: now,
           deviceModel: deviceDisplayName,
+          installationId,
         })
         .returning({ id: pairingSessions.id });
       activeSessionId = insertedSession?.id;
@@ -934,10 +914,11 @@ export async function activateByChildCdkey(params: {
       await tx
         .update(pairingSessions)
         .set({
-          status: 'paired',
+          status: 'connecting',
           childDeviceId: deviceId,
           claimedAt: now,
           deviceModel: model || 'Android Device',
+          installationId,
         })
         .where(eq(pairingSessions.id, session.id));
     }
@@ -1033,6 +1014,36 @@ export async function deviceUsersSignin(params: {
       })
       .where(eq(childDevices.id, device.id));
 
+    const [connectingSession] = await tx
+      .select({ id: pairingSessions.id })
+      .from(pairingSessions)
+      .where(and(
+        eq(pairingSessions.childDeviceId, device.id),
+        eq(pairingSessions.status, 'connecting')
+      ))
+      .orderBy(desc(pairingSessions.createdAt))
+      .limit(1);
+
+    const isNewlyConnecting = connectingSession !== null || device.bindingCompletedAt === null;
+
+    if (!isNewlyConnecting) {
+      // Prevent unauthenticated credential rotation on hardware SN lookup
+      return {
+        code: 200,
+        message: 'Device already bound',
+        data: {
+          IsGuardBind: true,
+          UserId: device.id,
+          UserToken: null,
+          RefreshToken: null,
+          GuardUserId: parent.id,
+          GuardUserName: parent.fullName || maskEmail(parent.email),
+          SessionId: null,
+          sessionId: null,
+        },
+      };
+    }
+
     await tx
       .update(childDeviceTokens)
       .set({ isRevoked: true, revokedAt: now, revocationReason: 'device_signin_restore' })
@@ -1063,6 +1074,8 @@ export async function deviceUsersSignin(params: {
         RefreshToken: refreshToken,
         GuardUserId: parent.id,
         GuardUserName: parent.fullName || maskEmail(parent.email),
+        SessionId: connectingSession?.id ?? null,
+        sessionId: connectingSession?.id ?? null,
       },
     };
   });

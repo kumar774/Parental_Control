@@ -502,7 +502,7 @@ export const childRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       // 3. Clear any active pairing sessions
       await tx
         .update(pairingSessions)
-        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .set({ status: 'expired' })
         .where(eq(pairingSessions.childDeviceId, device.id));
     });
 

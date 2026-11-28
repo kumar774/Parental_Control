@@ -327,12 +327,7 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
     }
 
     if (search) {
-      filters.push(
-        or(
-          ilike(parentUsers.email, `%${search}%`),
-          ilike(parentUsers.phone, `%${search}%`)
-        )!
-      );
+      filters.push(ilike(parentUsers.email, `%${search}%`));
     }
 
     const whereClause = filters.length > 0 ? and(...filters) : undefined;
@@ -346,8 +341,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .select({
         id: parentUsers.id,
         email: parentUsers.email,
-        phone: parentUsers.phone,
-        avatarR2Key: parentUsers.avatarR2Key,
         status: parentUsers.status,
         createdAt: parentUsers.createdAt,
       })
@@ -396,8 +389,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
       .select({
         id: parentUsers.id,
         email: parentUsers.email,
-        phone: parentUsers.phone,
-        avatarR2Key: parentUsers.avatarR2Key,
         status: parentUsers.status,
         createdAt: parentUsers.createdAt,
       })

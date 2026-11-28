@@ -272,8 +272,6 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         sessionId: s.id,
         deviceId: s.status === 'paired' ? s.childDeviceId : null,
         deviceModel: s.deviceModel,
-        childConfirmed: s.childConfirmed,
-        parentApproved: s.parentApproved,
         expiresAt: null,
         deliveryExpiresAt: s.claimedAt ? new Date(s.claimedAt.getTime() + deliveryWindow) : null,
       };
@@ -483,7 +481,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       // 3. Clear active pairing sessions
       await tx
         .update(pairingSessions)
-        .set({ status: 'expired', pollingToken: null, issuedDeviceToken: null })
+        .set({ status: 'expired' })
         .where(eq(pairingSessions.childDeviceId, device.id));
     });
 

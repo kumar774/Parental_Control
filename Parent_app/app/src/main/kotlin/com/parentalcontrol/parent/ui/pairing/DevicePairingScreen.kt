@@ -230,7 +230,7 @@ internal fun parseChildQrContract(
             return ChildQrValidationResult.Invalid("Missing or invalid 9-digit pairing code in QR: $codeRaw")
         }
 
-        // 5. Expiry check: strictly mandatory, rejects missing/empty/unparsable
+        // 5. Expiry check: strictly mandatory for legacy JSON contracts
         if (!json.has("expiresAt") || json.isNull("expiresAt")) {
             return ChildQrValidationResult.Invalid("Missing expiresAt in QR")
         }
@@ -373,7 +373,9 @@ fun DevicePairingScreen(
                         status = saved.pendingStatus.orEmpty()
                         approvalCode = saved.pendingCode?.takeIf { status in setOf("waiting_for_child", "waiting_for_parent") }
                         reportedDeviceModel = saved.pendingDeviceModel
-                        expires = saved.expiresAt?.let { java.time.Instant.parse(it).toEpochMilli() } ?: 0L
+                        expires = saved.expiresAt?.let {
+                            runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrDefault(0L)
+                        } ?: 0L
                     } else {
                         val issued = client.generatePairingCode(regenerate = false).getOrThrow()
                         session = issued.sessionId
@@ -483,11 +485,22 @@ fun DevicePairingScreen(
                             busy = true
                             scope.launch {
                                 client.bindHardwareDevice(qr.sn, qr.brand, qr.model, qr.mac)
-                                    .onSuccess { realDeviceId ->
-                                        if (realDeviceId.isNotBlank() && runCatching { java.util.UUID.fromString(realDeviceId) }.isSuccess) {
+                                    .onSuccess { result ->
+                                        if (result.alreadyConnected) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(context, "Device is already connected to your account.", Toast.LENGTH_LONG).show()
+                                            message = "Device is already connected to your account."
+                                        } else if (result.sessionId != null) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(context, "Connecting to child device...", Toast.LENGTH_SHORT).show()
+                                            session = result.sessionId
+                                            status = "connecting"
+                                            reportedDeviceModel = "${qr.brand} ${qr.model}".trim()
+                                            message = "Connecting with ${qr.brand} ${qr.model}..."
+                                        } else if (result.deviceId.isNotBlank() && runCatching { java.util.UUID.fromString(result.deviceId) }.isSuccess) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             Toast.makeText(context, "Device connected successfully!", Toast.LENGTH_SHORT).show()
-                                            onPairingSuccess(realDeviceId, "${qr.brand} ${qr.model}")
+                                            onPairingSuccess(result.deviceId, "${qr.brand} ${qr.model}")
                                         } else {
                                             message = "Server returned invalid device ID."
                                         }
@@ -593,7 +606,7 @@ fun DevicePairingScreen(
         }
         val description = when (status) {
             "waiting_for_child" -> "Waiting for the child to enter the code."
-            "waiting_for_parent" -> if (pendingApproval?.fromQr == true) "Child QR scanned. Review to approve." else "Connecting child device…"
+            "connecting", "waiting_for_parent" -> if (pendingApproval?.fromQr == true) "Child QR scanned. Review to approve." else "Connecting child device…"
             "waiting_for_child_confirmation" -> "Confirming connection on the child's phone…"
             "paired", "finalizing" -> "Device connected! Finalizing setup…"
             "expired" -> "This enrollment has expired."

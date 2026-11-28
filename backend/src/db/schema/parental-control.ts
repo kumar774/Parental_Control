@@ -29,12 +29,9 @@ export const parentUsers = pgTable(
     bindingCode: varchar('binding_code', { length: 9 }).notNull().unique().$defaultFn(() => crypto.randomInt(100000000, 1000000000).toString()),
     fullName: text('full_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
-    phone: varchar('phone', { length: 32 }),
     passwordHash: text('password_hash'),
     googleId: varchar('google_id', { length: 255 }).unique(),
     authProvider: varchar('auth_provider', { length: 32 }).notNull().default('local'),
-    familyPinHash: text('family_pin_hash'),
-    avatarR2Key: text('avatar_r2_key'),
     status: varchar('status', { length: 20 }).notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -42,6 +39,7 @@ export const parentUsers = pgTable(
   (table) => [
     index('idx_users_status_created').on(table.status, table.createdAt),
     check('users_status_check', sql`${table.status} IN ('active', 'suspended')`),
+    check('users_binding_code_format_check', sql`${table.bindingCode} ~ '^[0-9]{9}$'`),
   ]
 );
 
@@ -279,29 +277,20 @@ export const pairingSessions = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     parentId: uuid('parent_id').references(() => parentUsers.id, { onDelete: 'cascade' }),
-    pollingToken: varchar('polling_token', { length: 64 }),
-    issuedDeviceToken: text('issued_device_token'),
     installationId: uuid('installation_id'),
-    requestHash: varchar('request_hash', { length: 64 }).unique(),
-    policyVersion: varchar('child_policy_version', { length: 32 }),
-    consentedAt: timestamp('child_consented_at', { withTimezone: true }),
-    childConfirmed: boolean('child_confirmed').notNull().default(false),
-    parentApproved: boolean('parent_approved').notNull().default(false),
-    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
-    ackHash: varchar('ack_hash', { length: 64 }),
-    claimedAt: timestamp('claimed_at', { withTimezone: true }),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     childDeviceId: uuid('child_device_id').references(() => childDevices.id, { onDelete: 'set null' }),
     deviceModel: text('device_model'),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('pairing_sessions_one_active_pending_per_parent')
+    uniqueIndex('pairing_sessions_one_active_per_parent')
       .on(table.parentId)
-      .where(sql`${table.parentId} IS NOT NULL AND ${table.status} = 'pending'`),
+      .where(sql`${table.parentId} IS NOT NULL AND ${table.status} IN ('pending', 'connecting')`),
     index('idx_pairing_sessions_parent').on(table.parentId),
-    index('idx_pairing_sessions_polling_token').on(table.pollingToken),
-    check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'paired', 'expired', 'canceled')`),
+    check('pairing_sessions_status_check', sql`${table.status} IN ('pending', 'connecting', 'paired', 'canceled', 'expired')`),
   ]
 );
 
