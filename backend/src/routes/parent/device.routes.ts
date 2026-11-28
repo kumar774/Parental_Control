@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { eq, and, or, gt, isNull, count, sql, desc } from 'drizzle-orm';
+import { eq, and, or, gt, isNull, isNotNull, count, sql, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   approveParent,
@@ -18,7 +18,7 @@ import {
 } from '../../services/enrollment.service';
 import { createParentRateLimiter } from '../../middleware/parent-rate-limiter';
 import { db } from '../../db/index';
-import { childDevices, pairingSessions, parentConsents, childDeviceTokens } from '../../db/schema/parental-control';
+import { childDevices, pairingSessions, parentConsents, childDeviceTokens, parentUsers } from '../../db/schema/parental-control';
 import { requireParentAuth } from '../../middleware/parent-auth.guard';
 
 const deviceQuerySchema = z.object({
@@ -75,6 +75,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       eq(childDevices.parentId, parent.id),
       eq(childDevices.isUnpaired, false),
       or(
+        isNotNull(childDevices.bindingCompletedAt),
         isNull(childDevices.installationId),
         sql`EXISTS (SELECT 1 FROM ${pairingSessions}
           WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.acknowledgedAt} IS NOT NULL)`
@@ -297,6 +298,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
   app.get('/onboarding',{preHandler:[requireParentAuth]},async request => {
     const parentId = request.parentUser!.id;
     const [consent] = await db.select({id:parentConsents.id}).from(parentConsents).where(consentFor(parentId)).limit(1);
+    const [parent] = await db.select({bindingCode:parentUsers.bindingCode}).from(parentUsers).where(eq(parentUsers.id,parentId)).limit(1);
     const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.parentId,parentId),or(
       and(eq(pairingSessions.status,'pending'),gt(pairingSessions.expiresAt,new Date())),
       and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-deliveryWindow)),
@@ -305,7 +307,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     return {
       consentAccepted: Boolean(consent),
       pendingSessionId: s?.id ?? null,
-      pendingCode: s?.pairingCode ?? null,
+      pendingCode: parent?.bindingCode ?? s?.pairingCode ?? null,
       pendingStatus: s ? enrollmentStatus(s, true) : null,
       pendingDeviceModel: s?.deviceModel ?? null,
       expiresAt: s?.expiresAt ?? null,

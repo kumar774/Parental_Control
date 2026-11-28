@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import {
   pgTable,
   uuid,
@@ -25,6 +26,7 @@ export const parentUsers = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     email: varchar('email', { length: 255 }).notNull().unique(),
+    bindingCode: varchar('binding_code', { length: 9 }).notNull().unique().$defaultFn(() => crypto.randomInt(100000000, 1000000000).toString()),
     fullName: text('full_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     phone: varchar('phone', { length: 32 }),
@@ -75,12 +77,14 @@ export const childDevices = pgTable(
     isUnpaired: boolean('is_unpaired').notNull().default(false),
     unpairedAt: timestamp('unpaired_at', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    bindingCompletedAt: timestamp('binding_completed_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('child_devices_active_installation').on(table.installationId).where(sql`${table.isUnpaired} = false`),
     index('idx_child_devices_parent').on(table.parentId),
     index('idx_child_devices_last_seen').on(table.lastSeenAt),
     index('idx_child_devices_unpaired').on(table.isUnpaired),
+    index('idx_child_devices_binding_completed').on(table.bindingCompletedAt),
     check(
       'child_devices_battery_pct_check',
       sql`${table.batteryPct} IS NULL OR (${table.batteryPct} >= 0 AND ${table.batteryPct} <= 100)`

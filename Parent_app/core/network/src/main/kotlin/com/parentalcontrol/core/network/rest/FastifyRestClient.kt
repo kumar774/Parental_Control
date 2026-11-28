@@ -611,7 +611,7 @@ class FastifyRestClient(
         brand: String,
         model: String,
         mac: String = ""
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<String> = withContext(Dispatchers.IO) {
         val token = accessToken
         if (token.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Authentication required to bind device"))
@@ -625,7 +625,12 @@ class FastifyRestClient(
             }.toString()
             val response = executePost("/api/v1/devices/guards/active", body, token)
             if (response.statusCode in 200..299) {
-                Result.success(Unit)
+                val json = JSONObject(response.body)
+                val data = json.optJSONObject("data")
+                val deviceId = data?.optString("deviceId")?.takeIf { it.isNotBlank() }
+                    ?: json.optString("deviceId").takeIf { it.isNotBlank() }
+                    ?: ""
+                Result.success(deviceId)
             } else {
                 val errorMsg = try {
                     JSONObject(response.body).optString("message", "Failed to bind device")

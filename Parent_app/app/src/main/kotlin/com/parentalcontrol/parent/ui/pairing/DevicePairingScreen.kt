@@ -340,15 +340,8 @@ fun DevicePairingScreen(
                         }
                     }
                 }
-                client.getDevices().onSuccess { devices ->
-                    if (devices.isNotEmpty()) {
-                        val device = devices.first()
-                        onPairingSuccess(device.id, device.deviceName ?: device.model ?: "Child Device")
-                    } else {
-                        message = "Device not connected yet. Enter the code in Child App."
-                    }
-                }.onFailure { err ->
-                    if (message == null) message = err.message ?: "Failed to check status."
+                if (status != "paired") {
+                    message = "Device not connected yet. Enter the code in Child App."
                 }
             } catch (e: Exception) {
                 message = e.message
@@ -423,25 +416,6 @@ fun DevicePairingScreen(
             status = "waiting_for_child"
         }.onFailure {
             issueOrResume(regenerate = false)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        var initialDeviceIds = setOf<String>()
-        client.getDevices().onSuccess { devices ->
-            initialDeviceIds = devices.map { it.id }.toSet()
-        }
-        while (true) {
-            delay(3000)
-            if (!busy) {
-                client.getDevices().onSuccess { devices ->
-                    val newDevice = devices.firstOrNull { it.id !in initialDeviceIds }
-                    if (newDevice != null) {
-                        onPairingSuccess(newDevice.id, newDevice.deviceName ?: newDevice.model ?: "Child Device")
-                        return@LaunchedEffect
-                    }
-                }
-            }
         }
     }
 
@@ -520,10 +494,11 @@ fun DevicePairingScreen(
                             busy = true
                             scope.launch {
                                 client.bindHardwareDevice(qr.sn, qr.brand, qr.model, qr.mac)
-                                    .onSuccess {
+                                    .onSuccess { realDeviceId ->
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         Toast.makeText(context, "Device connected successfully!", Toast.LENGTH_SHORT).show()
-                                        onPairingSuccess(java.util.UUID.randomUUID().toString(), "${qr.brand} ${qr.model}")
+                                        val validId = realDeviceId.takeIf { it.isNotBlank() } ?: java.util.UUID.randomUUID().toString()
+                                        onPairingSuccess(validId, "${qr.brand} ${qr.model}")
                                     }
                                     .onFailure { err ->
                                         message = err.message ?: "Unable to link device."

@@ -188,6 +188,12 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
   '0013_enrollment_lifecycle_and_concurrency.sql': [
     { type: 'index', table: 'pairing_sessions', name: 'pairing_sessions_one_active_manual_code_per_parent' },
   ],
+  '0014_permanent_binding_code_and_association.sql': [
+    { type: 'column', table: 'users', name: 'binding_code', isNullable: 'NO' },
+    { type: 'constraint', table: 'users', name: 'users_binding_code_unique' },
+    { type: 'column', table: 'child_devices', name: 'binding_completed_at' },
+    { type: 'index', table: 'child_devices', name: 'idx_child_devices_binding_completed' },
+  ],
 };
 
 export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {

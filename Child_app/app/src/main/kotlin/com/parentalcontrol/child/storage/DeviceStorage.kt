@@ -58,10 +58,17 @@ class DeviceStorage internal constructor(
             val aid = android.provider.Settings.Secure.getString(
                 ctx.contentResolver,
                 android.provider.Settings.Secure.ANDROID_ID
-            )?.takeIf { it.isNotBlank() } ?: "unknown"
-            return "AnID$aid"
+            )?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" && !it.equals("unknown", ignoreCase = true) }
+            if (aid != null) {
+                return "AnID$aid"
+            }
+            throw IllegalStateException("Valid Android ID is required for device identity")
         }
-        return "AnIDfallback"
+        val existing = prefs.getString("installation", null)
+        if (existing != null) return existing
+        val testAid = prefs.getString("test_android_id", null)
+        if (testAid != null) return "AnID$testAid"
+        throw IllegalStateException("Context or configured test ID required to obtain hardware device identity")
     }
 
     fun getHardwareUuid(): String {

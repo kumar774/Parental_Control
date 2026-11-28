@@ -7,7 +7,7 @@ pairingEventBus.setMaxListeners(200);
 import { and, desc, eq, gt, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index';
-import { childDevices, childDeviceTokens, pairingSessions, parentConsents, parentUsers, PairingSession } from '../db/schema/parental-control';
+import { childDevices, childDeviceTokens, pairingSessions, parentConsents, parentUsers, systemAppSettings, PairingSession } from '../db/schema/parental-control';
 import { env } from '../config/env';
 import { sha256, constantTimeCompare, encryptSecret, decryptSecret } from '../utils/crypto-vault';
 import { getAppSettingsStrict } from './app-settings.service';
@@ -324,8 +324,35 @@ export async function startChild(input: z.infer<typeof enrollmentInput>, code?: 
       }
     } else {
       if (code) {
-        [session] = await tx.select().from(pairingSessions).where(eq(pairingSessions.pairingCode,code)).for('update');
-        if (!session?.parentId || session.installationId) {
+        // Resolve parent through permanent binding code
+        const [parentByCode] = await tx
+          .select()
+          .from(parentUsers)
+          .where(and(eq(parentUsers.bindingCode, code), eq(parentUsers.status, 'active')))
+          .limit(1);
+
+        if (parentByCode) {
+          [session] = await tx
+            .select()
+            .from(pairingSessions)
+            .where(
+              and(
+                eq(pairingSessions.parentId, parentByCode.id),
+                eq(pairingSessions.status, 'pending')
+              )
+            )
+            .orderBy(desc(pairingSessions.createdAt))
+            .for('update')
+            .limit(1);
+
+          if (!session) {
+            return { __reject: { statusCode: 410, message: 'Pairing code expired or no active session', errorCode: 'PAIRING_CODE_EXPIRED' } };
+          }
+        } else {
+          [session] = await tx.select().from(pairingSessions).where(eq(pairingSessions.pairingCode, code)).for('update');
+        }
+
+        if (!session?.parentId || (session.installationId && session.installationId !== input.installationId)) {
           return { __reject: { statusCode: 400, message: 'Invalid or already used binding code', errorCode: 'INVALID_BINDING_CODE' } };
         }
         if (session.status === 'pending' && session.expiresAt.getTime() <= Date.now()) {
@@ -464,8 +491,11 @@ export async function childSession(sessionId:string, raw:string, action:'status'
     await authorizedParent(tx,s.parentId);
     if (action === 'ack') {
       if (!s.issuedDeviceToken) rejectEnrollment(409,'Credentials have not been delivered', 'CREDENTIALS_NOT_DELIVERED');
-      await tx.update(pairingSessions).set({acknowledgedAt:new Date(),ackHash:sha256('ack/'+raw),pollingToken:null,issuedDeviceToken:null})
+      const ackNow = new Date();
+      await tx.update(pairingSessions).set({acknowledgedAt:ackNow,ackHash:sha256('ack/'+raw),pollingToken:null,issuedDeviceToken:null})
         .where(eq(pairingSessions.id,s.id));
+      await tx.update(childDevices).set({bindingCompletedAt:ackNow}).where(eq(childDevices.id,s.childDeviceId));
+      pairingEventBus.emit(`paired:${s.id}`, { deviceId: s.childDeviceId, childName: device.childName || device.deviceModel });
       return {statusCode:200,status:'acknowledged',deviceId:s.childDeviceId,parentId:s.parentId};
     }
     let credentials: {deviceToken:string,refreshToken:string};
@@ -504,10 +534,16 @@ export async function ackChildWithDeviceAuth(deviceId: string, parentId: string,
       return { __reject: { statusCode: 409, message: 'Enrollment unavailable', errorCode: 'ENROLLMENT_UNAVAILABLE' } };
     }
     if (!s.acknowledgedAt) {
+      const ackNow = new Date();
       await tx
         .update(pairingSessions)
-        .set({ acknowledgedAt: new Date(), pollingToken: null, issuedDeviceToken: null })
+        .set({ acknowledgedAt: ackNow, pollingToken: null, issuedDeviceToken: null })
         .where(eq(pairingSessions.id, s.id));
+      await tx
+        .update(childDevices)
+        .set({ bindingCompletedAt: ackNow })
+        .where(eq(childDevices.id, deviceId));
+      pairingEventBus.emit(`paired:${s.id}`, { deviceId, childName: 'Child Device' });
     }
     return { status: 'acknowledged', deviceId, parentId };
   });
@@ -587,49 +623,74 @@ export async function restoreBinding(hardwareId: string, _deviceBrand?: string, 
 export async function getOrCreatePermanentBindCode(parentId: string): Promise<{ code: string; sessionId: string }> {
   return db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${'parent-enrollment:' + parentId}, 0))`);
-    const [parent] = await tx.select().from(parentUsers).where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active'))).limit(1);
+    const [parent] = await tx
+      .select()
+      .from(parentUsers)
+      .where(and(eq(parentUsers.id, parentId), eq(parentUsers.status, 'active')))
+      .limit(1);
     if (!parent) rejectEnrollment(404, 'Guardian account not found', 'GUARDIAN_NOT_FOUND');
 
-    const permanentExpiry = new Date('2099-12-31T23:59:59.999Z');
+    let bindingCode = parent.bindingCode;
+    if (!bindingCode) {
+      for (let i = 0; i < 10; i++) {
+        const candidate = crypto.randomInt(100000000, 1000000000).toString();
+        const [duplicate] = await tx
+          .select({ id: parentUsers.id })
+          .from(parentUsers)
+          .where(eq(parentUsers.bindingCode, candidate))
+          .limit(1);
+        if (!duplicate) {
+          bindingCode = candidate;
+          await tx.update(parentUsers).set({ bindingCode }).where(eq(parentUsers.id, parentId));
+          break;
+        }
+      }
+      if (!bindingCode) rejectEnrollment(503, 'Failed to allocate permanent binding code', 'CODE_ALLOCATION_FAILED');
+    }
 
-    // Rule: Exactly ONE permanent code per parent account under all circumstances.
-    const [existing] = await tx
+    // Look for an existing valid UNFINISHED pending session for this parent
+    const [existingPending] = await tx
       .select()
       .from(pairingSessions)
-      .where(eq(pairingSessions.parentId, parentId))
+      .where(
+        and(
+          eq(pairingSessions.parentId, parentId),
+          eq(pairingSessions.status, 'pending'),
+          gt(pairingSessions.expiresAt, sql`NOW()`)
+        )
+      )
       .orderBy(desc(pairingSessions.createdAt))
       .limit(1);
 
-    if (existing) {
-      if (existing.expiresAt.getFullYear() < 2099) {
-        await tx
-          .update(pairingSessions)
-          .set({ expiresAt: permanentExpiry })
-          .where(eq(pairingSessions.id, existing.id));
-      }
-      return { code: existing.pairingCode, sessionId: existing.id };
+    if (existingPending) {
+      return { code: bindingCode, sessionId: existingPending.id };
     }
 
+    // Allocate a new pending session with admin-configured expiry seconds or default 900 (15 min)
+    const [settings] = await tx.select({ expiry: systemAppSettings.pairingCodeExpirySeconds }).from(systemAppSettings).limit(1);
+    const expirySeconds = settings?.expiry && settings.expiry >= 60 ? settings.expiry : 900;
+    const expiresAt = new Date(Date.now() + expirySeconds * 1000);
+
     for (let i = 0; i < 10; i++) {
-      const code = crypto.randomInt(100000000, 1000000000).toString();
+      const internalCode = crypto.randomInt(100000000, 1000000000).toString();
       const [duplicate] = await tx
         .select({ id: pairingSessions.id })
         .from(pairingSessions)
-        .where(eq(pairingSessions.pairingCode, code))
+        .where(eq(pairingSessions.pairingCode, internalCode))
         .limit(1);
 
       if (!duplicate) {
         const [inserted] = await tx.insert(pairingSessions).values({
-          pairingCode: code,
+          pairingCode: internalCode,
           parentId,
-          expiresAt: permanentExpiry,
+          expiresAt,
           qrPayload: '',
           status: 'pending',
         }).returning();
-        return { code, sessionId: inserted!.id };
+        return { code: bindingCode, sessionId: inserted!.id };
       }
     }
-    return rejectEnrollment(503, 'Failed to allocate permanent binding code', 'CODE_ALLOCATION_FAILED');
+    return rejectEnrollment(503, 'Failed to allocate pairing session', 'SESSION_ALLOCATION_FAILED');
   });
 }
 
@@ -675,6 +736,9 @@ export async function bindDeviceByHardware(params: {
     let deviceId: string;
 
     if (existingDevice) {
+      if (existingDevice.parentId !== parent.id && !existingDevice.isUnpaired) {
+        rejectEnrollment(409, 'Device is already bound to another parent account', 'DEVICE_ALREADY_BOUND');
+      }
       deviceId = existingDevice.id;
       await tx
         .update(childDevices)
@@ -684,6 +748,7 @@ export async function bindDeviceByHardware(params: {
           deviceModel: model || existingDevice.deviceModel || 'Android Device',
           oaidFingerprint: cleanSn,
           lastSeenAt: now,
+          bindingCompletedAt: now,
         })
         .where(eq(childDevices.id, existingDevice.id));
     } else {
@@ -698,8 +763,9 @@ export async function bindDeviceByHardware(params: {
           oaidFingerprint: cleanSn,
           pairedAt: now,
           lastSeenAt: now,
-          setupStep: 4,
+          setupStep: 2,
           isUnpaired: false,
+          bindingCompletedAt: now,
         })
         .returning();
       if (!inserted) throw new Error('Failed to register child device');
@@ -727,14 +793,49 @@ export async function bindDeviceByHardware(params: {
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
-    await tx
-      .update(pairingSessions)
-      .set({
-        childDeviceId: deviceId,
-        acknowledgedAt: now,
-        status: 'paired',
-      })
-      .where(eq(pairingSessions.parentId, parent.id));
+    const [pendingSession] = await tx
+      .select({ id: pairingSessions.id })
+      .from(pairingSessions)
+      .where(and(eq(pairingSessions.parentId, parent.id), eq(pairingSessions.status, 'pending')))
+      .orderBy(desc(pairingSessions.createdAt))
+      .limit(1);
+
+    const deviceDisplayName = model || brand ? `${brand || ''} ${model || ''}`.trim() : 'Android Device';
+    let activeSessionId = pendingSession?.id;
+
+    if (activeSessionId) {
+      await tx
+        .update(pairingSessions)
+        .set({
+          childDeviceId: deviceId,
+          acknowledgedAt: now,
+          status: 'paired',
+          deviceModel: deviceDisplayName,
+        })
+        .where(eq(pairingSessions.id, activeSessionId));
+    } else {
+      const [insertedSession] = await tx
+        .insert(pairingSessions)
+        .values({
+          parentId: parent.id,
+          pairingCode: crypto.randomInt(100000000, 1000000000).toString(),
+          qrPayload: '',
+          status: 'paired',
+          childDeviceId: deviceId,
+          acknowledgedAt: now,
+          deviceModel: deviceDisplayName,
+          expiresAt: new Date(Date.now() + 900 * 1000),
+        })
+        .returning({ id: pairingSessions.id });
+      activeSessionId = insertedSession?.id;
+    }
+
+    if (activeSessionId) {
+      pairingEventBus.emit(`paired:${activeSessionId}`, {
+        deviceId,
+        childName: deviceDisplayName,
+      });
+    }
 
     return {
       code: 200,
@@ -742,6 +843,7 @@ export async function bindDeviceByHardware(params: {
       data: {
         isBound: true,
         deviceId,
+        sessionId: activeSessionId,
         parentId: parent.id,
         deviceToken,
         refreshToken,
@@ -770,24 +872,65 @@ export async function activateByChildCdkey(params: {
   const cleanSn = sn.trim();
 
   return db.transaction(async tx => {
-    const [session] = await tx
-      .select()
-      .from(pairingSessions)
-      .where(eq(pairingSessions.pairingCode, cleanCode))
-      .limit(1);
-
-    if (!session || !session.parentId) {
-      rejectEnrollment(404, 'Invalid pairing code', 'INVALID_PAIRING_CODE');
-    }
-
-    const [parent] = await tx
+    // 1. Resolve parent by permanent binding code
+    let [parent] = await tx
       .select()
       .from(parentUsers)
-      .where(and(eq(parentUsers.id, session.parentId), eq(parentUsers.status, 'active')))
+      .where(and(eq(parentUsers.bindingCode, cleanCode), eq(parentUsers.status, 'active')))
       .limit(1);
 
-    if (!parent) {
-      rejectEnrollment(404, 'Parent account associated with code not found', 'PARENT_NOT_FOUND');
+    let session: typeof pairingSessions.$inferSelect | undefined;
+
+    if (parent) {
+      [session] = await tx
+        .select()
+        .from(pairingSessions)
+        .where(
+          and(
+            eq(pairingSessions.parentId, parent.id),
+            eq(pairingSessions.status, 'pending')
+          )
+        )
+        .orderBy(desc(pairingSessions.createdAt))
+        .for('update')
+        .limit(1);
+
+      if (!session) {
+        const [settings] = await tx.select({ expiry: systemAppSettings.pairingCodeExpirySeconds }).from(systemAppSettings).limit(1);
+        const expirySeconds = settings?.expiry && settings.expiry >= 60 ? settings.expiry : 900;
+        const expiresAt = new Date(Date.now() + expirySeconds * 1000);
+        const [newSession] = await tx
+          .insert(pairingSessions)
+          .values({
+            parentId: parent.id,
+            pairingCode: crypto.randomInt(100000000, 1000000000).toString(),
+            qrPayload: '',
+            status: 'pending',
+            expiresAt,
+          })
+          .returning();
+        session = newSession;
+      }
+    } else {
+      [session] = await tx
+        .select()
+        .from(pairingSessions)
+        .where(eq(pairingSessions.pairingCode, cleanCode))
+        .limit(1);
+
+      if (!session || !session.parentId) {
+        rejectEnrollment(404, 'Invalid pairing code', 'INVALID_PAIRING_CODE');
+      }
+
+      [parent] = await tx
+        .select()
+        .from(parentUsers)
+        .where(and(eq(parentUsers.id, session.parentId), eq(parentUsers.status, 'active')))
+        .limit(1);
+
+      if (!parent) {
+        rejectEnrollment(404, 'Parent account associated with code not found', 'PARENT_NOT_FOUND');
+      }
     }
 
     const installationId = getDeterministicInstallationId(cleanSn);
@@ -806,6 +949,9 @@ export async function activateByChildCdkey(params: {
     let deviceId: string;
 
     if (existingDevice) {
+      if (existingDevice.parentId !== parent.id && !existingDevice.isUnpaired) {
+        rejectEnrollment(409, 'Device is already bound to another parent account', 'DEVICE_ALREADY_BOUND');
+      }
       deviceId = existingDevice.id;
       await tx
         .update(childDevices)
@@ -815,6 +961,7 @@ export async function activateByChildCdkey(params: {
           deviceModel: model || existingDevice.deviceModel || 'Android Device',
           oaidFingerprint: cleanSn,
           lastSeenAt: now,
+          bindingCompletedAt: now,
         })
         .where(eq(childDevices.id, existingDevice.id));
     } else {
@@ -829,8 +976,9 @@ export async function activateByChildCdkey(params: {
           oaidFingerprint: cleanSn,
           pairedAt: now,
           lastSeenAt: now,
-          setupStep: 4,
+          setupStep: 2,
           isUnpaired: false,
+          bindingCompletedAt: now,
         })
         .returning();
       if (!inserted) throw new Error('Failed to register child device');
@@ -857,21 +1005,23 @@ export async function activateByChildCdkey(params: {
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
-    await tx
-      .update(pairingSessions)
-      .set({
-        status: 'paired',
-        childDeviceId: deviceId,
-        claimedAt: now,
-        acknowledgedAt: now,
-        deviceModel: model || 'Android Device',
-      })
-      .where(eq(pairingSessions.id, session.id));
+    if (session) {
+      await tx
+        .update(pairingSessions)
+        .set({
+          status: 'paired',
+          childDeviceId: deviceId,
+          claimedAt: now,
+          acknowledgedAt: now,
+          deviceModel: model || 'Android Device',
+        })
+        .where(eq(pairingSessions.id, session.id));
 
-    pairingEventBus.emit(`paired:${session.id}`, {
-      deviceId,
-      childName: (brand ? `${brand} ` : '') + (model || 'Child Device'),
-    });
+      pairingEventBus.emit(`paired:${session.id}`, {
+        deviceId,
+        childName: (brand ? `${brand} ` : '') + (model || 'Child Device'),
+      });
+    }
 
     return {
       code: 200,
@@ -1004,6 +1154,27 @@ export async function probeChildCdkey(params: { cdkey: string }) {
     rejectEnrollment(400, 'Valid 9-digit Cdkey is required', 'INVALID_CDKEY');
   }
   const cleanCode = cdkey.trim();
+
+  // 1. Resolve parent by permanent binding code
+  const [parentByCode] = await db
+    .select()
+    .from(parentUsers)
+    .where(and(eq(parentUsers.bindingCode, cleanCode), eq(parentUsers.status, 'active')))
+    .limit(1);
+
+  if (parentByCode) {
+    return {
+      code: 200,
+      message: 'success',
+      data: {
+        valid: true,
+        parentEmail: maskEmail(parentByCode.email),
+        parentName: parentByCode.fullName || maskEmail(parentByCode.email),
+      },
+    };
+  }
+
+  // 2. Fallback to pairing_sessions.pairingCode
   const [session] = await db
     .select()
     .from(pairingSessions)
