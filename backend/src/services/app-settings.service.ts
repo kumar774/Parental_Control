@@ -39,7 +39,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   childAppMinVersion: '1.0.0',
 };
 
-type SettingsUpdate = Partial<PublicAppSettings & { pairingCodeExpirySeconds: number }>;
+type SettingsUpdate = Partial<PublicAppSettings>;
 
 // Explicit test mock hooks for isolated unit testing
 let testMockProvider: (() => Promise<SystemAppSettings>) | null = null;

@@ -24,7 +24,9 @@ data class PairResult(
     val refreshToken: String? = null,
     val parentId: String? = null,
     val childName: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val sessionId: String? = null,
+    val alreadyConnected: Boolean = false
 )
 
 data class PairSessionResult(
@@ -234,13 +236,16 @@ class ChildRestClient(
         if (res.code in 200..299) {
             val json = JSONObject(res.body)
             val data = json.optJSONObject("data") ?: json
+            val isAlready = data.optBoolean("alreadyConnected", data.optBoolean("isAlreadyBound", false))
             PairResult(
                 success = true,
                 deviceId = data.optionalText("childDeviceId") ?: data.optionalText("deviceId"),
                 deviceToken = data.optionalText("token") ?: data.optionalText("deviceToken"),
                 refreshToken = data.optionalText("refreshToken"),
                 parentId = data.optionalText("parentId"),
-                childName = data.optionalText("parentName") ?: "Guardian"
+                childName = data.optionalText("parentName") ?: "Guardian",
+                sessionId = data.optionalText("sessionId"),
+                alreadyConnected = isAlready
             )
         } else {
             PairResult(
@@ -488,6 +493,15 @@ class ChildRestClient(
                 "Network transport failure: ${e.message ?: "Unknown network error"}"
             )
         }
+    }
+
+    suspend fun sendSetupAck(sessionId: String, storage: DeviceStorage): Boolean = withContext(Dispatchers.IO) {
+        val res = authenticated(
+            storage,
+            "/api/v1/child/setup/ack",
+            JSONObject().put("sessionId", sessionId).toString()
+        )
+        res.code in 200..299
     }
 
     private fun parseAckSuccess(response: HttpResponse, storage: DeviceStorage): AckOutcome {

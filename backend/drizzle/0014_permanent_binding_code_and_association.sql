@@ -5,13 +5,7 @@
 -- 1. Add binding_code column to users
 ALTER TABLE users ADD COLUMN IF NOT EXISTS binding_code VARCHAR(9);
 
--- 2. Backfill existing parent 286f4ecf-1da1-44ed-9271-0a6ef785bf54 with their known permanent code
-UPDATE users
-SET binding_code = '295604952'
-WHERE id = '286f4ecf-1da1-44ed-9271-0a6ef785bf54'
-  AND (binding_code IS NULL OR binding_code = '');
-
--- 3. Backfill any parents with existing 9-digit pairing sessions
+-- 2. Backfill existing parents from historical 9-digit pairing sessions if present
 UPDATE users u
 SET binding_code = (
   SELECT ps.pairing_code

@@ -74,12 +74,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const visibleDevices = and(
       eq(childDevices.parentId, parent.id),
       eq(childDevices.isUnpaired, false),
-      or(
-        isNotNull(childDevices.bindingCompletedAt),
-        isNull(childDevices.installationId),
-        sql`EXISTS (SELECT 1 FROM ${pairingSessions}
-          WHERE ${pairingSessions.childDeviceId} = ${childDevices.id} AND ${pairingSessions.acknowledgedAt} IS NOT NULL)`
-      )
+      isNotNull(childDevices.bindingCompletedAt)
     );
 
     const [totalRes] = await db
@@ -105,7 +100,6 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
@@ -173,7 +167,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         return reply.code(404).send({ statusCode: 404, message: 'Pairing session not found' });
       }
 
-      if (session.status === 'paired' && session.childDeviceId) {
+      if (session.status === 'paired' && session.acknowledgedAt !== null && session.childDeviceId) {
         const name = session.deviceModel || 'Child Device';
         return {
           status: 'paired',
@@ -230,9 +224,9 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     }
     const b = parsed.data;
     const sn = b.SN || b.sn;
-    const guardUserId = b.GuardUserId || b.guardUserId || request.parentUser?.id;
-    if (!sn || !guardUserId) {
-      return reply.code(400).send({ statusCode: 400, message: 'SN and GuardUserId are required' });
+    const guardUserId = request.parentUser!.id;
+    if (!sn) {
+      return reply.code(400).send({ statusCode: 400, message: 'SN is required' });
     }
     return bindDeviceByHardware({
       sn,
@@ -270,10 +264,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       let [s] = await tx.select().from(pairingSessions).where(and(eq(pairingSessions.id,request.params.sessionId),
         eq(pairingSessions.parentId,request.parentUser!.id))).for('update');
       if (!s) return reply.code(404).send({message:'Enrollment unavailable'});
-      if (s.status === 'pending' && s.expiresAt.getTime() <= Date.now()) {
-        const [expired] = await tx.update(pairingSessions).set({ status: 'expired' }).where(eq(pairingSessions.id, s.id)).returning();
-        if (expired) s = expired;
-      } else if (isDeliveryExpired(s)) {
+      if (isDeliveryExpired(s)) {
         s = await retireExpiredUnacknowledgedSession(tx, s);
       }
       return {
@@ -283,7 +274,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         deviceModel: s.deviceModel,
         childConfirmed: s.childConfirmed,
         parentApproved: s.parentApproved,
-        expiresAt: s.expiresAt,
+        expiresAt: null,
         deliveryExpiresAt: s.claimedAt ? new Date(s.claimedAt.getTime() + deliveryWindow) : null,
       };
     });
@@ -300,17 +291,17 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     const [consent] = await db.select({id:parentConsents.id}).from(parentConsents).where(consentFor(parentId)).limit(1);
     const [parent] = await db.select({bindingCode:parentUsers.bindingCode}).from(parentUsers).where(eq(parentUsers.id,parentId)).limit(1);
     const [s] = await db.select().from(pairingSessions).where(and(eq(pairingSessions.parentId,parentId),or(
-      and(eq(pairingSessions.status,'pending'),gt(pairingSessions.expiresAt,new Date())),
+      eq(pairingSessions.status,'pending'),
       and(eq(pairingSessions.status,'paired'),isNull(pairingSessions.acknowledgedAt),gt(pairingSessions.claimedAt,new Date(Date.now()-deliveryWindow)),
           sql`${pairingSessions.installationId} IS NOT NULL`))))
       .orderBy(sql`CASE WHEN ${pairingSessions.status} = 'paired' THEN 0 WHEN ${pairingSessions.installationId} IS NOT NULL THEN 1 ELSE 2 END`,desc(pairingSessions.createdAt)).limit(1);
     return {
       consentAccepted: Boolean(consent),
       pendingSessionId: s?.id ?? null,
-      pendingCode: parent?.bindingCode ?? s?.pairingCode ?? null,
+      pendingCode: parent?.bindingCode ?? null,
       pendingStatus: s ? enrollmentStatus(s, true) : null,
       pendingDeviceModel: s?.deviceModel ?? null,
-      expiresAt: s?.expiresAt ?? null,
+      expiresAt: null,
     };
   });
 
@@ -324,12 +315,7 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       const data = input.data;
       if (data.setupStep > d.setupStep + 1) return reply.code(409).send({message:'Complete the preceding step first'});
       if (d.setupStep < data.setupStep) {
-        const [ack] = await tx
-          .select({ at: pairingSessions.acknowledgedAt })
-          .from(pairingSessions)
-          .where(and(eq(pairingSessions.childDeviceId, d.id), eq(pairingSessions.status, 'paired')))
-          .limit(1);
-        if (!ack?.at) return reply.code(409).send({ message: 'Waiting for child credential receipt' });
+        if (!d.bindingCompletedAt) return reply.code(409).send({ message: 'Waiting for child credential receipt' });
       }
       const profile: Record<string, any> = {};
       if (data.setupStep === 4 || d.setupStep >= 4) {
@@ -398,7 +384,6 @@ export const parentDeviceRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         isCharging: device.isCharging,
         accessibilityHealthy: device.accessibilityHealthy,
         deviceAdminActive: device.deviceAdminActive,
-        knoxActive: device.knoxActive,
         lastSeenAt: device.lastSeenAt,
       },
     });

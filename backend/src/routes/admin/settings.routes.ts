@@ -10,7 +10,6 @@ const appSettingsConfigSchema = z.object({
   googleAuthEnabled: z.boolean().optional(),
   googleClientId: z.string().trim().nullable().optional(),
   registrationEnabled: z.boolean().optional(),
-  pairingCodeExpirySeconds: z.number().int().min(60).max(3600).optional(),
   childAppDownloadUrl: z.string().trim().url().nullable().optional(),
   parentAppDownloadUrl: z.string().trim().url().nullable().optional(),
   childAppLatestVersion: z.string().trim().min(1).optional(),

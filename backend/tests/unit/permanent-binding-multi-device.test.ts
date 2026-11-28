@@ -5,6 +5,8 @@ import {
   bindDeviceByHardware,
   deviceUsersSignin,
   getOrCreatePermanentBindCode,
+  javaNameUUIDFromBytes,
+  getDeterministicInstallationId,
 } from '../../src/services/enrollment.service';
 
 describe('Permanent Binding Code, Multi-Device Pairing & Session Separation Unit Tests', () => {
@@ -52,12 +54,23 @@ describe('Permanent Binding Code, Multi-Device Pairing & Session Separation Unit
       );
     });
 
-    it('invariant: deterministic installationId calculation matches across independent executions', () => {
-      const sn = 'AnID1fa384298fbf91f7';
-      const hash1 = crypto.createHash('md5').update(sn).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
-      const hash2 = crypto.createHash('md5').update(sn).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
-      assert.equal(hash1, hash2);
-      assert.match(hash1, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    it('cross-platform vector: javaNameUUIDFromBytes matches Android UUID.nameUUIDFromBytes exactly', () => {
+      // Test vector from Android phone UUID.nameUUIDFromBytes("AnID5d0eeff43d27655a".toByteArray(Charsets.UTF_8))
+      const input = 'AnID5d0eeff43d27655a';
+      const expectedUuid = 'a9786382-91e0-3c55-8fbd-9bacf8c542db';
+      const resultUuid = javaNameUUIDFromBytes(input);
+      assert.equal(resultUuid, expectedUuid);
+
+      // Verify RFC 4122 version 3 (index 14) and IETF variant (index 19)
+      assert.equal(resultUuid[14], '3');
+      assert.ok(['8', '9', 'a', 'b'].includes(resultUuid[19]!));
+    });
+
+    it('deterministic installationId handles raw 16-hex Android ID by prepending AnID', () => {
+      const rawHex16 = '5d0eeff43d27655a';
+      const expectedUuid = 'a9786382-91e0-3c55-8fbd-9bacf8c542db';
+      assert.equal(getDeterministicInstallationId(rawHex16), expectedUuid);
+      assert.equal(getDeterministicInstallationId(`AnID${rawHex16}`), expectedUuid);
     });
   });
 });

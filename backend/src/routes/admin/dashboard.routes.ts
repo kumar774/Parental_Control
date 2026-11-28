@@ -456,7 +456,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
@@ -690,7 +689,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
@@ -776,7 +774,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)
@@ -836,7 +833,6 @@ export const adminDashboardRoutes: FastifyPluginAsync = async (app: FastifyInsta
         isCharging: childDevices.isCharging,
         accessibilityHealthy: childDevices.accessibilityHealthy,
         deviceAdminActive: childDevices.deviceAdminActive,
-        knoxActive: childDevices.knoxActive,
         lastSeenAt: childDevices.lastSeenAt,
       })
       .from(childDevices)

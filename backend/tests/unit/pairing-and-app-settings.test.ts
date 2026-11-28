@@ -35,7 +35,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
     it('returns default public app settings when unconfigured', async () => {
       let mockSettings = {
         ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: null,
@@ -66,7 +65,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
     it('updates app settings and reflects in public response', async () => {
       let mockSettings = {
         ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: null,
@@ -116,7 +114,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
       setAppSettingsMockForTest(
         async () => ({
           ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
           googleAuthEnabled: false,
           googleClientId: null,
@@ -132,7 +129,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
           }
           return {
             ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
             googleAuthEnabled: true,
             googleClientId: data.googleClientId || null,
@@ -165,7 +161,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
     it('redacts googleClientId from public config when googleAuthEnabled is false', async () => {
       setAppSettingsMockForTest(async () => ({
         ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: false,
         googleClientId: 'secret-client-id.apps.googleusercontent.com',
@@ -235,7 +230,6 @@ describe('Pairing & App Settings Security Unit Tests', () => {
     it('GET /api/v1/config/app-settings returns 200 with public settings payload', async () => {
       setAppSettingsMockForTest(async () => ({
         ...DEFAULT_APP_SETTINGS,
-        pairingCodeExpirySeconds: 900,
         id: 'default',
         googleAuthEnabled: true,
         googleClientId: 'test-client-id.apps.googleusercontent.com',

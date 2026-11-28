@@ -289,7 +289,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
           await tx.insert(parentRefreshTokens).values({
             parentId: newUser.id,
             tokenHash,
-            familyCardNo: derivedFamilyCard,
             deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
             ipAddress: request.ip,
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -446,7 +445,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     await db.insert(parentRefreshTokens).values({
       parentId: user.id,
       tokenHash,
-      familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -694,7 +692,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
     await db.insert(parentRefreshTokens).values({
       parentId: user.id,
       tokenHash,
-      familyCardNo: derivedFamilyCard,
       deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Auth)',
       ipAddress: request.ip,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -858,7 +855,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       await tx.insert(parentRefreshTokens).values({
         parentId: user.id,
         tokenHash,
-        familyCardNo: derivedFamilyCard,
         deviceInfo: (request.headers['user-agent'] as string) || 'Mobile App (Google Complete Profile)',
         ipAddress: request.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -1057,7 +1053,6 @@ export const parentAuthRoutes: FastifyPluginAsync = async (app: FastifyInstance)
       await tx.insert(parentRefreshTokens).values({
         parentId: user.id,
         tokenHash: newTokenHash,
-        familyCardNo: record.familyCardNo,
         deviceInfo: (request.headers['user-agent'] as string) || record.deviceInfo,
         ipAddress: request.ip,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days

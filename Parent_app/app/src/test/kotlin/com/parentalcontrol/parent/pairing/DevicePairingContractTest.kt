@@ -15,12 +15,12 @@ class DevicePairingContractTest {
     private val fixedNowMs = 1795325000000L // 2026-11-24T05:23:20.000Z
 
     @Test
-    fun manualCodeIsVisibleOnlyBeforeExpiry() {
+    fun manualCodeIsPermanentAndValidatesNineDigits() {
         val code = "987654321"
         val expiresAt = fixedNowMs + 1000
         assertEquals(code, visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt - 1))
-        assertNull(visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt))
-        assertNull(visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt + 1))
+        assertEquals(code, visibleManualBindingCode(code, "waiting_for_child", expiresAt, expiresAt + 100000))
+        assertEquals(code, visibleManualBindingCode(code, "pending", expiresAt, fixedNowMs))
         assertNull(visibleManualBindingCode("123", "waiting_for_child", expiresAt, fixedNowMs))
     }
 

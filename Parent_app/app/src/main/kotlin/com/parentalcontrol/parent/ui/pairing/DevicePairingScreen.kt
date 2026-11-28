@@ -288,7 +288,7 @@ internal fun visibleManualBindingCode(
     expiresAtMillis: Long,
     nowMillis: Long
 ): String? = code?.takeIf {
-    status == "waiting_for_child" && nowMillis < expiresAtMillis && it.matches(Regex("[0-9]{9}"))
+    (status == "waiting_for_child" || status == "pending" || status == "") && it.matches(Regex("[0-9]{9}"))
 }
 
 @Composable
@@ -435,17 +435,6 @@ fun DevicePairingScreen(
         }
     }
 
-    val approvalDeadline = pendingApproval?.expiresAtMillis ?: 0L
-    LaunchedEffect(expires, approvalDeadline) {
-        val deadline = maxOf(expires, approvalDeadline)
-        now = System.currentTimeMillis()
-        while (now < deadline) {
-            delay(1000)
-            now = System.currentTimeMillis()
-        }
-    }
-    val pairingExpired = status in setOf("waiting_for_child", "waiting_for_parent", "waiting_for_child_confirmation") &&
-        expires > 0 && now >= expires
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         scanning = granted
         denied = !granted
@@ -495,10 +484,13 @@ fun DevicePairingScreen(
                             scope.launch {
                                 client.bindHardwareDevice(qr.sn, qr.brand, qr.model, qr.mac)
                                     .onSuccess { realDeviceId ->
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        Toast.makeText(context, "Device connected successfully!", Toast.LENGTH_SHORT).show()
-                                        val validId = realDeviceId.takeIf { it.isNotBlank() } ?: java.util.UUID.randomUUID().toString()
-                                        onPairingSuccess(validId, "${qr.brand} ${qr.model}")
+                                        if (realDeviceId.isNotBlank() && runCatching { java.util.UUID.fromString(realDeviceId) }.isSuccess) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(context, "Device connected successfully!", Toast.LENGTH_SHORT).show()
+                                            onPairingSuccess(realDeviceId, "${qr.brand} ${qr.model}")
+                                        } else {
+                                            message = "Server returned invalid device ID."
+                                        }
                                     }
                                     .onFailure { err ->
                                         message = err.message ?: "Unable to link device."

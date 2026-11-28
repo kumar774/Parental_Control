@@ -194,6 +194,10 @@ export const MIGRATION_GUARANTEES: Record<string, ObjectGuarantee[]> = {
     { type: 'column', table: 'child_devices', name: 'binding_completed_at' },
     { type: 'index', table: 'child_devices', name: 'idx_child_devices_binding_completed' },
   ],
+  '0015_pairing_architecture_and_cleanup.sql': [
+    { type: 'column', table: 'child_devices', name: 'android_device_id' },
+    { type: 'index', table: 'pairing_sessions', name: 'pairing_sessions_one_active_pending_per_parent' },
+  ],
 };
 
 export async function checkObjectExists(client: any, obj: ObjectGuarantee): Promise<boolean> {

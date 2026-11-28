@@ -102,17 +102,24 @@ fun ConnectToParentScreen(onNavigateBack: () -> Unit, onCredentialsStored: () ->
             try {
                 val hid = storage.getHardwareId()
                 val result = client.activateHardwareCode(currentCode, hid)
-                if (result.success && result.deviceId != null && result.deviceToken != null && result.parentId != null) {
+                if (result.success && result.deviceId != null && result.parentId != null) {
                     showConfirmDialog = false
                     storage.acceptPolicy()
-                    storage.savePairingSession(
-                        deviceId = result.deviceId,
-                        deviceToken = result.deviceToken,
-                        parentId = result.parentId,
-                        childName = result.childName ?: "Child",
-                        refreshToken = result.refreshToken
-                    )
+                    if (result.deviceToken != null) {
+                        storage.savePairingSession(
+                            deviceId = result.deviceId,
+                            deviceToken = result.deviceToken,
+                            parentId = result.parentId,
+                            childName = result.childName ?: "Child",
+                            refreshToken = result.refreshToken
+                        )
+                    }
                     storage.setupStage = SetupStage.STARTED
+                    if (result.sessionId != null && !result.alreadyConnected && result.deviceToken != null) {
+                        runCatching {
+                            client.sendSetupAck(result.sessionId, storage)
+                        }
+                    }
                     onCredentialsStored()
                 } else {
                     error = result.message ?: "Invalid binding code. Please check and retry."
